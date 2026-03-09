@@ -1,0 +1,9 @@
+{
+  "crons": [
+    { "path": "/api/fetch-snapshots", "schedule": "0 */6 * * *" },
+    { "path": "/api/extract-sections", "schedule": "*/10 * * * *" },
+    { "path": "/api/detect-signals", "schedule": "*/10 * * * *" },
+    { "path": "/api/interpret-signals", "schedule": "*/10 * * * *" },
+    { "path": "/api/generate-brief", "schedule": "0 9 * * 1" }
+  ]
+}
