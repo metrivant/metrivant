@@ -6,11 +6,13 @@ async function handler(req: any, res: any) {
   const checkInId = crypto.randomUUID();
   const startedAt = Date.now();
 
-  Sentry.captureCheckIn({
-    monitorSlug: "detect-signals",
-    status: "in_progress",
-    checkInId,
-  });
+  Sentry.captureCheckIn(
+    {
+      monitorSlug: "detect-signals",
+      status: "in_progress",
+    },
+    checkInId
+  );
 
   try {
     const rowsClaimed = 0;
@@ -20,17 +22,20 @@ async function handler(req: any, res: any) {
     const runtimeDurationMs = Date.now() - startedAt;
 
     Sentry.setContext("run_metrics", {
-      rowsClaimed,rowsProcessed,
+      rowsClaimed,
+      rowsProcessed,
       rowsSucceeded,
       rowsFailed,
       runtimeDurationMs,
     });
 
-    Sentry.captureCheckIn({
-      monitorSlug: "detect-signals",
-      status: "ok",
-      checkInId,
-    });
+    Sentry.captureCheckIn(
+      {
+        monitorSlug: "detect-signals",
+        status: "ok",
+      },
+      checkInId
+    );
 
     await Sentry.flush(2000);
 
@@ -40,17 +45,18 @@ async function handler(req: any, res: any) {
       rowsClaimed,
       rowsProcessed,
       rowsSucceeded,
-      rowsFailed,
-      runtimeDurationMs,
+      rowsFailed,runtimeDurationMs,
     });
   } catch (error) {
     Sentry.captureException(error);
 
-    Sentry.captureCheckIn({
-      monitorSlug: "detect-signals",
-      status: "error",
-      checkInId,
-    });
+    Sentry.captureCheckIn(
+      {
+        monitorSlug: "detect-signals",
+        status: "error",
+      },
+      checkInId
+    );
 
     await Sentry.flush(2000);
     throw error;

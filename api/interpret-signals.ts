@@ -12,11 +12,13 @@ async function handler(req: any, res: any) {
   const checkInId = crypto.randomUUID();
   const startedAt = Date.now();
 
-  Sentry.captureCheckIn({
-    monitorSlug: "interpret-signals",
-    status: "in_progress",
-    checkInId,
-  });
+  Sentry.captureCheckIn(
+    {
+      monitorSlug: "interpret-signals",
+      status: "in_progress",
+    },
+    checkInId
+  );
 
   try {
     const batchSize = 5;
@@ -78,7 +80,6 @@ async function handler(req: any, res: any) {
         const confidence = 0.7;
         const urgency = 2;
 
-        // 4. Write interpretation row
         const { error: insertError } = await supabase
           .from("interpretations")
           .insert({
@@ -87,8 +88,7 @@ async function handler(req: any, res: any) {
             prompt_hash: "placeholder",
             change_type: signal.signal_type,
             summary,
-            strategic_implication: strategicImplication,
-            recommended_action: recommendedAction,
+            strategic_implication: strategicImplication,recommended_action: recommendedAction,
             urgency,
             confidence,
             old_content: null,
@@ -99,7 +99,6 @@ async function handler(req: any, res: any) {
           throw insertError;
         }
 
-        // 5. Mark signal interpreted
         const { error: updateError } = await supabase
           .from("signals")
           .update({
@@ -117,7 +116,6 @@ async function handler(req: any, res: any) {
       } catch (error: any) {
         rowsFailed += 1;
 
-        // Return signal back to pending with retry increment
         const { error: retryError } = await supabase
           .from("signals")
           .update({
@@ -147,11 +145,13 @@ async function handler(req: any, res: any) {
       runtimeDurationMs,
     });
 
-    Sentry.captureCheckIn({
-      monitorSlug: "interpret-signals",
-      status: "ok",
-      checkInId,
-    });
+    Sentry.captureCheckIn(
+      {
+        monitorSlug: "interpret-signals",
+        status: "ok",
+      },
+      checkInId
+    );
 
     await Sentry.flush(2000);
 
@@ -164,16 +164,18 @@ async function handler(req: any, res: any) {
       rowsFailed,
       resetCount,
       failedCount,
-      runtimeDurationMs,S
+      runtimeDurationMs,
     });
   } catch (error) {
     Sentry.captureException(error);
 
-    Sentry.captureCheckIn({
-      monitorSlug: "interpret-signals",
-      status: "error",
-      checkInId,
-    });
+    Sentry.captureCheckIn(
+      {
+        monitorSlug: "interpret-signals",
+        status: "error",
+      },
+      checkInId
+    );
 
     await Sentry.flush(2000);
     throw error;
