@@ -21,6 +21,27 @@ async function handler(req: any, res: any) {
   try {
     const batchSize = 5;
 
+    // 1. Reset stuck signals
+    const { data: resetCount, error: resetError } = await supabase.rpc(
+      "reset_stuck_signals",
+      { stale_minutes: 30 }
+    );
+
+    if (resetError) {
+      throw resetError;
+    }
+
+    // 2. Fail exhausted signals
+    const { data: failedCount, error: failError } = await supabase.rpc(
+      "fail_exhausted_signals",
+      { max_retries: 5 }
+    );
+
+    if (failError) {
+      throw failError;
+    }
+
+    // 3. Atomically claim pending signals
     const { data: claimedSignals, error: claimError } = await supabase.rpc(
       "claim_pending_signals",
       { batch_size: batchSize }
@@ -35,16 +56,29 @@ async function handler(req: any, res: any) {
     let rowsSucceeded = 0;
     let rowsFailed = 0;
 
+    Sentry.addBreadcrumb({
+      category: "pipeline",
+      message: "Claimed signals for interpretation",
+      level: "info",
+      data: {
+        rowsClaimed,
+        resetCount,
+        failedCount,
+      },
+    });
+
     for (const signal of claimedSignals ?? []) {
       rowsProcessed += 1;
 
       try {
+        // Placeholder interpretation logic for now
         const summary = `Placeholder summary for signal ${signal.id}`;
-        const strategicImplication = `Placeholder implication`;
-        const recommendedAction = `Placeholder action`;
+        const strategicImplication = "Placeholder strategic implication";
+        const recommendedAction = "Placeholder recommended action";
         const confidence = 0.7;
         const urgency = 2;
 
+        // 4. Write interpretation row
         const { error: insertError } = await supabase
           .from("interpretations")
           .insert({
@@ -65,6 +99,7 @@ async function handler(req: any, res: any) {
           throw insertError;
         }
 
+        // 5. Mark signal interpreted
         const { error: updateError } = await supabase
           .from("signals")
           .update({
@@ -82,7 +117,8 @@ async function handler(req: any, res: any) {
       } catch (error: any) {
         rowsFailed += 1;
 
-        await supabase
+        // Return signal back to pending with retry increment
+        const { error: retryError } = await supabase
           .from("signals")
           .update({
             status: "pending",
@@ -90,6 +126,10 @@ async function handler(req: any, res: any) {
             last_error: String(error?.message ?? error),
           })
           .eq("id", signal.id);
+
+        if (retryError) {
+          Sentry.captureException(retryError);
+        }
 
         Sentry.captureException(error);
       }
@@ -102,6 +142,8 @@ async function handler(req: any, res: any) {
       rowsProcessed,
       rowsSucceeded,
       rowsFailed,
+      resetCount,
+      failedCount,
       runtimeDurationMs,
     });
 
@@ -120,7 +162,9 @@ async function handler(req: any, res: any) {
       rowsProcessed,
       rowsSucceeded,
       rowsFailed,
-      runtimeDurationMs,
+      resetCount,
+      failedCount,
+      runtimeDurationMs,S
     });
   } catch (error) {
     Sentry.captureException(error);

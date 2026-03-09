@@ -4,6 +4,7 @@ import { Sentry } from "../lib/sentry";
 
 async function handler(req: any, res: any) {
   const checkInId = crypto.randomUUID();
+  const startedAt = Date.now();
 
   Sentry.captureCheckIn({
     monitorSlug: "extract-sections",
@@ -12,23 +13,18 @@ async function handler(req: any, res: any) {
   });
 
   try {
-    const snapshotsSeen = 0;
-    const extractedValid = 0;
-    const extractedSuspect = 0;
-    const extractedFailed = 0;
-
-    Sentry.addBreadcrumb({
-      category: "pipeline",
-      message: "Started extract-sections run",
-      level: "info",
-      data: { snapshotsSeen },
-    });
+    const rowsClaimed = 0;
+    const rowsProcessed = 0;
+    const rowsSucceeded = 0;
+    const rowsFailed = 0;
+    const runtimeDurationMs = Date.now() - startedAt;
 
     Sentry.setContext("run_metrics", {
-      snapshotsSeen,
-      extractedValid,
-      extractedSuspect,
-      extractedFailed,
+      rowsClaimed,
+      rowsProcessed,
+      rowsSucceeded,
+      rowsFailed,
+      runtimeDurationMs,
     });
 
     Sentry.captureCheckIn({
@@ -42,10 +38,11 @@ async function handler(req: any, res: any) {
     res.status(200).json({
       ok: true,
       job: "extract-sections",
-      snapshotsSeen,
-      extractedValid,
-      extractedSuspect,
-      extractedFailed,
+      rowsClaimed,
+      rowsProcessed,
+      rowsSucceeded,
+      rowsFailed,
+      runtimeDurationMs,
     });
   } catch (error) {
     Sentry.captureException(error);
