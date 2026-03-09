@@ -1,16 +1,28 @@
-# SYSTEM ARCHITECTURE
+METRIVANT — SYSTEM ARCHITECTURE
+Version: v1.1
+
+------------------------------------------------
+1. System Topology
+------------------------------------------------
 
 GitHub
-↓
-Vercel (cron runtime)
-↓
-Supabase (state engine)
-↓
-OpenAI (signal interpretation)
-↓
-Sentry (monitoring)
+→ code
 
-Pipeline:
+Vercel
+→ cron runtime
+
+Supabase
+→ system state engine
+
+OpenAI
+→ interpretation and brief generation
+
+Sentry
+→ monitoring and alerting
+
+------------------------------------------------
+2. Pipeline
+------------------------------------------------
 
 fetch
 → snapshot
@@ -22,10 +34,13 @@ fetch
 → interpret
 → weekly brief
 
-Design principles:
+------------------------------------------------
+3. Design Principles
+------------------------------------------------
 
 - deterministic detection
-- probabilistic interpretation only
-- Supabase holds pipeline state
+- AI used only for interpretation
+- Supabase stores all durable state
 - runtime remains stateless
-- solo-operator maintainability
+- system must remain solo-operator maintainable
+- avoid unnecessary infrastructure

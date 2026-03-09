@@ -1,5 +1,5 @@
 METRIVANT — ARCHITECTURE INDEX
-Version: v1.0
+Version: v1.1
 
 Purpose
 
@@ -31,7 +31,23 @@ This document answers:
 
 ------------------------------------------------
 
-2. SUPABASE_ARCHITECTURE.md
+2. SYSTEM_ARCHITECTURE.md
+
+Purpose:
+High-level system topology.
+
+Explains:
+- infrastructure stack
+- pipeline shape
+- design principles
+- component responsibilities
+
+This document answers:
+"What are the major moving parts of the system?"
+
+------------------------------------------------
+
+3. SUPABASE_ARCHITECTURE.md
 
 Purpose:
 Database schema reference.
@@ -47,7 +63,7 @@ This document answers:
 
 ------------------------------------------------
 
-3. PIPELINE_STATE_MACHINE.md
+4. PIPELINE_STATE_MACHINE.md
 
 Purpose:
 Define state transitions for each table.
@@ -63,7 +79,7 @@ This document answers:
 
 ------------------------------------------------
 
-4. SYSTEM_RUNTIME_FLOW.md
+5. SYSTEM_RUNTIME_FLOW.md
 
 Purpose:
 Explain how runtime functions interact with the database.
@@ -79,7 +95,7 @@ This document answers:
 
 ------------------------------------------------
 
-5. OPERATIONS.md
+6. OPERATIONS.md
 
 Purpose:
 Operational playbook for running the system.

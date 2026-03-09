@@ -105,7 +105,12 @@ Reads:
 
 signals where status = 'pending'
 
-Claim rows atomically.
+Runtime order:
+
+1. reset stuck signals
+2. fail exhausted signals
+3. claim pending signals atomically
+4. process only claimed rows
 
 Calls OpenAI.
 

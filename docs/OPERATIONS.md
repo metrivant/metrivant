@@ -48,7 +48,7 @@ Stuck interpretations:
 SELECT id
 FROM signals
 WHERE status = 'interpreting'
-AND detected_at < NOW() - INTERVAL '30 minutes';
+AND updated_at < NOW() - INTERVAL '30 minutes';
 
 ------------------------------------------------
 

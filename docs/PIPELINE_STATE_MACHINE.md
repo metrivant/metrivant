@@ -115,11 +115,17 @@ Atomic claim:
 
 UPDATE signals
 SET status = 'interpreting'
-WHERE status = 'pending'
-LIMIT 10
+WHERE id IN (
+  SELECT id
+  FROM signals
+  WHERE status = 'pending'
+  ORDER BY detected_at
+  LIMIT 10
+  FOR UPDATE SKIP LOCKED
+)
 RETURNING *;
 
-------------------------------------------------
+-----------------------------------------------
 8. Stuck Job Recovery
 ------------------------------------------------
 
@@ -130,7 +136,7 @@ Recovery query:
 UPDATE signals
 SET status = 'pending'
 WHERE status = 'interpreting'
-AND detected_at < NOW() - INTERVAL '30 minutes';
+AND updated_at < NOW() - INTERVAL '30 minutes';
 
 ------------------------------------------------
 9. Dead Letter Policy

@@ -116,6 +116,8 @@ update state
 
 Example atomic claim pattern:
 
+Atomic claiming should use PostgreSQL row locking via FOR UPDATE SKIP LOCKED where appropriate.
+
 UPDATE signals
 SET status = 'interpreting'
 WHERE id IN (
