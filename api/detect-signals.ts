@@ -75,8 +75,11 @@ async function handler(req: any, res: any) {
     const { data: diffs, error } = await supabase
       .from("section_diffs")
       .select("*")
+      .eq("confirmed", true)
       .eq("signal_detected", false)
-      .eq("is_noise", false);
+      .eq("is_noise", false)
+      .order("last_seen_at", { ascending: true })
+      .limit(50);
 
     if (error) throw error;
 
@@ -124,7 +127,7 @@ async function handler(req: any, res: any) {
               signal_type: signal.signal_type,
               signal_data: signal.signal_data,
               severity: signal.severity,
-              detected_at: diff.detected_at,
+              detected_at: diff.last_seen_at,
               interpreted: false,
               status: "pending",
               retry_count: 0,
@@ -139,7 +142,7 @@ async function handler(req: any, res: any) {
 
         if (upsertError) throw upsertError;
 
-        await supabase
+        const { error: updateDiffError } = await supabase
           .from("section_diffs")
           .update({
             signal_detected: true,
@@ -147,8 +150,9 @@ async function handler(req: any, res: any) {
           })
           .eq("id", diff.id);
 
-        rowsSucceeded += 1;
-        signalsCreated += 1;
+        if (updateDiffError) throw updateDiffError;
+
+        rowsSucceeded += 1;signalsCreated += 1;
       } catch (error) {
         rowsFailed += 1;
         Sentry.captureException(error);
@@ -193,6 +197,7 @@ async function handler(req: any, res: any) {
     });
 
     await Sentry.flush(2000);
+
     throw error;
   }
 }
