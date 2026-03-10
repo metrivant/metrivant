@@ -1,0 +1,312 @@
+import "../lib/sentry";
+import { withSentry } from "../lib/withSentry";
+import { Sentry } from "../lib/sentry";
+import { supabase } from "../lib/db/supabase";
+
+interface SectionRow {
+  id: string;
+  monitored_page_id: string;
+  snapshot_id: string;
+  section_type: string;
+  section_hash: string;
+  section_text: string;
+  created_at: string;
+  validation_status: string | null;
+}
+
+interface BaselineRow {
+  monitored_page_id: string;
+  section_type: string;
+  section_hash: string;
+  source_section_id: string | null;
+}
+
+interface DiffRow {
+  id: string;
+  monitored_page_id: string;
+  section_type: string;
+  previous_section_id: string | null;
+  current_section_id: string;
+  observation_count: number | null;
+  confirmed: boolean | null;
+  first_seen_at: string | null;
+  last_seen_at: string | null;
+  signal_detected: boolean | null;
+  status: string | null;
+}
+
+interface PageSectionHashRow {
+  id: string;
+  section_hash: string;
+}
+
+const SECTION_SCAN_LIMIT = 500;
+const MAX_OBSERVATION_COUNT = 5;
+
+function makeSectionKey(monitoredPageId: string, sectionType: string): string {
+  return monitoredPageId + "::" + sectionType;
+}
+
+async function loadSectionHash(sectionId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("page_sections")
+    .select("id, section_hash")
+    .eq("id", sectionId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  const row = data as PageSectionHashRow | null;
+  return row ? row.section_hash : null;
+}
+
+async function handler(req: any, res: any) {
+  const startedAt = Date.now();
+
+  Sentry.captureCheckIn({
+    monitorSlug: "detect-diffs",
+    status: "in_progress",
+  });
+
+  try {
+    const { data: recentSections, error: sectionsError } = await supabase
+      .from("page_sections")
+      .select(
+        "id, monitored_page_id, snapshot_id, section_type, section_hash, section_text, created_at, validation_status"
+      )
+      .eq("validation_status", "valid")
+      .order("created_at", { ascending: false })
+      .limit(SECTION_SCAN_LIMIT);
+
+    if (sectionsError) {
+      throw sectionsError;
+    }
+
+    const sectionRows = (recentSections ?? []) as SectionRow[];
+
+    const latestSectionMap = new Map<string, SectionRow>();
+
+    for (const row of sectionRows) {
+      const key = makeSectionKey(row.monitored_page_id, row.section_type);
+      if (!latestSectionMap.has(key)) {
+        latestSectionMap.set(key, row);
+      }
+    }
+
+    const latestSections = Array.from(latestSectionMap.values());
+    const monitoredPageIds = Array.from(
+      new Set(latestSections.map((row) => row.monitored_page_id))
+    );
+
+    const { data: baselines, error: baselinesError } = await supabase
+      .from("section_baselines")
+      .select("monitored_page_id, section_type, section_hash, source_section_id")
+      .in("monitored_page_id", monitoredPageIds);
+
+    if (baselinesError) {
+      throw baselinesError;
+    }
+
+    const baselineMap = new Map<string, BaselineRow>();
+
+    for (const baseline of (baselines ?? []) as BaselineRow[]) {
+      baselineMap.set(
+        makeSectionKey(baseline.monitored_page_id, baseline.section_type),
+        baseline
+      );
+    }
+
+    const rowsClaimed = latestSections.length;
+    let rowsProcessed = 0;
+    let rowsSucceeded = 0;
+    let rowsFailed = 0;
+    let diffsCreated = 0;
+    let diffsConfirmed = 0;
+    let sectionsSkippedNoBaseline = 0;
+    let sectionsSkippedStable = 0;
+    let sectionsSkippedSameCurrent = 0;
+
+    for (const section of latestSections) {
+      rowsProcessed += 1;
+
+      try {
+        const key = makeSectionKey(section.monitored_page_id, section.section_type);
+        const baseline = baselineMap.get(key);
+
+        if (!baseline || !baseline.source_section_id) {
+          sectionsSkippedNoBaseline += 1;
+          continue;
+        }
+
+        if (section.id === baseline.source_section_id) {
+          sectionsSkippedStable += 1;
+          continue;
+        }
+
+        if (section.section_hash === baseline.section_hash) {
+          sectionsSkippedStable += 1;
+          continue;
+        }const { data: latestDiff, error: latestDiffError } = await supabase
+          .from("section_diffs")
+          .select(
+            "id, monitored_page_id, section_type, previous_section_id, current_section_id, observation_count, confirmed, first_seen_at, last_seen_at, signal_detected, status"
+          )
+          .eq("monitored_page_id", section.monitored_page_id)
+          .eq("section_type", section.section_type)
+          .eq("previous_section_id", baseline.source_section_id)
+          .order("last_seen_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (latestDiffError) {
+          throw latestDiffError;
+        }
+
+        const existingDiff = latestDiff as DiffRow | null;
+
+        if (existingDiff && existingDiff.current_section_id === section.id) {
+          sectionsSkippedSameCurrent += 1;
+          continue;
+        }
+
+        let shouldUpdateExisting = false;
+
+        if (existingDiff) {
+          const existingCurrentHash = await loadSectionHash(
+            existingDiff.current_section_id
+          );
+
+          if (existingCurrentHash && existingCurrentHash === section.section_hash) {
+            shouldUpdateExisting = true;
+          }
+        }
+
+        if (shouldUpdateExisting && existingDiff) {
+          const previousCount = existingDiff.observation_count ?? 1;
+          const nextCount = Math.min(previousCount + 1, MAX_OBSERVATION_COUNT);
+          const confirmed = nextCount >= 2;
+
+          const { error: updateDiffError } = await supabase
+            .from("section_diffs")
+            .update({
+              current_section_id: section.id,
+              diff_text: section.section_text,
+              detected_at: section.created_at,
+              retry_count: 0,
+              last_error: null,
+              is_noise: false,
+              noise_reason: null,
+              status: confirmed ? "confirmed" : "unconfirmed",
+              structured_diff: {
+                previous_hash: baseline.section_hash,
+                current_hash: section.section_hash,
+              },
+              confirmation_count: nextCount,
+              observation_count: nextCount,
+              confirmed: confirmed,
+              last_seen_at: section.created_at,
+            })
+            .eq("id", existingDiff.id);
+
+          if (updateDiffError) {
+            throw updateDiffError;
+          }
+
+          rowsSucceeded += 1;
+
+          if (confirmed) {
+            diffsConfirmed += 1;
+          }
+
+          continue;
+        }
+
+        const { error: insertDiffError } = await supabase
+          .from("section_diffs")
+          .insert({
+            monitored_page_id: section.monitored_page_id,
+            section_type: section.section_type,
+            previous_section_id: baseline.source_section_id,
+            current_section_id: section.id,
+            diff_text: section.section_text,
+            detected_at: section.created_at,
+            signal_detected: false,
+            retry_count: 0,
+            last_error: null,
+            is_noise: false,
+            noise_reason: null,
+            status: "unconfirmed",
+            structured_diff: {
+              previous_hash: baseline.section_hash,
+              current_hash: section.section_hash,
+            },
+            confirmation_count: 1,
+            observation_count: 1,
+            confirmed: false,
+            first_seen_at: section.created_at,
+            last_seen_at: section.created_at,
+          });
+
+        if (insertDiffError) {
+          throw insertDiffError;
+        }
+
+        rowsSucceeded += 1;
+        diffsCreated += 1;
+      } catch (error) {
+        rowsFailed += 1;
+        Sentry.captureException(error);
+      }
+    }
+
+    const runtimeDurationMs = Date.now() - startedAt;
+
+    Sentry.setContext("run_metrics", {
+      rowsClaimed,
+      rowsProcessed,
+      rowsSucceeded,
+      rowsFailed,
+      diffsCreated,
+      diffsConfirmed,
+      sectionsSkippedNoBaseline,
+      sectionsSkippedStable,
+      sectionsSkippedSameCurrent,
+      runtimeDurationMs,
+    });
+
+    Sentry.captureCheckIn({monitorSlug: "detect-diffs",
+      status: "ok",
+    });
+
+    await Sentry.flush(2000);
+
+    res.status(200).json({
+      ok: true,
+      job: "detect-diffs",
+      rowsClaimed,
+      rowsProcessed,
+      rowsSucceeded,
+      rowsFailed,
+      diffsCreated,
+      diffsConfirmed,
+      sectionsSkippedNoBaseline,
+      sectionsSkippedStable,
+      sectionsSkippedSameCurrent,
+      runtimeDurationMs,
+    });
+  } catch (error) {
+    Sentry.captureException(error);
+
+    Sentry.captureCheckIn({
+      monitorSlug: "detect-diffs",
+      status: "error",
+    });
+
+    await Sentry.flush(2000);
+    throw error;
+  }
+}
+
+export default withSentry("detect-diffs", handler);
