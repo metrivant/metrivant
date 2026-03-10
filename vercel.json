@@ -8,7 +8,7 @@
     { "path": "/api/detect-signals", "schedule": "25 */6 * * *" },
     { "path": "/api/interpret-signals", "schedule": "30 */6 * * *" },
     { "path": "/api/update-signal-velocity", "schedule": "35 */6 * * *" },
-    { "path": "/api/detect-movements", "schedule": "40 */6 * * *" }
+    { "path": "/api/detect-movements", "schedule": "40 */6 * * *" },
     { "path": "/api/generate-brief", "schedule": "0 9 * * 1" }
   ]
 }
