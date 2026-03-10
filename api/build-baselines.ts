@@ -16,7 +16,9 @@ async function handler(req: any, res: any) {
 
     const { data, error } = await supabase.rpc("build_section_baselines");
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     const runtimeDurationMs = Date.now() - startedAt;
 
@@ -30,7 +32,7 @@ async function handler(req: any, res: any) {
     res.status(200).json({
       ok: true,
       job: "build-baselines",
-      baselines_created: data,
+      baselinesCreated: data,
       runtimeDurationMs
     });
 
