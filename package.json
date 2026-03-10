@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@sentry/node": "^10.42.0",
-    "@supabase/supabase-js": "^2.99.0"
+    "@supabase/supabase-js": "^2.99.0",
+    "cheerio": "^1.2.0"
   }
 }
