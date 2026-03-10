@@ -1,52 +1,61 @@
 import "../lib/sentry";
 import { withSentry } from "../lib/withSentry";
 import { Sentry } from "../lib/sentry";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "../lib/db/supabase";
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const BATCH_SIZE = 5;
+const STALE_MINUTES = 30;
+const MAX_RETRIES = 5;
+const MODEL_USED = "gpt-4o-mini";
+
+function buildPlaceholderInterpretation(signal: {
+  id: string;
+  signal_type: string;
+}) {
+  return {
+    model_used: MODEL_USED,
+    prompt_hash: "placeholder-v1",
+    change_type: signal.signal_type,
+    summary: "Placeholder summary for signal " + signal.id,
+    strategic_implication: "Placeholder strategic implication",
+    recommended_action: "Placeholder recommended action",
+    urgency: 2,
+    confidence: 0.7,
+    old_content: null,
+    new_content: null,
+  };
+}
 
 async function handler(req: any, res: any) {
-  const checkInId = crypto.randomUUID();
   const startedAt = Date.now();
 
-  Sentry.captureCheckIn(
-    {
-      monitorSlug: "interpret-signals",
-      status: "in_progress",
-    },
-    checkInId
-  );
+  Sentry.captureCheckIn({
+    monitorSlug: "interpret-signals",
+    status: "in_progress",
+  });
 
   try {
-    const batchSize = 5;
-
-    // 1. Reset stuck signals
     const { data: resetCount, error: resetError } = await supabase.rpc(
       "reset_stuck_signals",
-      { stale_minutes: 30 }
+      { stale_minutes: STALE_MINUTES }
     );
 
     if (resetError) {
       throw resetError;
     }
 
-    // 2. Fail exhausted signals
     const { data: failedCount, error: failError } = await supabase.rpc(
       "fail_exhausted_signals",
-      { max_retries: 5 }
+      { max_retries: MAX_RETRIES }
     );
 
     if (failError) {
       throw failError;
     }
 
-    // 3. Atomically claim pending signals
     const { data: claimedSignals, error: claimError } = await supabase.rpc(
       "claim_pending_signals",
-      { batch_size: batchSize }
+      { batch_size: BATCH_SIZE }
     );
 
     if (claimError) {
@@ -73,30 +82,22 @@ async function handler(req: any, res: any) {
       rowsProcessed += 1;
 
       try {
-        // Placeholder interpretation logic for now
-        const summary = `Placeholder summary for signal ${signal.id}`;
-        const strategicImplication = "Placeholder strategic implication";
-        const recommendedAction = "Placeholder recommended action";
-        const confidence = 0.7;
-        const urgency = 2;
+        const interpretation = buildPlaceholderInterpretation(signal);
 
-        const { error: insertError } = await supabase
+        const { error: upsertError } = await supabase
           .from("interpretations")
-          .insert({
-            signal_id: signal.id,
-            model_used: "gpt-4o-mini",
-            prompt_hash: "placeholder",
-            change_type: signal.signal_type,
-            summary,
-            strategic_implication: strategicImplication,recommended_action: recommendedAction,
-            urgency,
-            confidence,
-            old_content: null,
-            new_content: null,
-          });
+          .upsert(
+            {
+              signal_id: signal.id,
+              ...interpretation,
+            },
+            {
+              onConflict: "signal_id",
+            }
+          );
 
-        if (insertError) {
-          throw insertError;
+        if (upsertError) {
+          throw upsertError;
         }
 
         const { error: updateError } = await supabase
@@ -105,6 +106,7 @@ async function handler(req: any, res: any) {
             interpreted: true,
             interpreted_at: new Date().toISOString(),
             status: "interpreted",
+            last_error: null,
           })
           .eq("id", signal.id);
 
@@ -145,18 +147,14 @@ async function handler(req: any, res: any) {
       runtimeDurationMs,
     });
 
-    Sentry.captureCheckIn(
-      {
-        monitorSlug: "interpret-signals",
-        status: "ok",
-      },
-      checkInId
-    );
+    Sentry.captureCheckIn({
+      monitorSlug: "interpret-signals",
+      status: "ok",
+    });
 
     await Sentry.flush(2000);
 
-    res.status(200).json({
-      ok: true,
+    res.status(200).json({ok: true,
       job: "interpret-signals",
       rowsClaimed,
       rowsProcessed,
@@ -169,13 +167,10 @@ async function handler(req: any, res: any) {
   } catch (error) {
     Sentry.captureException(error);
 
-    Sentry.captureCheckIn(
-      {
-        monitorSlug: "interpret-signals",
-        status: "error",
-      },
-      checkInId
-    );
+    Sentry.captureCheckIn({
+      monitorSlug: "interpret-signals",
+      status: "error",
+    });
 
     await Sentry.flush(2000);
     throw error;

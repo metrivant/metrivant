@@ -3,16 +3,12 @@ import { withSentry } from "../lib/withSentry";
 import { Sentry } from "../lib/sentry";
 
 async function handler(req: any, res: any) {
-  const checkInId = crypto.randomUUID();
   const startedAt = Date.now();
 
-  Sentry.captureCheckIn(
-    {
-      monitorSlug: "generate-brief",
-      status: "in_progress",
-    },
-    checkInId
-  );
+  Sentry.captureCheckIn({
+    monitorSlug: "generate-brief",
+    status: "in_progress",
+  });
 
   try {
     const rowsClaimed = 0;
@@ -27,21 +23,20 @@ async function handler(req: any, res: any) {
       rowsSucceeded,
       rowsFailed,
       runtimeDurationMs,
+      implemented: false,
     });
 
-    Sentry.captureCheckIn(
-      {
-        monitorSlug: "generate-brief",
-        status: "ok",
-      },
-      checkInId
-    );
+    Sentry.captureCheckIn({
+      monitorSlug: "generate-brief",
+      status: "ok",
+    });
 
     await Sentry.flush(2000);
 
     res.status(200).json({
       ok: true,
       job: "generate-brief",
+      implemented: false,
       rowsClaimed,
       rowsProcessed,
       rowsSucceeded,
@@ -51,13 +46,10 @@ async function handler(req: any, res: any) {
   } catch (error) {
     Sentry.captureException(error);
 
-    Sentry.captureCheckIn(
-      {
-        monitorSlug: "generate-brief",
-        status: "error",
-      },
-      checkInId
-    );
+    Sentry.captureCheckIn({
+      monitorSlug: "generate-brief",
+      status: "error",
+    });
 
     await Sentry.flush(2000);
     throw error;
