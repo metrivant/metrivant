@@ -47,32 +47,56 @@ async function handler(req: any, res: any) {
 
   Sentry.captureCheckIn({
     monitorSlug: "onboard-competitor",
-    status: "in_progress",
+    status: "in_progress"
   });
 
   try {
-    const { name, website_url } = req.body ?? {};
+    const body = req.body || {};
+    const name = body.name;
+    const website_url = body.website_url;
 
     if (!name || !website_url) {
       return res.status(400).json({
         ok: false,
-        error: "name and website_url required",
+        error: "name and website_url required"
       });
     }
 
     const baseUrl = normalizeUrl(website_url);
 
-    const { data: competitor, error: competitorError } = await supabase
-      .from("competitors")
-      .insert({
-        name,
-        website_url: baseUrl,
-        active: true,
-      })
-      .select()
-      .single();
+    /*
+      1. Ensure competitor exists (idempotent)
+    */
 
-    if (competitorError) throw competitorError;
+    const { data: existingCompetitor } = await supabase
+      .from("competitors")
+      .select("id")
+      .eq("website_url", baseUrl)
+      .maybeSingle();
+
+    let competitorId: string;
+
+    if (existingCompetitor) {
+      competitorId = existingCompetitor.id;
+    } else {
+      const { data: created, error } = await supabase
+        .from("competitors")
+        .insert({
+          name: name,
+          website_url: baseUrl,
+          active: true
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      competitorId = created.id;
+    }
+
+    /*
+      2. Ensure monitored pages exist
+    */
 
     const pages = candidatePages(baseUrl);
     const createdPages: any[] = [];
@@ -80,12 +104,15 @@ async function handler(req: any, res: any) {
     for (const page of pages) {
       const { data: insertedPage, error: pageError } = await supabase
         .from("monitored_pages")
-        .insert({
-          competitor_id: competitor.id,
-          url: page.url,
-          page_type: page.page_type,
-          active: true,
-        })
+        .upsert(
+          {
+            competitor_id: competitorId,
+            url: page.url,
+            page_type: page.page_type,
+            active: true
+          },
+          { onConflict: "url" }
+        )
         .select()
         .single();
 
@@ -94,19 +121,26 @@ async function handler(req: any, res: any) {
       createdPages.push(insertedPage);
     }
 
+    /*
+      3. Ensure extraction rules exist
+    */
+
     for (const page of createdPages) {
       const rules = rulesForPage(page.page_type);
 
       for (const rule of rules) {
         const { error: ruleError } = await supabase
           .from("extraction_rules")
-          .insert({
-            monitored_page_id: page.id,
-            section_type: rule.section_type,
-            selector: rule.selector,
-            extract_method: "css",
-            active: true,
-          });
+          .upsert(
+            {
+              monitored_page_id: page.id,
+              section_type: rule.section_type,
+              selector: rule.selector,
+              extract_method: "css",
+              active: true
+            },
+            { onConflict: "monitored_page_id,section_type" }
+          );
 
         if (ruleError) throw ruleError;
       }
@@ -114,25 +148,31 @@ async function handler(req: any, res: any) {
 
     const runtimeDurationMs = Date.now() - startedAt;
 
+    Sentry.setContext("onboarding", {
+      competitor_id: competitorId,
+      pages_created: createdPages.length,
+      runtimeDurationMs: runtimeDurationMs
+    });
+
     Sentry.captureCheckIn({
       monitorSlug: "onboard-competitor",
-      status: "ok",
+      status: "ok"
     });
 
     await Sentry.flush(2000);
 
     return res.status(200).json({
       ok: true,
-      competitor_id: competitor.id,
+      competitor_id: competitorId,
       pages_created: createdPages.length,
-      runtimeDurationMs,
+      runtimeDurationMs: runtimeDurationMs
     });
+
   } catch (error) {
     Sentry.captureException(error);
 
-    Sentry.captureCheckIn({
-      monitorSlug: "onboard-competitor",
-      status: "error",
+    Sentry.captureCheckIn({monitorSlug: "onboard-competitor",
+      status: "error"
     });
 
     await Sentry.flush(2000);
