@@ -14,7 +14,7 @@ async function handler(req: any, res: any) {
 
   try {
 
-    const { error } = await supabase.rpc("build_section_baselines");
+    const { data, error } = await supabase.rpc("build_section_baselines");
 
     if (error) throw error;
 
@@ -30,6 +30,7 @@ async function handler(req: any, res: any) {
     res.status(200).json({
       ok: true,
       job: "build-baselines",
+      baselines_created: data,
       runtimeDurationMs
     });
 
