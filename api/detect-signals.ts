@@ -3,56 +3,24 @@ import { withSentry } from "../lib/withSentry";
 import { Sentry } from "../lib/sentry";
 import { supabase } from "../lib/db/supabase";
 
-interface SectionDiffRow {
-  id: string;
-  monitored_page_id: string;
-  section_type: string;
-  previous_section_id: string | null;
-  current_section_id: string | null;
-  detected_at: string;
-}
-
 interface PageSectionRow {
   id: string;
   section_text: string;
   section_hash: string;
 }
 
-function extractPrices(text: string): string[] {
-  const matches = text.match(/[$£€]\s?\d+(?:[.,]\d{1,2})?/g) ?? [];
-  return [...new Set(matches.map((m) => m.replace(/\s+/g, "")))].sort();
-}
-
 function classifySignal(
   sectionType: string,
   previousText: string,
   currentText: string
-): {
-  signal_type: string;
-  severity: string;
-  signal_data: Record<string, unknown>;
-} {
+) {
   if (sectionType === "pricing_plans") {
-    const oldPrices = extractPrices(previousText);
-    const newPrices = extractPrices(currentText);
-
-    if (JSON.stringify(oldPrices) !== JSON.stringify(newPrices)) {
-      return {
-        signal_type: "price_point_change",
-        severity: "high",
-        signal_data: {
-          old_prices: oldPrices,
-          new_prices: newPrices,
-        },
-      };
-    }
-
     return {
-      signal_type: "tier_change",
-      severity: "medium",
+      signal_type: "price_point_change",
+      severity: "high",
       signal_data: {
-        previous_excerpt: previousText.slice(0, 300),
-        current_excerpt: currentText.slice(0, 300),
+        previous_excerpt: previousText.slice(0, 200),
+        current_excerpt: currentText.slice(0, 200),
       },
     };
   }
@@ -62,8 +30,8 @@ function classifySignal(
       signal_type: "positioning_shift",
       severity: "medium",
       signal_data: {
-        previous_excerpt: previousText.slice(0, 300),
-        current_excerpt: currentText.slice(0, 300),
+        previous_excerpt: previousText.slice(0, 200),
+        current_excerpt: currentText.slice(0, 200),
       },
     };
   }
@@ -73,8 +41,8 @@ function classifySignal(
       signal_type: "feature_launch",
       severity: "medium",
       signal_data: {
-        previous_excerpt: previousText.slice(0, 300),
-        current_excerpt: currentText.slice(0, 300),
+        previous_excerpt: previousText.slice(0, 200),
+        current_excerpt: currentText.slice(0, 200),
       },
     };
   }
@@ -83,8 +51,8 @@ function classifySignal(
     signal_type: "content_change",
     severity: "low",
     signal_data: {
-      previous_excerpt: previousText.slice(0, 300),
-      current_excerpt: currentText.slice(0, 300),
+      previous_excerpt: previousText.slice(0, 200),
+      current_excerpt: currentText.slice(0, 200),
     },
   };
 }
@@ -92,45 +60,29 @@ function classifySignal(
 async function handler(req: any, res: any) {
   const startedAt = Date.now();
 
+  let rowsClaimed = 0;
+  let rowsProcessed = 0;
+  let rowsSucceeded = 0;
+  let rowsFailed = 0;
+  let signalsCreated = 0;
+
   Sentry.captureCheckIn({
     monitorSlug: "detect-signals",
     status: "in_progress",
   });
 
   try {
-    const batchSize = 20;
-
-    const { data: diffs, error: diffsError } = await supabase
+    const { data: diffs, error } = await supabase
       .from("section_diffs")
-      .select(
-        `
-        id,
-        monitored_page_id,
-        section_type,
-        previous_section_id,
-        current_section_id,
-        detected_at
-      `
-      )
-      .eq("status", "confirmed")
+      .select("*")
       .eq("signal_detected", false)
-      .eq("is_noise", false)
-      .order("detected_at", { ascending: true })
-      .limit(batchSize);
+      .eq("is_noise", false);
 
-    if (diffsError) {
-      throw diffsError;
-    }
+    if (error) throw error;
 
-    const pendingDiffs = (diffs ?? []) as SectionDiffRow[];
+    rowsClaimed = diffs?.length ?? 0;
 
-    const rowsClaimed = pendingDiffs.length;
-    let rowsProcessed = 0;
-    let rowsSucceeded = 0;
-    let rowsFailed = 0;
-    let signalsCreated = 0;
-
-    for (const diff of pendingDiffs) {
+    for (const diff of diffs ?? []) {
       rowsProcessed += 1;
 
       try {
@@ -138,29 +90,23 @@ async function handler(req: any, res: any) {
           throw new Error(`Diff ${diff.id} missing section references`);
         }
 
-        const { data: previousSection, error: previousError } = await supabase
+        const { data: previousSection } = await supabase
           .from("page_sections")
           .select("id, section_text, section_hash")
           .eq("id", diff.previous_section_id)
           .maybeSingle();
 
-        if (previousError) {
-          throw previousError;
-        }
-
-        const { data: currentSection, error: currentError } = await supabase
+        const { data: currentSection } = await supabase
           .from("page_sections")
           .select("id, section_text, section_hash")
           .eq("id", diff.current_section_id)
           .maybeSingle();
 
-        if (currentError) {
-          throw currentError;
-        }
-
         const previous = previousSection as PageSectionRow | null;
-        const current = currentSection as PageSectionRow | null;if (!previous || !current) {
-          throw new Error(`Diff ${diff.id} has missing section rows`);
+        const current = currentSection as PageSectionRow | null;
+
+        if (!previous || !current) {
+          throw new Error(`Diff ${diff.id} missing section rows`);
         }
 
         const signal = classifySignal(
@@ -169,7 +115,7 @@ async function handler(req: any, res: any) {
           current.section_text
         );
 
-        const { error: upsertSignalError } = await supabase
+        const { error: upsertError } = await supabase
           .from("signals")
           .upsert(
             {
@@ -191,21 +137,15 @@ async function handler(req: any, res: any) {
             }
           );
 
-        if (upsertSignalError) {
-          throw upsertSignalError;
-        }
+        if (upsertError) throw upsertError;
 
-        const { error: updateDiffError } = await supabase
+        await supabase
           .from("section_diffs")
           .update({
             signal_detected: true,
             last_error: null,
           })
           .eq("id", diff.id);
-
-        if (updateDiffError) {
-          throw updateDiffError;
-        }
 
         rowsSucceeded += 1;
         signalsCreated += 1;
@@ -243,6 +183,7 @@ async function handler(req: any, res: any) {
       signalsCreated,
       runtimeDurationMs,
     });
+
   } catch (error) {
     Sentry.captureException(error);
 
