@@ -1,9 +1,11 @@
 {
   "crons": [
     { "path": "/api/fetch-snapshots", "schedule": "0 */6 * * *" },
-    { "path": "/api/extract-sections", "schedule": "*/10 * * * *" },
-    { "path": "/api/detect-signals", "schedule": "*/10 * * * *" },
-    { "path": "/api/interpret-signals", "schedule": "*/10 * * * *" },
+    { "path": "/api/extract-sections", "schedule": "10 */6 * * *" },
+    { "path": "/api/build-baselines", "schedule": "15 */6 * * *" },
+    { "path": "/api/detect-diffs", "schedule": "20 */6 * * *" },
+    { "path": "/api/detect-signals", "schedule": "25 */6 * * *" },
+    { "path": "/api/interpret-signals", "schedule": "30 */6 * * *" },
     { "path": "/api/generate-brief", "schedule": "0 9 * * 1" }
   ]
 }
