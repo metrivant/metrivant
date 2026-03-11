@@ -112,20 +112,27 @@ async function handler(req: any, res: any) {
         for (const movementType of movementTypes) {
           const confidence = Math.min(0.95, 0.5 + signalCount * 0.1);
 
-          const { error: insertError } = await supabase
+          // Upsert on (competitor_id, movement_type) to prevent unbounded duplicate rows
+          // across cron cycles. first_seen_at is included on insert; on conflict it is
+          // overwritten with the oldest signal in the current 30-day detection window,
+          // which correctly reflects the active signal cluster.
+          const { error: upsertError } = await supabase
             .from("strategic_movements")
-            .insert({
-              competitor_id: competitorId,
-              movement_type: movementType,
-              confidence,
-              signal_count: signalCount,
-              velocity,
-              first_seen_at: firstSeenAt,
-              last_seen_at: lastSeenAt,
-              summary: movementType.replace(/_/g, " "),
-            });
+            .upsert(
+              {
+                competitor_id: competitorId,
+                movement_type: movementType,
+                confidence,
+                signal_count: signalCount,
+                velocity,
+                first_seen_at: firstSeenAt,
+                last_seen_at: lastSeenAt,
+                summary: movementType.replace(/_/g, " "),
+              },
+              { onConflict: "competitor_id,movement_type" }
+            );
 
-          if (insertError) throw insertError;
+          if (upsertError) throw upsertError;
           movementsCreated += 1;
         }
 
