@@ -17,12 +17,16 @@ Supabase Pro (state + backups)
 OpenAI API (analysis)
 Sentry (monitoring)
 
-PIPELINE FUNCTIONS
-fetch-snapshots (6h)
-extract-sections (10m)
-detect-signals (10m)
-interpret-signals (10m)
-generate-brief (weekly)
+PIPELINE FUNCTIONS (cron, every 6h staggered)
+fetch-snapshots        — :00 every 6h
+extract-sections       — :10 every 6h
+build-baselines        — :15 every 6h
+detect-diffs           — :20 every 6h
+detect-signals         — :25 every 6h
+interpret-signals      — :30 every 6h
+update-signal-velocity — :35 every 6h
+detect-movements       — :40 every 6h
+generate-brief         — weekly Monday 09:00 UTC (not yet implemented)
 
 SUPABASE ROLE
 Supabase stores snapshots, sections, baselines, diffs, signals, interpretations, briefs.
@@ -193,4 +197,4 @@ CRON_SECRET
 SENTRY_DSN
 
 NEXT STEP
-Finish Sentry integration and enable cron monitoring and alerts.
+Implement generate-brief using OpenAI to produce weekly movement summaries.

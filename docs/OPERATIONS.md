@@ -161,7 +161,8 @@ Weekly:
 
 review signals
 review unstable sections
-read weekly brief
+review movement detections
+(weekly brief not yet implemented)
 
 Monthly:
 

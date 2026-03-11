@@ -1,7 +1,8 @@
 import "../lib/sentry";
-import { withSentry } from "../lib/withSentry";
+import { withSentry, ApiReq, ApiRes } from "../lib/withSentry";
 import { Sentry } from "../lib/sentry";
-import { supabase } from "../lib/db/supabase";
+import { supabase } from "../lib/supabase";
+import { verifyCronSecret } from "../lib/withCronAuth";
 import crypto from "crypto";
 import * as cheerio from "cheerio";
 
@@ -111,7 +112,9 @@ function extractSectionText(
   }
 }
 
-async function handler(req: any, res: any) {
+async function handler(req: ApiReq, res: ApiRes) {
+  if (!verifyCronSecret(req, res)) return;
+
   const startedAt = Date.now();
 
   Sentry.captureCheckIn({
@@ -129,7 +132,8 @@ async function handler(req: any, res: any) {
       .order("fetched_at", { ascending: true })
       .limit(batchSize);
 
-    if (snapshotsError) {throw snapshotsError;
+    if (snapshotsError) {
+      throw snapshotsError;
     }
 
     const pendingSnapshots = (snapshots ?? []) as SnapshotRow[];
@@ -167,6 +171,7 @@ async function handler(req: any, res: any) {
     let rowsSucceeded = 0;
     let rowsFailed = 0;
     let sectionsWritten = 0;
+    let rowsSkippedNoRules = 0;
 
     for (const snapshot of pendingSnapshots) {
       rowsProcessed += 1;
@@ -175,9 +180,23 @@ async function handler(req: any, res: any) {
         const pageRules = rulesByPage.get(snapshot.monitored_page_id) ?? [];
 
         if (pageRules.length === 0) {
-          throw new Error(
-            `No active extraction rules for monitored_page_id ${snapshot.monitored_page_id}`
-          );
+          rowsSkippedNoRules += 1;
+          Sentry.addBreadcrumb({
+            category: "pipeline",
+            message: "Snapshot skipped: no active extraction rules",
+            level: "warning",
+            data: { snapshot_id: snapshot.id, monitored_page_id: snapshot.monitored_page_id },
+          });
+          // Mark as extracted to prevent infinite re-processing on future runs.
+          const { error: skipMarkError } = await supabase
+            .from("snapshots")
+            .update({
+              sections_extracted: true,
+              sections_extracted_at: new Date().toISOString(),
+            })
+            .eq("id", snapshot.id);
+          if (skipMarkError) throw skipMarkError;
+          continue;
         }
 
         for (const rule of pageRules) {
@@ -253,6 +272,7 @@ async function handler(req: any, res: any) {
       rowsProcessed,
       rowsSucceeded,
       rowsFailed,
+      rowsSkippedNoRules,
       sectionsWritten,
       runtimeDurationMs,
     });
@@ -271,13 +291,15 @@ async function handler(req: any, res: any) {
       rowsProcessed,
       rowsSucceeded,
       rowsFailed,
+      rowsSkippedNoRules,
       sectionsWritten,
       runtimeDurationMs,
     });
   } catch (error) {
     Sentry.captureException(error);
 
-    Sentry.captureCheckIn({monitorSlug: "extract-sections",
+    Sentry.captureCheckIn({
+      monitorSlug: "extract-sections",
       status: "error",
     });
 

@@ -1,12 +1,18 @@
 import "../lib/sentry";
-import { withSentry } from "../lib/withSentry";
+import { withSentry, ApiReq, ApiRes } from "../lib/withSentry";
 import { Sentry } from "../lib/sentry";
-import { supabase } from "../lib/db/supabase";
+import { supabase } from "../lib/supabase";
+import { verifyCronSecret } from "../lib/withCronAuth";
 
 type CandidatePage = {
   url: string;
   page_type: string;
 };
+
+interface InsertedPage {
+  id: string;
+  page_type: string;
+}
 
 function normalizeUrl(input: string): string {
   const u = new URL(input);
@@ -42,7 +48,9 @@ function rulesForPage(pageType: string) {
   return [];
 }
 
-async function handler(req: any, res: any) {
+async function handler(req: ApiReq, res: ApiRes) {
+  if (!verifyCronSecret(req, res)) return;
+
   const startedAt = Date.now();
 
   Sentry.captureCheckIn({
@@ -51,9 +59,9 @@ async function handler(req: any, res: any) {
   });
 
   try {
-    const body = req.body || {};
-    const name = body.name;
-    const website_url = body.website_url;
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const name = typeof body.name === "string" ? body.name : undefined;
+    const website_url = typeof body.website_url === "string" ? body.website_url : undefined;
 
     if (!name || !website_url) {
       return res.status(400).json({
@@ -62,7 +70,12 @@ async function handler(req: any, res: any) {
       });
     }
 
-    const baseUrl = normalizeUrl(website_url);
+    let baseUrl: string;
+    try {
+      baseUrl = normalizeUrl(website_url);
+    } catch {
+      return res.status(400).json({ ok: false, error: "website_url must be a valid URL" });
+    }
 
     /*
       1. Ensure competitor exists (idempotent)
@@ -99,7 +112,7 @@ async function handler(req: any, res: any) {
     */
 
     const pages = candidatePages(baseUrl);
-    const createdPages: any[] = [];
+    const createdPages: InsertedPage[] = [];
 
     for (const page of pages) {
       const { data: insertedPage, error: pageError } = await supabase
@@ -118,7 +131,7 @@ async function handler(req: any, res: any) {
 
       if (pageError) throw pageError;
 
-      createdPages.push(insertedPage);
+      createdPages.push(insertedPage as InsertedPage);
     }
 
     /*
@@ -171,7 +184,8 @@ async function handler(req: any, res: any) {
   } catch (error) {
     Sentry.captureException(error);
 
-    Sentry.captureCheckIn({monitorSlug: "onboard-competitor",
+    Sentry.captureCheckIn({
+      monitorSlug: "onboard-competitor",
       status: "error"
     });
 

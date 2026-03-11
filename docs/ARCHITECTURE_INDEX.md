@@ -146,7 +146,7 @@ section_baselines
 section_diffs
 signals
 interpretations
-briefs
+strategic_movements
 
 The first stage missing expected rows indicates the failure point.
 

@@ -1,7 +1,8 @@
 import "../lib/sentry";
-import { withSentry } from "../lib/withSentry";
+import { withSentry, ApiReq, ApiRes } from "../lib/withSentry";
 import { Sentry } from "../lib/sentry";
-import { supabase } from "../lib/db/supabase";
+import { supabase } from "../lib/supabase";
+import { verifyCronSecret } from "../lib/withCronAuth";
 
 interface SectionRow {
   id: string;
@@ -62,7 +63,9 @@ async function loadSectionHash(sectionId: string): Promise<string | null> {
   return row ? row.section_hash : null;
 }
 
-async function handler(req: any, res: any) {
+async function handler(req: ApiReq, res: ApiRes) {
+  if (!verifyCronSecret(req, res)) return;
+
   const startedAt = Date.now();
 
   Sentry.captureCheckIn({
@@ -148,7 +151,9 @@ async function handler(req: any, res: any) {
         if (section.section_hash === baseline.section_hash) {
           sectionsSkippedStable += 1;
           continue;
-        }const { data: latestDiff, error: latestDiffError } = await supabase
+        }
+
+        const { data: latestDiff, error: latestDiffError } = await supabase
           .from("section_diffs")
           .select(
             "id, monitored_page_id, section_type, previous_section_id, current_section_id, observation_count, confirmed, first_seen_at, last_seen_at, signal_detected, status"
@@ -223,31 +228,40 @@ async function handler(req: any, res: any) {
           continue;
         }
 
+        // ignoreDuplicates: true → ON CONFLICT DO NOTHING.
+        // Guards against concurrent cron + manual invocations both finding no
+        // existing diff and racing to insert the same (page, type, previous) row.
         const { error: insertDiffError } = await supabase
           .from("section_diffs")
-          .insert({
-            monitored_page_id: section.monitored_page_id,
-            section_type: section.section_type,
-            previous_section_id: baseline.source_section_id,
-            current_section_id: section.id,
-            diff_text: section.section_text,
-            detected_at: section.created_at,
-            signal_detected: false,
-            retry_count: 0,
-            last_error: null,
-            is_noise: false,
-            noise_reason: null,
-            status: "unconfirmed",
-            structured_diff: {
-              previous_hash: baseline.section_hash,
-              current_hash: section.section_hash,
+          .upsert(
+            {
+              monitored_page_id: section.monitored_page_id,
+              section_type: section.section_type,
+              previous_section_id: baseline.source_section_id,
+              current_section_id: section.id,
+              diff_text: section.section_text,
+              detected_at: section.created_at,
+              signal_detected: false,
+              retry_count: 0,
+              last_error: null,
+              is_noise: false,
+              noise_reason: null,
+              status: "unconfirmed",
+              structured_diff: {
+                previous_hash: baseline.section_hash,
+                current_hash: section.section_hash,
+              },
+              confirmation_count: 1,
+              observation_count: 1,
+              confirmed: false,
+              first_seen_at: section.created_at,
+              last_seen_at: section.created_at,
             },
-            confirmation_count: 1,
-            observation_count: 1,
-            confirmed: false,
-            first_seen_at: section.created_at,
-            last_seen_at: section.created_at,
-          });
+            {
+              onConflict: "monitored_page_id,section_type,previous_section_id",
+              ignoreDuplicates: true,
+            }
+          );
 
         if (insertDiffError) {
           throw insertDiffError;
@@ -276,7 +290,8 @@ async function handler(req: any, res: any) {
       runtimeDurationMs,
     });
 
-    Sentry.captureCheckIn({monitorSlug: "detect-diffs",
+    Sentry.captureCheckIn({
+      monitorSlug: "detect-diffs",
       status: "ok",
     });
 

@@ -1,8 +1,11 @@
 import "../lib/sentry";
-import { withSentry } from "../lib/withSentry";
+import { withSentry, ApiReq, ApiRes } from "../lib/withSentry";
 import { Sentry } from "../lib/sentry";
+import { verifyCronSecret } from "../lib/withCronAuth";
 
-async function handler(req: any, res: any) {
+async function handler(req: ApiReq, res: ApiRes) {
+  if (!verifyCronSecret(req, res)) return;
+
   const startedAt = Date.now();
 
   Sentry.captureCheckIn({

@@ -17,9 +17,30 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
 
-      - name: Install dependencies
+      - name: Install backend dependencies
         run: npm ci
 
-      - name: TypeScript check
-        run: npx tsc --noEmit
+      - name: Backend — TypeScript check
+        run: npm run typecheck
+
+      - name: Setup Node (UI)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: radar-ui/package-lock.json
+
+      - name: Install UI dependencies
+        run: npm ci
+        working-directory: radar-ui
+
+      - name: UI — TypeScript check
+        run: npm run typecheck
+        working-directory: radar-ui
+
+      - name: UI — Build
+        run: npm run build
+        working-directory: radar-ui

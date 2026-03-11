@@ -1,30 +1,51 @@
 import "../lib/sentry";
-import { withSentry } from "../lib/withSentry";
+import { withSentry, ApiReq, ApiRes } from "../lib/withSentry";
 import { Sentry } from "../lib/sentry";
-import { supabase } from "../lib/db/supabase";
+import { supabase } from "../lib/supabase";
+import { verifyCronSecret } from "../lib/withCronAuth";
 
-async function handler(req: any, res: any) {
+async function handler(req: ApiReq, res: ApiRes) {
+  if (!verifyCronSecret(req, res)) return;
 
   const startedAt = Date.now();
 
-  try {
+  Sentry.captureCheckIn({
+    monitorSlug: "update-signal-velocity",
+    status: "in_progress",
+  });
 
-    await supabase.rpc("cluster_recent_signals");
-    await supabase.rpc("calculate_signal_velocity");
+  try {
+    const { error: clusterError } = await supabase.rpc("cluster_recent_signals");
+    if (clusterError) throw clusterError;
+
+    const { error: velocityError } = await supabase.rpc("calculate_signal_velocity");
+    if (velocityError) throw velocityError;
 
     const runtimeDurationMs = Date.now() - startedAt;
+
+    Sentry.setContext("run_metrics", { runtimeDurationMs });
+
+    Sentry.captureCheckIn({
+      monitorSlug: "update-signal-velocity",
+      status: "ok",
+    });
+
+    await Sentry.flush(2000);
 
     res.status(200).json({
       ok: true,
       job: "update-signal-velocity",
-      runtimeDurationMs
+      runtimeDurationMs,
+    });
+  } catch (error) {
+    Sentry.captureException(error);
+
+    Sentry.captureCheckIn({
+      monitorSlug: "update-signal-velocity",
+      status: "error",
     });
 
-  } catch (error) {
-
-    Sentry.captureException(error);
     await Sentry.flush(2000);
-
     throw error;
   }
 }

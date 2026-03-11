@@ -1,7 +1,8 @@
 import "../lib/sentry";
-import { withSentry } from "../lib/withSentry";
+import { withSentry, ApiReq, ApiRes } from "../lib/withSentry";
 import { Sentry } from "../lib/sentry";
-import { supabase } from "../lib/db/supabase";
+import { supabase } from "../lib/supabase";
+import { verifyCronSecret } from "../lib/withCronAuth";
 
 interface SignalRow {
   id: string;
@@ -42,7 +43,9 @@ function inferMovementTypes(signalTypes: string[]): string[] {
   return movements;
 }
 
-async function handler(req: any, res: any) {
+async function handler(req: ApiReq, res: ApiRes) {
+  if (!verifyCronSecret(req, res)) return;
+
   const startedAt = Date.now();
 
   Sentry.captureCheckIn({
@@ -57,6 +60,7 @@ async function handler(req: any, res: any) {
       .from("signals")
       .select("id, monitored_page_id, signal_type, severity, detected_at")
       .gte("detected_at", since)
+      .eq("interpreted", true)
       .order("detected_at", { ascending: true });
 
     if (signalsError) throw signalsError;
@@ -86,7 +90,9 @@ async function handler(req: any, res: any) {
       const arr = grouped.get(key) ?? [];
       arr.push(signal);
       grouped.set(key, arr);
-    }let rowsClaimed = grouped.size;
+    }
+
+    let rowsClaimed = grouped.size;
     let rowsProcessed = 0;
     let rowsSucceeded = 0;
     let rowsFailed = 0;

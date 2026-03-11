@@ -1,9 +1,10 @@
 "use client";
 
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { scaleLinear } from "d3-scale";
-import type { RadarCompetitor } from "../lib/api";
+import type { RadarCompetitor, CompetitorDetail, MonitoredPage } from "../lib/api";
+import { formatRelative } from "../lib/format";
 
 // ─── Radar geometry ──────────────────────────────────────────────────────────
 const SIZE = 720;
@@ -110,6 +111,48 @@ function getMovementLabel(movementType: string | null): string {
     .join(" ");
 }
 
+// Maps signal_type back to the movement color system for consistent badge coloring.
+function getSignalColor(signalType: string): string {
+  if (signalType === "price_point_change" || signalType === "tier_change") {
+    return getMovementColor("pricing_strategy_shift");
+  }
+  if (signalType === "feature_launch") return getMovementColor("product_expansion");
+  if (signalType === "positioning_shift") return getMovementColor("market_reposition");
+  return getMovementColor(null);
+}
+
+// Urgency tier styling: 4-5 = urgent (red), 3 = elevated (amber), 1-2 = monitor (green).
+function getUrgencyStyle(urgency: number): { backgroundColor: string; color: string } {
+  if (urgency >= 4) return { backgroundColor: "#7f1d1d22", color: "#f87171" };
+  if (urgency === 3) return { backgroundColor: "#78350f22", color: "#fbbf24" };
+  return { backgroundColor: "#0c2d1a", color: "#4ade80" };
+}
+
+function getUrgencyLabel(urgency: number): string {
+  if (urgency >= 4) return "urgent";
+  if (urgency === 3) return "elevated";
+  return "monitor";
+}
+
+function getPageTypeLabel(pageType: string): string {
+  if (pageType === "pricing_plans") return "pricing page";
+  if (pageType === "release_feed") return "changelog";
+  return pageType.replace(/_/g, " ");
+}
+
+// Human-readable signal type labels for business users.
+function getSignalTypeLabel(signalType: string): string {
+  switch (signalType) {
+    case "price_point_change":  return "Pricing change";
+    case "tier_change":         return "Tier change";
+    case "feature_launch":      return "Feature launch";
+    case "feature_deprecation": return "Feature removed";
+    case "positioning_shift":   return "Positioning";
+    case "content_change":      return "Content change";
+    default: return signalType.replace(/_/g, " ");
+  }
+}
+
 function formatNumber(value: number | null | undefined, digits = 1): string {
   const num = Number(value ?? 0);
   if (!Number.isFinite(num)) return "0";
@@ -204,7 +247,7 @@ const BlipNode = memo(function BlipNode({
   const nodeSize = getNodeSize(momentum);
 
   const ageOpacity = getAgeOpacity(competitor.latest_movement_last_seen_at);
-  const groupOpacity = isDimmed ? 0.18 : isSelected ? 1.0 : ageOpacity;
+  const groupOpacity = isDimmed ? 0.22 : isSelected ? 1.0 : ageOpacity;
 
   // When the beam crosses this blip (seconds into the 12s sweep cycle)
   const sweepDelay = getSweepDelay(x, y);
@@ -328,25 +371,6 @@ const BlipNode = memo(function BlipNode({
         />
       )}
 
-      {/* Selected: slowly rotating dashed tracking ring */}
-      {isSelected && (
-        <motion.circle
-          cx={x}
-          cy={y}
-          r={nodeSize + 34}
-          fill="none"
-          stroke={color}
-          strokeWidth="0.6"
-          strokeDasharray="3 7"
-          animate={{ rotate: [0, 360], opacity: [0.22, 0.38, 0.22] }}
-          transition={{
-            rotate: { duration: 18, repeat: Infinity, ease: "linear" },
-            opacity: { duration: 3, repeat: Infinity, ease: "easeInOut" },
-          }}
-          style={{ transformOrigin: `${x}px ${y}px` }}
-        />
-      )}
-
       {/* Core blip */}
       <motion.circle
         cx={x}
@@ -364,7 +388,7 @@ const BlipNode = memo(function BlipNode({
         x={x}
         y={y + nodeSize + 16}
         textAnchor="middle"
-        fill={isSelected ? "#e2f5e2" : "#6a7f6a"}
+        fill={isSelected ? "#e2f5e2" : "#546d54"}
         fontSize="10"
         fontWeight={isSelected ? "600" : "400"}
         fontFamily="Inter, system-ui, sans-serif"
@@ -401,6 +425,18 @@ export default function Radar({
     ? (sorted.find((c) => c.competitor_id === selectedId) ?? null)
     : null;
 
+  // Highest momentum in the current sorted set — used to scale contact list bars.
+  const maxMomentum = useMemo(
+    () => Math.max(...sorted.map((c) => Number(c.momentum_score ?? 0)), 1),
+    [sorted]
+  );
+
+  // How many contacts have active momentum — used for quiet-state messaging.
+  const movingCount = useMemo(
+    () => sorted.filter((c) => Number(c.momentum_score ?? 0) > 0).length,
+    [sorted]
+  );
+
   const tickerItems = useMemo(
     () =>
       sorted
@@ -417,6 +453,58 @@ export default function Radar({
     setSelectedId((prev) => (prev === id ? null : id));
   }, []);
 
+  const [detail, setDetail] = useState<CompetitorDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState(false);
+
+  // Primary signal — highest urgency first, recency as tiebreak.
+  // Drives Assessment, Recommended action, header badges, and confidence bar.
+  const primarySignal = useMemo(() => {
+    if (!detail?.signals || detail.signals.length === 0) return null;
+    return [...detail.signals].sort(
+      (a, b) =>
+        (b.urgency ?? 0) - (a.urgency ?? 0) ||
+        new Date(b.detected_at).getTime() - new Date(a.detected_at).getTime()
+    )[0] ?? null;
+  }, [detail]);
+
+  // Evidence chain — same sort applied to all signals.
+  const sortedSignals = useMemo(() => {
+    if (!detail?.signals || detail.signals.length === 0) return [];
+    return [...detail.signals].sort(
+      (a, b) =>
+        (b.urgency ?? 0) - (a.urgency ?? 0) ||
+        new Date(b.detected_at).getTime() - new Date(a.detected_at).getTime()
+    );
+  }, [detail]);
+
+  // Interpretation confidence — prefer primary signal value, fall back to movement-level.
+  const interpretationConf = useMemo(() => {
+    if (detailLoading) return null;
+    if (primarySignal?.confidence != null) return primarySignal.confidence;
+    return selected?.latest_movement_confidence ?? null;
+  }, [detailLoading, primarySignal, selected]);
+
+  useEffect(() => {
+    if (!selectedId) {
+      setDetail(null);
+      setDetailLoading(false);
+      setDetailError(false);
+      return;
+    }
+    setDetailLoading(true);
+    setDetail(null);
+    setDetailError(false);
+    fetch(`/api/competitor-detail?id=${encodeURIComponent(selectedId)}`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.ok) setDetail(json);
+        else setDetailError(true);
+      })
+      .catch(() => setDetailError(true))
+      .finally(() => setDetailLoading(false));
+  }, [selectedId]);
+
   return (
     <div className="grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
       {/* ── Radar panel ─────────────────────────────────────────── */}
@@ -427,7 +515,7 @@ export default function Radar({
               Radar scope
             </div>
             <div className="text-[10px] uppercase tracking-[0.18em] text-green-400">
-              passive sonar
+              active surveillance
             </div>
           </div>
 
@@ -673,7 +761,7 @@ export default function Radar({
                   x2={SWEEP_TIP_X}
                   y2={SWEEP_TIP_Y}
                   stroke="#bbf7d0"
-                  strokeWidth="2"
+                  strokeWidth="2.5"
                   opacity="0.95"
                   filter="url(#sweepGlow)"
                 />
@@ -809,6 +897,35 @@ export default function Radar({
                 />
               ))}
 
+              {/* ── Empty state — no blips ──────────────────────────── */}
+              {sorted.length === 0 && (
+                <>
+                  <text
+                    x={CENTER}
+                    y={CENTER - 8}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fill="#1a3a1a"
+                    fontSize="12"
+                    fontFamily="Inter, system-ui, sans-serif"
+                    letterSpacing="0.06em"
+                  >
+                    NO RIVALS TRACKED
+                  </text>
+                  <text
+                    x={CENTER}
+                    y={CENTER + 10}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fill="#0f2a0f"
+                    fontSize="10"
+                    fontFamily="Inter, system-ui, sans-serif"
+                  >
+                    Add competitors to begin monitoring
+                  </text>
+                </>
+              )}
+
               {/* ── Edge vignette — rendered last, inside clip ───────── */}
               <rect
                 x="0"
@@ -821,6 +938,28 @@ export default function Radar({
 
               </g>{/* end radarClip */}
             </svg>
+          </div>
+
+          {/* ── Color legend ───────────────────────────────────────── */}
+          <div className="mt-2 flex items-center justify-center gap-4 pb-1">
+            {(
+              [
+                { color: "#ff6b6b", label: "Pricing" },
+                { color: "#57a6ff", label: "Product" },
+                { color: "#34d399", label: "Market" },
+                { color: "#94a3b8", label: "No change" },
+              ] as { color: string; label: string }[]
+            ).map(({ color, label }) => (
+              <span key={label} className="flex items-center gap-1">
+                <span
+                  className="h-1.5 w-1.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: color }}
+                />
+                <span className="text-[9px] uppercase tracking-[0.14em] text-slate-600">
+                  {label}
+                </span>
+              </span>
+            ))}
           </div>
 
           {/* ── Signal ticker ──────────────────────────────────────── */}
@@ -888,20 +1027,30 @@ export default function Radar({
             /* ── Intelligence drawer ──────────────────────────── */
             <motion.div
               key="drawer"
-              initial={{ opacity: 0, y: 14 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
+              exit={{ opacity: 0, y: 4 }}
               transition={{ duration: 0.26, ease: "easeOut" }}
             >
               {/* Header */}
               <div className="mb-5 flex items-start justify-between gap-4">
                 <div>
                   <div className="text-[10px] uppercase tracking-[0.28em] text-slate-500">
-                    Target acquired
+                    Intelligence report
                   </div>
                   <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-100">
                     {selected.competitor_name}
                   </h2>
+                  {selected.website_url && (
+                    <a
+                      href={selected.website_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-0.5 block text-[10px] text-slate-600 transition-colors hover:text-slate-400"
+                    >
+                      {selected.website_url.replace(/^https?:\/\//, "")} ↗
+                    </a>
+                  )}
                   <div className="mt-1.5 flex items-center gap-2">
                     <span
                       className="h-2 w-2 rounded-full shadow-[0_0_10px_currentColor]"
@@ -915,6 +1064,19 @@ export default function Radar({
                     <span className="text-sm text-slate-400">
                       {getMovementLabel(selected.latest_movement_type)}
                     </span>
+                    {!detailLoading && primarySignal?.urgency != null && (
+                      <span
+                        className="rounded px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em]"
+                        style={getUrgencyStyle(primarySignal.urgency)}
+                      >
+                        {getUrgencyLabel(primarySignal.urgency)}
+                      </span>
+                    )}
+                    {!detailLoading && primarySignal?.page_type && (
+                      <span className="text-[9px] text-slate-600">
+                        · {getPageTypeLabel(primarySignal.page_type)}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -940,10 +1102,54 @@ export default function Radar({
                 </button>
               </div>
 
-              <div className="mb-5 h-px bg-[#0d1e0d]" />
+              <div className="mb-5 h-px bg-[#192b19]" />
 
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-3">
+              {/* Assessment — shown first: the intelligence is the product */}
+              <div className="rounded-2xl border border-[#0c1c0c] bg-[#030703] px-3 py-2.5">
+                <div className="mb-1.5 text-[10px] uppercase tracking-[0.18em] text-slate-500">
+                  Assessment
+                </div>
+                {detailLoading ? (
+                  <div className="h-14 animate-pulse rounded-lg bg-[#0a1a0a]" />
+                ) : detailError ? (
+                  <p className="text-sm leading-6 text-slate-600">
+                    Could not load intelligence. Try selecting again.
+                  </p>
+                ) : primarySignal?.strategic_implication ? (
+                  <p className="text-sm leading-6 text-slate-400">
+                    {primarySignal.strategic_implication}
+                  </p>
+                ) : detail?.signals && detail.signals.length === 0 ? (
+                  <p className="text-sm leading-6 text-slate-600">
+                    Monitoring active — no signals yet.
+                  </p>
+                ) : (
+                  <p className="text-sm leading-6 text-slate-600">
+                    Analysing…
+                  </p>
+                )}
+              </div>
+
+              {/* Recommended action — left border uses movement accent color */}
+              {!detailLoading && primarySignal?.recommended_action && (
+                <div
+                  className="mt-3 rounded-2xl border border-[#0c1c0c] bg-[#030703] px-3 py-2.5"
+                  style={{
+                    borderLeftColor: `${getMovementColor(selected.latest_movement_type)}55`,
+                    borderLeftWidth: "2px",
+                  }}
+                >
+                  <div className="mb-1.5 text-[10px] uppercase tracking-[0.18em] text-slate-400">
+                    Recommended action
+                  </div>
+                  <p className="text-sm leading-6 text-slate-200">
+                    {primarySignal.recommended_action}
+                  </p>
+                </div>
+              )}
+
+              {/* Stats — supporting context, shown after the intelligence */}
+              <div className="mt-3 grid grid-cols-3 gap-3">
                 <div className="rounded-2xl border border-[#0c1c0c] bg-[#040a04] p-3">
                   <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
                     Momentum
@@ -951,29 +1157,26 @@ export default function Radar({
                   <div className="mt-2 text-lg font-semibold text-slate-100">
                     {formatNumber(selected.momentum_score)}
                   </div>
+                  <div className="mt-0.5 text-[9px] text-slate-600">
+                    activity score
+                  </div>
                 </div>
                 <div className="rounded-2xl border border-[#0c1c0c] bg-[#040a04] p-3">
                   <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                    Velocity
+                    Changes 7d
                   </div>
                   <div className="mt-2 text-lg font-semibold text-slate-100">
-                    {formatNumber(selected.weighted_velocity_7d, 0)}
+                    {formatNumber(selected.signals_7d, 0)}
                   </div>
                 </div>
                 <div className="rounded-2xl border border-[#0c1c0c] bg-[#040a04] p-3">
                   <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                    Signals
+                    Evidence
                   </div>
                   <div className="mt-2 text-lg font-semibold text-slate-100">
                     {formatNumber(selected.latest_movement_signal_count, 0)}
                   </div>
                 </div>
-              </div>
-
-              {/* Summary */}
-              <div className="mt-4 rounded-2xl border border-[#0c1c0c] bg-[#030703] px-3 py-2.5 text-sm leading-6 text-slate-400">
-                {selected.latest_movement_summary ??
-                  "No active strategic summary yet."}
               </div>
 
               {/* Timeline */}
@@ -1000,11 +1203,11 @@ export default function Radar({
               <div className="mt-4 rounded-2xl border border-[#0c1c0c] bg-[#030703] p-3">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                    Signal confidence
+                    AI confidence
                   </div>
                   <div className="text-[11px] font-semibold text-slate-300">
-                    {selected.latest_movement_confidence !== null
-                      ? `${Math.round((selected.latest_movement_confidence ?? 0) * 100)}%`
+                    {interpretationConf !== null
+                      ? `${Math.round(interpretationConf * 100)}%`
                       : "—"}
                   </div>
                 </div>
@@ -1018,12 +1221,166 @@ export default function Radar({
                     }}
                     initial={{ width: 0 }}
                     animate={{
-                      width: `${Math.round((selected.latest_movement_confidence ?? 0) * 100)}%`,
+                      width: `${Math.round((interpretationConf ?? 0) * 100)}%`,
                     }}
                     transition={{ duration: 0.6, ease: "easeOut" }}
                   />
                 </div>
               </div>
+
+              {/* Evidence chain */}
+              <div className="mt-5">
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">
+                    What changed
+                  </div>
+                  <div className="text-[9px] text-slate-700">
+                    Live captures
+                  </div>
+                </div>
+
+                {detailLoading ? (
+                  <div className="space-y-2">
+                    {[0, 1].map((i) => (
+                      <div
+                        key={i}
+                        className="h-16 animate-pulse rounded-xl bg-[#060d06]"
+                      />
+                    ))}
+                  </div>
+                ) : sortedSignals.length > 0 ? (
+                  <div className="space-y-2">
+                    {sortedSignals.slice(0, 3).map((signal) => {
+                      const sigColor = getSignalColor(signal.signal_type);
+                      return (
+                        <div
+                          key={signal.id}
+                          className="rounded-xl border border-[#0c1c0c] bg-[#040a04] p-3"
+                        >
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span
+                                className="rounded px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em]"
+                                style={{
+                                  backgroundColor: `${sigColor}18`,
+                                  color: sigColor,
+                                }}
+                              >
+                                {getSignalTypeLabel(signal.signal_type)}
+                              </span>
+                              {signal.urgency != null && signal.urgency >= 3 && (
+                                <span
+                                  className="rounded px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em]"
+                                  style={getUrgencyStyle(signal.urgency)}
+                                >
+                                  {getUrgencyLabel(signal.urgency)}
+                                </span>
+                              )}
+                              <span className="text-[9px] uppercase tracking-[0.1em] text-slate-600">
+                                {getPageTypeLabel(signal.page_type)}
+                              </span>
+                            </div>
+                            <span className="shrink-0 text-[10px] tabular-nums text-slate-600">
+                              {formatDate(signal.detected_at)}
+                            </span>
+                          </div>
+
+                          {signal.summary && (
+                            <p className="mb-2 text-[11px] leading-5 text-slate-400">
+                              {signal.summary}
+                            </p>
+                          )}
+
+                          {signal.previous_excerpt && signal.current_excerpt && (
+                            <div className="space-y-1">
+                              <div className="rounded bg-[#020402] px-2 py-1.5">
+                                <span className="text-[8px] uppercase tracking-[0.1em] text-slate-600">
+                                  Was
+                                </span>
+                                <p className="mt-0.5 line-clamp-2 font-mono text-[10px] text-slate-500">
+                                  {signal.previous_excerpt}
+                                </p>
+                              </div>
+                              <div className="rounded bg-[#020502] px-2 py-1.5">
+                                <span className="text-[8px] uppercase tracking-[0.1em] text-slate-500">
+                                  Now
+                                </span>
+                                <p className="mt-0.5 line-clamp-2 font-mono text-[10px] text-slate-400">
+                                  {signal.current_excerpt}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-[#0c1c0c] bg-[#030703] px-3 py-2.5 text-center">
+                    <p className="text-xs text-slate-600">
+                      No changes detected yet
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Active movements — only shown when multiple movement types detected */}
+              {!detailLoading && detail && detail.movements.length >= 1 && (
+                <div className="mt-5">
+                  <div className="mb-3 text-[10px] uppercase tracking-[0.22em] text-slate-500">
+                    Movements detected
+                  </div>
+                  <div className="space-y-1.5">
+                    {detail.movements.map((m, i) => {
+                      const mColor = getMovementColor(m.movement_type);
+                      return (
+                        <div
+                          key={i}
+                          className="flex items-center justify-between rounded-xl border border-[#0c1c0c] bg-[#040a04] px-3 py-2"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="h-1.5 w-1.5 shrink-0 rounded-full"
+                              style={{ backgroundColor: mColor }}
+                            />
+                            <span className="text-[11px] text-slate-300">
+                              {getMovementLabel(m.movement_type)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-[10px] tabular-nums text-slate-600">
+                            <span>{m.signal_count} signals</span>
+                            <span>{formatRelative(m.last_seen_at)}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Monitored pages coverage */}
+              {!detailLoading && detail && detail.monitoredPages.length > 0 && (
+                <div className="mt-5">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">
+                      Coverage
+                    </div>
+                    <div className="text-[9px] text-slate-700">
+                      monitored for changes
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {detail.monitoredPages.map((p: MonitoredPage, i: number) => (
+                      <span
+                        key={i}
+                        className="rounded-full border border-[#0d1e0d] bg-[#030703] px-2 py-0.5 text-[9px] uppercase tracking-[0.14em] text-slate-500"
+                      >
+                        {getPageTypeLabel(p.page_type)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </motion.div>
           ) : (
             /* ── Compact contact list ─────────────────────────── */
@@ -1039,16 +1396,41 @@ export default function Radar({
               <div className="mb-5 flex items-center justify-between">
                 <div>
                   <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">
-                    Active contacts
+                    Under watch
                   </div>
                   <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-100">
-                    Movement log
+                    Rivals
                   </h2>
+                  <p className="mt-1 text-[9px] text-slate-700">
+                    Select a rival to open intelligence
+                  </p>
                 </div>
                 <div className="rounded-full border border-green-500/20 bg-green-500/5 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-green-400">
                   live
                 </div>
               </div>
+
+              {sorted.length === 0 && (
+                <div className="flex flex-col items-center py-10 text-center">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-slate-600">
+                    No rivals tracked
+                  </div>
+                  <p className="mt-2 text-xs text-slate-700">
+                    Competitors will appear here once added
+                  </p>
+                </div>
+              )}
+
+              {movingCount === 0 && sorted.length > 0 && (
+                <div className="mb-4 rounded-xl border border-[#0c1c0c] bg-[#030703] px-3 py-2.5 text-center">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-slate-600">
+                    All clear
+                  </div>
+                  <p className="mt-1 text-xs text-slate-600">
+                    No movement detected · all surfaces clear
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-1">
                 {sorted.map((competitor) => {
@@ -1073,23 +1455,37 @@ export default function Radar({
                         }}
                       />
 
-                      {/* Name + movement type */}
+                      {/* Name + movement type + last seen */}
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-medium text-slate-200">
                           {competitor.competitor_name}
                         </div>
                         <div className="mt-0.5 truncate text-[10px] uppercase tracking-[0.12em] text-slate-500">
-                          {getMovementLabel(competitor.latest_movement_type)}
+                          {competitor.latest_movement_type
+                            ? getMovementLabel(competitor.latest_movement_type)
+                            : "No change"}
+                        </div>
+                        <div className="mt-0.5 text-[9px] tabular-nums text-slate-600">
+                          {formatRelative(
+                            competitor.latest_movement_last_seen_at ??
+                              competitor.last_signal_at
+                          )}
                         </div>
                       </div>
 
-                      {/* Momentum score */}
-                      <div className="shrink-0 text-right">
+                      {/* Momentum score + relative bar */}
+                      <div className="shrink-0 flex flex-col items-end gap-1.5">
                         <div className="text-sm font-semibold tabular-nums text-slate-300">
                           {formatNumber(momentum)}
                         </div>
-                        <div className="text-[9px] uppercase tracking-[0.1em] text-slate-600">
-                          momentum
+                        <div className="h-[3px] w-14 overflow-hidden rounded-full bg-[#091509]">
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${Math.round((momentum / maxMomentum) * 100)}%`,
+                              backgroundColor: color,
+                            }}
+                          />
                         </div>
                       </div>
                     </div>

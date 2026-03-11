@@ -15,7 +15,7 @@ Supabase
 → system state engine
 
 OpenAI
-→ interpretation and brief generation
+→ signal interpretation (strategic implication, recommended action, urgency, confidence)
 
 Sentry
 → monitoring and alerting
@@ -25,14 +25,15 @@ Sentry
 ------------------------------------------------
 
 fetch
-→ snapshot
 → extract
-→ validate
 → baseline
 → diff
-→ signal
+→ detect-signals
 → interpret
-→ weekly brief
+→ update-velocity
+→ detect-movements
+→ radar feed (view)
+→ weekly brief (not yet implemented)
 
 ------------------------------------------------
 3. Design Principles

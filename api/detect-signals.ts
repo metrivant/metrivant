@@ -1,7 +1,8 @@
 import "../lib/sentry";
-import { withSentry } from "../lib/withSentry";
+import { withSentry, ApiReq, ApiRes } from "../lib/withSentry";
 import { Sentry } from "../lib/sentry";
-import { supabase } from "../lib/db/supabase";
+import { supabase } from "../lib/supabase";
+import { verifyCronSecret } from "../lib/withCronAuth";
 
 interface PageSectionRow {
   id: string;
@@ -57,7 +58,9 @@ function classifySignal(
   };
 }
 
-async function handler(req: any, res: any) {
+async function handler(req: ApiReq, res: ApiRes) {
+  if (!verifyCronSecret(req, res)) return;
+
   const startedAt = Date.now();
 
   let rowsClaimed = 0;
@@ -74,7 +77,7 @@ async function handler(req: any, res: any) {
   try {
     const { data: diffs, error } = await supabase
       .from("section_diffs")
-      .select("*")
+      .select("id, previous_section_id, current_section_id, section_type, monitored_page_id, last_seen_at")
       .eq("confirmed", true)
       .eq("signal_detected", false)
       .eq("is_noise", false)
@@ -93,17 +96,21 @@ async function handler(req: any, res: any) {
           throw new Error(`Diff ${diff.id} missing section references`);
         }
 
-        const { data: previousSection } = await supabase
+        const { data: previousSection, error: prevError } = await supabase
           .from("page_sections")
           .select("id, section_text, section_hash")
           .eq("id", diff.previous_section_id)
           .maybeSingle();
 
-        const { data: currentSection } = await supabase
+        if (prevError) throw prevError;
+
+        const { data: currentSection, error: currError } = await supabase
           .from("page_sections")
           .select("id, section_text, section_hash")
           .eq("id", diff.current_section_id)
           .maybeSingle();
+
+        if (currError) throw currError;
 
         const previous = previousSection as PageSectionRow | null;
         const current = currentSection as PageSectionRow | null;
@@ -127,13 +134,11 @@ async function handler(req: any, res: any) {
               signal_type: signal.signal_type,
               signal_data: signal.signal_data,
               severity: signal.severity,
-              detected_at: diff.last_seen_at,
+              detected_at: diff.last_seen_at ?? undefined,
               interpreted: false,
               status: "pending",
               retry_count: 0,
-              last_error: null,
               is_duplicate: false,
-              related_signal_id: null,
             },
             {
               onConflict: "section_diff_id,signal_type",
@@ -152,7 +157,8 @@ async function handler(req: any, res: any) {
 
         if (updateDiffError) throw updateDiffError;
 
-        rowsSucceeded += 1;signalsCreated += 1;
+        rowsSucceeded += 1;
+        signalsCreated += 1;
       } catch (error) {
         rowsFailed += 1;
         Sentry.captureException(error);

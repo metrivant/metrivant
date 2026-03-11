@@ -4,4 +4,4 @@ Competitive intelligence engine.
 
 Pipeline:
 
-fetch → snapshot → extract → validate → baseline → diff → signal → interpret → weekly brief
+fetch → snapshot → extract → baseline → diff → signal → interpret → movement → radar feed

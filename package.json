@@ -1,13 +1,10 @@
 {
   "name": "metrivant",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Competitive intelligence engine",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "typecheck": "tsc --noEmit"
   },
-  "keywords": [],
-  "author": "",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
@@ -17,6 +14,7 @@
   "dependencies": {
     "@sentry/node": "^10.42.0",
     "@supabase/supabase-js": "^2.99.0",
-    "cheerio": "^1.2.0"
+    "cheerio": "^1.2.0",
+    "openai": "^4"
   }
 }

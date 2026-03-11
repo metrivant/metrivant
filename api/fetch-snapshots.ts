@@ -1,7 +1,8 @@
 import "../lib/sentry";
-import { withSentry } from "../lib/withSentry";
+import { withSentry, ApiReq, ApiRes } from "../lib/withSentry";
 import { Sentry } from "../lib/sentry";
-import { supabase } from "../lib/db/supabase";
+import { supabase } from "../lib/supabase";
+import { verifyCronSecret } from "../lib/withCronAuth";
 import crypto from "crypto";
 
 const FETCH_TIMEOUT_MS = 10000;
@@ -48,7 +49,9 @@ async function fetchWithTimeout(url: string): Promise<string> {
   }
 }
 
-async function handler(req: any, res: any) {
+async function handler(req: ApiReq, res: ApiRes) {
+  if (!verifyCronSecret(req, res)) return;
+
   const startedAt = Date.now();
 
   Sentry.captureCheckIn({
@@ -123,7 +126,9 @@ async function handler(req: any, res: any) {
               status: "fetched",
               sections_extracted: false,
               is_duplicate: false,
-            });if (insertError) {
+            });
+
+          if (insertError) {
             throw insertError;
           }
 

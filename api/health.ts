@@ -1,8 +1,16 @@
-import { supabase } from "../lib/db/supabase";
+import "../lib/sentry";
+import { ApiReq, ApiRes } from "../lib/withSentry";
+import { Sentry } from "../lib/sentry";
+import { supabase } from "../lib/supabase";
+import { verifyCronSecret } from "../lib/withCronAuth";
 
 const STUCK_SIGNAL_MINUTES = 30;
 const RECENT_SIGNAL_DAYS = 7;
-const FETCH_STALE_HOURS = 12;export default async function handler(req: any, res: any) {
+const FETCH_STALE_HOURS = 12;
+
+export default async function handler(req: ApiReq, res: ApiRes) {
+  if (!verifyCronSecret(req, res)) return;
+
   try {
     const stuckBefore = new Date(
       Date.now() - STUCK_SIGNAL_MINUTES * 60 * 1000
@@ -19,6 +27,7 @@ const FETCH_STALE_HOURS = 12;export default async function handler(req: any, res
       signalBacklogResult,
       stuckSignalsResult,
       recentSignalsResult,
+      failedSignalsResult,
     ] = await Promise.all([
       supabase
         .from("snapshots")
@@ -54,6 +63,11 @@ const FETCH_STALE_HOURS = 12;export default async function handler(req: any, res
         .from("signals")
         .select("*", { count: "exact", head: true })
         .gt("detected_at", recentSince),
+
+      supabase
+        .from("signals")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "failed"),
     ]);
 
     const results = [
@@ -63,6 +77,7 @@ const FETCH_STALE_HOURS = 12;export default async function handler(req: any, res
       signalBacklogResult,
       stuckSignalsResult,
       recentSignalsResult,
+      failedSignalsResult,
     ];
 
     for (const result of results) {
@@ -77,6 +92,7 @@ const FETCH_STALE_HOURS = 12;export default async function handler(req: any, res
     const signalBacklog = signalBacklogResult.count ?? 0;
     const stuckSignals = stuckSignalsResult.count ?? 0;
     const recentSignals = recentSignalsResult.count ?? 0;
+    const failedSignals = failedSignalsResult.count ?? 0;
 
     const fetchIsFresh = latestFetchAt
       ? Date.now() - new Date(latestFetchAt).getTime() <
@@ -93,13 +109,15 @@ const FETCH_STALE_HOURS = 12;export default async function handler(req: any, res
       diffBacklog,
       signalBacklog,
       stuckSignals,
+      failedSignals,
       recentSignals,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    Sentry.captureException(error);
     res.status(500).json({
       ok: false,
       healthy: false,
-      error: error?.message ?? String(error),
+      error: "health_check_failed",
     });
   }
 }
