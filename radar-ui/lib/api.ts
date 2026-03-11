@@ -85,3 +85,25 @@ export async function getRadarFeed(limit = 24): Promise<RadarCompetitor[]> {
 
   return json.data;
 }
+
+export async function getCompetitorDetail(
+  competitorId: string
+): Promise<CompetitorDetail | null> {
+  const baseUrl =
+    process.env.RADAR_API_BASE_URL ?? "https://metrivant-runtime.vercel.app";
+
+  const secret = process.env.CRON_SECRET;
+  const headers: Record<string, string> = {};
+  if (secret) {
+    headers["Authorization"] = `Bearer ${secret}`;
+  }
+
+  const res = await fetch(
+    baseUrl + `/api/competitor-detail?id=${encodeURIComponent(competitorId)}`,
+    { cache: "no-store", headers }
+  );
+
+  if (!res.ok) return null;
+
+  return res.json() as Promise<CompetitorDetail>;
+}

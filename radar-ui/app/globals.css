@@ -3,25 +3,22 @@
 :root {
   --background: #000200;
   --foreground: #f0fdf4;
+  --accent: #2EE6A6;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-inter);
 }
 
 html,
 body {
   background: #000200;
   color: #ffffff;
+  font-family: var(--font-inter), Inter, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 * {
@@ -29,5 +26,21 @@ body {
 }
 
 ::selection {
-  background: rgba(34, 197, 94, 0.22);
+  background: rgba(46, 230, 166, 0.18);
+  color: #ffffff;
+}
+
+/* Premium scrollbar — visible but restrained */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(46, 230, 166, 0.15);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(46, 230, 166, 0.28);
 }

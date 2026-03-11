@@ -10,6 +10,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.9.0",
+    "@supabase/supabase-js": "^2.99.1",
     "d3-scale": "^4.0.2",
     "framer-motion": "^12.35.2",
     "next": "16.1.6",

@@ -5,12 +5,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { scaleLinear } from "d3-scale";
 import type { RadarCompetitor, CompetitorDetail, MonitoredPage } from "../lib/api";
 import { formatRelative } from "../lib/format";
+import { getMomentumConfig, getMomentumEchoDuration } from "../lib/momentum";
+import MomentumSparkline from "./MomentumSparkline";
 
 // ─── Radar geometry ──────────────────────────────────────────────────────────
-const SIZE = 720;
+const SIZE = 1000;
 const CENTER = SIZE / 2;
-const OUTER_RADIUS = 270;
-const RING_FACTORS = [1, 0.72, 0.46, 0.24];
+const OUTER_RADIUS = 420;
+const RING_FACTORS = [1, 0.857, 0.571, 0.286];
 
 // ─── Sweep beam ───────────────────────────────────────────────────────────────
 // Two layered sectors:
@@ -192,6 +194,12 @@ function sortCompetitors(competitors: RadarCompetitor[]): RadarCompetitor[] {
   });
 }
 
+// Competitor with any signal activity in the last 24 hours — drives "New" badge.
+function isNewToday(competitor: RadarCompetitor): boolean {
+  if (!competitor.last_signal_at) return false;
+  return Date.now() - new Date(competitor.last_signal_at).getTime() < 24 * 60 * 60 * 1000;
+}
+
 function getNodePosition(index: number, total: number, radius: number): Point {
   const goldenAngle = 137.5 * (Math.PI / 180);
   const spread = Math.sqrt((index + 0.5) / Math.max(total, 1));
@@ -213,7 +221,7 @@ function getTrailPoints(index: number, radius: number): Point[] {
 }
 
 function getNodeSize(momentum: number): number {
-  return 5.5 + Math.sqrt(Math.max(momentum, 0)) * 2;
+  return 8 + Math.sqrt(Math.max(momentum, 0)) * 1.5;
 }
 
 // ─── BlipNode sub-component ───────────────────────────────────────────────────
@@ -245,6 +253,8 @@ const BlipNode = memo(function BlipNode({
   const trail = getTrailPoints(index, radius);
   const color = getMovementColor(competitor.latest_movement_type);
   const nodeSize = getNodeSize(momentum);
+  const echoDuration = getMomentumEchoDuration(momentum);
+  const pingPeak = momentum >= 5 ? 0.88 : 0.68;
 
   const ageOpacity = getAgeOpacity(competitor.latest_movement_last_seen_at);
   const groupOpacity = isDimmed ? 0.22 : isSelected ? 1.0 : ageOpacity;
@@ -284,7 +294,7 @@ const BlipNode = memo(function BlipNode({
           fill={color}
           filter="url(#blipGlow)"
           initial={{ opacity: 0 }}
-          animate={{ opacity: [0, 0.68, 0] }}
+          animate={{ opacity: [0, pingPeak, 0] }}
           transition={{
             duration: PING_DURATION,
             repeat: Infinity,
@@ -310,9 +320,9 @@ const BlipNode = memo(function BlipNode({
           initial={{ opacity: 0 }}
           animate={{ scale: [1, 2.4], opacity: [0.65, 0] }}
           transition={{
-            duration: ECHO_DURATION,
+            duration: echoDuration,
             repeat: Infinity,
-            repeatDelay: SWEEP_DURATION - ECHO_DURATION,
+            repeatDelay: SWEEP_DURATION - echoDuration,
             delay: sweepDelay + 0.06,
             ease: "easeOut",
           }}
@@ -389,7 +399,7 @@ const BlipNode = memo(function BlipNode({
         y={y + nodeSize + 16}
         textAnchor="middle"
         fill={isSelected ? "#e2f5e2" : "#546d54"}
-        fontSize="10"
+        fontSize="12"
         fontWeight={isSelected ? "600" : "400"}
         fontFamily="Inter, system-ui, sans-serif"
         letterSpacing="0.02em"
@@ -506,25 +516,22 @@ export default function Radar({
   }, [selectedId]);
 
   return (
-    <div className="grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
+    <div className="grid h-full gap-3 grid-cols-[1fr_400px] xl:grid-cols-[1fr_440px] 2xl:grid-cols-[1fr_480px]">
       {/* ── Radar panel ─────────────────────────────────────────── */}
-      <section className="rounded-[28px] border border-[#0a1a0a] bg-[#030803] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.72)]">
-        <div className="rounded-[24px] border border-[#0a170a] bg-[linear-gradient(180deg,#040a04_0%,#020602_100%)] p-3">
-          <div className="mb-3 flex items-center justify-between px-2">
-            <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">
-              Radar scope
-            </div>
-            <div className="text-[10px] uppercase tracking-[0.18em] text-green-400">
-              active surveillance
-            </div>
-          </div>
-
-          <div className="flex justify-center overflow-hidden rounded-[22px] border border-[#090f09] bg-[#020502]">
+      <section
+        className="flex h-full flex-col overflow-hidden rounded-[20px] border border-[#0d2010]"
+        style={{
+          background: "linear-gradient(180deg,#020802 0%,#010601 100%)",
+          boxShadow: "inset 0 1px 0 0 rgba(46,230,166,0.05), 0 0 60px rgba(0,0,0,0.7)",
+        }}
+      >
+          <div className="relative flex-1 overflow-hidden">
             <svg
-              width={SIZE}
-              height={SIZE}
-              viewBox={`0 0 ${SIZE} ${SIZE}`}
-              className="h-auto w-full max-w-[720px]"
+              width="100%"
+              height="100%"
+              viewBox="0 0 1000 1000"
+              preserveAspectRatio="xMidYMid meet"
+              className="block"
               role="img"
               aria-label="Competitor radar"
             >
@@ -660,7 +667,12 @@ export default function Radar({
 
               {/* ── Range rings — stepped brightness outward→inward ── */}
               {RING_FACTORS.map((factor, i) => {
-                const strokes = ["#22573a", "#1b4830", "#153a25", "#102e1c"];
+                const strokes = [
+                  "rgba(46,230,166,0.20)",
+                  "rgba(46,230,166,0.13)",
+                  "rgba(46,230,166,0.09)",
+                  "rgba(46,230,166,0.05)",
+                ];
                 const widths = [1.8, 1.3, 1.0, 0.8];
                 return (
                   <circle
@@ -687,7 +699,7 @@ export default function Radar({
                     y1={CENTER - dy}
                     x2={CENTER + dx}
                     y2={CENTER + dy}
-                    stroke="#132c1a"
+                    stroke="rgba(46,230,166,0.08)"
                     strokeWidth="1"
                   />
                 );
@@ -703,32 +715,16 @@ export default function Radar({
                   y2={tick.y2}
                   stroke={
                     tick.isMajor
-                      ? "#2d6b3e"
+                      ? "rgba(46,230,166,0.30)"
                       : tick.isMedium
-                        ? "#1a4025"
-                        : "#112418"
+                        ? "rgba(46,230,166,0.16)"
+                        : "rgba(46,230,166,0.08)"
                   }
                   strokeWidth={tick.isMajor ? 1.5 : tick.isMedium ? 1.0 : 0.7}
                 />
               ))}
 
-              {/* ── Cardinal labels (N / E / S / W) ─────────────────── */}
-              {CARDINAL_LABELS.map(({ label, x, y }) => (
-                <text
-                  key={label}
-                  x={x}
-                  y={y}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fill="#2d6b3e"
-                  fontSize="9"
-                  fontWeight="600"
-                  fontFamily="Inter, system-ui, sans-serif"
-                  letterSpacing="0.06em"
-                >
-                  {label}
-                </text>
-              ))}
+              {/* Cardinal labels rendered outside clip (see below) */}
 
               {/* ── Sweep beam ──────────────────────────────────────── */}
               <motion.g
@@ -743,15 +739,15 @@ export default function Radar({
                 {/* Wide dim phosphor memory trail (45°) */}
                 <path
                   d={SWEEP_SECTOR}
-                  fill="#22c55e"
-                  opacity="0.055"
+                  fill="#2EE6A6"
+                  opacity="0.10"
                   filter="url(#sweepSectorGlow)"
                 />
                 {/* Bright hot zone near leading edge (12°) */}
                 <path
                   d={SWEEP_HOT_SECTOR}
-                  fill="#4ade80"
-                  opacity="0.19"
+                  fill="#2EE6A6"
+                  opacity="0.28"
                   filter="url(#sweepSectorGlow)"
                 />
                 {/* Leading edge line */}
@@ -760,9 +756,9 @@ export default function Radar({
                   y1={CENTER}
                   x2={SWEEP_TIP_X}
                   y2={SWEEP_TIP_Y}
-                  stroke="#bbf7d0"
+                  stroke="#2EE6A6"
                   strokeWidth="2.5"
-                  opacity="0.95"
+                  opacity="0.92"
                   filter="url(#sweepGlow)"
                 />
               </motion.g>
@@ -843,7 +839,7 @@ export default function Radar({
               <circle
                 cx={CENTER}
                 cy={CENTER}
-                r={32}
+                r={44}
                 fill="url(#radarCore)"
                 opacity="0.95"
               />
@@ -852,8 +848,8 @@ export default function Radar({
               <circle
                 cx={CENTER}
                 cy={CENTER}
-                r={22}
-                fill="#22c55e"
+                r={30}
+                fill="#2EE6A6"
                 opacity="0.14"
                 filter="url(#blipGlowStrong)"
               />
@@ -862,7 +858,7 @@ export default function Radar({
               <motion.circle
                 cx={CENTER}
                 cy={CENTER}
-                r={5}
+                r={7}
                 fill="#dcfce7"
                 filter="url(#blipGlow)"
                 animate={{ opacity: [1.0, 0.55, 1.0], scale: [1, 1.18, 1] }}
@@ -878,7 +874,7 @@ export default function Radar({
               <circle
                 cx={CENTER}
                 cy={CENTER}
-                r={2}
+                r={3}
                 fill="#ffffff"
                 opacity="0.98"
               />
@@ -937,89 +933,109 @@ export default function Radar({
               />
 
               </g>{/* end radarClip */}
+
+              {/* ── Cardinal labels (N / E / S / W) — outside clip ── */}
+              {CARDINAL_LABELS.map(({ label, x, y }) => (
+                <text
+                  key={label}
+                  x={x}
+                  y={y}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fill="rgba(46,230,166,0.40)"
+                  fontSize="11"
+                  fontWeight="600"
+                  fontFamily="Inter, system-ui, sans-serif"
+                  letterSpacing="0.06em"
+                >
+                  {label}
+                </text>
+              ))}
             </svg>
           </div>
 
-          {/* ── Color legend ───────────────────────────────────────── */}
-          <div className="mt-2 flex items-center justify-center gap-4 pb-1">
-            {(
-              [
-                { color: "#ff6b6b", label: "Pricing" },
-                { color: "#57a6ff", label: "Product" },
-                { color: "#34d399", label: "Market" },
-                { color: "#94a3b8", label: "No change" },
-              ] as { color: string; label: string }[]
-            ).map(({ color, label }) => (
-              <span key={label} className="flex items-center gap-1">
-                <span
-                  className="h-1.5 w-1.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: color }}
-                />
-                <span className="text-[9px] uppercase tracking-[0.14em] text-slate-600">
-                  {label}
-                </span>
-              </span>
-            ))}
-          </div>
+          {/* ── Footer: legend + ticker ─────────────────────────────── */}
+          <div className="shrink-0 border-t border-[#0a1c0a]">
 
-          {/* ── Signal ticker ──────────────────────────────────────── */}
-          {tickerItems.length > 0 && (
-            <div
-              className="relative mt-2 h-7 overflow-hidden rounded-[14px] border border-[#0b180b] bg-[#020502]"
-              style={{
-                maskImage:
-                  "linear-gradient(to right, transparent, black 7%, black 93%, transparent)",
-                WebkitMaskImage:
-                  "linear-gradient(to right, transparent, black 7%, black 93%, transparent)",
-              }}
-            >
-              <motion.div
-                className="flex h-full items-center whitespace-nowrap"
-                style={{ width: "max-content" }}
-                animate={{ x: ["0%", "-50%"] }}
-                transition={{
-                  duration: 40,
-                  repeat: Infinity,
-                  ease: "linear",
+            {/* Legend row */}
+            <div className="flex items-center justify-center gap-5 px-4 py-2.5">
+              {(
+                [
+                  { color: "#ff6b6b", label: "Pricing" },
+                  { color: "#57a6ff", label: "Product" },
+                  { color: "#34d399", label: "Market" },
+                  { color: "#c084fc", label: "Enterprise" },
+                  { color: "#94a3b8", label: "Quiet" },
+                ] as { color: string; label: string }[]
+              ).map(({ color, label }) => (
+                <span key={label} className="flex items-center gap-1.5">
+                  <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: color, boxShadow: `0 0 4px ${color}55` }}
+                  />
+                  <span className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
+                    {label}
+                  </span>
+                </span>
+              ))}
+            </div>
+
+            {/* Signal ticker */}
+            {tickerItems.length > 0 && (
+              <div
+                className="relative h-7 overflow-hidden border-t border-[#0a1c0a]"
+                style={{
+                  maskImage:
+                    "linear-gradient(to right, transparent, black 6%, black 94%, transparent)",
+                  WebkitMaskImage:
+                    "linear-gradient(to right, transparent, black 6%, black 94%, transparent)",
                 }}
               >
-                {[0, 1].map((copy) => (
-                  <div key={copy} className="flex items-center">
-                    {tickerItems.map((item, idx) => (
-                      <span
-                        key={idx}
-                        className="inline-flex items-center gap-1.5 px-3 font-mono text-[10px] uppercase tracking-[0.13em]"
-                        style={{ color: "#1d7a42" }}
-                      >
-                        <span style={{ color: "#22c55e", opacity: 0.45 }}>
-                          ▸
+                <motion.div
+                  className="flex h-full items-center whitespace-nowrap"
+                  style={{ width: "max-content" }}
+                  animate={{ x: ["0%", "-50%"] }}
+                  transition={{
+                    duration: 40,
+                    repeat: Infinity,
+                    ease: "linear",
+                  }}
+                >
+                  {[0, 1].map((copy) => (
+                    <div key={copy} className="flex items-center">
+                      {tickerItems.map((item, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-1.5 px-4 font-mono text-[11px] uppercase tracking-[0.14em]"
+                          style={{ color: "#3a9e62" }}
+                        >
+                          <span style={{ color: "#2EE6A6", opacity: 0.60 }}>▸</span>
+                          {item.name}
+                          <span style={{ color: "#1a3a22" }}>·</span>
+                          {item.label}
+                          <span style={{ color: "#1a3a22" }}>·</span>
+                          {item.date}
+                          <span className="ml-2" style={{ color: "#1a3a22" }}>///</span>
                         </span>
-                        {item.name}
-                        <span style={{ color: "#0f3a1e" }}>·</span>
-                        {item.label}
-                        <span style={{ color: "#0f3a1e" }}>·</span>
-                        {item.date}
-                        <span className="ml-2" style={{ color: "#0f3a1e" }}>
-                          ///
-                        </span>
-                      </span>
-                    ))}
-                  </div>
-                ))}
-              </motion.div>
-            </div>
-          )}
-        </div>
+                      ))}
+                    </div>
+                  ))}
+                </motion.div>
+              </div>
+            )}
+          </div>
       </section>
 
-      {/* ── Right panel ─────────────────────────────────────────── */}
-      {/* Border color subtly echoes selected movement type — reinforces lock-on. */}
+      {/* ── Right panel — intelligence console ──────────────────── */}
       <aside
-        className="rounded-[28px] border bg-[#050c05] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.6)] transition-colors duration-500"
+        className="overflow-y-auto rounded-[20px] border bg-[#030b03] p-6 transition-colors duration-500"
         style={{
           borderColor: selected
-            ? `${getMovementColor(selected.latest_movement_type)}28`
-            : "#0d1e0d",
+            ? `${getMovementColor(selected.latest_movement_type)}30`
+            : "#0e2010",
+          boxShadow: selected
+            ? `inset 0 1px 0 0 ${getMovementColor(selected.latest_movement_type)}15, 0 0 50px rgba(0,0,0,0.5)`
+            : "inset 0 1px 0 0 rgba(46,230,166,0.04), 0 0 50px rgba(0,0,0,0.5)",
         }}
       >
         <AnimatePresence mode="wait">
@@ -1032,13 +1048,13 @@ export default function Radar({
               exit={{ opacity: 0, y: 4 }}
               transition={{ duration: 0.26, ease: "easeOut" }}
             >
-              {/* Header */}
-              <div className="mb-5 flex items-start justify-between gap-4">
-                <div>
-                  <div className="text-[10px] uppercase tracking-[0.28em] text-slate-500">
-                    Intelligence report
+              {/* ── Drawer header ──────────────────────────────── */}
+              <div className="mb-6 flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.30em] text-slate-500">
+                    Intel Report
                   </div>
-                  <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-100">
+                  <h2 className="mt-2 text-[26px] font-semibold leading-tight tracking-tight text-slate-100">
                     {selected.competitor_name}
                   </h2>
                   {selected.website_url && (
@@ -1046,35 +1062,41 @@ export default function Radar({
                       href={selected.website_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-0.5 block text-[10px] text-slate-600 transition-colors hover:text-slate-400"
+                      className="mt-1 block text-xs text-slate-500 transition-colors hover:text-slate-300"
                     >
                       {selected.website_url.replace(/^https?:\/\//, "")} ↗
                     </a>
                   )}
-                  <div className="mt-1.5 flex items-center gap-2">
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                    {/* Movement type pill */}
                     <span
-                      className="h-2 w-2 rounded-full shadow-[0_0_10px_currentColor]"
+                      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium"
                       style={{
-                        backgroundColor: getMovementColor(
-                          selected.latest_movement_type
-                        ),
+                        backgroundColor: `${getMovementColor(selected.latest_movement_type)}18`,
                         color: getMovementColor(selected.latest_movement_type),
+                        border: `1px solid ${getMovementColor(selected.latest_movement_type)}30`,
                       }}
-                    />
-                    <span className="text-sm text-slate-400">
+                    >
+                      <span
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{
+                          backgroundColor: getMovementColor(selected.latest_movement_type),
+                          boxShadow: `0 0 6px ${getMovementColor(selected.latest_movement_type)}`,
+                        }}
+                      />
                       {getMovementLabel(selected.latest_movement_type)}
                     </span>
                     {!detailLoading && primarySignal?.urgency != null && (
                       <span
-                        className="rounded px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em]"
+                        className="rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.1em]"
                         style={getUrgencyStyle(primarySignal.urgency)}
                       >
                         {getUrgencyLabel(primarySignal.urgency)}
                       </span>
                     )}
                     {!detailLoading && primarySignal?.page_type && (
-                      <span className="text-[9px] text-slate-600">
-                        · {getPageTypeLabel(primarySignal.page_type)}
+                      <span className="text-[11px] text-slate-500">
+                        {getPageTypeLabel(primarySignal.page_type)}
                       </span>
                     )}
                   </div>
@@ -1082,142 +1104,157 @@ export default function Radar({
 
                 <button
                   onClick={() => setSelectedId(null)}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#1a301a] bg-[#060d06] text-slate-500 transition-colors hover:border-[#2a4a2a] hover:text-slate-300"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#1c3a1c] bg-[#071207] text-slate-400 transition-colors hover:border-[#2a4a2a] hover:bg-[#0c1e0c] hover:text-slate-200"
                   aria-label="Close"
                 >
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 12 12"
-                    fill="none"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M1 1l10 10M11 1L1 11"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    />
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                    <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                   </svg>
                 </button>
               </div>
 
-              <div className="mb-5 h-px bg-[#192b19]" />
+              {/* Separator */}
+              <div
+                className="mb-6 h-px"
+                style={{
+                  background: `linear-gradient(90deg, transparent, ${getMovementColor(selected.latest_movement_type)}30 40%, ${getMovementColor(selected.latest_movement_type)}30 60%, transparent)`,
+                }}
+              />
 
-              {/* Assessment — shown first: the intelligence is the product */}
-              <div className="rounded-2xl border border-[#0c1c0c] bg-[#030703] px-3 py-2.5">
-                <div className="mb-1.5 text-[10px] uppercase tracking-[0.18em] text-slate-500">
+              {/* ── Assessment ──────────────────────────────────── */}
+              <div className="rounded-[14px] border border-[#152415] bg-[#071507] px-4 py-3.5">
+                <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">
                   Assessment
                 </div>
                 {detailLoading ? (
-                  <div className="h-14 animate-pulse rounded-lg bg-[#0a1a0a]" />
+                  <div className="h-14 animate-pulse rounded-lg bg-[#0c1e0c]" />
                 ) : detailError ? (
-                  <p className="text-sm leading-6 text-slate-600">
+                  <p className="text-sm leading-6 text-slate-500">
                     Could not load intelligence. Try selecting again.
                   </p>
                 ) : primarySignal?.strategic_implication ? (
-                  <p className="text-sm leading-6 text-slate-400">
+                  <p className="text-sm leading-relaxed text-slate-300">
                     {primarySignal.strategic_implication}
                   </p>
                 ) : detail?.signals && detail.signals.length === 0 ? (
-                  <p className="text-sm leading-6 text-slate-600">
+                  <p className="text-sm leading-6 text-slate-500">
                     Monitoring active — no signals yet.
                   </p>
                 ) : (
-                  <p className="text-sm leading-6 text-slate-600">
+                  <p className="text-sm leading-6 text-slate-500">
                     Analysing…
                   </p>
                 )}
               </div>
 
-              {/* Recommended action — left border uses movement accent color */}
+              {/* ── Recommended action ──────────────────────────── */}
               {!detailLoading && primarySignal?.recommended_action && (
                 <div
-                  className="mt-3 rounded-2xl border border-[#0c1c0c] bg-[#030703] px-3 py-2.5"
+                  className="mt-3 rounded-[14px] border border-[#152415] bg-[#071507] px-4 py-3.5"
                   style={{
-                    borderLeftColor: `${getMovementColor(selected.latest_movement_type)}55`,
+                    borderLeftColor: `${getMovementColor(selected.latest_movement_type)}60`,
                     borderLeftWidth: "2px",
                   }}
                 >
-                  <div className="mb-1.5 text-[10px] uppercase tracking-[0.18em] text-slate-400">
-                    Recommended action
+                  <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.22em] text-slate-400">
+                    Recommended Action
                   </div>
-                  <p className="text-sm leading-6 text-slate-200">
+                  <p className="text-sm leading-relaxed text-slate-200">
                     {primarySignal.recommended_action}
                   </p>
                 </div>
               )}
 
-              {/* Stats — supporting context, shown after the intelligence */}
-              <div className="mt-3 grid grid-cols-3 gap-3">
-                <div className="rounded-2xl border border-[#0c1c0c] bg-[#040a04] p-3">
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+              {/* ── Stats grid ──────────────────────────────────── */}
+              <div className="mt-4 grid grid-cols-3 gap-2.5">
+                <div className="rounded-[14px] border border-[#152415] bg-[#071507] p-4">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
                     Momentum
                   </div>
-                  <div className="mt-2 text-lg font-semibold text-slate-100">
+                  <div className="mt-2 text-xl font-semibold tabular-nums text-slate-100">
                     {formatNumber(selected.momentum_score)}
                   </div>
-                  <div className="mt-0.5 text-[9px] text-slate-600">
-                    activity score
+                  <div className="mt-0.5 text-[11px] text-slate-600">
+                    score
                   </div>
                 </div>
-                <div className="rounded-2xl border border-[#0c1c0c] bg-[#040a04] p-3">
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                    Changes 7d
+                <div className="rounded-[14px] border border-[#152415] bg-[#071507] p-4">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                    Signals 7d
                   </div>
-                  <div className="mt-2 text-lg font-semibold text-slate-100">
+                  <div className="mt-2 text-xl font-semibold tabular-nums text-slate-100">
                     {formatNumber(selected.signals_7d, 0)}
                   </div>
                 </div>
-                <div className="rounded-2xl border border-[#0c1c0c] bg-[#040a04] p-3">
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                    Evidence
+                <div className="rounded-[14px] border border-[#152415] bg-[#071507] p-4">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                    Signals
                   </div>
-                  <div className="mt-2 text-lg font-semibold text-slate-100">
+                  <div className="mt-2 text-xl font-semibold tabular-nums text-slate-100">
                     {formatNumber(selected.latest_movement_signal_count, 0)}
                   </div>
                 </div>
               </div>
 
-              {/* Timeline */}
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <div className="rounded-2xl border border-[#0c1c0c] bg-[#040a04] p-3">
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+              {/* ── Momentum trend ──────────────────────────────── */}
+              {(() => {
+                const mCfg = getMomentumConfig(Number(selected.momentum_score ?? 0));
+                return (
+                  <div className="mt-2.5 rounded-[14px] border border-[#152415] bg-[#071507] px-4 py-3.5">
+                    <div className="mb-2.5 flex items-center justify-between">
+                      <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                        Momentum Trend
+                      </div>
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]"
+                        style={{ background: mCfg.bg, color: mCfg.color }}
+                      >
+                        {mCfg.arrow} {mCfg.label}
+                      </span>
+                    </div>
+                    <MomentumSparkline competitorId={selected.competitor_id} />
+                  </div>
+                );
+              })()}
+
+              {/* ── Timeline ────────────────────────────────────── */}
+              <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+                <div className="rounded-[14px] border border-[#152415] bg-[#071507] px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
                     First seen
                   </div>
-                  <div className="mt-2 text-sm font-medium text-slate-300">
+                  <div className="mt-1.5 text-sm font-medium text-slate-300">
                     {formatDate(selected.latest_movement_first_seen_at)}
                   </div>
                 </div>
-                <div className="rounded-2xl border border-[#0c1c0c] bg-[#040a04] p-3">
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                <div className="rounded-[14px] border border-[#152415] bg-[#071507] px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
                     Last seen
                   </div>
-                  <div className="mt-2 text-sm font-medium text-slate-300">
+                  <div className="mt-1.5 text-sm font-medium text-slate-300">
                     {formatDate(selected.latest_movement_last_seen_at)}
                   </div>
                 </div>
               </div>
 
-              {/* Confidence bar */}
-              <div className="mt-4 rounded-2xl border border-[#0c1c0c] bg-[#030703] p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                    AI confidence
+              {/* ── Confidence bar ──────────────────────────────── */}
+              <div className="mt-2.5 rounded-[14px] border border-[#152415] bg-[#071507] px-4 py-3">
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">
+                    Signal confidence
                   </div>
-                  <div className="text-[11px] font-semibold text-slate-300">
+                  <div className="text-sm font-semibold text-slate-300">
                     {interpretationConf !== null
                       ? `${Math.round(interpretationConf * 100)}%`
                       : "—"}
                   </div>
                 </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#091509]">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-[#0a180a]">
                   <motion.div
                     className="h-full rounded-full"
                     style={{
-                      backgroundColor: getMovementColor(
-                        selected.latest_movement_type
-                      ),
+                      backgroundColor: getMovementColor(selected.latest_movement_type),
+                      boxShadow: `0 0 8px ${getMovementColor(selected.latest_movement_type)}60`,
                     }}
                     initial={{ width: 0 }}
                     animate={{
@@ -1228,13 +1265,13 @@ export default function Radar({
                 </div>
               </div>
 
-              {/* Evidence chain */}
+              {/* ── Evidence chain ──────────────────────────────── */}
               <div className="mt-5">
                 <div className="mb-3 flex items-center justify-between">
-                  <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.24em] text-slate-400">
                     What changed
                   </div>
-                  <div className="text-[9px] text-slate-700">
+                  <div className="text-[11px] text-slate-600">
                     Live captures
                   </div>
                 </div>
@@ -1242,10 +1279,7 @@ export default function Radar({
                 {detailLoading ? (
                   <div className="space-y-2">
                     {[0, 1].map((i) => (
-                      <div
-                        key={i}
-                        className="h-16 animate-pulse rounded-xl bg-[#060d06]"
-                      />
+                      <div key={i} className="h-16 animate-pulse rounded-[12px] bg-[#071507]" />
                     ))}
                   </div>
                 ) : sortedSignals.length > 0 ? (
@@ -1255,57 +1289,58 @@ export default function Radar({
                       return (
                         <div
                           key={signal.id}
-                          className="rounded-xl border border-[#0c1c0c] bg-[#040a04] p-3"
+                          className="rounded-[12px] border border-[#152415] bg-[#071507] p-3.5"
                         >
                           <div className="mb-2 flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 flex-wrap">
+                            <div className="flex flex-wrap items-center gap-1.5">
                               <span
-                                className="rounded px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em]"
+                                className="rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em]"
                                 style={{
                                   backgroundColor: `${sigColor}18`,
                                   color: sigColor,
+                                  border: `1px solid ${sigColor}25`,
                                 }}
                               >
                                 {getSignalTypeLabel(signal.signal_type)}
                               </span>
                               {signal.urgency != null && signal.urgency >= 3 && (
                                 <span
-                                  className="rounded px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em]"
+                                  className="rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.1em]"
                                   style={getUrgencyStyle(signal.urgency)}
                                 >
                                   {getUrgencyLabel(signal.urgency)}
                                 </span>
                               )}
-                              <span className="text-[9px] uppercase tracking-[0.1em] text-slate-600">
+                              <span className="text-[11px] text-slate-500">
                                 {getPageTypeLabel(signal.page_type)}
                               </span>
                             </div>
-                            <span className="shrink-0 text-[10px] tabular-nums text-slate-600">
+                            <span className="shrink-0 text-[11px] tabular-nums text-slate-500">
                               {formatDate(signal.detected_at)}
                             </span>
                           </div>
 
                           {signal.summary && (
-                            <p className="mb-2 text-[11px] leading-5 text-slate-400">
+                            <p className="mb-2 text-xs leading-5 text-slate-400">
                               {signal.summary}
                             </p>
                           )}
 
                           {signal.previous_excerpt && signal.current_excerpt && (
                             <div className="space-y-1">
-                              <div className="rounded bg-[#020402] px-2 py-1.5">
-                                <span className="text-[8px] uppercase tracking-[0.1em] text-slate-600">
+                              <div className="rounded-[8px] bg-[#040a04] px-3 py-2">
+                                <span className="text-[10px] uppercase tracking-[0.12em] text-slate-600">
                                   Was
                                 </span>
-                                <p className="mt-0.5 line-clamp-2 font-mono text-[10px] text-slate-500">
+                                <p className="mt-0.5 line-clamp-2 font-mono text-xs text-slate-500">
                                   {signal.previous_excerpt}
                                 </p>
                               </div>
-                              <div className="rounded bg-[#020502] px-2 py-1.5">
-                                <span className="text-[8px] uppercase tracking-[0.1em] text-slate-500">
+                              <div className="rounded-[8px] bg-[#050e05] px-3 py-2">
+                                <span className="text-[10px] uppercase tracking-[0.12em] text-slate-400">
                                   Now
                                 </span>
-                                <p className="mt-0.5 line-clamp-2 font-mono text-[10px] text-slate-400">
+                                <p className="mt-0.5 line-clamp-2 font-mono text-xs text-slate-300">
                                   {signal.current_excerpt}
                                 </p>
                               </div>
@@ -1316,18 +1351,18 @@ export default function Radar({
                     })}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-[#0c1c0c] bg-[#030703] px-3 py-2.5 text-center">
-                    <p className="text-xs text-slate-600">
+                  <div className="rounded-[12px] border border-[#152415] bg-[#071507] px-4 py-3 text-center">
+                    <p className="text-sm text-slate-500">
                       No changes detected yet
                     </p>
                   </div>
                 )}
               </div>
 
-              {/* Active movements — only shown when multiple movement types detected */}
+              {/* ── Movements detected ──────────────────────────── */}
               {!detailLoading && detail && detail.movements.length >= 1 && (
                 <div className="mt-5">
-                  <div className="mb-3 text-[10px] uppercase tracking-[0.22em] text-slate-500">
+                  <div className="mb-3 text-[11px] font-medium uppercase tracking-[0.24em] text-slate-400">
                     Movements detected
                   </div>
                   <div className="space-y-1.5">
@@ -1336,18 +1371,21 @@ export default function Radar({
                       return (
                         <div
                           key={i}
-                          className="flex items-center justify-between rounded-xl border border-[#0c1c0c] bg-[#040a04] px-3 py-2"
+                          className="flex items-center justify-between rounded-[12px] border border-[#152415] bg-[#071507] px-4 py-2.5"
                         >
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2.5">
                             <span
-                              className="h-1.5 w-1.5 shrink-0 rounded-full"
-                              style={{ backgroundColor: mColor }}
+                              className="h-2 w-2 shrink-0 rounded-full"
+                              style={{
+                                backgroundColor: mColor,
+                                boxShadow: `0 0 5px ${mColor}88`,
+                              }}
                             />
-                            <span className="text-[11px] text-slate-300">
+                            <span className="text-sm text-slate-300">
                               {getMovementLabel(m.movement_type)}
                             </span>
                           </div>
-                          <div className="flex items-center gap-3 text-[10px] tabular-nums text-slate-600">
+                          <div className="flex items-center gap-3 text-[11px] tabular-nums text-slate-500">
                             <span>{m.signal_count} signals</span>
                             <span>{formatRelative(m.last_seen_at)}</span>
                           </div>
@@ -1358,22 +1396,22 @@ export default function Radar({
                 </div>
               )}
 
-              {/* Monitored pages coverage */}
+              {/* ── Coverage ────────────────────────────────────── */}
               {!detailLoading && detail && detail.monitoredPages.length > 0 && (
                 <div className="mt-5">
-                  <div className="mb-2 flex items-center justify-between">
-                    <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">
+                  <div className="mb-2.5 flex items-center justify-between">
+                    <div className="text-[11px] font-medium uppercase tracking-[0.24em] text-slate-400">
                       Coverage
                     </div>
-                    <div className="text-[9px] text-slate-700">
-                      monitored for changes
+                    <div className="text-[11px] text-slate-600">
+                      surfaces monitored
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-2">
                     {detail.monitoredPages.map((p: MonitoredPage, i: number) => (
                       <span
                         key={i}
-                        className="rounded-full border border-[#0d1e0d] bg-[#030703] px-2 py-0.5 text-[9px] uppercase tracking-[0.14em] text-slate-500"
+                        className="rounded-full border border-[#152415] bg-[#071507] px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-slate-400"
                       >
                         {getPageTypeLabel(p.page_type)}
                       </span>
@@ -1384,8 +1422,6 @@ export default function Radar({
             </motion.div>
           ) : (
             /* ── Compact contact list ─────────────────────────── */
-            /* Condensed from the previous heavy card layout.
-               Details live only in the drawer — the list is scannable. */
             <motion.div
               key="list"
               initial={{ opacity: 0 }}
@@ -1393,58 +1429,67 @@ export default function Radar({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
             >
-              <div className="mb-5 flex items-center justify-between">
+              {/* ── Panel header ──────────────────────────────── */}
+              <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">
-                    Under watch
+                  <div className="text-[11px] font-medium uppercase tracking-[0.30em] text-slate-500">
+                    Rival Activity
                   </div>
-                  <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-100">
-                    Rivals
-                  </h2>
-                  <p className="mt-1 text-[9px] text-slate-700">
-                    Select a rival to open intelligence
-                  </p>
+                  <div className="mt-0.5 text-[11px] text-slate-600">
+                    Click any blip to open intel
+                  </div>
                 </div>
-                <div className="rounded-full border border-green-500/20 bg-green-500/5 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-green-400">
-                  live
+                <div className="flex items-center gap-1.5 rounded-full border border-[#2EE6A6]/20 bg-[#2EE6A6]/6 px-3 py-1.5">
+                  <span
+                    className="h-1.5 w-1.5 rounded-full bg-[#2EE6A6]"
+                    style={{ boxShadow: "0 0 5px rgba(46,230,166,0.7)" }}
+                  />
+                  <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-[#2EE6A6]">
+                    Live
+                  </span>
                 </div>
               </div>
 
+              {/* ── Empty state ───────────────────────────────── */}
               {sorted.length === 0 && (
-                <div className="flex flex-col items-center py-10 text-center">
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-slate-600">
+                <div className="flex flex-col items-center py-12 text-center">
+                  <div className="text-[11px] uppercase tracking-[0.22em] text-slate-600">
                     No rivals tracked
                   </div>
-                  <p className="mt-2 text-xs text-slate-700">
-                    Competitors will appear here once added
+                  <p className="mt-2 text-sm text-slate-600">
+                    Competitors will appear once added
                   </p>
                 </div>
               )}
 
+              {/* ── All clear banner ──────────────────────────── */}
               {movingCount === 0 && sorted.length > 0 && (
-                <div className="mb-4 rounded-xl border border-[#0c1c0c] bg-[#030703] px-3 py-2.5 text-center">
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-slate-600">
+                <div className="mb-4 rounded-[12px] border border-[#152415] bg-[#071507] px-4 py-3 text-center">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">
                     All clear
                   </div>
-                  <p className="mt-1 text-xs text-slate-600">
-                    No movement detected · all surfaces clear
+                  <p className="mt-1 text-xs text-slate-500">
+                    No movement detected · all surfaces quiet
                   </p>
                 </div>
               )}
 
-              <div className="space-y-1">
+              {/* ── Contact list ──────────────────────────────── */}
+              <div className="space-y-0.5">
                 {sorted.map((competitor) => {
-                  const color = getMovementColor(
-                    competitor.latest_movement_type
-                  );
+                  const color    = getMovementColor(competitor.latest_movement_type);
                   const momentum = Number(competitor.momentum_score ?? 0);
+                  const fresh    = isNewToday(competitor);
+                  const isActive = competitor.latest_movement_type !== null;
                   return (
                     <div
                       key={competitor.competitor_id}
-                      onClick={() =>
-                        handleBlipClick(competitor.competitor_id)
-                      }
-                      className="group flex cursor-pointer items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 transition-colors hover:border-[#163416] hover:bg-[#030903]"
+                      onClick={() => handleBlipClick(competitor.competitor_id)}
+                      className="group flex cursor-pointer items-center gap-3 rounded-[12px] border border-transparent px-3.5 py-2.5 transition-all hover:border-[#1c3a1c] hover:bg-[#071507]"
+                      style={isActive ? {
+                        borderLeftColor: `${color}35`,
+                        borderLeftWidth: "2px",
+                      } : undefined}
                     >
                       {/* Movement color dot */}
                       <span
@@ -1455,39 +1500,63 @@ export default function Radar({
                         }}
                       />
 
-                      {/* Name + movement type + last seen */}
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium text-slate-200">
-                          {competitor.competitor_name}
-                        </div>
-                        <div className="mt-0.5 truncate text-[10px] uppercase tracking-[0.12em] text-slate-500">
-                          {competitor.latest_movement_type
-                            ? getMovementLabel(competitor.latest_movement_type)
-                            : "No change"}
-                        </div>
-                        <div className="mt-0.5 text-[9px] tabular-nums text-slate-600">
-                          {formatRelative(
-                            competitor.latest_movement_last_seen_at ??
-                              competitor.last_signal_at
+                      {/* Name + movement · timestamp (2-line) */}
+                      <div className="min-w-0 flex-1 transition-transform group-hover:translate-x-px">
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="truncate text-[13px] font-medium text-slate-200">
+                            {competitor.competitor_name}
+                          </span>
+                          {fresh && (
+                            <span className="shrink-0 rounded-full bg-[#2EE6A6]/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.10em] text-[#2EE6A6]">
+                              New
+                            </span>
                           )}
+                        </div>
+                        <div className="mt-0.5 truncate text-[11px] text-slate-500">
+                          {isActive ? (
+                            <span className="uppercase tracking-[0.12em]">
+                              {getMovementLabel(competitor.latest_movement_type)}
+                            </span>
+                          ) : (
+                            <span>Quiet</span>
+                          )}
+                          {" · "}
+                          <span className="tabular-nums">
+                            {formatRelative(
+                              competitor.latest_movement_last_seen_at ??
+                                competitor.last_signal_at
+                            )}
+                          </span>
                         </div>
                       </div>
 
-                      {/* Momentum score + relative bar */}
-                      <div className="shrink-0 flex flex-col items-end gap-1.5">
-                        <div className="text-sm font-semibold tabular-nums text-slate-300">
-                          {formatNumber(momentum)}
-                        </div>
-                        <div className="h-[3px] w-14 overflow-hidden rounded-full bg-[#091509]">
-                          <div
-                            className="h-full rounded-full"
-                            style={{
-                              width: `${Math.round((momentum / maxMomentum) * 100)}%`,
-                              backgroundColor: color,
-                            }}
-                          />
-                        </div>
-                      </div>
+                      {/* Momentum score + bar + state */}
+                      {(() => {
+                        const mCfg = getMomentumConfig(momentum);
+                        return (
+                          <div className="flex shrink-0 flex-col items-end gap-1">
+                            <div className="text-[13px] font-semibold tabular-nums text-slate-300">
+                              {formatNumber(momentum)}
+                            </div>
+                            <div className="h-[3px] w-14 overflow-hidden rounded-full bg-[#0d1f0d]">
+                              <div
+                                className="h-full rounded-full"
+                                style={{
+                                  width: `${Math.round((momentum / maxMomentum) * 100)}%`,
+                                  backgroundColor: color,
+                                  boxShadow: `0 0 4px ${color}66`,
+                                }}
+                              />
+                            </div>
+                            <span
+                              className="text-[9px] font-semibold uppercase tracking-[0.12em]"
+                              style={{ color: mCfg.color }}
+                            >
+                              {mCfg.arrow} {mCfg.label}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 })}
