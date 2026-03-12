@@ -1,11 +1,21 @@
 import { redirect } from "next/navigation";
 import { createClient } from "../../../lib/supabase/server";
 import Link from "next/link";
+import { SECTOR_CONFIGS, SECTORS } from "../../../lib/sectors";
 
 export default async function OnboardingPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  // Pre-load existing sector preference if org already exists
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("sector")
+    .eq("owner_id", user.id)
+    .maybeSingle();
+
+  const currentSector = org?.sector ?? "saas";
 
   return (
     <div className="min-h-screen bg-[#000200] text-white">
@@ -43,13 +53,53 @@ export default async function OnboardingPage() {
           </div>
           <h1 className="text-3xl font-bold text-white">Add your first competitor</h1>
           <p className="mt-2 text-[14px] text-slate-500">
-            Enter the website URL of a competitor you want to monitor. Metrivant will
-            begin tracking their key pages automatically.
+            Tell Metrivant which sector you operate in, then add the first competitor to monitor.
           </p>
         </div>
 
         <form action="/api/onboard-competitor" method="POST" className="flex flex-col gap-4">
+
+          {/* ── Sector selector ─────────────────────────────────────────── */}
           <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-medium uppercase tracking-[0.15em] text-slate-500">
+              Your sector
+            </label>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {SECTORS.map((s) => {
+                const cfg = SECTOR_CONFIGS[s];
+                const isActive = s === currentSector;
+                return (
+                  <label
+                    key={s}
+                    className="relative cursor-pointer"
+                  >
+                    <input
+                      type="radio"
+                      name="sector"
+                      value={s}
+                      defaultChecked={isActive}
+                      className="peer sr-only"
+                    />
+                    <div
+                      className="rounded-[10px] border px-3 py-3 transition-all peer-checked:border-[#2EE6A6]/35 peer-checked:bg-[#2EE6A6]/6"
+                      style={{
+                        borderColor: isActive ? "rgba(46,230,166,0.35)" : "#0d2010",
+                        background: isActive ? "rgba(46,230,166,0.06)" : "#030c03",
+                      }}
+                    >
+                      <div className="text-[13px] font-semibold text-white">{cfg.label}</div>
+                      <div className="mt-0.5 text-[11px] leading-snug text-slate-600">
+                        {cfg.description}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ── Competitor URL ──────────────────────────────────────────── */}
+          <div className="flex flex-col gap-1.5 mt-2">
             <label className="text-[12px] font-medium uppercase tracking-[0.15em] text-slate-500">
               Competitor website
             </label>
@@ -61,6 +111,7 @@ export default async function OnboardingPage() {
               className="rounded-[10px] border border-[#0d2010] bg-[#030c03] px-4 py-3 text-[14px] text-white placeholder-slate-700 outline-none transition-colors focus:border-[#2EE6A6]/30 focus:ring-1 focus:ring-[#2EE6A6]/20"
             />
           </div>
+
           <div className="flex flex-col gap-1.5">
             <label className="text-[12px] font-medium uppercase tracking-[0.15em] text-slate-500">
               Competitor name
@@ -73,6 +124,7 @@ export default async function OnboardingPage() {
               className="rounded-[10px] border border-[#0d2010] bg-[#030c03] px-4 py-3 text-[14px] text-white placeholder-slate-700 outline-none transition-colors focus:border-[#2EE6A6]/30 focus:ring-1 focus:ring-[#2EE6A6]/20"
             />
           </div>
+
           <button
             type="submit"
             className="mt-2 rounded-full bg-[#2EE6A6] py-3 text-[14px] font-semibold text-black transition-opacity hover:opacity-90"
@@ -91,7 +143,7 @@ export default async function OnboardingPage() {
             href="/app/discover"
             className="mt-1 text-[13px] font-medium text-[#2EE6A6] transition-opacity hover:opacity-80"
           >
-            Browse 52 competitors by category →
+            Browse competitors by category →
           </Link>
         </div>
       </main>

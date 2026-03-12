@@ -11,16 +11,19 @@ export default async function DiscoverPage() {
 
   if (!user) redirect("/login");
 
-  // Pre-load already-tracked domains so the UI can show correct state
+  // Pre-load already-tracked domains and org sector
   let trackedDomains: string[] = [];
+  let orgSector = "saas";
   try {
     const { data: org } = await supabase
       .from("organizations")
-      .select("id")
+      .select("id, sector")
       .eq("owner_id", user.id)
       .single();
 
     if (org) {
+      orgSector = org.sector ?? "saas";
+
       const { data: competitors } = await supabase
         .from("tracked_competitors")
         .select("website_url")
@@ -120,7 +123,7 @@ export default async function DiscoverPage() {
       </div>
 
       {/* ── Discovery UI ───────────────────────────────────────────────── */}
-      <DiscoverClient initialTracked={trackedDomains} />
+      <DiscoverClient initialTracked={trackedDomains} initialSector={orgSector} />
     </div>
   );
 }

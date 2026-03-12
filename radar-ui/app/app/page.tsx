@@ -4,9 +4,27 @@ import RadarViewedTracker from "../../components/RadarViewedTracker";
 import NotificationBell from "../../components/NotificationBell";
 import { getRadarFeed } from "../../lib/api";
 import { formatRelative } from "../../lib/format";
+import { createClient } from "../../lib/supabase/server";
 
 export default async function Page() {
   const competitors = await getRadarFeed(24);
+
+  // Read org sector for display language — best-effort, defaults to "saas"
+  let sector = "saas";
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: org } = await supabase
+        .from("organizations")
+        .select("sector")
+        .eq("owner_id", user.id)
+        .maybeSingle();
+      if (org?.sector) sector = org.sector;
+    }
+  } catch {
+    // Non-fatal — sector display is optional
+  }
 
   const activeCount = competitors.filter(
     (c) => Number(c.momentum_score ?? 0) > 0
@@ -294,7 +312,7 @@ export default async function Page() {
       {/* ── Main: radar fills everything below the header ─────────────────── */}
       <div className="relative z-10 flex-1 overflow-hidden p-3">
         <RadarViewedTracker />
-        <Radar competitors={competitors} />
+        <Radar competitors={competitors} sector={sector} />
       </div>
 
     </main>

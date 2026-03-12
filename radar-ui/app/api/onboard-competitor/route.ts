@@ -13,17 +13,23 @@ export async function POST(request: Request) {
   }
 
   const formData = await request.formData();
-  const url  = formData.get("url")  as string | null;
-  const name = formData.get("name") as string | null;
+  const url    = formData.get("url")    as string | null;
+  const name   = formData.get("name")   as string | null;
+  const sector = formData.get("sector") as string | null;
 
   if (!url || !name) {
     return NextResponse.json({ error: "url and name are required" }, { status: 400 });
   }
 
-  // Upsert organization for this user
+  // Upsert organization for this user, preserving sector if provided
+  const orgPayload: Record<string, string> = { owner_id: user.id };
+  if (sector && ["saas", "defense", "energy"].includes(sector)) {
+    orgPayload.sector = sector;
+  }
+
   const { data: org, error: orgError } = await supabase
     .from("organizations")
-    .upsert({ owner_id: user.id }, { onConflict: "owner_id" })
+    .upsert(orgPayload, { onConflict: "owner_id" })
     .select("id")
     .single();
 

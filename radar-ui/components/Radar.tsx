@@ -8,6 +8,7 @@ import { formatRelative } from "../lib/format";
 import { getMomentumConfig, getMomentumEchoDuration } from "../lib/momentum";
 import MomentumSparkline from "./MomentumSparkline";
 import { capture } from "../lib/posthog";
+import { translateMovementType, translateSignalType } from "../lib/sectors";
 
 // ─── Radar geometry ──────────────────────────────────────────────────────────
 const SIZE = 1000;
@@ -396,8 +397,10 @@ const BlipNode = memo(function BlipNode({
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function Radar({
   competitors,
+  sector,
 }: {
   competitors: RadarCompetitor[];
+  sector?: string;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -436,7 +439,7 @@ export default function Radar({
         .filter((c) => c.latest_movement_type)
         .map((c) => ({
           name: c.competitor_name,
-          label: getMovementLabel(c.latest_movement_type),
+          label: translateMovementType(c.latest_movement_type, sector),
           date: formatDate(c.latest_movement_last_seen_at),
         })),
     [sorted]
@@ -1007,7 +1010,7 @@ export default function Radar({
                           boxShadow: `0 0 6px ${getMovementColor(selected.latest_movement_type)}`,
                         }}
                       />
-                      {getMovementLabel(selected.latest_movement_type)}
+                      {translateMovementType(selected.latest_movement_type, sector)}
                     </span>
                     {!detailLoading && primarySignal?.urgency != null && (
                       <span
@@ -1224,7 +1227,7 @@ export default function Radar({
                                   border: `1px solid ${sigColor}25`,
                                 }}
                               >
-                                {getSignalTypeLabel(signal.signal_type)}
+                                {translateSignalType(signal.signal_type, sector)}
                               </span>
                               {signal.urgency != null && signal.urgency >= 3 && (
                                 <span
@@ -1305,7 +1308,7 @@ export default function Radar({
                               }}
                             />
                             <span className="text-sm text-slate-300">
-                              {getMovementLabel(m.movement_type)}
+                              {translateMovementType(m.movement_type, sector)}
                             </span>
                           </div>
                           <div className="flex items-center gap-3 text-[11px] tabular-nums text-slate-500">
@@ -1450,7 +1453,7 @@ export default function Radar({
                               className="font-medium uppercase tracking-[0.14em]"
                               style={{ color }}
                             >
-                              {getMovementLabel(competitor.latest_movement_type)}
+                              {translateMovementType(competitor.latest_movement_type, sector)}
                             </span>
                           ) : (
                             <span className="uppercase tracking-[0.14em] text-slate-600">Dormant</span>
