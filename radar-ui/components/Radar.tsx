@@ -623,10 +623,10 @@ export default function Radar({
   }, [selectedId]);
 
   return (
-    <div className="grid h-full gap-3 grid-cols-1 md:grid-cols-[1fr_360px] xl:grid-cols-[1fr_420px]">
+    <div className="flex flex-col gap-3 md:grid md:h-full md:grid-cols-[1fr_360px] xl:grid-cols-[1fr_420px]">
       {/* ── Radar panel ─────────────────────────────────────────── */}
       <section
-        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[#0d2010]"
+        className="flex flex-col overflow-hidden rounded-[20px] border border-[#0d2010] h-[calc(100svh-9.5rem)] md:h-auto md:min-h-0 md:flex-1"
         style={{
           background: "#000000",
           boxShadow: "inset 0 1px 0 0 rgba(46,230,166,0.08), 0 0 80px rgba(0,0,0,0.9)",
@@ -1286,7 +1286,7 @@ export default function Radar({
 
       {/* ── Right panel — intelligence console ──────────────────── */}
       <aside
-        className="min-h-0 overflow-y-auto rounded-[20px] border bg-[#000000] p-6 transition-colors duration-500"
+        className="overflow-y-auto rounded-[20px] border bg-[#000000] p-6 transition-colors duration-500 min-h-[380px] md:min-h-0"
         style={{
           borderColor: selected
             ? `${getMovementColor(selected.latest_movement_type)}38`

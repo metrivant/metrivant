@@ -6,6 +6,8 @@ import NotificationBell from "../../components/NotificationBell";
 import SectorSwitcher from "../../components/SectorSwitcher";
 import PlanBadge from "../../components/PlanBadge";
 import UpgradePrompt from "../../components/UpgradePrompt";
+import MobileHeader from "../../components/MobileHeader";
+import MobileBottomNav from "../../components/MobileBottomNav";
 import { getRadarFeed } from "../../lib/api";
 import { formatRelative } from "../../lib/format";
 import { createClient } from "../../lib/supabase/server";
@@ -63,7 +65,7 @@ export default async function Page() {
     : `${activeCount} rival${activeCount !== 1 ? "s" : ""} moving · ${totalSignals7d} signal${totalSignals7d !== 1 ? "s" : ""} this week${lastSignalAt ? ` · last signal ${formatRelative(lastSignalAt)}` : ""}`;
 
   return (
-    <main className="flex h-screen w-full flex-col overflow-hidden bg-black text-white">
+    <main className="flex w-full flex-col bg-black text-white min-h-[100svh] overflow-x-hidden md:h-screen md:overflow-hidden">
 
       {/* ── Atmospheric depth layers ─────────────────────────────────────── */}
       <div
@@ -89,8 +91,16 @@ export default async function Page() {
         }}
       />
 
-      {/* ── Header — brand + stats only ──────────────────────────────────── */}
-      <header className="relative z-20 flex h-[68px] shrink-0 items-center border-b border-[#0e2210] bg-[rgba(0,0,0,0.98)] backdrop-blur-xl">
+      {/* ── Mobile header (portrait / landscape mobile only) ─────────────── */}
+      <MobileHeader
+        sector={sector}
+        isQuiet={isQuiet}
+        isFresh={isFresh}
+        lastSignalAt={lastSignalAt}
+      />
+
+      {/* ── Desktop header — brand + stats ───────────────────────────────── */}
+      <header className="relative z-20 hidden h-[68px] shrink-0 items-center border-b border-[#0e2210] bg-[rgba(0,0,0,0.98)] backdrop-blur-xl md:flex">
 
         {/* Accent line at top of header */}
         <div
@@ -125,7 +135,7 @@ export default async function Page() {
           </div>
 
           {/* ── Right: stats + notification + live badge ───────────────── */}
-          <div className="hidden items-center gap-4 md:flex">
+          <div className="flex items-center gap-4">
             <PlanBadge plan={plan} />
             <SectorSwitcher sector={sector} />
             <NotificationBell />
@@ -171,9 +181,9 @@ export default async function Page() {
       </header>
 
       {/* ── Body: sidebar nav + radar ─────────────────────────────────────── */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-x-hidden md:flex-row md:overflow-hidden">
 
-        {/* ── Left sidebar — vertical navigation ───────────────────────── */}
+        {/* ── Left sidebar — desktop navigation only ────────────────────── */}
         <nav
           className="hidden w-[220px] shrink-0 flex-col border-r border-[#0e2210] bg-[rgba(0,0,0,0.98)] xl:w-[280px] md:flex"
           aria-label="App navigation"
@@ -268,12 +278,19 @@ export default async function Page() {
         </nav>
 
         {/* ── Radar content area ─────────────────────────────────────────── */}
-        <div className="relative z-10 flex flex-1 flex-col overflow-hidden p-3">
+        {/*
+          Desktop: flex-1 overflow-hidden p-3 (fixed viewport height)
+          Mobile:  natural height, p-3 with extra bottom padding to clear the fixed bottom nav
+        */}
+        <div className="relative z-10 flex flex-1 flex-col p-3 pb-[4.5rem] md:overflow-hidden md:pb-3">
           <RadarViewedTracker />
           <Radar competitors={competitors} sector={sector} />
         </div>
 
       </div>
+
+      {/* ── Mobile bottom navigation ──────────────────────────────────────── */}
+      <MobileBottomNav />
 
       {/* ── Timed upgrade prompt — shown after 60s for Analyst plan users ── */}
       <UpgradePrompt plan={plan} />
