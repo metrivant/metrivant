@@ -43,7 +43,7 @@ export default async function DiscoverPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#000200] text-white">
+    <div className="min-h-screen bg-black text-white">
 
       {/* ── Atmospheric depth ──────────────────────────────────────────── */}
       <div
@@ -64,7 +64,7 @@ export default async function DiscoverPage() {
       />
 
       {/* ── Mini header ────────────────────────────────────────────────── */}
-      <header className="relative z-10 flex h-14 shrink-0 items-center justify-between border-b border-[#0e2210] bg-[rgba(0,2,0,0.97)] px-6">
+      <header className="relative z-10 flex h-14 shrink-0 items-center justify-between border-b border-[#0e2210] bg-[rgba(0,0,0,0.98)] px-6">
         <div
           className="absolute inset-x-0 top-0 h-[1px]"
           style={{

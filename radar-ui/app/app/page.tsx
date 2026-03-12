@@ -39,7 +39,7 @@ export default async function Page() {
     : `${activeCount} rival${activeCount !== 1 ? "s" : ""} moving · ${totalSignals7d} signal${totalSignals7d !== 1 ? "s" : ""} this week${lastSignalAt ? ` · last signal ${formatRelative(lastSignalAt)}` : ""}`;
 
   return (
-    <main className="flex h-screen w-screen flex-col overflow-hidden bg-[#000200] text-white">
+    <main className="flex h-screen w-screen flex-col overflow-hidden bg-black text-white">
 
       {/* ── Atmospheric depth layers ─────────────────────────────────────── */}
       <div
@@ -66,7 +66,7 @@ export default async function Page() {
       />
 
       {/* ── Header — single authoritative command band ────────────────────── */}
-      <header className="relative z-20 flex h-[72px] shrink-0 items-center border-b border-[#0e2210] bg-[rgba(0,2,0,0.97)] backdrop-blur-xl">
+      <header className="relative z-20 flex h-[80px] shrink-0 items-center border-b border-[#0e2210] bg-[rgba(0,0,0,0.98)] backdrop-blur-xl">
 
         {/* Subtle accent line at top of header */}
         <div
@@ -84,8 +84,8 @@ export default async function Page() {
 
             {/* Logo mark: radar with sweep line */}
             <svg
-              width="46"
-              height="46"
+              width="58"
+              height="58"
               viewBox="0 0 46 46"
               fill="none"
               aria-hidden="true"
@@ -115,7 +115,7 @@ export default async function Page() {
             </svg>
 
             {/* Wordmark block */}
-            <div className="flex flex-col">
+            <div className="flex flex-col gap-y-[3px]">
               <div
                 className="text-[11px] font-medium uppercase tracking-[0.32em]"
                 style={{ color: "rgba(46,230,166,0.55)" }}
@@ -123,13 +123,13 @@ export default async function Page() {
                 Competitive Intelligence
               </div>
               <div
-                className="text-[26px] font-bold leading-none tracking-[0.08em] text-white"
+                className="text-[28px] font-bold leading-none text-white"
                 style={{ letterSpacing: "0.09em" }}
               >
                 METRIVANT
               </div>
               {/* Status subline */}
-              <div className="mt-1 flex items-center gap-2">
+              <div className="mt-[3px] flex items-center gap-2">
                 <span className="relative flex h-[7px] w-[7px] shrink-0">
                   {!isQuiet && isFresh && (
                     <span className="absolute inset-0 animate-ping rounded-full bg-[#2EE6A6] opacity-55" />

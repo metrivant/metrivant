@@ -15,28 +15,10 @@ const CENTER = SIZE / 2;
 const OUTER_RADIUS = 420;
 const RING_FACTORS = [1, 0.857, 0.571, 0.286];
 
-// ─── Sweep beam ───────────────────────────────────────────────────────────────
-// Two layered sectors:
-//  1. Wide dim trail  — 45° phosphor memory
-//  2. Narrow hot zone — 12° near the leading edge
-// Beam rotates clockwise; leading edge starts at angle 0 (east).
-const SWEEP_DURATION = 12; // seconds — slow, heavy military sweep
-
-const SWEEP_TRAIL_DEG = 45;
-const SWEEP_HOT_DEG = 12;
-const SWEEP_TRAIL_RAD = (SWEEP_TRAIL_DEG * Math.PI) / 180;
-const SWEEP_HOT_TRAIL_RAD = (SWEEP_HOT_DEG * Math.PI) / 180;
-
-const SWEEP_TIP_X = CENTER + OUTER_RADIUS;
-const SWEEP_TIP_Y = CENTER;
-
-const SWEEP_TAIL_X = CENTER + OUTER_RADIUS * Math.cos(-SWEEP_TRAIL_RAD);
-const SWEEP_TAIL_Y = CENTER + OUTER_RADIUS * Math.sin(-SWEEP_TRAIL_RAD);
-const SWEEP_SECTOR = `M ${CENTER} ${CENTER} L ${SWEEP_TAIL_X.toFixed(2)} ${SWEEP_TAIL_Y.toFixed(2)} A ${OUTER_RADIUS} ${OUTER_RADIUS} 0 0 1 ${SWEEP_TIP_X.toFixed(2)} ${SWEEP_TIP_Y.toFixed(2)} Z`;
-
-const SWEEP_HOT_TAIL_X = CENTER + OUTER_RADIUS * Math.cos(-SWEEP_HOT_TRAIL_RAD);
-const SWEEP_HOT_TAIL_Y = CENTER + OUTER_RADIUS * Math.sin(-SWEEP_HOT_TRAIL_RAD);
-const SWEEP_HOT_SECTOR = `M ${CENTER} ${CENTER} L ${SWEEP_HOT_TAIL_X.toFixed(2)} ${SWEEP_HOT_TAIL_Y.toFixed(2)} A ${OUTER_RADIUS} ${OUTER_RADIUS} 0 0 1 ${SWEEP_TIP_X.toFixed(2)} ${SWEEP_TIP_Y.toFixed(2)} Z`;
+// ─── Pulse cycle ──────────────────────────────────────────────────────────────
+// 12-second cycle drives node ping/echo timing.
+// No rotating sweep — radar stays alive through pulse rings and node behavior.
+const SWEEP_DURATION = 12; // seconds per cycle — kept for node timing synchronisation
 
 // ─── Perimeter tick marks ─────────────────────────────────────────────────────
 // 72 ticks (every 5°). Major at cardinal points, medium every 30°.
@@ -222,7 +204,7 @@ function getTrailPoints(index: number, radius: number): Point[] {
 }
 
 function getNodeSize(momentum: number): number {
-  return 8 + Math.sqrt(Math.max(momentum, 0)) * 1.5;
+  return 13 + Math.sqrt(Math.max(momentum, 0)) * 2.2;
 }
 
 // ─── BlipNode sub-component ───────────────────────────────────────────────────
@@ -529,8 +511,8 @@ export default function Radar({
       <section
         className="flex h-full flex-col overflow-hidden rounded-[20px] border border-[#0d2010]"
         style={{
-          background: "linear-gradient(180deg,#020802 0%,#010601 100%)",
-          boxShadow: "inset 0 1px 0 0 rgba(46,230,166,0.05), 0 0 60px rgba(0,0,0,0.7)",
+          background: "#000000",
+          boxShadow: "inset 0 1px 0 0 rgba(46,230,166,0.08), 0 0 80px rgba(0,0,0,0.9)",
         }}
       >
           <div className="relative flex-1 overflow-hidden">
@@ -554,9 +536,9 @@ export default function Radar({
 
                 {/* Edge vignette — atmospheric depth at perimeter */}
                 <radialGradient id="vignette" cx="50%" cy="50%" r="50%">
-                  <stop offset="52%" stopColor="#020502" stopOpacity="0" />
-                  <stop offset="80%" stopColor="#020502" stopOpacity="0.68" />
-                  <stop offset="100%" stopColor="#020502" stopOpacity="0.92" />
+                  <stop offset="52%" stopColor="#000000" stopOpacity="0" />
+                  <stop offset="80%" stopColor="#000000" stopOpacity="0.72" />
+                  <stop offset="100%" stopColor="#000000" stopOpacity="0.96" />
                 </radialGradient>
 
                 {/* Blip soft glow */}
@@ -567,7 +549,7 @@ export default function Radar({
                   width="500%"
                   height="500%"
                 >
-                  <feGaussianBlur stdDeviation="4.5" result="blur" />
+                  <feGaussianBlur stdDeviation="7" result="blur" />
                   <feMerge>
                     <feMergeNode in="blur" />
                     <feMergeNode in="SourceGraphic" />
@@ -582,7 +564,7 @@ export default function Radar({
                   width="500%"
                   height="500%"
                 >
-                  <feGaussianBlur stdDeviation="12" result="blur" />
+                  <feGaussianBlur stdDeviation="16" result="blur" />
                   <feMerge>
                     <feMergeNode in="blur" />
                     <feMergeNode in="SourceGraphic" />
@@ -598,36 +580,6 @@ export default function Radar({
                   height="220%"
                 >
                   <feGaussianBlur stdDeviation="9" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-
-                {/* Sweep sector glow */}
-                <filter
-                  id="sweepSectorGlow"
-                  x="-20%"
-                  y="-20%"
-                  width="140%"
-                  height="140%"
-                >
-                  <feGaussianBlur stdDeviation="7" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-
-                {/* Sweep leading edge line glow */}
-                <filter
-                  id="sweepGlow"
-                  x="-100%"
-                  y="-100%"
-                  width="300%"
-                  height="300%"
-                >
-                  <feGaussianBlur stdDeviation="5" result="blur" />
                   <feMerge>
                     <feMergeNode in="blur" />
                     <feMergeNode in="SourceGraphic" />
@@ -676,12 +628,12 @@ export default function Radar({
               {/* ── Range rings — stepped brightness outward→inward ── */}
               {RING_FACTORS.map((factor, i) => {
                 const strokes = [
-                  "rgba(46,230,166,0.20)",
-                  "rgba(46,230,166,0.13)",
-                  "rgba(46,230,166,0.09)",
-                  "rgba(46,230,166,0.05)",
+                  "rgba(46,230,166,0.55)",
+                  "rgba(46,230,166,0.38)",
+                  "rgba(46,230,166,0.25)",
+                  "rgba(46,230,166,0.14)",
                 ];
-                const widths = [1.8, 1.3, 1.0, 0.8];
+                const widths = [2.0, 1.5, 1.2, 0.9];
                 return (
                   <circle
                     key={factor}
@@ -707,7 +659,7 @@ export default function Radar({
                     y1={CENTER - dy}
                     x2={CENTER + dx}
                     y2={CENTER + dy}
-                    stroke="rgba(46,230,166,0.08)"
+                    stroke="rgba(46,230,166,0.20)"
                     strokeWidth="1"
                   />
                 );
@@ -734,46 +686,9 @@ export default function Radar({
 
               {/* Cardinal labels rendered outside clip (see below) */}
 
-              {/* ── Sweep beam ──────────────────────────────────────── */}
-              <motion.g
-                animate={{ rotate: [0, 360] }}
-                transition={{
-                  duration: SWEEP_DURATION,
-                  repeat: Infinity,
-                  ease: "linear",
-                }}
-                style={{ transformOrigin: `${CENTER}px ${CENTER}px` }}
-              >
-                {/* Wide dim phosphor memory trail (45°) */}
-                <path
-                  d={SWEEP_SECTOR}
-                  fill="#2EE6A6"
-                  opacity="0.10"
-                  filter="url(#sweepSectorGlow)"
-                />
-                {/* Bright hot zone near leading edge (12°) */}
-                <path
-                  d={SWEEP_HOT_SECTOR}
-                  fill="#2EE6A6"
-                  opacity="0.28"
-                  filter="url(#sweepSectorGlow)"
-                />
-                {/* Leading edge line */}
-                <line
-                  x1={CENTER}
-                  y1={CENTER}
-                  x2={SWEEP_TIP_X}
-                  y2={SWEEP_TIP_Y}
-                  stroke="#2EE6A6"
-                  strokeWidth="2.5"
-                  opacity="0.92"
-                  filter="url(#sweepGlow)"
-                />
-              </motion.g>
-
               {/* ── Sonar pulse field ───────────────────────────────── */}
               {/* Main pulse rings — thick, luminous.
-                  Duration 12s = sweep cycle. Stagger 4s = perfect 3-ring coverage.
+                  Duration 12s = cycle period. Stagger 4s = perfect 3-ring coverage.
                   Near-linear ease: physically accurate constant-speed wavefront. */}
               {[0, 1, 2].map((i) => (
                 <motion.circle
@@ -783,9 +698,9 @@ export default function Radar({
                   r={OUTER_RADIUS}
                   fill="none"
                   stroke="#22c55e"
-                  strokeWidth="4"
+                  strokeWidth="5"
                   filter="url(#sonarGlow)"
-                  initial={{ scale: 0.08, opacity: 0.8 }}
+                  initial={{ scale: 0.08, opacity: 1.0 }}
                   animate={{ scale: 1.0, opacity: 0 }}
                   transition={{
                     duration: 12,
@@ -806,10 +721,10 @@ export default function Radar({
                   cy={CENTER}
                   r={OUTER_RADIUS}
                   fill="none"
-                  stroke="#16a34a"
-                  strokeWidth="2"
+                  stroke="#2EE6A6"
+                  strokeWidth="2.5"
                   filter="url(#sonarGlow)"
-                  initial={{ scale: 0.08, opacity: 0.45 }}
+                  initial={{ scale: 0.08, opacity: 0.6 }}
                   animate={{ scale: 1.0, opacity: 0 }}
                   transition={{
                     duration: 24,
@@ -1036,7 +951,7 @@ export default function Radar({
 
       {/* ── Right panel — intelligence console ──────────────────── */}
       <aside
-        className="overflow-y-auto rounded-[20px] border bg-[#030b03] p-6 transition-colors duration-500"
+        className="overflow-y-auto rounded-[20px] border bg-[#000000] p-6 transition-colors duration-500"
         style={{
           borderColor: selected
             ? `${getMovementColor(selected.latest_movement_type)}30`
@@ -1059,8 +974,8 @@ export default function Radar({
               {/* ── Drawer header ──────────────────────────────── */}
               <div className="mb-6 flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.30em] text-slate-500">
-                    Intel Report
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.32em]" style={{ color: "rgba(46,230,166,0.6)" }}>
+                    Intelligence Report
                   </div>
                   <h2 className="mt-2 text-[26px] font-semibold leading-tight tracking-tight text-slate-100">
                     {selected.competitor_name}
@@ -1131,7 +1046,7 @@ export default function Radar({
 
               {/* ── Assessment ──────────────────────────────────── */}
               <div className="rounded-[14px] border border-[#152415] bg-[#071507] px-4 py-3.5">
-                <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">
                   Assessment
                 </div>
                 {detailLoading ? (
@@ -1164,7 +1079,7 @@ export default function Radar({
                     borderLeftWidth: "2px",
                   }}
                 >
-                  <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.22em] text-slate-400">
+                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">
                     Recommended Action
                   </div>
                   <p className="text-sm leading-relaxed text-slate-200">
@@ -1276,10 +1191,10 @@ export default function Radar({
               {/* ── Evidence chain ──────────────────────────────── */}
               <div className="mt-5">
                 <div className="mb-3 flex items-center justify-between">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.24em] text-slate-400">
-                    What changed
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">
+                    Evidence
                   </div>
-                  <div className="text-[11px] text-slate-600">
+                  <div className="text-[11px] uppercase tracking-[0.16em] text-slate-600">
                     Live captures
                   </div>
                 </div>
@@ -1438,13 +1353,16 @@ export default function Radar({
               transition={{ duration: 0.2 }}
             >
               {/* ── Panel header ──────────────────────────────── */}
-              <div className="mb-4 flex items-center justify-between">
+              <div className="mb-5 flex items-start justify-between">
                 <div>
-                  <div className="text-[11px] font-medium uppercase tracking-[0.30em] text-slate-500">
-                    Rival Activity
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#2EE6A6]" style={{ opacity: 0.7 }}>
+                    Radar Feed
+                  </div>
+                  <div className="mt-1.5 text-[12px] font-medium text-slate-300">
+                    Select a target to pull intelligence
                   </div>
                   <div className="mt-0.5 text-[11px] text-slate-600">
-                    Click any blip to open intel
+                    {sorted.length} rival{sorted.length !== 1 ? "s" : ""} under surveillance
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 rounded-full border border-[#2EE6A6]/20 bg-[#2EE6A6]/6 px-3 py-1.5">
@@ -1472,18 +1390,21 @@ export default function Radar({
 
               {/* ── All clear banner ──────────────────────────── */}
               {movingCount === 0 && sorted.length > 0 && (
-                <div className="mb-4 rounded-[12px] border border-[#152415] bg-[#071507] px-4 py-3 text-center">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">
-                    All clear
+                <div
+                  className="mb-5 rounded-[12px] border border-[#1a3a1a] px-4 py-3 text-center"
+                  style={{ background: "rgba(46,230,166,0.03)" }}
+                >
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: "rgba(46,230,166,0.5)" }}>
+                    All Surfaces Clear
                   </div>
-                  <p className="mt-1 text-xs text-slate-500">
-                    No movement detected · all surfaces quiet
+                  <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600">
+                    No movement detected across {sorted.length} monitored rival{sorted.length !== 1 ? "s" : ""}
                   </p>
                 </div>
               )}
 
               {/* ── Contact list ──────────────────────────────── */}
-              <div className="space-y-0.5">
+              <div className="space-y-1">
                 {sorted.map((competitor) => {
                   const color    = getMovementColor(competitor.latest_movement_type);
                   const momentum = Number(competitor.momentum_score ?? 0);
@@ -1493,43 +1414,49 @@ export default function Radar({
                     <div
                       key={competitor.competitor_id}
                       onClick={() => handleBlipClick(competitor.competitor_id)}
-                      className="group flex cursor-pointer items-center gap-3 rounded-[12px] border border-transparent px-3.5 py-2.5 transition-all hover:border-[#1c3a1c] hover:bg-[#071507]"
+                      className="group flex cursor-pointer items-center gap-3 rounded-[12px] border border-transparent px-3.5 py-3 transition-all hover:border-[#1c3a1c] hover:bg-[#060d06]"
                       style={isActive ? {
-                        borderLeftColor: `${color}35`,
+                        borderLeftColor: `${color}45`,
                         borderLeftWidth: "2px",
                       } : undefined}
                     >
                       {/* Movement color dot */}
                       <span
-                        className="h-2 w-2 shrink-0 rounded-full"
+                        className="h-2.5 w-2.5 shrink-0 rounded-full"
                         style={{
                           backgroundColor: color,
-                          boxShadow: `0 0 6px ${color}88`,
+                          boxShadow: isActive ? `0 0 8px ${color}99` : `0 0 4px ${color}44`,
                         }}
                       />
 
-                      {/* Name + movement · timestamp (2-line) */}
+                      {/* Name + movement / timestamp (2-line) */}
                       <div className="min-w-0 flex-1 transition-transform group-hover:translate-x-px">
-                        <div className="flex items-baseline gap-1.5">
-                          <span className="truncate text-[13px] font-medium text-slate-200">
+                        <div className="flex items-baseline gap-2">
+                          <span className="truncate text-[13px] font-semibold text-slate-100">
                             {competitor.competitor_name}
                           </span>
                           {fresh && (
-                            <span className="shrink-0 rounded-full bg-[#2EE6A6]/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.10em] text-[#2EE6A6]">
-                              New
+                            <span
+                              className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]"
+                              style={{ background: "rgba(46,230,166,0.12)", color: "#2EE6A6" }}
+                            >
+                              Signal
                             </span>
                           )}
                         </div>
-                        <div className="mt-0.5 truncate text-[11px] text-slate-500">
+                        <div className="mt-0.5 flex items-center gap-1 truncate text-[11px]">
                           {isActive ? (
-                            <span className="uppercase tracking-[0.12em]">
+                            <span
+                              className="font-medium uppercase tracking-[0.14em]"
+                              style={{ color }}
+                            >
                               {getMovementLabel(competitor.latest_movement_type)}
                             </span>
                           ) : (
-                            <span>Quiet</span>
+                            <span className="uppercase tracking-[0.14em] text-slate-600">Dormant</span>
                           )}
-                          {" · "}
-                          <span className="tabular-nums">
+                          <span className="text-slate-700">/</span>
+                          <span className="tabular-nums text-slate-600">
                             {formatRelative(
                               competitor.latest_movement_last_seen_at ??
                                 competitor.last_signal_at
@@ -1543,7 +1470,7 @@ export default function Radar({
                         const mCfg = getMomentumConfig(momentum);
                         return (
                           <div className="flex shrink-0 flex-col items-end gap-1">
-                            <div className="text-[13px] font-semibold tabular-nums text-slate-300">
+                            <div className="text-[14px] font-bold tabular-nums text-slate-200">
                               {formatNumber(momentum)}
                             </div>
                             <div className="h-[3px] w-14 overflow-hidden rounded-full bg-[#0d1f0d]">
@@ -1552,12 +1479,12 @@ export default function Radar({
                                 style={{
                                   width: `${Math.round((momentum / maxMomentum) * 100)}%`,
                                   backgroundColor: color,
-                                  boxShadow: `0 0 4px ${color}66`,
+                                  boxShadow: `0 0 5px ${color}77`,
                                 }}
                               />
                             </div>
                             <span
-                              className="text-[9px] font-semibold uppercase tracking-[0.12em]"
+                              className="text-[9px] font-semibold uppercase tracking-[0.14em]"
                               style={{ color: mCfg.color }}
                             >
                               {mCfg.arrow} {mCfg.label}
