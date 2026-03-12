@@ -3,6 +3,7 @@ import { getRadarFeed } from "../../../lib/api";
 import { generateBrief, buildBriefEmailHtml } from "../../../lib/brief";
 import { sendEmail, FROM_BRIEFS } from "../../../lib/email";
 import { createServiceClient } from "../../../lib/supabase/service";
+import { captureException } from "../../../lib/sentry";
 
 function weekLabel(date: Date): string {
   return date.toLocaleDateString("en-US", {
@@ -54,6 +55,7 @@ async function runGeneration(): Promise<NextResponse> {
     .single();
 
   if (insertError) {
+    captureException(insertError, { route: "generate-brief", step: "brief_insert" });
     console.error("[generate-brief] insert failed:", insertError.message);
     // Non-fatal — continue to email delivery
   }
@@ -77,6 +79,9 @@ async function runGeneration(): Promise<NextResponse> {
         .filter(Boolean);
     }
   } catch (err) {
+    captureException(err instanceof Error ? err : new Error(String(err)), {
+      route: "generate-brief", step: "fetch_recipients",
+    });
     console.error("[generate-brief] failed to fetch recipients:", err);
   }
 

@@ -20,13 +20,13 @@ import {
   buildRepositioningEmailHtml,
   type PositionShift,
 } from "../../../lib/positioning";
+import { sendEmail, FROM_ALERTS } from "../../../lib/email";
+import { captureException } from "../../../lib/sentry";
 
-const OPENAI_API_KEY  = process.env.OPENAI_API_KEY    ?? "";
-const RESEND_API_KEY  = process.env.RESEND_API_KEY    ?? "";
-const POSTHOG_API_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY ?? "";
-const SITE_URL        = process.env.NEXT_PUBLIC_SITE_URL    ?? "https://metrivant.com";
-const FROM_EMAIL      = process.env.FROM_EMAIL        ?? "intel@metrivant.com";
-const CRON_SECRET     = process.env.CRON_SECRET       ?? "";
+const OPENAI_API_KEY  = process.env.OPENAI_API_KEY  ?? "";
+const POSTHOG_API_KEY = process.env.POSTHOG_API_KEY ?? "";
+const SITE_URL        = process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
+const CRON_SECRET     = process.env.CRON_SECRET ?? "";
 
 export async function GET(request: Request) { return handler(request); }
 export async function POST(request: Request) { return handler(request); }
@@ -90,7 +90,7 @@ async function handler(request: Request): Promise<NextResponse> {
         (existing ?? []).map((r) => [
           r.competitor_id as string,
           {
-            market_focus_score:    Number(r.market_focus_score),
+            market_focus_score:     Number(r.market_focus_score),
             customer_segment_score: Number(r.customer_segment_score),
           },
         ])
@@ -150,39 +150,33 @@ async function handler(request: Request): Promise<NextResponse> {
         await service.from("positioning_history").insert(historyRows);
       }
 
-      // Email on significant shifts
-      if (shifts.length > 0 && RESEND_API_KEY) {
+      // Email on significant shifts — via canonical sendEmail()
+      if (shifts.length > 0) {
         const { data: userData } = await service.auth.admin.getUserById(
           org.owner_id as string
         );
         const email = userData?.user?.email;
 
         if (email) {
-          await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${RESEND_API_KEY}`,
-            },
-            body: JSON.stringify({
-              from: FROM_EMAIL,
-              to:   email,
-              subject: shifts.length === 1
-                ? `Competitor repositioning detected: ${shifts[0].competitor_name}`
-                : `${shifts.length} competitors repositioning on market map`,
-              html: buildRepositioningEmailHtml(shifts, SITE_URL),
-            }),
-          }).catch(() => null);
-        }
+          await sendEmail({
+            to:      email,
+            subject: shifts.length === 1
+              ? `Competitor repositioning detected: ${shifts[0].competitor_name}`
+              : `${shifts.length} competitors repositioning on market map`,
+            html:    buildRepositioningEmailHtml(shifts, SITE_URL),
+            from:    FROM_ALERTS,
+          });
 
-        totalShifts += shifts.length;
+          totalShifts += shifts.length;
+        }
       }
 
-      // PostHog events
+      // PostHog events — server-side key, distinct_id required
       if (POSTHOG_API_KEY && result.positioning.length > 0) {
         const events = result.positioning.map((p) => ({
-          event: "positioning_updated",
-          properties: {
+          event:       "positioning_updated",
+          distinct_id: "system",
+          properties:  {
             org_id:                 org.id,
             competitor_id:          p.competitor_id,
             market_focus_score:     p.market_focus_score,
@@ -192,12 +186,16 @@ async function handler(request: Request): Promise<NextResponse> {
         }));
 
         await fetch("https://app.posthog.com/batch", {
-          method: "POST",
+          method:  "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ api_key: POSTHOG_API_KEY, batch: events }),
+          body:    JSON.stringify({ api_key: POSTHOG_API_KEY, batch: events }),
         }).catch(() => null);
       }
     } catch (err) {
+      captureException(err instanceof Error ? err : new Error(String(err)), {
+        route:  "update-positioning",
+        org_id: String(org.id),
+      });
       console.error(`update-positioning: org ${org.id as string} failed:`, err);
     }
   }

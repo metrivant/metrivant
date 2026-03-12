@@ -18,13 +18,13 @@ import {
   buildStrategyAlertEmailHtml,
   type StrategicInsight,
 } from "../../../lib/strategy";
+import { sendEmail, FROM_ALERTS } from "../../../lib/email";
+import { captureException } from "../../../lib/sentry";
 
-const OPENAI_API_KEY  = process.env.OPENAI_API_KEY    ?? "";
-const RESEND_API_KEY  = process.env.RESEND_API_KEY    ?? "";
-const POSTHOG_API_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY ?? "";
-const SITE_URL        = process.env.NEXT_PUBLIC_SITE_URL    ?? "https://metrivant.com";
-const FROM_EMAIL      = process.env.FROM_EMAIL        ?? "intel@metrivant.com";
-const CRON_SECRET     = process.env.CRON_SECRET       ?? "";
+const OPENAI_API_KEY  = process.env.OPENAI_API_KEY  ?? "";
+const POSTHOG_API_KEY = process.env.POSTHOG_API_KEY ?? "";
+const SITE_URL        = process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
+const CRON_SECRET     = process.env.CRON_SECRET ?? "";
 
 export async function GET(request: Request) {
   return handler(request);
@@ -127,8 +127,8 @@ async function handler(request: Request): Promise<NextResponse> {
       const majorInsights = result.insights.filter((i) => i.is_major);
       totalMajor += majorInsights.length;
 
-      // Email if major patterns detected
-      if (majorInsights.length > 0 && RESEND_API_KEY) {
+      // Email via canonical sendEmail() — uses alerts@metrivant.com
+      if (majorInsights.length > 0) {
         const { data: userData } = await service.auth.admin.getUserById(
           org.owner_id as string
         );
@@ -140,27 +140,21 @@ async function handler(request: Request): Promise<NextResponse> {
               ? `Strategic pattern: ${majorInsights[0].strategic_signal.slice(0, 70)}`
               : `${majorInsights.length} strategic market patterns detected`;
 
-          await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${RESEND_API_KEY}`,
-            },
-            body: JSON.stringify({
-              from: FROM_EMAIL,
-              to:   email,
-              subject,
-              html: buildStrategyAlertEmailHtml(majorInsights, SITE_URL),
-            }),
-          }).catch(() => null);
+          await sendEmail({
+            to:      email,
+            subject,
+            html:    buildStrategyAlertEmailHtml(majorInsights, SITE_URL),
+            from:    FROM_ALERTS,
+          });
         }
       }
 
-      // PostHog batch events
+      // PostHog batch events — server-side key, distinct_id required
       if (POSTHOG_API_KEY && result.insights.length > 0) {
         const events = result.insights.map((insight) => ({
-          event: "strategy_pattern_detected",
-          properties: {
+          event:       "strategy_pattern_detected",
+          distinct_id: "system",
+          properties:  {
             org_id:           org.id,
             pattern_type:     insight.pattern_type,
             is_major:         insight.is_major,
@@ -170,13 +164,16 @@ async function handler(request: Request): Promise<NextResponse> {
         }));
 
         await fetch("https://app.posthog.com/batch", {
-          method: "POST",
+          method:  "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ api_key: POSTHOG_API_KEY, batch: events }),
+          body:    JSON.stringify({ api_key: POSTHOG_API_KEY, batch: events }),
         }).catch(() => null);
       }
     } catch (err) {
-      // Log and continue — don't fail the whole run for one org
+      captureException(err instanceof Error ? err : new Error(String(err)), {
+        route:  "strategic-analysis",
+        org_id: String(org.id),
+      });
       console.error(`strategic-analysis: org ${org.id as string} failed:`, err);
     }
   }

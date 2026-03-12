@@ -9,14 +9,12 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "../../../lib/supabase/service";
 import {
   getMomentumState,
-  getMomentumConfig,
   buildMomentumAlertEmailHtml,
 } from "../../../lib/momentum";
+import { sendEmail, FROM_ALERTS } from "../../../lib/email";
 
-const POSTHOG_API_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY ?? "";
-const RESEND_API_KEY  = process.env.RESEND_API_KEY ?? "";
+const POSTHOG_API_KEY = process.env.POSTHOG_API_KEY ?? "";
 const SITE_URL        = process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
-const FROM_EMAIL      = process.env.FROM_EMAIL ?? "alerts@metrivant.com";
 const CRON_SECRET     = process.env.CRON_SECRET ?? "";
 
 // Vercel cron auto-injects the Authorization header — accept both GET and POST.
@@ -133,47 +131,40 @@ async function handler(request: Request): Promise<NextResponse> {
         .upsert(momentumUpserts, { onConflict: "org_id,competitor_id" });
     }
 
-    // Send alert email if new accelerating competitors detected
-    if (newlyAccelerating.length > 0 && RESEND_API_KEY) {
-      // Get org owner email
+    // Send alert email via canonical sendEmail()
+    if (newlyAccelerating.length > 0) {
       const { data: userData } = await service.auth.admin.getUserById(org.owner_id as string);
       const email = userData?.user?.email;
 
       if (email) {
-        await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${RESEND_API_KEY}`,
-          },
-          body: JSON.stringify({
-            from: FROM_EMAIL,
-            to: email,
-            subject: `⚡ ${newlyAccelerating.length === 1 ? newlyAccelerating[0].name + " is" : `${newlyAccelerating.length} rivals are`} accelerating`,
-            html: buildMomentumAlertEmailHtml(newlyAccelerating, SITE_URL),
-          }),
-        }).catch(() => null); // best-effort
-      }
+        await sendEmail({
+          to:      email,
+          subject: `${newlyAccelerating.length === 1 ? newlyAccelerating[0].name + " is" : `${newlyAccelerating.length} rivals are`} accelerating`,
+          html:    buildMomentumAlertEmailHtml(newlyAccelerating, SITE_URL),
+          from:    FROM_ALERTS,
+        });
 
-      totalAlerts += newlyAccelerating.length;
+        totalAlerts += newlyAccelerating.length;
+      }
     }
 
-    // PostHog events — one batch per accelerating competitor
+    // PostHog events — server-side key, distinct_id required
     if (newlyAccelerating.length > 0 && POSTHOG_API_KEY) {
       const events = newlyAccelerating.map((c) => ({
-        event: "high_momentum_detected",
-        properties: {
-          org_id:         org.id,
+        event:       "high_momentum_detected",
+        distinct_id: "system",
+        properties:  {
+          org_id:          org.id,
           competitor_name: c.name,
-          momentum_score: c.score,
-          momentum_state: "accelerating",
+          momentum_score:  c.score,
+          momentum_state:  "accelerating",
         },
       }));
 
       await fetch("https://app.posthog.com/batch", {
-        method: "POST",
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ api_key: POSTHOG_API_KEY, batch: events }),
+        body:    JSON.stringify({ api_key: POSTHOG_API_KEY, batch: events }),
       }).catch(() => null);
     }
   }
