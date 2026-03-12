@@ -75,15 +75,15 @@ type Point = { x: number; y: number };
 function getMovementColor(movementType: string | null): string {
   switch (movementType) {
     case "pricing_strategy_shift":
-      return "#ff6b6b";
+      return "#ff3b3b";
     case "product_expansion":
-      return "#57a6ff";
+      return "#00e5ff";
     case "market_reposition":
-      return "#34d399";
+      return "#ffcc00";
     case "enterprise_push":
-      return "#c084fc";
+      return "#9b5cff";
     case "ecosystem_expansion":
-      return "#facc15";
+      return "#9b5cff";
     default:
       return "#94a3b8";
   }
@@ -154,15 +154,9 @@ function formatDate(iso: string | null): string {
   });
 }
 
-// Fresh signals are fully opaque; older ones fade gracefully.
-function getAgeOpacity(lastSeenAt: string | null): number {
-  if (!lastSeenAt) return 0.5;
-  const daysSince =
-    (Date.now() - new Date(lastSeenAt).getTime()) / (1000 * 60 * 60 * 24);
-  if (daysSince <= 7) return 1.0;
-  if (daysSince <= 30) return 0.78;
-  if (daysSince <= 90) return 0.52;
-  return 0.32;
+// Nodes are always fully opaque — age does not reduce visibility.
+function getAgeOpacity(_lastSeenAt: string | null): number {
+  return 1.0;
 }
 
 function sortCompetitors(competitors: RadarCompetitor[]): RadarCompetitor[] {
@@ -205,7 +199,7 @@ function getTrailPoints(index: number, radius: number): Point[] {
 }
 
 function getNodeSize(momentum: number): number {
-  return 13 + Math.sqrt(Math.max(momentum, 0)) * 2.2;
+  return 14 + Math.sqrt(Math.max(momentum, 0)) * 2.8;
 }
 
 // ─── BlipNode sub-component ───────────────────────────────────────────────────
@@ -373,6 +367,7 @@ const BlipNode = memo(function BlipNode({
         fill={color}
         filter={isSelected ? "url(#blipGlowStrong)" : "url(#blipGlow)"}
         animate={isSelected ? { scale: [1, 1.1, 1] } : { scale: 1 }}
+        whileHover={{ scale: 1.35 }}
         transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
         style={{ transformOrigin: `${x}px ${y}px` }}
       />
@@ -403,6 +398,18 @@ export default function Radar({
   sector?: string;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // ── Cinematic entry sequence ─────────────────────────────────────────────
+  // Phase 0: black → Phase 1 (150ms): grid/rings → Phase 2 (350ms): nodes → Phase 3 (600ms): panel
+  const [entryPhase, setEntryPhase] = useState(0);
+  useEffect(() => {
+    capture("command_center_loaded", { competitor_count: competitors.length });
+    const t1 = setTimeout(() => setEntryPhase(1), 150);
+    const t2 = setTimeout(() => setEntryPhase(2), 350);
+    const t3 = setTimeout(() => setEntryPhase(3), 600);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const sorted = useMemo(
     () => sortCompetitors(competitors).slice(0, 24),
@@ -447,7 +454,10 @@ export default function Radar({
 
   const handleBlipClick = useCallback((id: string) => {
     setSelectedId((prev) => {
-      if (prev !== id) capture("competitor_selected", { competitor_id: id });
+      if (prev !== id) {
+        capture("competitor_selected", { competitor_id: id });
+        capture("radar_node_activated", { competitor_id: id });
+      }
       return prev === id ? null : id;
     });
   }, []);
@@ -500,6 +510,7 @@ export default function Radar({
         if (json.ok) {
           setDetail(json);
           capture("competitor_detail_opened", { competitor_id: selectedId });
+          capture("signal_reveal", { competitor_id: selectedId, signal_count: json.signals?.length ?? 0 });
         } else {
           setDetailError(true);
         }
@@ -509,16 +520,19 @@ export default function Radar({
   }, [selectedId]);
 
   return (
-    <div className="grid h-full gap-3 grid-cols-[1fr_400px] xl:grid-cols-[1fr_440px] 2xl:grid-cols-[1fr_480px]">
+    <div className="grid h-full gap-3 grid-cols-1 md:grid-cols-[1fr_360px] xl:grid-cols-[1fr_420px]">
       {/* ── Radar panel ─────────────────────────────────────────── */}
       <section
-        className="flex h-full flex-col overflow-hidden rounded-[20px] border border-[#0d2010]"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[#0d2010]"
         style={{
           background: "#000000",
           boxShadow: "inset 0 1px 0 0 rgba(46,230,166,0.08), 0 0 80px rgba(0,0,0,0.9)",
         }}
       >
-          <div className="relative flex-1 overflow-hidden">
+          <div
+            className="relative flex flex-1 items-center justify-center overflow-hidden"
+            style={{ opacity: entryPhase >= 1 ? 1 : 0, transition: "opacity 0.5s ease" }}
+          >
             <svg
               width="100%"
               height="100%"
@@ -552,7 +566,7 @@ export default function Radar({
                   width="500%"
                   height="500%"
                 >
-                  <feGaussianBlur stdDeviation="7" result="blur" />
+                  <feGaussianBlur stdDeviation="8" result="blur" />
                   <feMerge>
                     <feMergeNode in="blur" />
                     <feMergeNode in="SourceGraphic" />
@@ -567,7 +581,7 @@ export default function Radar({
                   width="500%"
                   height="500%"
                 >
-                  <feGaussianBlur stdDeviation="16" result="blur" />
+                  <feGaussianBlur stdDeviation="18" result="blur" />
                   <feMerge>
                     <feMergeNode in="blur" />
                     <feMergeNode in="SourceGraphic" />
@@ -628,64 +642,63 @@ export default function Radar({
                 fill="url(#radarCore)"
               />
 
-              {/* ── Range rings — stepped brightness outward→inward ── */}
-              {RING_FACTORS.map((factor, i) => {
-                const strokes = [
-                  "rgba(46,230,166,0.55)",
-                  "rgba(46,230,166,0.38)",
-                  "rgba(46,230,166,0.25)",
-                  "rgba(46,230,166,0.14)",
-                ];
-                const widths = [2.0, 1.5, 1.2, 0.9];
-                return (
+              {/* ── Rotating grid layer — rings, crosshairs, ticks ─── */}
+              {/* 360° per 120s = near-imperceptible motion. Creates the
+                  sense of a live scanning instrument without visual noise. */}
+              <motion.g
+                animate={{ rotate: 360 }}
+                transition={{ duration: 120, repeat: Infinity, ease: "linear" }}
+                style={{ transformOrigin: `${CENTER}px ${CENTER}px` }}
+              >
+
+                {/* ── Range rings ──────────────────────────────────── */}
+                {RING_FACTORS.map((factor) => (
                   <circle
                     key={factor}
                     cx={CENTER}
                     cy={CENTER}
                     r={OUTER_RADIUS * factor}
                     fill="none"
-                    stroke={strokes[i]}
-                    strokeWidth={widths[i]}
+                    stroke="#1e293b"
+                    strokeWidth="1.5"
+                    opacity="0.7"
                   />
-                );
-              })}
+                ))}
 
-              {/* ── Crosshair lines ─────────────────────────────────── */}
-              {[0, 45, 90, 135].map((deg) => {
-                const radians = (deg * Math.PI) / 180;
-                const dx = Math.cos(radians) * OUTER_RADIUS;
-                const dy = Math.sin(radians) * OUTER_RADIUS;
-                return (
+                {/* ── Crosshair lines ───────────────────────────────── */}
+                {[0, 45, 90, 135].map((deg) => {
+                  const radians = (deg * Math.PI) / 180;
+                  const dx = Math.cos(radians) * OUTER_RADIUS;
+                  const dy = Math.sin(radians) * OUTER_RADIUS;
+                  return (
+                    <line
+                      key={deg}
+                      x1={CENTER - dx}
+                      y1={CENTER - dy}
+                      x2={CENTER + dx}
+                      y2={CENTER + dy}
+                      stroke="#1e293b"
+                      strokeWidth="1"
+                      opacity="0.5"
+                    />
+                  );
+                })}
+
+                {/* ── Perimeter tick marks ──────────────────────────── */}
+                {TICK_MARKS.map((tick, i) => (
                   <line
-                    key={deg}
-                    x1={CENTER - dx}
-                    y1={CENTER - dy}
-                    x2={CENTER + dx}
-                    y2={CENTER + dy}
-                    stroke="rgba(46,230,166,0.20)"
-                    strokeWidth="1"
+                    key={i}
+                    x1={tick.x1}
+                    y1={tick.y1}
+                    x2={tick.x2}
+                    y2={tick.y2}
+                    stroke="#1e293b"
+                    strokeWidth={tick.isMajor ? 1.5 : tick.isMedium ? 1.0 : 0.7}
+                    opacity={tick.isMajor ? 0.7 : tick.isMedium ? 0.45 : 0.25}
                   />
-                );
-              })}
+                ))}
 
-              {/* ── Perimeter tick marks ─────────────────────────────── */}
-              {TICK_MARKS.map((tick, i) => (
-                <line
-                  key={i}
-                  x1={tick.x1}
-                  y1={tick.y1}
-                  x2={tick.x2}
-                  y2={tick.y2}
-                  stroke={
-                    tick.isMajor
-                      ? "rgba(46,230,166,0.30)"
-                      : tick.isMedium
-                        ? "rgba(46,230,166,0.16)"
-                        : "rgba(46,230,166,0.08)"
-                  }
-                  strokeWidth={tick.isMajor ? 1.5 : tick.isMedium ? 1.0 : 0.7}
-                />
-              ))}
+              </motion.g>
 
               {/* Cardinal labels rendered outside clip (see below) */}
 
@@ -805,7 +818,8 @@ export default function Radar({
                 opacity="0.98"
               />
 
-              {/* ── Competitor blips ────────────────────────────────── */}
+              {/* ── Competitor blips — revealed at entry phase 2 ──────── */}
+              <g style={{ opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.4s ease" }}>
               {sorted.map((competitor, index) => (
                 <BlipNode
                   key={competitor.competitor_id}
@@ -818,6 +832,7 @@ export default function Radar({
                   onSelect={handleBlipClick}
                 />
               ))}
+              </g>
 
               {/* ── Empty state — no blips ──────────────────────────── */}
               {sorted.length === 0 && (
@@ -868,7 +883,7 @@ export default function Radar({
                   y={y}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fill="rgba(46,230,166,0.40)"
+                  fill="rgba(30,41,59,0.7)"
                   fontSize="11"
                   fontWeight="600"
                   fontFamily="Inter, system-ui, sans-serif"
@@ -887,10 +902,10 @@ export default function Radar({
             <div className="flex items-center justify-center gap-5 px-4 py-2.5">
               {(
                 [
-                  { color: "#ff6b6b", label: "Pricing" },
-                  { color: "#57a6ff", label: "Product" },
-                  { color: "#34d399", label: "Market" },
-                  { color: "#c084fc", label: "Enterprise" },
+                  { color: "#ff3b3b", label: "Pricing" },
+                  { color: "#00e5ff", label: "Product" },
+                  { color: "#ffcc00", label: "Market" },
+                  { color: "#9b5cff", label: "Enterprise" },
                   { color: "#94a3b8", label: "Quiet" },
                 ] as { color: string; label: string }[]
               ).map(({ color, label }) => (
@@ -954,14 +969,16 @@ export default function Radar({
 
       {/* ── Right panel — intelligence console ──────────────────── */}
       <aside
-        className="overflow-y-auto rounded-[20px] border bg-[#000000] p-6 transition-colors duration-500"
+        className="min-h-0 overflow-y-auto rounded-[20px] border bg-[#000000] p-6 transition-colors duration-500"
         style={{
           borderColor: selected
-            ? `${getMovementColor(selected.latest_movement_type)}30`
+            ? `${getMovementColor(selected.latest_movement_type)}38`
             : "#0e2010",
           boxShadow: selected
-            ? `inset 0 1px 0 0 ${getMovementColor(selected.latest_movement_type)}15, 0 0 50px rgba(0,0,0,0.5)`
-            : "inset 0 1px 0 0 rgba(46,230,166,0.04), 0 0 50px rgba(0,0,0,0.5)",
+            ? `inset 0 1px 0 0 ${getMovementColor(selected.latest_movement_type)}18, 0 0 60px rgba(0,0,0,0.6)`
+            : "inset 0 1px 0 0 rgba(46,230,166,0.05), 0 0 60px rgba(0,0,0,0.6)",
+          opacity: entryPhase >= 3 ? 1 : 0,
+          transition: "opacity 0.4s ease, border-color 0.5s ease, box-shadow 0.5s ease",
         }}
       >
         <AnimatePresence mode="wait">
@@ -1106,7 +1123,7 @@ export default function Radar({
                 </div>
                 <div className="rounded-[14px] border border-[#152415] bg-[#071507] p-4">
                   <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                    Signals 7d
+                    Activity 7d
                   </div>
                   <div className="mt-2 text-xl font-semibold tabular-nums text-slate-100">
                     {formatNumber(selected.signals_7d, 0)}
@@ -1167,7 +1184,7 @@ export default function Radar({
               <div className="mt-2.5 rounded-[14px] border border-[#152415] bg-[#071507] px-4 py-3">
                 <div className="mb-3 flex items-center justify-between">
                   <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">
-                    Signal confidence
+                    Signal Integrity
                   </div>
                   <div className="text-sm font-semibold text-slate-300">
                     {interpretationConf !== null
@@ -1210,11 +1227,14 @@ export default function Radar({
                   </div>
                 ) : sortedSignals.length > 0 ? (
                   <div className="space-y-2">
-                    {sortedSignals.slice(0, 3).map((signal) => {
+                    {sortedSignals.slice(0, 3).map((signal, si) => {
                       const sigColor = getSignalColor(signal.signal_type);
                       return (
-                        <div
+                        <motion.div
                           key={signal.id}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.28, ease: "easeOut", delay: si * 0.07 }}
                           className="rounded-[12px] border border-[#152415] bg-[#071507] p-3.5"
                         >
                           <div className="mb-2 flex items-center justify-between gap-2">
@@ -1272,7 +1292,7 @@ export default function Radar({
                               </div>
                             </div>
                           )}
-                        </div>
+                        </motion.div>
                       );
                     })}
                   </div>
@@ -1359,7 +1379,7 @@ export default function Radar({
               <div className="mb-5 flex items-start justify-between">
                 <div>
                   <div className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#2EE6A6]" style={{ opacity: 0.7 }}>
-                    Radar Feed
+                    Intelligence Feed
                   </div>
                   <div className="mt-1.5 text-[12px] font-medium text-slate-300">
                     Select a target to pull intelligence

@@ -1,6 +1,7 @@
 import { createClient } from "../../../lib/supabase/server";
 import { NextResponse } from "next/server";
 import { sendEmail, buildTrackingConfirmationEmailHtml } from "../../../lib/email";
+import { captureException } from "../../../lib/sentry";
 
 const NEXT_PUBLIC_POSTHOG_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 
@@ -21,45 +22,128 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "url and name are required" }, { status: 400 });
   }
 
-  // Upsert organization for this user, preserving sector if provided
-  const orgPayload: Record<string, string> = { owner_id: user.id };
-  if (sector && ["saas", "defense", "energy"].includes(sector)) {
-    orgPayload.sector = sector;
-  }
+  // ── Resolve organization: select first, insert on miss, handle race condition.
+  //
+  // Reasoning: upsert() with onConflict silently returns null rows when the
+  // conflict path performs a no-op UPDATE (no columns changed). This causes
+  // orgError=null and data=null, which triggers a false "Failed to create
+  // organization" error. The explicit select→insert pattern is robust.
 
-  const { data: org, error: orgError } = await supabase
+  let orgId: string | null = null;
+
+  const { data: existingOrg, error: selectError } = await supabase
     .from("organizations")
-    .upsert(orgPayload, { onConflict: "owner_id" })
     .select("id")
-    .single();
+    .eq("owner_id", user.id)
+    .maybeSingle();
 
-  if (orgError || !org) {
-    return NextResponse.json({ error: "Failed to create organization" }, { status: 500 });
+  if (selectError) {
+    captureException(selectError, {
+      route: "onboard-competitor",
+      step: "org_select",
+      user_id: user.id,
+    });
+    return NextResponse.json(
+      { error: "Failed to resolve organization", detail: selectError.message },
+      { status: 500 }
+    );
   }
 
-  // Check if competitor is newly added (for confirmation email — avoid resending on duplicate submits)
+  if (existingOrg) {
+    orgId = existingOrg.id as string;
+
+    // Update sector if a valid new value was provided.
+    if (sector) {
+      const { error: updateError } = await supabase
+        .from("organizations")
+        .update({ sector })
+        .eq("owner_id", user.id);
+
+      if (updateError) {
+        // Non-fatal: sector update failure does not block competitor tracking.
+        captureException(updateError, {
+          route: "onboard-competitor",
+          step: "org_sector_update",
+          user_id: user.id,
+          sector,
+        });
+      }
+    }
+  } else {
+    // No org — create one. Include sector default so NOT NULL constraint is met.
+    const insertPayload: Record<string, string> = {
+      owner_id: user.id,
+      sector: sector ?? "saas",
+    };
+
+    const { data: newOrg, error: insertError } = await supabase
+      .from("organizations")
+      .insert(insertPayload)
+      .select("id")
+      .single();
+
+    if (insertError || !newOrg) {
+      // Race condition: another concurrent request may have inserted between
+      // our SELECT and INSERT. Re-select before returning an error.
+      const { data: raceOrg, error: raceError } = await supabase
+        .from("organizations")
+        .select("id")
+        .eq("owner_id", user.id)
+        .maybeSingle();
+
+      if (raceOrg) {
+        orgId = raceOrg.id as string;
+      } else {
+        const err = insertError ?? raceError ?? new Error("org insert returned null");
+        captureException(err, {
+          route: "onboard-competitor",
+          step: "org_insert",
+          user_id: user.id,
+        });
+        return NextResponse.json(
+          { error: "Failed to create organization", detail: String(err) },
+          { status: 500 }
+        );
+      }
+    } else {
+      orgId = newOrg.id as string;
+    }
+  }
+
+  // ── Check if this is a new competitor (for deduplicating confirmation email) ──
+
   const { data: existing } = await supabase
     .from("tracked_competitors")
     .select("id")
-    .eq("org_id", org.id)
+    .eq("org_id", orgId)
     .eq("website_url", url)
     .maybeSingle();
 
-  // Insert tracked competitor
+  // ── Upsert tracked competitor (idempotent on org_id + website_url) ─────────
+
   const { error: competitorError } = await supabase
     .from("tracked_competitors")
     .upsert(
-      { org_id: org.id, website_url: url, name },
+      { org_id: orgId, website_url: url, name },
       { onConflict: "org_id,website_url" }
     );
 
   if (competitorError) {
-    return NextResponse.json({ error: competitorError.message }, { status: 500 });
+    captureException(competitorError, {
+      route: "onboard-competitor",
+      step: "competitor_upsert",
+      user_id: user.id,
+      org_id: orgId,
+    });
+    return NextResponse.json(
+      { error: "Failed to track competitor", detail: competitorError.message },
+      { status: 500 }
+    );
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
 
-  // Send tracking confirmation only for newly added competitors (not duplicate submits).
+  // Send tracking confirmation only for new competitors (not duplicate submits).
   if (!existing && user.email) {
     void sendEmail({
       to:      user.email,
