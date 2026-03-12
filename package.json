@@ -3,12 +3,16 @@
   "version": "1.0.0",
   "description": "Competitive intelligence engine",
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck":       "tsc --noEmit",
+    "migrate":         "tsx scripts/migrate.ts",
+    "migrate:status":  "tsx scripts/migrate.ts --status",
+    "migrate:dry-run": "tsx scripts/migrate.ts --dry-run"
   },
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
     "@types/node": "^25.3.5",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
   "dependencies": {
