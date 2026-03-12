@@ -10,8 +10,12 @@
 --
 -- Run this in your Supabase SQL editor.
 
-ALTER TABLE organizations
-  DROP CONSTRAINT IF EXISTS organizations_sector_check;
+DO $$ BEGIN
+  ALTER TABLE organizations
+    DROP CONSTRAINT IF EXISTS organizations_sector_check;
 
-COMMENT ON COLUMN organizations.sector IS
-  'Sector lens for display language and catalog curation. Validated in API layer. Does not affect the intelligence pipeline.';
+  COMMENT ON COLUMN organizations.sector IS
+    'Sector lens for display language and catalog curation. Validated in API layer. Does not affect the intelligence pipeline.';
+EXCEPTION WHEN undefined_table THEN
+  RAISE NOTICE 'organizations table not found — ensure migrations 001–008 have been applied first.';
+END $$;

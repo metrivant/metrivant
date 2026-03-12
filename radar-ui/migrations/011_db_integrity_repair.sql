@@ -4,26 +4,12 @@
 --
 --   A. Signal deduplication hash — missing column + unique constraint
 --   B. section_baselines unique constraint — missing UNIQUE(page, type)
---   C. Missing indexes — pipeline hot paths (competitor_id, signal_type, created_at)
+--   C. Missing indexes — pipeline hot paths (competitor_id, signal_type, detected_at)
 --   D. tracked_competitors UPDATE RLS policy — missing (needed for name/URL edits)
---
--- NOT addressed (design choices, not defects):
---   • competitor_id FK on UI aggregate tables (momentum, positioning) — soft
---     cross-boundary references; adding FK would require same-transaction pipeline
---     inserts, which breaks the decoupled cron architecture.
---   • alerts.signal_id stored as text — intentional cross-boundary reference.
---   • organizations/alerts DELETE policies — no product path deletes these.
---   • competitors / monitored_pages dedup on url — pipeline handles this at app layer.
 --
 -- Run this in your Supabase SQL editor.
 
 -- ── A. Signal deduplication hash ─────────────────────────────────────────────
---
--- Adds dedup_hash to signals. Computed by the pipeline as:
---   encode(sha256((monitored_page_id || signal_type || coalesce(section_diff_id::text, ''))::bytea), 'hex')
---
--- Existing rows get NULL (hash not backfilled — they predate the constraint).
--- The partial unique index ignores NULLs, so no backfill is required.
 
 ALTER TABLE signals
   ADD COLUMN IF NOT EXISTS dedup_hash text;
@@ -38,19 +24,21 @@ COMMENT ON COLUMN signals.dedup_hash IS
 
 -- ── B. section_baselines unique constraint ────────────────────────────────────
 --
--- build_section_baselines upserts one baseline per (page, section_type).
--- Without this constraint, concurrent executions can insert duplicate baselines,
--- causing detect-diffs to compare against the wrong baseline.
+-- Note: ADD CONSTRAINT IF NOT EXISTS is not valid PostgreSQL syntax.
+-- Use a DO block with pg_constraint check instead.
 
-ALTER TABLE section_baselines
-  ADD CONSTRAINT IF NOT EXISTS section_baselines_page_type_unique
-  UNIQUE (monitored_page_id, section_type);
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'section_baselines_page_type_unique'
+  ) THEN
+    ALTER TABLE section_baselines
+      ADD CONSTRAINT section_baselines_page_type_unique
+      UNIQUE (monitored_page_id, section_type);
+  END IF;
+END $$;
 
 -- ── C. Missing indexes ────────────────────────────────────────────────────────
---
--- All indexes use IF NOT EXISTS — safe to re-run.
 
--- signals — primary pipeline query targets
 CREATE INDEX IF NOT EXISTS signals_monitored_page_id_idx
   ON signals (monitored_page_id);
 
@@ -65,7 +53,7 @@ CREATE INDEX IF NOT EXISTS signals_pending_status_idx
   ON signals (status, retry_count)
   WHERE status IN ('pending', 'processing');
 
--- monitored_pages — FK column, no index was created by the FK constraint itself
+-- monitored_pages — FK column has no automatic index in PostgreSQL
 CREATE INDEX IF NOT EXISTS monitored_pages_competitor_id_idx
   ON monitored_pages (competitor_id);
 
@@ -107,51 +95,28 @@ CREATE INDEX IF NOT EXISTS competitors_active_idx
   ON competitors (active)
   WHERE active = true;
 
--- created_at range indexes for time-windowed queries
-CREATE INDEX IF NOT EXISTS signals_created_at_idx
-  ON signals (created_at DESC);
-
 -- ── D. tracked_competitors UPDATE RLS policy ──────────────────────────────────
 --
--- The existing policies cover SELECT, INSERT, DELETE.
--- UPDATE is required for future name/URL correction flows.
+-- Note: CREATE POLICY IF NOT EXISTS is not valid PostgreSQL syntax.
+-- Use a DO block with duplicate_object exception handling instead.
 
-CREATE POLICY IF NOT EXISTS "tracked competitors org member update"
-  ON tracked_competitors FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM organizations o
-      WHERE o.id = tracked_competitors.org_id
-        AND o.owner_id = auth.uid()
+DO $$ BEGIN
+  CREATE POLICY "tracked competitors org member update"
+    ON tracked_competitors FOR UPDATE
+    USING (
+      EXISTS (
+        SELECT 1 FROM organizations o
+        WHERE o.id = tracked_competitors.org_id
+          AND o.owner_id = auth.uid()
+      )
     )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM organizations o
-      WHERE o.id = tracked_competitors.org_id
-        AND o.owner_id = auth.uid()
-    )
-  );
-
--- ── Pipeline code change required (not SQL) ───────────────────────────────────
---
--- After applying this migration, update the signal insertion code in
--- metrivant-runtime/src/stages/detect-signals.ts to compute and pass dedup_hash:
---
---   import { createHash } from 'crypto';
---
---   function signalDedupHash(
---     monitored_page_id: string,
---     signal_type: string,
---     section_diff_id: string | null
---   ): string {
---     return createHash('sha256')
---       .update(monitored_page_id + signal_type + (section_diff_id ?? ''))
---       .digest('hex');
---   }
---
--- Then in the signal insert:
---   { ..., dedup_hash: signalDedupHash(page_id, type, diff_id) }
---
--- With the partial unique index in place, concurrent inserts of the same signal
--- will hit ON CONFLICT DO NOTHING and the second insert becomes a no-op.
+    WITH CHECK (
+      EXISTS (
+        SELECT 1 FROM organizations o
+        WHERE o.id = tracked_competitors.org_id
+          AND o.owner_id = auth.uid()
+      )
+    );
+EXCEPTION WHEN duplicate_object THEN
+  NULL;
+END $$;
