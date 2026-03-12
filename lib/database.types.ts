@@ -1,5 +1,11 @@
 // Hand-crafted Supabase database types derived from the pipeline codebase.
 // Re-generate via `supabase gen types typescript` once SUPABASE_ACCESS_TOKEN is available.
+//
+// Schema constraints (enforced in DB, reflected here for reference):
+//   signals.dedup_hash        — UNIQUE partial index WHERE dedup_hash IS NOT NULL (migration 011)
+//   section_baselines         — UNIQUE(monitored_page_id, section_type)            (migration 011)
+//   strategic_movements       — UNIQUE(competitor_id, movement_type)               (migration 002)
+//   section_diffs             — UNIQUE(monitored_page_id, section_type, previous_section_id) (migration 004)
 
 export type Json =
   | string
@@ -380,6 +386,7 @@ export type Database = {
           last_error: string | null;
           is_duplicate: boolean;
           related_signal_id: string | null;
+          dedup_hash: string | null;
           updated_at: string;
           created_at: string;
         };
@@ -398,6 +405,7 @@ export type Database = {
           last_error?: string | null;
           is_duplicate?: boolean;
           related_signal_id?: string | null;
+          dedup_hash?: string | null;
           updated_at?: string;
           created_at?: string;
         };
@@ -416,6 +424,7 @@ export type Database = {
           last_error?: string | null;
           is_duplicate?: boolean;
           related_signal_id?: string | null;
+          dedup_hash?: string | null;
           updated_at?: string;
           created_at?: string;
         };
