@@ -14,29 +14,45 @@ export default async function LemonadePage() {
 
   if (!user) redirect("/login");
 
-  const competitors = await getRadarFeed(24).catch(() => []);
+  const allCompetitors = await getRadarFeed(24).catch(() => []);
+
+  // Top 5 by signals_7d desc, then momentum_score as tiebreaker
+  const top5 = [...allCompetitors]
+    .sort((a, b) => {
+      const bySignals = (b.signals_7d ?? 0) - (a.signals_7d ?? 0);
+      if (bySignals !== 0) return bySignals;
+      return Number(b.momentum_score ?? 0) - Number(a.momentum_score ?? 0);
+    })
+    .slice(0, 5);
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-[#000200] text-white">
+    <div className="flex h-screen flex-col overflow-hidden bg-[#05050f] text-white">
 
       {/* ── Atmospheric depth ─────────────────────────────────────────── */}
       <div
         className="pointer-events-none fixed inset-0 z-0"
         style={{
           backgroundImage:
-            "radial-gradient(rgba(255,255,255,0.85) 0.5px, transparent 0.5px)",
-          backgroundSize: "6px 6px",
-          opacity: 0.016,
+            "radial-gradient(rgba(255,255,255,0.6) 1px, transparent 1px)",
+          backgroundSize: "40px 40px",
+          opacity: 0.025,
         }}
       />
 
       {/* ── Header ────────────────────────────────────────────────────── */}
-      <header className="relative z-10 flex h-14 shrink-0 items-center justify-between border-b border-[#0e2210] bg-[rgba(0,2,0,0.97)] px-6">
+      <header
+        className="relative z-10 flex h-14 shrink-0 items-center justify-between px-6"
+        style={{
+          background: "#08080f",
+          borderBottom: "2px solid #1a2244",
+        }}
+      >
+        {/* Amber pixel accent line */}
         <div
-          className="absolute inset-x-0 top-0 h-[1px]"
+          className="absolute inset-x-0 top-0 h-[2px]"
           style={{
             background:
-              "linear-gradient(90deg, transparent 0%, rgba(217,119,6,0.20) 40%, rgba(217,119,6,0.35) 50%, rgba(217,119,6,0.20) 60%, transparent 100%)",
+              "linear-gradient(90deg, transparent 0%, #ffcc0033 30%, #ffcc0055 50%, #ffcc0033 70%, transparent 100%)",
           }}
         />
 
@@ -50,41 +66,77 @@ export default async function LemonadePage() {
               <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.80" />
               <circle cx="23" cy="23" r="2.5" fill="#2EE6A6" />
             </svg>
-            <span className="text-[13px] font-bold tracking-[0.08em] text-white">METRIVANT</span>
+            <span
+              className="text-[13px] font-bold tracking-[0.08em] text-white"
+              style={{ fontFamily: "ui-monospace, monospace" }}
+            >
+              METRIVANT
+            </span>
           </Link>
 
-          <div className="hidden items-center gap-2 sm:flex">
-            <span className="text-[#0d2010]">|</span>
-            <span className="text-[12px] font-medium text-slate-500">Lemonade Stand Mode</span>
-          </div>
+          <span style={{ color: "#1a2244" }}>|</span>
 
-          <span className="rounded-full border border-[#854d0e]/40 bg-[#854d0e]/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#d97706]">
-            Analogy View
+          <span
+            style={{
+              fontFamily: "ui-monospace, monospace",
+              fontSize: "11px",
+              color: "#445566",
+              letterSpacing: "0.12em",
+            }}
+          >
+            Lemonade Stand Mode
+          </span>
+
+          <span
+            style={{
+              background: "#ffcc00",
+              color: "#000",
+              fontFamily: "ui-monospace, monospace",
+              fontSize: "9px",
+              fontWeight: "bold",
+              padding: "2px 8px",
+              letterSpacing: "0.16em",
+              boxShadow: "2px 2px 0 #000",
+            }}
+          >
+            ANALOGY VIEW
           </span>
         </div>
 
         <div className="flex items-center gap-5">
           <Link
             href="/app/strategy"
-            className="text-[12px] text-slate-600 transition-colors hover:text-slate-400"
+            style={{
+              fontFamily: "ui-monospace, monospace",
+              fontSize: "11px",
+              color: "#334455",
+              letterSpacing: "0.1em",
+            }}
+            className="transition-colors hover:text-slate-300"
           >
             Strategy
           </Link>
           <Link
-            href="/app/market-map"
-            className="text-[12px] text-slate-600 transition-colors hover:text-slate-400"
-          >
-            Map
-          </Link>
-          <Link
             href="/app/briefs"
-            className="text-[12px] text-slate-600 transition-colors hover:text-slate-400"
+            style={{
+              fontFamily: "ui-monospace, monospace",
+              fontSize: "11px",
+              color: "#334455",
+              letterSpacing: "0.1em",
+            }}
+            className="transition-colors hover:text-slate-300"
           >
             Briefs
           </Link>
           <Link
             href="/app"
-            className="flex items-center gap-1.5 text-[12px] text-slate-500 transition-colors hover:text-slate-300"
+            className="flex items-center gap-1.5 transition-colors hover:text-slate-300"
+            style={{
+              fontFamily: "ui-monospace, monospace",
+              fontSize: "11px",
+              color: "#445566",
+              letterSpacing: "0.1em",
+            }}
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
               <path
@@ -102,7 +154,7 @@ export default async function LemonadePage() {
 
       {/* ── Street ────────────────────────────────────────────────────── */}
       <div className="relative z-10 flex-1 overflow-hidden">
-        <LemonadeStreet competitors={competitors} />
+        <LemonadeStreet competitors={top5} />
       </div>
 
     </div>

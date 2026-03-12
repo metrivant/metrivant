@@ -37,8 +37,8 @@ const SECTIONS = [
   },
   {
     n: "07",
-    title: "The Drawer",
-    body: "Click any stand to open the intelligence drawer. It shows momentum score, confidence level, recent signals with timestamps, and the strategic summary.",
+    title: "The Intel Card",
+    body: "Click any stand to open the intelligence card. It slides up from the bottom and shows momentum score, confidence level, recent signals with timestamps, and the strategic summary.",
   },
   {
     n: "08",
@@ -56,7 +56,7 @@ interface Props {
 export default function EducationOverlay({ onClose }: Props) {
   return (
     <motion.div
-      className="absolute inset-0 z-50 flex items-center justify-center bg-[rgba(0,2,0,0.88)] backdrop-blur-sm"
+      className="absolute inset-0 z-50 flex items-center justify-center bg-[rgba(5,5,15,0.92)] backdrop-blur-sm"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}

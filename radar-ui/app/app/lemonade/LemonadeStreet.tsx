@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { RadarCompetitor, CompetitorDetail } from "../../../lib/api";
 import { getCompetitorDetail } from "../../../lib/api";
@@ -9,39 +9,27 @@ import LemonadeStand from "./LemonadeStand";
 import EducationOverlay from "./EducationOverlay";
 import { capture } from "../../../lib/posthog";
 
+// ── Pixel-art constants ────────────────────────────────────────────────────────
+
+const HUD_BG      = "#08080f";
+const HUD_BORDER  = "#1a2244";
+const MONO        = "ui-monospace, 'Courier New', monospace";
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function getMovementColor(movementType: string | null): string {
-  switch (movementType) {
-    case "pricing_strategy_shift": return "#ff6b6b";
-    case "product_expansion":      return "#57a6ff";
-    case "market_reposition":      return "#34d399";
-    case "enterprise_push":        return "#c084fc";
-    case "ecosystem_expansion":    return "#facc15";
-    default:                       return "#94a3b8";
+function getMovementColor(type: string | null): string {
+  switch (type) {
+    case "pricing_strategy_shift": return "#ff3333";
+    case "product_expansion":      return "#3399ff";
+    case "market_reposition":      return "#33ff88";
+    case "enterprise_push":        return "#cc44ff";
+    case "ecosystem_expansion":    return "#ffcc00";
+    default:                       return "#667788";
   }
 }
 
-function getMovementLabel(t: string | null): string {
-  if (!t) return "Quiet";
-  return t.split("_").map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
-}
-
-function getSignalTypeLabel(signalType: string): string {
-  switch (signalType) {
-    case "price_point_change":  return "Pricing change";
-    case "tier_change":         return "Tier change";
-    case "feature_launch":      return "Feature launch";
-    case "positioning_shift":   return "Positioning shift";
-    case "content_strategy":    return "Content strategy";
-    case "audience_targeting":  return "Audience targeting";
-    default:                    return signalType.replace(/_/g, " ");
-  }
-}
-
-/** Short uppercase callout label rendered above the stand */
-function getCalloutLabel(movementType: string): string {
-  switch (movementType) {
+function getCalloutLabel(type: string): string {
+  switch (type) {
     case "pricing_strategy_shift": return "PRICE WAR";
     case "product_expansion":      return "FEATURE PUSH";
     case "market_reposition":      return "REPOSITIONING";
@@ -51,84 +39,46 @@ function getCalloutLabel(movementType: string): string {
   }
 }
 
-/**
- * Derive a single editorial sentence per stand for the drawer micro-layer.
- * Reads like a business observer's note, not a data label.
- */
-function getLemonadeInterpretation(
-  movementType: string | null,
-  name: string
-): string {
-  switch (movementType) {
+function getLemonadeNote(type: string | null, name: string): string {
+  switch (type) {
     case "pricing_strategy_shift":
-      return `${name} changed its pricing — likely trying to attract more customers or defend against competitive pressure.`;
+      return `${name} changed their prices — probably trying to attract more customers or fend off a rival.`;
     case "product_expansion":
-      return `${name} is expanding its offering — adding to what it sells to capture more of the market.`;
+      return `${name} added new items to their menu — expanding what they sell to grab more of the market.`;
     case "market_reposition":
-      return `${name} changed how it presents itself — targeting a different type of customer than before.`;
+      return `${name} repainted their stand — targeting a different type of customer than before.`;
     case "enterprise_push":
-      return `${name} is going upmarket — shifting focus toward larger, higher-value customers.`;
+      return `${name} moved upmarket — shifting focus toward bigger, higher-value customers.`;
     case "ecosystem_expansion":
-      return `${name} is building a wider moat — expanding integrations, partnerships, and platform reach.`;
+      return `${name} is setting up more stalls — building partnerships and expanding their reach.`;
     default:
-      return `${name} is holding its position — no strategic changes detected recently.`;
+      return `${name} is holding their position — no major moves detected right now.`;
   }
 }
 
-/**
- * Build the editorial Street Story sentence from live movement data.
- * Reads as a calm business observer's summary of the scene.
- */
-function buildStreetStory(competitors: RadarCompetitor[]): string {
-  const active = competitors.filter((c) => c.latest_movement_type);
-  const n      = competitors.length;
-
-  if (active.length === 0) {
-    return `Quiet street. Metrivant is watching ${n} rival${n !== 1 ? "s" : ""} — no strategic moves detected right now.`;
+function getSignalTypeLabel(t: string): string {
+  switch (t) {
+    case "price_point_change":  return "Price change";
+    case "tier_change":         return "Tier change";
+    case "feature_launch":      return "Feature launch";
+    case "positioning_shift":   return "Positioning shift";
+    case "content_strategy":    return "Content strategy";
+    case "audience_targeting":  return "Audience targeting";
+    default:                    return t.replace(/_/g, " ");
   }
+}
 
-  const fragments: string[] = [];
+function getMarketHeat(cs: RadarCompetitor[]): { label: string; color: string } {
+  const a = cs.filter((c) => c.latest_movement_type).length;
+  if (a >= 4) return { label: "🔥 HOT",  color: "#ff3333" };
+  if (a >= 2) return { label: "⚡ WARM", color: "#ffaa00" };
+  if (a >= 1) return { label: "☁ MILD",  color: "#ffcc44" };
+  return        { label: "❄ COOL",        color: "#4488cc" };
+}
 
-  const pricers      = active.filter((c) => c.latest_movement_type === "pricing_strategy_shift");
-  const builders     = active.filter((c) => c.latest_movement_type === "product_expansion");
-  const repositioners = active.filter((c) => c.latest_movement_type === "market_reposition");
-  const enterprise   = active.filter((c) => c.latest_movement_type === "enterprise_push");
-  const ecosystem    = active.filter((c) => c.latest_movement_type === "ecosystem_expansion");
-
-  if (pricers.length === 1)
-    fragments.push(`${pricers[0].competitor_name} is cutting prices`);
-  else if (pricers.length > 1)
-    fragments.push(`${pricers.length} stands are fighting on price`);
-
-  if (builders.length === 1)
-    fragments.push(`${builders[0].competitor_name} is pushing new features`);
-  else if (builders.length > 1)
-    fragments.push(`${builders.length} stands are expanding their menu`);
-
-  if (repositioners.length === 1)
-    fragments.push(`${repositioners[0].competitor_name} is repositioning`);
-  else if (repositioners.length > 1)
-    fragments.push(`${repositioners.length} stands are shifting position`);
-
-  if (enterprise.length === 1)
-    fragments.push(`${enterprise[0].competitor_name} is chasing premium customers`);
-  else if (enterprise.length > 1)
-    fragments.push(`${enterprise.length} stands are pushing upmarket`);
-
-  if (ecosystem.length === 1)
-    fragments.push(`${ecosystem[0].competitor_name} is expanding its reach`);
-  else if (ecosystem.length > 1)
-    fragments.push(`${ecosystem.length} stands are expanding their ecosystems`);
-
-  const top  = fragments.slice(0, 3);
-  const body = top.join(". ") + ".";
-
-  const quiet = n - active.length;
-  const tail  = quiet > 0
-    ? ` ${quiet} watching quietly. Metrivant is tracking all ${n}.`
-    : ` Metrivant is tracking all ${n}.`;
-
-  return body + tail;
+/** "New kid" = no activity ever detected — freshly added to tracking */
+function isNewKid(c: RadarCompetitor): boolean {
+  return c.signals_7d === 0 && c.latest_movement_type === null && c.last_signal_at === null;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -138,313 +88,297 @@ interface Props {
 }
 
 export default function LemonadeStreet({ competitors }: Props) {
-  const [selectedId, setSelectedId]       = useState<string | null>(null);
-  const [detail, setDetail]               = useState<CompetitorDetail | null>(null);
+  const [selectedId,    setSelectedId]    = useState<string | null>(null);
+  const [detail,        setDetail]        = useState<CompetitorDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [showEducation, setShowEducation] = useState(false);
-  const streetRef                         = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     capture("lemonade_mode_opened", { competitor_count: competitors.length });
+    capture("street_viewed",        { competitor_count: competitors.length });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function handleStandClick(competitorId: string) {
-    if (selectedId === competitorId) {
+  async function handleStandClick(id: string) {
+    if (selectedId === id) {
       setSelectedId(null);
       setDetail(null);
       return;
     }
-    setSelectedId(competitorId);
+    setSelectedId(id);
     setDetail(null);
     setLoadingDetail(true);
-    capture("lemonade_stand_clicked", { competitor_id: competitorId });
-    const d = await getCompetitorDetail(competitorId);
+    const name = competitors.find((c) => c.competitor_id === id)?.competitor_name ?? "";
+    capture("stand_clicked", { competitor_id: id, competitor_name: name });
+    const d = await getCompetitorDetail(id);
     setDetail(d);
     setLoadingDetail(false);
   }
 
-  // Derived state
-  const selectedCompetitor =
-    competitors.find((c) => c.competitor_id === selectedId) ?? null;
-  const accentColor  = getMovementColor(selectedCompetitor?.latest_movement_type ?? null);
-  const storyText    = buildStreetStory(competitors);
-  const activeCount  = competitors.filter((c) => c.latest_movement_type).length;
-  const movingFast   = competitors.filter((c) => Number(c.momentum_score ?? 0) >= 3).length;
-  const pricingCount = competitors.filter(
-    (c) => c.latest_movement_type === "pricing_strategy_shift"
-  ).length;
-  const quietCount   = competitors.filter(
-    (c) => !c.latest_movement_type && (c.signals_7d ?? 0) === 0
-  ).length;
-  const isQuietStreet = activeCount === 0;
-  const hasAnyActive  = activeCount > 0;
+  // Derived
+  const selected   = competitors.find((c) => c.competitor_id === selectedId) ?? null;
+  const accent     = getMovementColor(selected?.latest_movement_type ?? null);
+  const heat       = getMarketHeat(competitors);
+  const activeCount = competitors.filter((c) => c.latest_movement_type).length;
+  const hasActive  = activeCount > 0;
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden">
+    <div
+      className="relative flex h-full flex-col overflow-hidden"
+      style={{ fontFamily: MONO, background: "#05050f" }}
+    >
 
-      {/* ── Story Banner ────────────────────────────────────────────────── */}
+      {/* ══════════════ TOP HUD ══════════════════════════════════════════════ */}
       <div
-        className="relative shrink-0 border-b border-[#0c1e0c] px-7 py-4"
         style={{
-          background:
-            "linear-gradient(180deg, rgba(5,12,5,0.98) 0%, rgba(3,8,3,0.95) 100%)",
+          background: HUD_BG,
+          borderBottom: `2px solid ${HUD_BORDER}`,
+          padding: "8px 16px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 16,
+          flexShrink: 0,
         }}
       >
-        {/* Subtle top accent line */}
-        <div
-          className="absolute inset-x-0 top-0 h-[1px]"
-          style={{
-            background:
-              "linear-gradient(90deg, transparent 0%, rgba(217,119,6,0.15) 30%, rgba(217,119,6,0.28) 50%, rgba(217,119,6,0.15) 70%, transparent 100%)",
-          }}
-        />
+        {/* Mode badge */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div
+            style={{
+              background: "#ffcc00",
+              color: "#000",
+              fontSize: "9px",
+              fontWeight: "bold",
+              padding: "2px 9px",
+              letterSpacing: "0.2em",
+              boxShadow: "2px 2px 0 #000",
+              whiteSpace: "nowrap",
+            }}
+          >
+            LEMONADE MODE
+          </div>
+          <div style={{ fontSize: "9px", color: "#334455", letterSpacing: "0.12em" }}>
+            TOP {competitors.length} RIVAL{competitors.length !== 1 ? "S" : ""}
+          </div>
+        </div>
 
-        <div className="flex items-start justify-between gap-6">
-          {/* Editorial story text */}
-          <div className="flex-1">
-            <div className="mb-1.5 flex items-center gap-2">
-              <span className="text-[9px] font-semibold uppercase tracking-[0.28em] text-[#d97706]/55">
-                The Street Today
-              </span>
-              {/* Live indicator */}
-              <span className="flex items-center gap-1">
-                <span
-                  className="h-[5px] w-[5px] rounded-full"
-                  style={{
-                    backgroundColor: isQuietStreet ? "#475569" : "#d97706",
-                    boxShadow: isQuietStreet ? "none" : "0 0 6px rgba(217,119,6,0.7)",
-                  }}
-                />
-              </span>
-            </div>
-            <p
-              className="max-w-2xl text-[14px] leading-snug text-slate-300"
-              style={{ fontStyle: "italic", letterSpacing: "0.01em" }}
+        {/* Stats */}
+        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: "7px", color: "#334455", letterSpacing: "0.18em" }}>STANDS</div>
+            <div
+              style={{
+                fontSize: "18px",
+                fontWeight: "bold",
+                color: "#6688cc",
+                lineHeight: 1,
+                marginTop: 2,
+              }}
             >
-              {storyText}
-            </p>
+              {competitors.length}
+            </div>
+          </div>
+          <div style={{ width: 1, height: 28, background: HUD_BORDER }} />
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: "7px", color: "#334455", letterSpacing: "0.18em" }}>ACTIVE</div>
+            <div
+              style={{
+                fontSize: "18px",
+                fontWeight: "bold",
+                color: activeCount > 0 ? "#ffcc00" : "#334455",
+                lineHeight: 1,
+                marginTop: 2,
+              }}
+            >
+              {activeCount}
+            </div>
+          </div>
+          <div style={{ width: 1, height: 28, background: HUD_BORDER }} />
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: "7px", color: "#334455", letterSpacing: "0.18em" }}>MARKET</div>
+            <div
+              style={{
+                fontSize: "11px",
+                fontWeight: "bold",
+                color: heat.color,
+                lineHeight: 1,
+                marginTop: 3,
+                letterSpacing: "0.1em",
+              }}
+            >
+              {heat.label}
+            </div>
+          </div>
+        </div>
+
+        {/* Activity pixel bar */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", gap: 3 }}>
+            {[...Array(5)].map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  width: 8,
+                  height: 8,
+                  background: i < activeCount ? "#ffcc00" : "#1a2233",
+                  boxShadow: i < activeCount ? "0 0 5px #ffcc00" : "none",
+                }}
+              />
+            ))}
           </div>
 
-          {/* How This Works */}
           <button
             onClick={() => setShowEducation(true)}
-            className="mt-0.5 shrink-0 flex items-center gap-1.5 rounded-full border border-[#0d2010] px-3 py-1.5 text-[11px] text-slate-600 transition-colors hover:border-[#1a3a1a] hover:text-slate-300"
+            style={{
+              background: "transparent",
+              border: `1px solid ${HUD_BORDER}`,
+              color: "#334455",
+              fontFamily: MONO,
+              fontSize: "8px",
+              padding: "3px 8px",
+              letterSpacing: "0.12em",
+              cursor: "pointer",
+            }}
           >
-            <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
-              <circle cx="5.5" cy="5.5" r="4.5" stroke="currentColor" strokeWidth="1.2" />
-              <path d="M5.5 4v3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-              <circle cx="5.5" cy="2.8" r="0.6" fill="currentColor" />
-            </svg>
-            How This Works
+            ? HELP
           </button>
         </div>
       </div>
 
-      {/* ── Status Strip ─────────────────────────────────────────────────── */}
-      <div
-        className="flex shrink-0 items-center gap-2 border-b border-[#0a1a0a] px-7 py-2"
-        style={{ background: "rgba(2,5,2,0.97)" }}
-      >
-        {movingFast > 0 && (
-          <span
-            className="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-semibold"
-            style={{
-              background: "rgba(217,119,6,0.10)",
-              color: "#d97706",
-              border: "1px solid rgba(217,119,6,0.20)",
-            }}
-          >
-            <span
-              className="h-[4px] w-[4px] rounded-full"
-              style={{ background: "#d97706" }}
-            />
-            {movingFast} moving fast
-          </span>
-        )}
+      {/* ══════════════ STREET ═══════════════════════════════════════════════ */}
+      <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
 
-        {pricingCount > 0 && (
-          <span
-            className="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-semibold"
-            style={{
-              background: "rgba(255,107,107,0.08)",
-              color: "#ff6b6b",
-              border: "1px solid rgba(255,107,107,0.18)",
-            }}
-          >
-            <span
-              className="h-[4px] w-[4px] rounded-full"
-              style={{ background: "#ff6b6b" }}
-            />
-            {pricingCount} changing price{pricingCount !== 1 ? "s" : ""}
-          </span>
-        )}
-
-        {quietCount > 0 && (
-          <span
-            className="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-semibold"
-            style={{
-              background: "rgba(71,85,105,0.08)",
-              color: "#475569",
-              border: "1px solid rgba(71,85,105,0.15)",
-            }}
-          >
-            <span
-              className="h-[4px] w-[4px] rounded-full"
-              style={{ background: "#475569" }}
-            />
-            {quietCount} monitored quietly
-          </span>
-        )}
-
-        {isQuietStreet && (
-          <span
-            className="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-semibold"
-            style={{
-              background: "rgba(71,85,105,0.06)",
-              color: "#334155",
-              border: "1px solid rgba(71,85,105,0.10)",
-            }}
-          >
-            <span className="h-[4px] w-[4px] rounded-full bg-[#334155]" />
-            Quiet street — {competitors.length} rivals monitored
-          </span>
-        )}
-
-        {/* Spacer + total count right-aligned */}
-        <div className="ml-auto text-[10px] text-slate-700">
-          {competitors.length} total
-        </div>
-      </div>
-
-      {/* ── Main area ─────────────────────────────────────────────────────── */}
-      <div className="relative flex flex-1 overflow-hidden">
-
-        {/* ── Street ────────────────────────────────────────────────────── */}
+        {/* Sky */}
         <div
-          ref={streetRef}
-          className="flex-1 overflow-x-auto overflow-y-hidden"
-          style={{ scrollbarWidth: "thin", scrollbarColor: "#0f2010 transparent" }}
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "linear-gradient(180deg, #080820 0%, #05050f 45%)",
+            pointerEvents: "none",
+          }}
+        />
+        {/* Stars */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: "radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px)",
+            backgroundSize: "42px 42px",
+            opacity: 0.05,
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* Horizontal scroll */}
+        <div
+          style={{
+            height: "100%",
+            overflowX: "auto",
+            overflowY: "hidden",
+            scrollbarWidth: "thin",
+            scrollbarColor: `${HUD_BORDER} transparent`,
+          }}
         >
           <div
-            className="relative flex min-w-max items-end gap-6 px-14 pb-6 pt-14"
-            style={{ minHeight: "100%" }}
+            style={{
+              minWidth: "max-content",
+              height: "100%",
+              display: "flex",
+              alignItems: "flex-end",
+              paddingLeft: 64,
+              paddingRight: 64,
+              paddingBottom: 80,
+              paddingTop: 72,
+              gap: 44,
+              position: "relative",
+            }}
           >
-            {/* Sky / atmospheric depth gradient at top */}
+            {/* Pavement */}
             <div
-              className="pointer-events-none absolute inset-x-0 top-0 h-[80px]"
               style={{
-                background:
-                  "linear-gradient(180deg, rgba(4,10,4,0.95) 0%, rgba(2,6,2,0.0) 100%)",
+                position: "absolute",
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: 80,
+                background: "#0c0c1e",
+                borderTop: "2px solid #1a2233",
+                backgroundImage:
+                  "repeating-linear-gradient(90deg, transparent 0px, transparent 28px, #1a2233 28px, #1a2233 30px)",
+                pointerEvents: "none",
               }}
             />
 
-            {/* Pavement surface */}
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-[64px]"
-              style={{
-                background:
-                  "linear-gradient(180deg, transparent 0%, #060d06 50%, #040904 100%)",
-                borderTop: "1px solid #0d1e0d",
-              }}
-            />
-
-            {/* Sidewalk curb line — double-line premium treatment */}
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-[64px] h-[3px]"
-              style={{
-                background:
-                  "linear-gradient(90deg, transparent 0%, #0f2010 8%, #162416 50%, #0f2010 92%, transparent 100%)",
-              }}
-            />
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-[60px] h-px"
-              style={{
-                background:
-                  "linear-gradient(90deg, transparent 0%, #0a1a0a 8%, #0d1e0d 50%, #0a1a0a 92%, transparent 100%)",
-              }}
-            />
-
-            {/* Quiet street overlay */}
-            {isQuietStreet && (
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <div
-                    className="text-[13px] font-semibold uppercase tracking-[0.3em]"
-                    style={{ color: "rgba(71,85,105,0.3)" }}
-                  >
-                    Quiet Street
-                  </div>
-                  <div
-                    className="mt-1 text-[11px] tracking-[0.12em]"
-                    style={{ color: "rgba(51,65,85,0.25)" }}
-                  >
-                    No major moves detected right now
-                  </div>
+            {/* Empty state */}
+            {competitors.length === 0 && (
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
+                <div style={{ fontSize: "11px", color: "#334455", letterSpacing: "0.3em" }}>
+                  NO RIVALS TRACKED
+                </div>
+                <div style={{ fontSize: "9px", color: "#1a2233", letterSpacing: "0.18em" }}>
+                  ADD COMPETITORS IN DISCOVER
                 </div>
               </div>
             )}
 
-            {/* Stand wrappers with callouts */}
-            {competitors.map((c) => {
-              const hasCallout =
-                c.latest_movement_type !== null &&
-                Number(c.momentum_score ?? 0) >= 2;
-              const isDimmed =
-                hasAnyActive && c.latest_movement_type === null;
+            {/* Stands */}
+            {competitors.map((c, i) => {
+              const isDimmed  = hasActive && !c.latest_movement_type;
+              const isNew     = isNewKid(c);
               const calloutColor = getMovementColor(c.latest_movement_type);
+              const showCallout  =
+                c.latest_movement_type !== null && Number(c.momentum_score ?? 0) >= 2;
 
               return (
                 <div
                   key={c.competitor_id}
-                  className="relative flex flex-col items-center"
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    position: "relative",
+                  }}
                 >
-                  {/* Big Move Callout */}
-                  <AnimatePresence>
-                    {hasCallout && (
-                      <motion.div
-                        className="absolute z-20 whitespace-nowrap"
-                        style={{
-                          bottom: "calc(100% - 4px)",
-                          left: "50%",
-                          transform: "translateX(-50%)",
-                        }}
-                        initial={{ opacity: 0, y: 4 }}
-                        animate={{
-                          opacity: [0.7, 1, 0.7],
-                          y: 0,
-                        }}
-                        transition={{
-                          opacity: {
-                            repeat: Infinity,
-                            duration: 3,
-                            ease: "easeInOut",
-                          },
-                          y: {
-                            duration: 0.4,
-                            ease: "easeOut",
-                          },
-                        }}
-                      >
-                        <div
-                          className="rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.2em]"
-                          style={{
-                            background: `${calloutColor}16`,
-                            color: calloutColor,
-                            border: `1px solid ${calloutColor}35`,
-                            boxShadow: `0 0 12px ${calloutColor}20`,
-                            backdropFilter: "blur(4px)",
-                          }}
-                        >
-                          {getCalloutLabel(c.latest_movement_type!)}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  {/* Callout */}
+                  {showCallout && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        bottom: "calc(100% + 10px)",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        background: calloutColor + "18",
+                        border: `1px solid ${calloutColor}44`,
+                        color: calloutColor,
+                        fontFamily: MONO,
+                        fontSize: "7px",
+                        fontWeight: "bold",
+                        padding: "3px 8px",
+                        letterSpacing: "0.18em",
+                        whiteSpace: "nowrap",
+                        zIndex: 5,
+                        boxShadow: `0 0 8px ${calloutColor}22`,
+                      }}
+                    >
+                      ▼ {getCalloutLabel(c.latest_movement_type!)}
+                    </div>
+                  )}
 
                   <LemonadeStand
                     competitor={c}
                     isSelected={selectedId === c.competitor_id}
                     isDimmed={isDimmed}
+                    isNew={isNew}
+                    rank={i + 1}
                     onClick={() => handleStandClick(c.competitor_id)}
                   />
                 </div>
@@ -452,231 +386,379 @@ export default function LemonadeStreet({ competitors }: Props) {
             })}
           </div>
         </div>
+      </div>
 
-        {/* ── Metrivant brand watermark (in-scene, screenshot-visible) ──── */}
-        <div
-          className="pointer-events-none absolute bottom-[72px] right-5 z-10 flex items-center gap-2"
-          style={{ opacity: 0.18 }}
-        >
-          <svg width="14" height="14" viewBox="0 0 46 46" fill="none" aria-hidden="true">
-            <circle cx="23" cy="23" r="21.5" stroke="#2EE6A6" strokeWidth="1.5" />
-            <circle cx="23" cy="23" r="13"   stroke="#2EE6A6" strokeWidth="1" />
-            <circle cx="23" cy="23" r="5.5"  stroke="#2EE6A6" strokeWidth="1" />
-            <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#2EE6A6" fillOpacity="0.4" />
-            <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#2EE6A6" strokeWidth="1.5" />
-            <circle cx="23" cy="23" r="2.5" fill="#2EE6A6" />
-          </svg>
-          <span className="text-[9px] font-bold uppercase tracking-[0.22em] text-white">
-            METRIVANT
-          </span>
+      {/* ══════════════ BOTTOM HUD ════════════════════════════════════════════ */}
+      <div
+        style={{
+          background: HUD_BG,
+          borderTop: `2px solid ${HUD_BORDER}`,
+          padding: "6px 16px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ fontSize: "8px", color: "#334466", letterSpacing: "0.2em" }}>
+          {selected
+            ? `► STAND SELECTED: ${selected.competitor_name.toUpperCase()}`
+            : "► CLICK A STAND TO OPEN INTELLIGENCE"}
         </div>
+        <div style={{ fontSize: "8px", color: "#1a2233", letterSpacing: "0.16em" }}>
+          METRIVANT
+        </div>
+      </div>
 
-        {/* ── Intelligence drawer ───────────────────────────────────────── */}
-        <AnimatePresence>
-          {selectedId && (
-            <motion.div
-              key="lemonade-drawer"
-              initial={{ x: "100%", opacity: 0.6 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: "100%", opacity: 0 }}
-              transition={{ type: "spring", stiffness: 320, damping: 38 }}
-              className="absolute right-0 top-0 h-full w-[360px] shrink-0 overflow-y-auto border-l border-[#0e2210] bg-[rgba(0,2,0,0.97)] backdrop-blur-xl"
+      {/* ══════════════ STAND DETAIL CARD (bottom sheet) ═════════════════════ */}
+      <AnimatePresence>
+        {selectedId && selected && (
+          <motion.div
+            key="stand-detail"
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", stiffness: 380, damping: 42 }}
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              zIndex: 40,
+              background: "#09091a",
+              borderTop: `3px solid ${accent}`,
+              maxHeight: "54vh",
+              overflowY: "auto",
+              fontFamily: MONO,
+            }}
+          >
+            {/* Accent glow strip */}
+            <div
               style={{
-                boxShadow: `inset 0 1px 0 0 ${accentColor}12, -8px 0 40px rgba(0,0,0,0.7)`,
+                position: "absolute",
+                left: 0,
+                right: 0,
+                top: 0,
+                height: 1,
+                background: `linear-gradient(90deg, transparent, ${accent}66 30%, ${accent}66 70%, transparent)`,
+                pointerEvents: "none",
               }}
-            >
-              {/* Accent line */}
-              <div
-                className="absolute inset-x-0 top-0 h-[1px]"
-                style={{
-                  background: `linear-gradient(90deg, transparent, ${accentColor}38 40%, ${accentColor}38 60%, transparent)`,
-                }}
-              />
+            />
 
-              <div className="p-5">
+            <div style={{ padding: "16px 20px 20px" }}>
+              {/* Header row */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  marginBottom: 14,
+                }}
+              >
+                <div>
+                  {/* Rank + name */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                    <div
+                      style={{
+                        background: accent,
+                        color: "#000",
+                        fontSize: "8px",
+                        fontWeight: "bold",
+                        padding: "2px 7px",
+                        boxShadow: "2px 2px 0 #000",
+                        letterSpacing: "0.14em",
+                      }}
+                    >
+                      STAND INTEL
+                    </div>
+                    {selected.latest_movement_type && (
+                      <div
+                        style={{
+                          border: `1px solid ${accent}55`,
+                          color: accent,
+                          fontSize: "8px",
+                          fontWeight: "bold",
+                          padding: "2px 7px",
+                          letterSpacing: "0.12em",
+                        }}
+                      >
+                        {selected.latest_movement_type.replace(/_/g, " ").toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "20px",
+                      fontWeight: "bold",
+                      color: "#eeeeff",
+                      letterSpacing: "0.05em",
+                      lineHeight: 1,
+                    }}
+                  >
+                    {selected.competitor_name}
+                  </div>
+                </div>
+
                 {/* Close */}
                 <button
                   onClick={() => { setSelectedId(null); setDetail(null); }}
-                  className="absolute right-4 top-4 rounded-full p-1.5 text-slate-600 transition-colors hover:text-slate-300"
-                  aria-label="Close drawer"
+                  style={{
+                    background: "#13131f",
+                    border: `1px solid ${HUD_BORDER}`,
+                    color: "#445566",
+                    fontFamily: MONO,
+                    fontSize: "10px",
+                    padding: "4px 10px",
+                    cursor: "pointer",
+                    letterSpacing: "0.1em",
+                    boxShadow: "2px 2px 0 #000",
+                    flexShrink: 0,
+                  }}
                 >
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <path
-                      d="M2 2l10 10M12 2L2 12"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    />
-                  </svg>
+                  ✕ CLOSE
                 </button>
+              </div>
 
-                {selectedCompetitor && (
-                  <>
-                    {/* Name + movement badge */}
-                    <div className="mb-4 pr-8">
-                      <h2 className="text-[18px] font-bold tracking-wide text-white">
-                        {selectedCompetitor.competitor_name}
-                      </h2>
-                      {selectedCompetitor.latest_movement_type && (
-                        <span
-                          className="mt-1.5 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]"
+              {/* "What this means" panel */}
+              <div
+                style={{
+                  background: accent + "0d",
+                  border: `1px solid ${accent}33`,
+                  padding: "10px 14px",
+                  marginBottom: 14,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "7px",
+                    color: accent + "88",
+                    letterSpacing: "0.2em",
+                    marginBottom: 5,
+                  }}
+                >
+                  WHAT THIS MEANS
+                </div>
+                <p
+                  style={{
+                    fontSize: "12px",
+                    color: "#aabbcc",
+                    lineHeight: 1.6,
+                    margin: 0,
+                    fontStyle: "italic",
+                    fontFamily: "system-ui, sans-serif",
+                  }}
+                >
+                  {getLemonadeNote(selected.latest_movement_type, selected.competitor_name)}
+                </p>
+              </div>
+
+              {/* Stats row */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, 1fr)",
+                  gap: 8,
+                  marginBottom: 14,
+                }}
+              >
+                {[
+                  {
+                    label: "SIGNALS 7D",
+                    value: String(selected.signals_7d ?? 0),
+                    color: (selected.signals_7d ?? 0) > 0 ? accent : "#334455",
+                  },
+                  {
+                    label: "MOMENTUM",
+                    value: Number(selected.momentum_score ?? 0).toFixed(1),
+                    color: Number(selected.momentum_score ?? 0) > 0 ? accent : "#334455",
+                  },
+                  {
+                    label: "CONFIDENCE",
+                    value:
+                      selected.latest_movement_confidence != null
+                        ? `${Math.round(Number(selected.latest_movement_confidence) * 100)}%`
+                        : "—",
+                    color: "#6688aa",
+                  },
+                ].map(({ label, value, color }) => (
+                  <div
+                    key={label}
+                    style={{
+                      background: "#0d0d1e",
+                      border: `1px solid ${HUD_BORDER}`,
+                      padding: "8px 10px",
+                      boxShadow: "2px 2px 0 #000",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "7px",
+                        color: "#334455",
+                        letterSpacing: "0.18em",
+                        marginBottom: 4,
+                      }}
+                    >
+                      {label}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "20px",
+                        fontWeight: "bold",
+                        color,
+                        lineHeight: 1,
+                      }}
+                    >
+                      {value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Movement summary */}
+              {selected.latest_movement_summary && (
+                <div
+                  style={{
+                    background: "#0d0d1e",
+                    border: `1px solid ${HUD_BORDER}`,
+                    padding: "10px 12px",
+                    marginBottom: 14,
+                  }}
+                >
+                  <div
+                    style={{ fontSize: "7px", color: "#334455", letterSpacing: "0.18em", marginBottom: 6 }}
+                  >
+                    INTEL SUMMARY
+                  </div>
+                  <p
+                    style={{
+                      fontSize: "11.5px",
+                      color: "#8899aa",
+                      lineHeight: 1.6,
+                      margin: 0,
+                      fontFamily: "system-ui, sans-serif",
+                    }}
+                  >
+                    {selected.latest_movement_summary}
+                  </p>
+                </div>
+              )}
+
+              {/* Loading */}
+              {loadingDetail && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "8px 0",
+                    fontSize: "9px",
+                    color: "#445566",
+                    letterSpacing: "0.16em",
+                  }}
+                >
+                  <div
+                    className="animate-spin"
+                    style={{
+                      width: 10,
+                      height: 10,
+                      border: `1px solid ${HUD_BORDER}`,
+                      borderTop: `1px solid ${accent}`,
+                    }}
+                  />
+                  LOADING SIGNALS…
+                </div>
+              )}
+
+              {/* Signal list */}
+              {detail && detail.signals.length > 0 && (
+                <div>
+                  <div
+                    style={{
+                      fontSize: "7px",
+                      color: "#334455",
+                      letterSpacing: "0.2em",
+                      marginBottom: 8,
+                    }}
+                  >
+                    RECENT SIGNALS ({Math.min(detail.signals.length, 6)})
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {detail.signals.slice(0, 6).map((s) => (
+                      <div
+                        key={s.id}
+                        style={{
+                          background: "#0d0d1e",
+                          border: `1px solid ${HUD_BORDER}`,
+                          padding: "8px 12px",
+                        }}
+                      >
+                        <div
                           style={{
-                            backgroundColor: `${accentColor}18`,
-                            color: accentColor,
-                            border: `1px solid ${accentColor}30`,
+                            display: "flex",
+                            justifyContent: "space-between",
+                            marginBottom: s.summary ? 5 : 0,
                           }}
                         >
                           <span
-                            className="h-[5px] w-[5px] rounded-full"
-                            style={{ backgroundColor: accentColor }}
-                          />
-                          {getMovementLabel(selectedCompetitor.latest_movement_type)}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* ── "Why This Matters" micro-layer ─────────────────── */}
-                    <div
-                      className="mb-4 rounded-[12px] border px-4 py-3.5"
-                      style={{
-                        borderColor: `${accentColor}22`,
-                        background: `${accentColor}08`,
-                      }}
-                    >
-                      <div
-                        className="mb-1.5 text-[9.5px] font-semibold uppercase tracking-[0.18em]"
-                        style={{ color: `${accentColor}70` }}
-                      >
-                        What This Means
-                      </div>
-                      <p className="text-[12.5px] leading-relaxed text-slate-300" style={{ fontStyle: "italic" }}>
-                        {getLemonadeInterpretation(
-                          selectedCompetitor.latest_movement_type,
-                          selectedCompetitor.competitor_name
+                            style={{
+                              fontSize: "9px",
+                              fontWeight: "bold",
+                              color: "#8899aa",
+                              letterSpacing: "0.08em",
+                            }}
+                          >
+                            {getSignalTypeLabel(s.signal_type).toUpperCase()}
+                          </span>
+                          <span style={{ fontSize: "8px", color: "#334455" }}>
+                            {formatRelative(s.detected_at)}
+                          </span>
+                        </div>
+                        {s.summary && (
+                          <p
+                            style={{
+                              fontSize: "11px",
+                              color: "#556677",
+                              lineHeight: 1.5,
+                              margin: 0,
+                              fontFamily: "system-ui, sans-serif",
+                            }}
+                          >
+                            {s.summary}
+                          </p>
                         )}
-                      </p>
-                    </div>
-
-                    {/* Stats */}
-                    <div className="mb-4 grid grid-cols-3 gap-2">
-                      {[
-                        {
-                          label: "Momentum",
-                          value: (selectedCompetitor.momentum_score ?? 0).toFixed(1),
-                        },
-                        {
-                          label: "Signals 7d",
-                          value: String(selectedCompetitor.signals_7d ?? 0),
-                        },
-                        {
-                          label: "Confidence",
-                          value:
-                            selectedCompetitor.latest_movement_confidence != null
-                              ? `${Math.round(
-                                  Number(selectedCompetitor.latest_movement_confidence) * 100
-                                )}%`
-                              : "—",
-                        },
-                      ].map(({ label, value }) => (
-                        <div
-                          key={label}
-                          className="rounded-[10px] border border-[#0f2010] bg-[#070d07] px-3 py-2.5"
-                        >
-                          <div className="text-[9.5px] uppercase tracking-[0.18em] text-slate-600">
-                            {label}
-                          </div>
-                          <div className="mt-0.5 text-[18px] font-semibold leading-none tabular-nums text-slate-200">
-                            {value}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Technical movement summary */}
-                    {selectedCompetitor.latest_movement_summary && (
-                      <div className="mb-4 rounded-[10px] border border-[#0f2010] bg-[#070d07] px-3.5 py-3">
-                        <p className="text-[12px] leading-relaxed text-slate-400">
-                          {selectedCompetitor.latest_movement_summary}
-                        </p>
                       </div>
-                    )}
-
-                    {/* Website */}
-                    {selectedCompetitor.website_url && (
-                      <a
-                        href={selectedCompetitor.website_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mb-4 flex items-center gap-2 text-[11px] text-slate-600 transition-colors hover:text-slate-400"
-                      >
-                        <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
-                          <path d="M5.5 1.5a4 4 0 100 8 4 4 0 000-8z" stroke="currentColor" strokeWidth="1.1" />
-                          <path d="M5.5 1.5c-.8 1-1.3 2.4-1.3 4s.5 3 1.3 4" stroke="currentColor" strokeWidth="1.1" />
-                          <path d="M5.5 1.5c.8 1 1.3 2.4 1.3 4s-.5 3-1.3 4" stroke="currentColor" strokeWidth="1.1" />
-                          <line x1="1.5" y1="5.5" x2="9.5" y2="5.5" stroke="currentColor" strokeWidth="1.1" />
-                        </svg>
-                        {selectedCompetitor.website_url.replace(/^https?:\/\//, "")}
-                      </a>
-                    )}
-                  </>
-                )}
-
-                {/* Loading */}
-                {loadingDetail && (
-                  <div className="flex items-center gap-2 py-4 text-[11px] text-slate-600">
-                    <div className="h-3 w-3 animate-spin rounded-full border border-[#2EE6A6]/20 border-t-[#2EE6A6]/80" />
-                    Loading intelligence…
+                    ))}
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* Signal list */}
-                {detail && detail.signals.length > 0 && (
-                  <div className="mt-1">
-                    <div className="mb-2.5 text-[10px] uppercase tracking-[0.18em] text-slate-600">
-                      Recent Signals
-                    </div>
-                    <div className="space-y-2">
-                      {detail.signals.slice(0, 6).map((s) => (
-                        <div
-                          key={s.id}
-                          className="rounded-[10px] border border-[#0f2010] bg-[#060c06] px-3 py-2.5"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-medium text-slate-400">
-                              {getSignalTypeLabel(s.signal_type)}
-                            </span>
-                            <span className="text-[9.5px] text-slate-700">
-                              {formatRelative(s.detected_at)}
-                            </span>
-                          </div>
-                          {s.summary && (
-                            <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
-                              {s.summary}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+              {detail && detail.signals.length === 0 && (
+                <div
+                  style={{
+                    background: "#0d0d1e",
+                    border: `1px solid ${HUD_BORDER}`,
+                    padding: "14px",
+                    textAlign: "center",
+                    fontSize: "9px",
+                    color: "#334455",
+                    letterSpacing: "0.18em",
+                  }}
+                >
+                  NO SIGNALS DETECTED YET
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-                {detail && detail.signals.length === 0 && (
-                  <div className="mt-2 rounded-[10px] border border-[#0f2010] bg-[#060c06] px-4 py-5 text-center">
-                    <p className="text-[12px] text-slate-700">No signals detected yet</p>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* ── Education overlay ──────────────────────────────────────────────── */}
+      {/* ══════════════ EDUCATION OVERLAY ════════════════════════════════════ */}
       <AnimatePresence>
         {showEducation && (
           <EducationOverlay onClose={() => setShowEducation(false)} />
         )}
       </AnimatePresence>
+
     </div>
   );
 }
