@@ -1,5 +1,8 @@
 import { createClient } from "../../../lib/supabase/server";
 import { NextResponse } from "next/server";
+import { sendEmail, buildTrackingConfirmationEmailHtml } from "../../../lib/email";
+
+const NEXT_PUBLIC_POSTHOG_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -10,7 +13,7 @@ export async function POST(request: Request) {
   }
 
   const formData = await request.formData();
-  const url = formData.get("url") as string | null;
+  const url  = formData.get("url")  as string | null;
   const name = formData.get("name") as string | null;
 
   if (!url || !name) {
@@ -28,6 +31,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to create organization" }, { status: 500 });
   }
 
+  // Check if competitor is newly added (for confirmation email — avoid resending on duplicate submits)
+  const { data: existing } = await supabase
+    .from("tracked_competitors")
+    .select("id")
+    .eq("org_id", org.id)
+    .eq("website_url", url)
+    .maybeSingle();
+
   // Insert tracked competitor
   const { error: competitorError } = await supabase
     .from("tracked_competitors")
@@ -40,19 +51,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: competitorError.message }, { status: 500 });
   }
 
-  // Fire competitor_added event — non-blocking, fire and forget.
-  const phKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-  if (phKey) {
-    fetch("https://app.posthog.com/capture", {
-      method: "POST",
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
+
+  // Send tracking confirmation only for newly added competitors (not duplicate submits).
+  if (!existing && user.email) {
+    void sendEmail({
+      to:      user.email,
+      subject: "Your competitor radar is live",
+      html:    buildTrackingConfirmationEmailHtml(name, url, siteUrl),
+    });
+  }
+
+  // Fire competitor_added PostHog event — non-blocking.
+  if (NEXT_PUBLIC_POSTHOG_KEY) {
+    void fetch("https://app.posthog.com/capture", {
+      method:  "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        api_key:     phKey,
+        api_key:     NEXT_PUBLIC_POSTHOG_KEY,
         event:       "competitor_added",
         distinct_id: user.id,
         properties:  { competitor_name: name, website_url: url },
       }),
-    }).catch(() => null);
+    });
   }
 
   return NextResponse.redirect(new URL("/app", request.url), { status: 302 });

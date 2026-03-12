@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { getRadarFeed } from "../../../lib/api";
 import { generateBrief, buildBriefEmailHtml } from "../../../lib/brief";
+import { sendEmail, FROM_BRIEFS } from "../../../lib/email";
 import { createServiceClient } from "../../../lib/supabase/service";
 
 function weekLabel(date: Date): string {
   return date.toLocaleDateString("en-US", {
     month: "long",
-    day: "numeric",
-    year: "numeric",
+    day:   "numeric",
+    year:  "numeric",
   });
 }
 
@@ -44,8 +45,8 @@ async function runGeneration(): Promise<NextResponse> {
   const { data: briefRow, error: insertError } = await supabase
     .from("weekly_briefs")
     .insert({
-      org_id: null, // system-wide brief
-      content: briefContent,
+      org_id:       null, // system-wide brief
+      content:      briefContent,
       signal_count: signalCount,
       generated_at: new Date().toISOString(),
     })
@@ -79,34 +80,21 @@ async function runGeneration(): Promise<NextResponse> {
     console.error("[generate-brief] failed to fetch recipients:", err);
   }
 
-  // 5 — Send emails via Resend
-  const resendKey = process.env.RESEND_API_KEY;
+  // 5 — Send emails via canonical email module
   const emailsSent: string[] = [];
 
-  if (resendKey && recipients.length > 0) {
+  if (recipients.length > 0) {
     const emailHtml = buildBriefEmailHtml(briefContent, week, siteUrl);
 
     const emailTasks = recipients.map((email) =>
-      fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${resendKey}`,
-        },
-        body: JSON.stringify({
-          from: "Metrivant <briefs@metrivant.com>",
-          to: email,
-          subject: `Your weekly competitor intelligence brief — ${week}`,
-          html: emailHtml,
-        }),
+      sendEmail({
+        to:      email,
+        subject: `Your weekly competitor intelligence brief — ${week}`,
+        html:    emailHtml,
+        from:    FROM_BRIEFS,
+      }).then((result) => {
+        if (result.ok) emailsSent.push(email);
       })
-        .then((r) => {
-          if (r.ok) emailsSent.push(email);
-          return r;
-        })
-        .catch((err) => {
-          console.error(`[generate-brief] email failed for ${email}:`, err);
-        })
     );
 
     await Promise.allSettled(emailTasks);
@@ -115,33 +103,33 @@ async function runGeneration(): Promise<NextResponse> {
   // 6 — PostHog event (best-effort)
   const posthogKey = process.env.POSTHOG_API_KEY;
   if (posthogKey) {
-    void fetch("https://app.posthog.com/capture/", {
-      method: "POST",
+    void fetch("https://app.posthog.com/capture", {
+      method:  "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        api_key: posthogKey,
-        event: "brief_generated",
+        api_key:     posthogKey,
+        event:       "brief_generated",
         distinct_id: "system",
-        properties: {
-          signal_count: signalCount,
-          competitors_analyzed: briefContent.competitors_analyzed.length,
-          emails_sent: emailsSent.length,
+        properties:  {
+          signal_count:           signalCount,
+          competitors_analyzed:   briefContent.competitors_analyzed.length,
+          emails_sent:            emailsSent.length,
           week,
-          brief_id: briefRow?.id ?? null,
-          prompt_tokens: briefContent.prompt_tokens,
-          completion_tokens: briefContent.completion_tokens,
+          brief_id:               briefRow?.id ?? null,
+          prompt_tokens:          briefContent.prompt_tokens,
+          completion_tokens:      briefContent.completion_tokens,
         },
       }),
     });
   }
 
   return NextResponse.json({
-    ok: true,
-    brief_id: briefRow?.id ?? null,
+    ok:                   true,
+    brief_id:             briefRow?.id ?? null,
     week,
-    signal_count: signalCount,
+    signal_count:         signalCount,
     competitors_analyzed: briefContent.competitors_analyzed.length,
-    emails_sent: emailsSent.length,
+    emails_sent:          emailsSent.length,
   });
 }
 

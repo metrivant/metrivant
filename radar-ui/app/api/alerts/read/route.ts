@@ -44,7 +44,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   // PostHog (best-effort)
   const posthogKey = process.env.POSTHOG_API_KEY;
   if (posthogKey) {
-    void fetch("https://app.posthog.com/capture/", {
+    void fetch("https://app.posthog.com/capture", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

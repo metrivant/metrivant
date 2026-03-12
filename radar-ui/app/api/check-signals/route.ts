@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { getRadarFeed, getCompetitorDetail } from "../../../lib/api";
 import { buildAlertEmailHtml, type AlertRow } from "../../../lib/alert";
+import {
+  sendEmail,
+  buildFirstSignalEmailHtml,
+  FROM_ALERTS,
+} from "../../../lib/email";
 import { createServiceClient } from "../../../lib/supabase/service";
 
 function isAuthorized(request: Request): boolean {
@@ -47,12 +52,12 @@ async function runCheck(): Promise<NextResponse> {
 
   // 4 — Collect qualifying signals
   type QualifyingSignal = {
-    signal_id: string;
+    signal_id:       string;
     competitor_name: string;
-    signal_type: string;
-    summary: string | null;
-    urgency: number;
-    severity: string | null;
+    signal_type:     string;
+    summary:         string | null;
+    urgency:         number;
+    severity:        string | null;
   };
 
   const qualifying: QualifyingSignal[] = [];
@@ -66,12 +71,12 @@ async function runCheck(): Promise<NextResponse> {
       const urgency = signal.urgency ?? 0;
       if (urgency >= 3 && signal.detected_at && isRecent(signal.detected_at)) {
         qualifying.push({
-          signal_id: signal.id,
+          signal_id:       signal.id,
           competitor_name: competitorName,
-          signal_type: signal.signal_type,
-          summary: signal.summary ?? null,
+          signal_type:     signal.signal_type,
+          summary:         signal.summary ?? null,
           urgency,
-          severity: signal.severity ?? null,
+          severity:        signal.severity ?? null,
         });
       }
     });
@@ -87,13 +92,13 @@ async function runCheck(): Promise<NextResponse> {
 
   for (const org of orgs as Array<{ id: string; owner_id: string }>) {
     const payload = qualifying.map((q) => ({
-      org_id: org.id,
-      signal_id: q.signal_id,
+      org_id:          org.id,
+      signal_id:       q.signal_id,
       competitor_name: q.competitor_name,
-      signal_type: q.signal_type,
-      summary: q.summary,
-      urgency: q.urgency,
-      severity: q.severity,
+      signal_type:     q.signal_type,
+      summary:         q.summary,
+      urgency:         q.urgency,
+      severity:        q.severity,
     }));
 
     const { data: inserted } = await supabase
@@ -109,79 +114,81 @@ async function runCheck(): Promise<NextResponse> {
 
   if (alertsCreated === 0) {
     return NextResponse.json({
-      ok: true,
+      ok:          true,
       signalsFound: qualifying.length,
       alertsCreated: 0,
-      message: "All signals already alerted",
+      message:     "All signals already alerted",
     });
   }
 
   // 6 — Send emails to org owners who have new alerts
-  const resendKey = process.env.RESEND_API_KEY;
   const emailsSent: string[] = [];
 
-  if (resendKey) {
-    const {
-      data: { users },
-    } = await supabase.auth.admin.listUsers({ perPage: 500 });
+  const {
+    data: { users },
+  } = await supabase.auth.admin.listUsers({ perPage: 500 });
 
-    const emailTasks = (orgs as Array<{ id: string; owner_id: string }>)
-      .filter((org) => newAlertsByOrg.has(org.id))
-      .map(async (org) => {
-        const owner = users.find((u) => u.id === org.owner_id);
-        if (!owner?.email) return;
+  const emailTasks = (orgs as Array<{ id: string; owner_id: string }>)
+    .filter((org) => newAlertsByOrg.has(org.id))
+    .map(async (org) => {
+      const owner = users.find((u) => u.id === org.owner_id);
+      if (!owner?.email) return;
 
-        const newAlerts = newAlertsByOrg.get(org.id)!;
-        const html = buildAlertEmailHtml(newAlerts, siteUrl);
+      const newAlerts = newAlertsByOrg.get(org.id)!;
 
-        const res = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${resendKey}`,
-          },
-          body: JSON.stringify({
-            from: "Metrivant <alerts@metrivant.com>",
-            to: owner.email,
+      // Detect first-ever signal for this org: if total alerts == newly inserted,
+      // these are the only alerts this org has ever received.
+      const { count: totalAlerts } = await supabase
+        .from("alerts")
+        .select("*", { count: "exact", head: true })
+        .eq("org_id", org.id);
+
+      const isFirstSignal = (totalAlerts ?? 0) === newAlerts.length;
+
+      const result = isFirstSignal
+        ? await sendEmail({
+            to:      owner.email,
+            subject: "Metrivant detected its first competitor signal",
+            html:    buildFirstSignalEmailHtml(newAlerts, siteUrl),
+            from:    FROM_ALERTS,
+          })
+        : await sendEmail({
+            to:      owner.email,
             subject: `Competitor movement detected — ${newAlerts.length} new signal${newAlerts.length !== 1 ? "s" : ""}`,
-            html,
-          }),
-        });
+            html:    buildAlertEmailHtml(newAlerts, siteUrl),
+            from:    FROM_ALERTS,
+          });
 
-        if (res.ok) emailsSent.push(owner.email);
-      });
+      if (result.ok) emailsSent.push(owner.email);
+    });
 
-    await Promise.allSettled(emailTasks);
-  }
+  await Promise.allSettled(emailTasks);
 
   // 7 — PostHog events (best-effort)
   const posthogKey = process.env.POSTHOG_API_KEY;
   if (posthogKey) {
     const events = qualifying.map((q) => ({
-      event: "alert_triggered",
+      event:       "alert_triggered",
       distinct_id: "system",
-      properties: {
+      properties:  {
         competitor_name: q.competitor_name,
-        signal_type: q.signal_type,
-        urgency: q.urgency,
+        signal_type:     q.signal_type,
+        urgency:         q.urgency,
       },
     }));
 
     void fetch("https://app.posthog.com/batch", {
-      method: "POST",
+      method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        api_key: posthogKey,
-        batch: events,
-      }),
+      body:    JSON.stringify({ api_key: posthogKey, batch: events }),
     });
   }
 
   return NextResponse.json({
-    ok: true,
+    ok:           true,
     signalsFound: qualifying.length,
     alertsCreated,
-    emailsSent: emailsSent.length,
+    emailsSent:   emailsSent.length,
   });
 }
 

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sendEmail, buildWelcomeEmailHtml } from "../../../../lib/email";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({})) as { email?: string; plan?: string };
@@ -15,45 +16,27 @@ export async function POST(request: Request) {
   const posthogKey = process.env.POSTHOG_API_KEY;
   if (posthogKey) {
     tasks.push(
-      fetch("https://app.posthog.com/capture/", {
+      fetch("https://app.posthog.com/capture", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          api_key: posthogKey,
-          event: "signup",
+          api_key:     posthogKey,
+          event:       "signup",
           distinct_id: email,
-          properties: { plan, source: "web" },
+          properties:  { plan, source: "web" },
         }),
       })
     );
   }
 
-  // Resend welcome email
-  const resendKey = process.env.RESEND_API_KEY;
-  if (resendKey) {
-    tasks.push(
-      fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${resendKey}`,
-        },
-        body: JSON.stringify({
-          from: "Metrivant <hello@metrivant.com>",
-          to: email,
-          subject: "Welcome to Metrivant",
-          text: [
-            `Welcome to Metrivant.`,
-            ``,
-            `Your competitive intelligence radar is ready. Start by adding competitors to monitor at:`,
-            `${siteUrl}/app/onboarding`,
-            ``,
-            `— The Metrivant team`,
-          ].join("\n"),
-        }),
-      })
-    );
-  }
+  // Welcome email
+  tasks.push(
+    sendEmail({
+      to:      email,
+      subject: "Welcome to Metrivant",
+      html:    buildWelcomeEmailHtml(siteUrl),
+    })
+  );
 
   await Promise.allSettled(tasks);
 
