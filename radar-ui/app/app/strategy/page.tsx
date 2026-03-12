@@ -40,7 +40,17 @@ function formatAnalysisDate(iso: string): string {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default async function StrategyPage() {
+export default async function StrategyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ alert?: string; cid?: string; cname?: string; move?: string; conf?: string }>;
+}) {
+  const sp = await searchParams;
+  const isAlertReferral   = sp.alert === "1";
+  const alertCompetitorName = sp.cname ?? null;
+  const alertMovementType   = sp.move  ?? null;
+  const alertConfidence     = sp.conf  ? parseFloat(sp.conf) : null;
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -143,6 +153,15 @@ export default async function StrategyPage() {
 
       {/* ── Page content ────────────────────────────────────────────── */}
       <div className="relative mx-auto max-w-4xl px-6 pb-24 pt-10">
+
+        {/* ── Alert context banner ──────────────────────────────────── */}
+        {isAlertReferral && alertCompetitorName && (
+          <AlertContextBanner
+            competitorName={alertCompetitorName}
+            movementType={alertMovementType}
+            confidence={alertConfidence}
+          />
+        )}
 
         {/* ── Title row ─────────────────────────────────────────────── */}
         <div className="mb-10 flex items-start justify-between gap-6">
@@ -283,6 +302,66 @@ export default async function StrategyPage() {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
+
+function movementDisplayLabel(movementType: string | null): string {
+  if (!movementType) return "Strategic movement";
+  switch (movementType) {
+    case "pricing_strategy_shift": return "Pricing strategy shift";
+    case "product_expansion":      return "Product expansion";
+    case "market_reposition":      return "Market repositioning";
+    case "enterprise_push":        return "Enterprise push";
+    case "ecosystem_expansion":    return "Ecosystem expansion";
+    default:
+      return movementType
+        .split("_")
+        .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+        .join(" ");
+  }
+}
+
+function AlertContextBanner({
+  competitorName,
+  movementType,
+  confidence,
+}: {
+  competitorName: string;
+  movementType:   string | null;
+  confidence:     number | null;
+}) {
+  return (
+    <div
+      className="relative mb-8 overflow-hidden rounded-[16px] border px-5 py-4"
+      style={{ borderColor: "rgba(245,158,11,0.30)", background: "rgba(245,158,11,0.04)" }}
+    >
+      {/* Left accent bar */}
+      <div className="absolute inset-y-0 left-0 w-[3px] rounded-l-[16px] bg-amber-500/50" />
+
+      <div className="ml-3">
+        <div className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.28em] text-amber-500/70">
+          ⚡ Critical Alert Context
+        </div>
+        <p className="text-[14px] font-semibold text-white">
+          Analysis triggered by accelerated movement in{" "}
+          <span className="text-amber-400">{competitorName}</span>
+        </p>
+        {movementType && (
+          <p className="mt-1 text-[12px] text-slate-500">
+            {movementDisplayLabel(movementType)}
+            {confidence !== null && (
+              <span className="ml-2 text-slate-600">
+                · {Math.round(confidence * 100)}% confidence
+              </span>
+            )}
+          </p>
+        )}
+        <p className="mt-2 text-[12px] leading-relaxed text-slate-600">
+          Review the patterns below to understand how this movement connects to the broader
+          competitive landscape — and identify the highest-leverage response.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 function SectionHeader({
   index,

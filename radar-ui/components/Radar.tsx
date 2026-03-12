@@ -10,6 +10,12 @@ import { getMomentumConfig, getMomentumEchoDuration } from "../lib/momentum";
 import MomentumSparkline from "./MomentumSparkline";
 import { capture } from "../lib/posthog";
 import { translateMovementType, translateSignalType, getSectorLabel } from "../lib/sectors";
+import {
+  detectCriticalAlert,
+  getAlertTitle,
+  getAlertExplanation,
+  type CriticalAlert,
+} from "../lib/criticalAlert";
 
 // ─── Radar geometry ──────────────────────────────────────────────────────────
 const SIZE = 1000;
@@ -214,6 +220,7 @@ type BlipNodeProps = {
   radiusScale: (v: number) => number;
   isSelected: boolean;
   isDimmed: boolean;
+  isAlerted: boolean;
   onSelect: (id: string) => void;
 };
 
@@ -224,6 +231,7 @@ const BlipNode = memo(function BlipNode({
   radiusScale,
   isSelected,
   isDimmed,
+  isAlerted,
   onSelect,
 }: BlipNodeProps) {
   const momentum = Number(competitor.momentum_score ?? 0);
@@ -258,6 +266,34 @@ const BlipNode = memo(function BlipNode({
           opacity={0.06 + pi * 0.07}
         />
       ))}
+
+      {/* Alert state: breathing outer bloom — marks the accelerating competitor */}
+      {isAlerted && !isDimmed && !isSelected && (
+        <motion.circle
+          cx={x}
+          cy={y}
+          r={nodeSize + 26}
+          fill={color}
+          filter="url(#blipGlowStrong)"
+          initial={{ opacity: 0.06 }}
+          animate={{ opacity: [0.06, 0.18, 0.06], scale: [1, 1.06, 1] }}
+          transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+          style={{ transformOrigin: `${x}px ${y}px` }}
+        />
+      )}
+      {isAlerted && !isDimmed && !isSelected && (
+        <motion.circle
+          cx={x}
+          cy={y}
+          r={nodeSize + 14}
+          fill="none"
+          stroke={color}
+          strokeWidth="1.5"
+          animate={{ opacity: [0.5, 0.9, 0.5] }}
+          transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
+          style={{ transformOrigin: `${x}px ${y}px` }}
+        />
+      )}
 
       {/* Enlarged transparent hit target */}
       <circle cx={x} cy={y} r={nodeSize + 8} fill="transparent" />
@@ -421,6 +457,62 @@ export default function Radar({
     const interval = setInterval(() => router.refresh(), 30_000);
     return () => clearInterval(interval);
   }, [competitors.length, router]);
+
+  // ── Critical acceleration alert ──────────────────────────────────────────
+  const criticalAlert: CriticalAlert | null = useMemo(
+    () => detectCriticalAlert(competitors),
+    [competitors]
+  );
+
+  const [alertDismissed, setAlertDismissed] = useState(false);
+
+  useEffect(() => {
+    if (!criticalAlert) return;
+    const storageKey = `alert_dismissed__${criticalAlert.alertKey}`;
+    const alreadyDismissed = sessionStorage.getItem(storageKey) === "1";
+    if (alreadyDismissed) {
+      setAlertDismissed(true);
+      return;
+    }
+    setAlertDismissed(false);
+    capture("critical_alert_triggered", {
+      competitor_id:   criticalAlert.competitor_id,
+      competitor_name: criticalAlert.competitor_name,
+      movement_type:   criticalAlert.movement_type,
+      momentum_score:  criticalAlert.momentum_score,
+    });
+    capture("critical_alert_opened", {
+      competitor_id:  criticalAlert.competitor_id,
+      movement_type:  criticalAlert.movement_type,
+    });
+  // alertKey changes only when the underlying movement event changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [criticalAlert?.alertKey]);
+
+  const alertActive = criticalAlert !== null && !alertDismissed;
+
+  function handleAlertDismiss() {
+    if (!criticalAlert) return;
+    sessionStorage.setItem(`alert_dismissed__${criticalAlert.alertKey}`, "1");
+    setAlertDismissed(true);
+  }
+
+  function handleStrategyNav() {
+    if (!criticalAlert) return;
+    capture("critical_alert_to_strategy_clicked", {
+      competitor_id:  criticalAlert.competitor_id,
+      movement_type:  criticalAlert.movement_type,
+      momentum_score: criticalAlert.momentum_score,
+    });
+    const params = new URLSearchParams({
+      alert: "1",
+      cid:   criticalAlert.competitor_id,
+      cname: criticalAlert.competitor_name,
+      move:  criticalAlert.movement_type,
+      conf:  criticalAlert.confidence.toFixed(2),
+    });
+    router.push(`/app/strategy?${params.toString()}`);
+  }
 
   const sorted = useMemo(
     () => sortCompetitors(competitors).slice(0, 50),
@@ -906,6 +998,7 @@ export default function Radar({
                   radiusScale={radiusScale}
                   isSelected={competitor.competitor_id === selectedId}
                   isDimmed={selectedId !== null && competitor.competitor_id !== selectedId}
+                  isAlerted={alertActive && competitor.competitor_id === criticalAlert?.competitor_id}
                   onSelect={handleBlipClick}
                 />
               ))}
@@ -952,6 +1045,48 @@ export default function Radar({
 
               </g>{/* end radarClip */}
 
+              {/* ── Alert mode: radar boundary rings ─────────────────── */}
+              {/* Rendered outside radarClip so they appear at the instrument edge.
+                  Two expanding rings in the movement color signal the radar has
+                  locked onto a high-priority target. */}
+              {alertActive && criticalAlert && (() => {
+                const alertColor = getMovementColor(criticalAlert.movement_type);
+                return (
+                  <>
+                    {[0, 1].map((i) => (
+                      <motion.circle
+                        key={`alert-boundary-${i}`}
+                        cx={CENTER}
+                        cy={CENTER}
+                        r={OUTER_RADIUS}
+                        fill="none"
+                        stroke={alertColor}
+                        strokeWidth="3.5"
+                        initial={{ scale: 0.97, opacity: 0.65 }}
+                        animate={{ scale: 1.05, opacity: 0 }}
+                        transition={{
+                          duration: 2.8,
+                          repeat: Infinity,
+                          ease: "easeOut",
+                          delay: i * 1.4,
+                        }}
+                        style={{ transformOrigin: `${CENTER}px ${CENTER}px` }}
+                      />
+                    ))}
+                    {/* Static boundary accent — the radar is in alert mode */}
+                    <circle
+                      cx={CENTER}
+                      cy={CENTER}
+                      r={OUTER_RADIUS}
+                      fill="none"
+                      stroke={alertColor}
+                      strokeWidth="1.5"
+                      opacity="0.22"
+                    />
+                  </>
+                );
+              })()}
+
               {/* ── Cardinal labels (N / E / S / W) — outside clip ── */}
               {CARDINAL_LABELS.map(({ label, x, y }) => (
                 <text
@@ -970,6 +1105,111 @@ export default function Radar({
                 </text>
               ))}
             </svg>
+
+            {/* ── Critical alert banner overlay ──────────────────────── */}
+            {/* Positioned inside the radar SVG container so it overlays the
+                instrument itself. Slides up from the bottom of the radar area.
+                Delayed 0.9s to let the entry animation complete first. */}
+            <AnimatePresence>
+              {alertActive && criticalAlert && (() => {
+                const alertColor = getMovementColor(criticalAlert.movement_type);
+                return (
+                  <motion.div
+                    key={`critical-alert-${criticalAlert.alertKey}`}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 12 }}
+                    transition={{ duration: 0.4, ease: "easeOut", delay: entryPhase >= 3 ? 0 : 0.9 }}
+                    className="absolute bottom-4 left-4 right-4 z-30 md:bottom-6 md:left-6 md:right-6"
+                  >
+                    <div
+                      className="relative overflow-hidden rounded-[16px] border px-5 py-4"
+                      style={{
+                        background: "rgba(2,4,2,0.95)",
+                        borderColor: `${alertColor}40`,
+                        backdropFilter: "blur(16px)",
+                        boxShadow: `0 8px 40px rgba(0,0,0,0.85), 0 0 30px ${alertColor}0d`,
+                      }}
+                    >
+                      {/* Left accent bar */}
+                      <div
+                        className="absolute inset-y-0 left-0 w-[3px] rounded-l-[16px]"
+                        style={{ backgroundColor: alertColor }}
+                      />
+
+                      <div className="ml-3 flex items-start justify-between gap-4">
+                        {/* Alert content */}
+                        <div className="min-w-0 flex-1">
+                          {/* Label row */}
+                          <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                            <span
+                              className="text-[10px] font-bold uppercase tracking-[0.28em]"
+                              style={{ color: alertColor }}
+                            >
+                              ⚡ Competitor Accelerating
+                            </span>
+                            <span
+                              className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]"
+                              style={{
+                                background: `${alertColor}18`,
+                                color: alertColor,
+                                border: `1px solid ${alertColor}30`,
+                              }}
+                            >
+                              {Math.round(criticalAlert.confidence * 100)}% confidence
+                            </span>
+                          </div>
+
+                          {/* Competitor name */}
+                          <div className="text-[16px] font-bold leading-tight text-white">
+                            {criticalAlert.competitor_name}
+                          </div>
+
+                          {/* Movement title */}
+                          <div
+                            className="mt-0.5 text-[12px] font-semibold"
+                            style={{ color: alertColor, opacity: 0.85 }}
+                          >
+                            {getAlertTitle(criticalAlert.movement_type)}
+                          </div>
+
+                          {/* Explanation */}
+                          <p className="mt-1.5 line-clamp-2 text-[12px] leading-snug text-slate-500">
+                            {getAlertExplanation(criticalAlert)}
+                          </p>
+
+                          {/* Metrics row */}
+                          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-600">
+                            <span>{criticalAlert.signals_7d} signals this week</span>
+                            <span className="text-slate-700">·</span>
+                            <span>Momentum {Number(criticalAlert.momentum_score).toFixed(1)}</span>
+                            <span className="text-slate-700">·</span>
+                            <span>{formatRelative(criticalAlert.last_seen_at)}</span>
+                          </div>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex shrink-0 flex-col items-end gap-2 pt-0.5">
+                          <button
+                            onClick={handleStrategyNav}
+                            className="rounded-full px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] transition-opacity hover:opacity-85"
+                            style={{ background: alertColor, color: "#000" }}
+                          >
+                            View Strategy →
+                          </button>
+                          <button
+                            onClick={handleAlertDismiss}
+                            className="text-[11px] text-slate-600 transition-colors hover:text-slate-400"
+                          >
+                            Dismiss
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })()}
+            </AnimatePresence>
           </div>
 
           {/* ── Footer: legend + ticker ─────────────────────────────── */}
