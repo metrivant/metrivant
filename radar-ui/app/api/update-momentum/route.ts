@@ -30,7 +30,7 @@ export async function POST(request: Request) {
 async function handler(request: Request): Promise<NextResponse> {
   // Validate cron secret
   const auth = request.headers.get("authorization") ?? "";
-  if (CRON_SECRET && auth !== `Bearer ${CRON_SECRET}`) {
+  if (!CRON_SECRET || auth !== `Bearer ${CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

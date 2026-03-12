@@ -7,6 +7,7 @@ import { getCompetitorDetail } from "../../../lib/api";
 import { formatRelative } from "../../../lib/format";
 import LemonadeStand from "./LemonadeStand";
 import EducationOverlay from "./EducationOverlay";
+import { capture } from "../../../lib/posthog";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -130,19 +131,6 @@ function buildStreetStory(competitors: RadarCompetitor[]): string {
   return body + tail;
 }
 
-// ── PostHog ───────────────────────────────────────────────────────────────────
-
-function phCapture(event: string, props?: Record<string, unknown>) {
-  if (typeof window === "undefined") return;
-  const k = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-  if (!k) return;
-  fetch("https://app.posthog.com/capture", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ api_key: k, event, properties: props ?? {} }),
-  }).catch(() => null);
-}
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -157,7 +145,7 @@ export default function LemonadeStreet({ competitors }: Props) {
   const streetRef                         = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    phCapture("lemonade_mode_opened", { competitor_count: competitors.length });
+    capture("lemonade_mode_opened", { competitor_count: competitors.length });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleStandClick(competitorId: string) {
@@ -169,7 +157,7 @@ export default function LemonadeStreet({ competitors }: Props) {
     setSelectedId(competitorId);
     setDetail(null);
     setLoadingDetail(true);
-    phCapture("lemonade_stand_clicked", { competitor_id: competitorId });
+    capture("lemonade_stand_clicked", { competitor_id: competitorId });
     const d = await getCompetitorDetail(competitorId);
     setDetail(d);
     setLoadingDetail(false);

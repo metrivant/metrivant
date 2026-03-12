@@ -33,7 +33,7 @@ export async function POST(request: Request) { return handler(request); }
 
 async function handler(request: Request): Promise<NextResponse> {
   const auth = request.headers.get("authorization") ?? "";
-  if (CRON_SECRET && auth !== `Bearer ${CRON_SECRET}`) {
+  if (!CRON_SECRET || auth !== `Bearer ${CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

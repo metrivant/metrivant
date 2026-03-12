@@ -5,6 +5,7 @@ import { useState } from "react";
 import { createClient } from "../../lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { capture } from "../../lib/posthog";
 
 function LoginForm() {
   const router = useRouter();
@@ -36,6 +37,7 @@ function LoginForm() {
       return;
     }
 
+    capture("login_completed");
     router.push(next);
     router.refresh();
   }

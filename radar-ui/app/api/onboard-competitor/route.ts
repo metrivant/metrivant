@@ -40,5 +40,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: competitorError.message }, { status: 500 });
   }
 
+  // Fire competitor_added event — non-blocking, fire and forget.
+  const phKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+  if (phKey) {
+    fetch("https://app.posthog.com/capture", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key:     phKey,
+        event:       "competitor_added",
+        distinct_id: user.id,
+        properties:  { competitor_name: name, website_url: url },
+      }),
+    }).catch(() => null);
+  }
+
   return NextResponse.redirect(new URL("/app", request.url), { status: 302 });
 }

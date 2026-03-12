@@ -19,7 +19,7 @@ function isRecent(detectedAt: string): boolean {
 
 async function runCheck(): Promise<NextResponse> {
   const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.metrivant.com";
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
   const supabase = createServiceClient();
 
   // 1 — Get all orgs
@@ -167,7 +167,7 @@ async function runCheck(): Promise<NextResponse> {
       },
     }));
 
-    void fetch("https://app.posthog.com/capture/", {
+    void fetch("https://app.posthog.com/batch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
-  const { email, plan } = await request.json() as { email: string; plan: string };
+  const body = await request.json().catch(() => ({})) as { email?: string; plan?: string };
+  const { email, plan } = body;
 
+  if (!email || typeof email !== "string" || !email.includes("@")) {
+    return NextResponse.json({ error: "Invalid email" }, { status: 400 });
+  }
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
   const tasks: Promise<unknown>[] = [];
 
   // PostHog event
@@ -40,7 +46,7 @@ export async function POST(request: Request) {
             `Welcome to Metrivant.`,
             ``,
             `Your competitive intelligence radar is ready. Start by adding competitors to monitor at:`,
-            `https://app.metrivant.com/app/onboarding`,
+            `${siteUrl}/app/onboarding`,
             ``,
             `— The Metrivant team`,
           ].join("\n"),

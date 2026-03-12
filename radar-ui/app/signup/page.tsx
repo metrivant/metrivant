@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "../../lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { capture } from "../../lib/posthog";
 
 function SignupForm() {
   const router = useRouter();
@@ -16,6 +17,10 @@ function SignupForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    capture("signup_started", { plan });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -38,7 +43,8 @@ function SignupForm() {
       return;
     }
 
-    // Fire signup event (best-effort)
+    // Fire signup_completed — client-side identity capture + server-side PostHog + Resend
+    capture("signup_completed", { plan });
     void fetch("/api/events/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { capture } from "../../../lib/posthog";
 
 type Props = {
   insightId:   string;
@@ -22,21 +23,7 @@ export default function StrategyActionButton({ insightId, patternType, response 
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
 
-    const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-    if (key) {
-      fetch("https://app.posthog.com/capture", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          api_key: key,
-          event:   "strategy_action_clicked",
-          properties: {
-            insight_id:   insightId,
-            pattern_type: patternType,
-          },
-        }),
-      }).catch(() => null);
-    }
+    capture("strategy_action_clicked", { insight_id: insightId, pattern_type: patternType });
   }
 
   return (

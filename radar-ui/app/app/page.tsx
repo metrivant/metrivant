@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Radar from "../../components/Radar";
+import RadarViewedTracker from "../../components/RadarViewedTracker";
 import NotificationBell from "../../components/NotificationBell";
 import { getRadarFeed } from "../../lib/api";
 import { formatRelative } from "../../lib/format";
@@ -292,6 +293,7 @@ export default async function Page() {
 
       {/* ── Main: radar fills everything below the header ─────────────────── */}
       <div className="relative z-10 flex-1 overflow-hidden p-3">
+        <RadarViewedTracker />
         <Radar competitors={competitors} />
       </div>
 

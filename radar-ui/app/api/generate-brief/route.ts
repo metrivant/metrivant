@@ -28,7 +28,7 @@ async function runGeneration(): Promise<NextResponse> {
   }
 
   const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.metrivant.com";
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
 
   // 1 — Fetch active competitors (signals in last 7 days)
   const allCompetitors = await getRadarFeed(50);

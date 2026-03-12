@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "../../../lib/supabase/server";
 import BriefViewer from "./BriefViewer";
+import BriefViewedTracker from "./BriefViewedTracker";
 import type { BriefContent } from "../../../lib/brief";
 
 type WeeklyBrief = {
@@ -42,6 +43,7 @@ export default async function BriefsPage() {
 
   return (
     <div className="min-h-screen bg-[#000200] text-white">
+      <BriefViewedTracker />
 
       {/* ── Atmospheric depth ───────────────────────────────────────── */}
       <div

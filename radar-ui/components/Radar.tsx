@@ -7,6 +7,7 @@ import type { RadarCompetitor, CompetitorDetail, MonitoredPage } from "../lib/ap
 import { formatRelative } from "../lib/format";
 import { getMomentumConfig, getMomentumEchoDuration } from "../lib/momentum";
 import MomentumSparkline from "./MomentumSparkline";
+import { capture } from "../lib/posthog";
 
 // ─── Radar geometry ──────────────────────────────────────────────────────────
 const SIZE = 1000;
@@ -460,7 +461,10 @@ export default function Radar({
   );
 
   const handleBlipClick = useCallback((id: string) => {
-    setSelectedId((prev) => (prev === id ? null : id));
+    setSelectedId((prev) => {
+      if (prev !== id) capture("competitor_selected", { competitor_id: id });
+      return prev === id ? null : id;
+    });
   }, []);
 
   const [detail, setDetail] = useState<CompetitorDetail | null>(null);
@@ -508,8 +512,12 @@ export default function Radar({
     fetch(`/api/competitor-detail?id=${encodeURIComponent(selectedId)}`)
       .then((r) => r.json())
       .then((json) => {
-        if (json.ok) setDetail(json);
-        else setDetailError(true);
+        if (json.ok) {
+          setDetail(json);
+          capture("competitor_detail_opened", { competitor_id: selectedId });
+        } else {
+          setDetailError(true);
+        }
       })
       .catch(() => setDetailError(true))
       .finally(() => setDetailLoading(false));

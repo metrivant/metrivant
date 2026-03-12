@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { CompetitorDetail } from "../../../lib/api";
 import { formatRelative } from "../../../lib/format";
 import { quadrantLabel } from "../../../lib/positioning";
+import { capture } from "../../../lib/posthog";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -443,17 +444,7 @@ export default function MarketMap({ competitors }: Props) {
 
   // PostHog: market_map_viewed
   useEffect(() => {
-    const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-    if (!key) return;
-    fetch("https://app.posthog.com/capture", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        api_key: key,
-        event: "market_map_viewed",
-        properties: { competitor_count: competitors.length },
-      }),
-    }).catch(() => null);
+    capture("market_map_viewed", { competitor_count: competitors.length });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -512,19 +503,7 @@ export default function MarketMap({ competitors }: Props) {
 
   const handleSelect = useCallback((id: string) => {
     setSelectedId((prev) => (prev === id ? null : id));
-    // PostHog
-    const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-    if (key) {
-      fetch("https://app.posthog.com/capture", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          api_key: key,
-          event: "competitor_position_inspected",
-          properties: { competitor_id: id },
-        }),
-      }).catch(() => null);
-    }
+    capture("competitor_position_inspected", { competitor_id: id });
   }, []);
 
   const handleHoverIn = useCallback((comp: MapCompetitor, screenX: number, screenY: number) => {

@@ -16,6 +16,7 @@
     "framer-motion": "^12.35.2",
     "next": "16.1.6",
     "postcss": "^8.5.8",
+    "posthog-js": "^1.360.1",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
