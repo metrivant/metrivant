@@ -24,6 +24,14 @@ export default function PublicNav() {
       {/* Links */}
       <div className="flex items-center gap-6">
         <Link
+          href="/about"
+          className={`text-[13px] font-medium transition-colors ${
+            pathname === "/about" ? "text-[#2EE6A6]" : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          About
+        </Link>
+        <Link
           href="/pricing"
           className={`text-[13px] font-medium transition-colors ${
             pathname === "/pricing" ? "text-[#2EE6A6]" : "text-slate-400 hover:text-slate-200"

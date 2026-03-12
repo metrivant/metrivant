@@ -1,12 +1,13 @@
 import Link from "next/link";
 import PublicNav from "../../components/PublicNav";
+import PricingTracker from "../../components/PricingTracker";
 
 const PLANS = [
   {
-    name: "Starter",
-    price: "$49",
+    name: "Analyst",
+    price: "$9",
     period: "/mo",
-    description: "For founders validating their competitive landscape.",
+    description: "Monitor your competitive landscape with weekly intelligence.",
     features: [
       "5 competitors monitored",
       "Weekly signal digest",
@@ -15,14 +16,14 @@ const PLANS = [
       "Email support",
     ],
     cta: "Start free trial",
-    href: "/signup?plan=starter",
+    href: "/signup?plan=analyst",
     highlight: false,
   },
   {
     name: "Pro",
-    price: "$149",
+    price: "$19",
     period: "/mo",
-    description: "For teams that need real-time competitive awareness.",
+    description: "Real-time intelligence for active competitive strategy.",
     features: [
       "25 competitors monitored",
       "Real-time signal alerts",
@@ -35,27 +36,12 @@ const PLANS = [
     href: "/signup?plan=pro",
     highlight: true,
   },
-  {
-    name: "Enterprise",
-    price: "Custom",
-    period: "",
-    description: "For organizations with broad competitive exposure.",
-    features: [
-      "Unlimited competitors",
-      "Custom page monitoring",
-      "API access",
-      "Dedicated account manager",
-      "SLA + SSO",
-    ],
-    cta: "Contact us",
-    href: "mailto:hello@metrivant.com",
-    highlight: false,
-  },
 ];
 
 export default function PricingPage() {
   return (
     <div className="min-h-screen bg-[#000200] text-white">
+      <PricingTracker />
       <PublicNav />
 
       <div
@@ -77,7 +63,7 @@ export default function PricingPage() {
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="mx-auto grid max-w-2xl gap-4 md:grid-cols-2">
           {PLANS.map((plan) => (
             <div
               key={plan.name}

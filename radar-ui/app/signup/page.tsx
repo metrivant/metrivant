@@ -10,7 +10,7 @@ import { capture } from "../../lib/posthog";
 function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const plan = searchParams.get("plan") ?? "starter";
+  const plan = searchParams.get("plan") ?? "analyst";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

@@ -4,6 +4,8 @@ import Radar from "../../components/Radar";
 import RadarViewedTracker from "../../components/RadarViewedTracker";
 import NotificationBell from "../../components/NotificationBell";
 import SectorSwitcher from "../../components/SectorSwitcher";
+import PlanBadge from "../../components/PlanBadge";
+import UpgradePrompt from "../../components/UpgradePrompt";
 import { getRadarFeed } from "../../lib/api";
 import { formatRelative } from "../../lib/format";
 import { createClient } from "../../lib/supabase/server";
@@ -11,12 +13,14 @@ import { createClient } from "../../lib/supabase/server";
 export default async function Page() {
   const competitors = await getRadarFeed(50);
 
-  // Read org sector for display language — best-effort, defaults to "saas"
+  // Read org sector + user plan — best-effort, both default to safe values
   let sector = "saas";
+  let plan   = "starter";
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
+      plan = (user.user_metadata?.plan as string | undefined) ?? "starter";
       const { data: org } = await supabase
         .from("organizations")
         .select("sector")
@@ -25,7 +29,7 @@ export default async function Page() {
       if (org?.sector) sector = org.sector;
     }
   } catch {
-    // Non-fatal — sector display is optional
+    // Non-fatal — sector and plan display are optional
   }
 
   const activeCount = competitors.filter(
@@ -110,32 +114,19 @@ export default async function Page() {
               <circle cx="23" cy="23" r="2.5" fill="#2EE6A6" />
             </svg>
 
-            <div className="flex flex-col gap-y-[2px]">
-              <div className="text-[10px] font-medium uppercase tracking-[0.32em]" style={{ color: "rgba(46,230,166,0.55)" }}>
-                Competitive Intelligence
-              </div>
+            <div className="flex flex-col gap-y-[4px]">
               <div className="text-[22px] font-bold leading-none text-white" style={{ letterSpacing: "0.09em" }}>
                 METRIVANT
               </div>
-              <div className="flex items-center gap-2">
-                <span className="relative flex h-[6px] w-[6px] shrink-0">
-                  {!isQuiet && isFresh && (
-                    <span className="absolute inset-0 animate-ping rounded-full bg-[#2EE6A6] opacity-55" />
-                  )}
-                  <span className={`relative h-[6px] w-[6px] rounded-full ${isQuiet ? "bg-slate-600" : isFresh ? "bg-[#2EE6A6] shadow-[0_0_6px_rgba(46,230,166,0.7)]" : "bg-amber-500"}`} />
-                </span>
-                <span className="text-[11px] leading-none text-slate-400">
-                  {statusText}
-                  {!isFresh && lastSignalAt !== null && (
-                    <span className="ml-2 text-amber-500/80">· data may be out of date</span>
-                  )}
-                </span>
+              <div className="text-[11px] font-medium uppercase tracking-[0.25em]" style={{ color: "rgba(46,230,166,0.55)" }}>
+                Competitive Intelligence
               </div>
             </div>
           </div>
 
           {/* ── Right: stats + notification + live badge ───────────────── */}
           <div className="hidden items-center gap-4 md:flex">
+            <PlanBadge plan={plan} />
             <SectorSwitcher sector={sector} />
             <NotificationBell />
 
@@ -161,9 +152,19 @@ export default async function Page() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 rounded-full border border-[#2EE6A6]/22 bg-[#2EE6A6]/6 px-3 py-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#2EE6A6]" style={{ boxShadow: "0 0 8px rgba(46,230,166,0.7)" }} />
-              <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#2EE6A6]">Live</span>
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-[6px] w-[6px] shrink-0">
+                {!isQuiet && isFresh && (
+                  <span className="absolute inset-0 animate-ping rounded-full bg-[#2EE6A6] opacity-55" />
+                )}
+                <span className={`relative h-[6px] w-[6px] rounded-full ${isQuiet ? "bg-slate-600" : isFresh ? "bg-[#2EE6A6] shadow-[0_0_6px_rgba(46,230,166,0.7)]" : "bg-amber-500"}`} />
+              </span>
+              <span className="text-[11px] leading-none text-slate-400">
+                {statusText}
+                {!isFresh && lastSignalAt !== null && (
+                  <span className="ml-2 text-amber-500/80">· data may be out of date</span>
+                )}
+              </span>
             </div>
           </div>
         </div>
@@ -250,6 +251,20 @@ export default async function Page() {
               Lemonade Mode
             </Link>
           </div>
+
+          {/* ── Plan / billing ─────────────────────────────────────────── */}
+          <div className="mt-auto border-t border-[#0e2210] p-3">
+            <Link
+              href="/app/billing"
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-medium text-slate-600 transition-colors hover:bg-[#0a1a0a] hover:text-slate-300"
+            >
+              <svg width="13" height="13" viewBox="0 0 11 11" fill="none" aria-hidden="true">
+                <rect x="1" y="3" width="9" height="7" rx="1.2" stroke="currentColor" strokeWidth="1.2" />
+                <path d="M3.5 3V2.5a2 2 0 0 1 4 0V3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+              </svg>
+              {(plan === "analyst" || plan === "starter") ? "Upgrade plan" : "Billing"}
+            </Link>
+          </div>
         </nav>
 
         {/* ── Radar content area ─────────────────────────────────────────── */}
@@ -259,6 +274,9 @@ export default async function Page() {
         </div>
 
       </div>
+
+      {/* ── Timed upgrade prompt — shown after 60s for Analyst plan users ── */}
+      <UpgradePrompt plan={plan} />
 
     </main>
   );
