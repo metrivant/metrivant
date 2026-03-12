@@ -250,10 +250,11 @@ const BlipNode = memo(function BlipNode({
   const sweepDelay = getSweepDelay(x, y);
 
   return (
-    <g
+    <motion.g
       onClick={() => onSelect(competitor.competitor_id)}
-      style={{ cursor: "pointer" }}
-      opacity={groupOpacity}
+      style={{ cursor: "pointer", opacity: groupOpacity, transformOrigin: `${x}px ${y}px` }}
+      whileHover={{ scale: 1.14 }}
+      transition={{ duration: 0.15, ease: "easeOut" }}
     >
       {/* Trail dots — motion history leading to blip */}
       {trail.map((point, pi) => (
@@ -404,7 +405,6 @@ const BlipNode = memo(function BlipNode({
         fill={color}
         filter={isSelected ? "url(#blipGlowStrong)" : "url(#blipGlow)"}
         animate={isSelected ? { scale: [1, 1.1, 1] } : { scale: 1 }}
-        whileHover={{ scale: 1.35 }}
         transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
         style={{ transformOrigin: `${x}px ${y}px` }}
       />
@@ -422,7 +422,7 @@ const BlipNode = memo(function BlipNode({
       >
         {competitor.competitor_name}
       </text>
-    </g>
+    </motion.g>
   );
 });
 
@@ -610,7 +610,9 @@ export default function Radar({
     fetch(`/api/competitor-detail?id=${encodeURIComponent(selectedId)}`)
       .then((r) => r.json())
       .then((json) => {
-        if (json.ok) {
+        // Backend returns { competitor, movements, signals, monitoredPages } — no `ok` field.
+        // Accept if either explicit ok: true OR the expected data shape is present.
+        if (json.ok || json.competitor) {
           setDetail(json);
           capture("competitor_detail_opened", { competitor_id: selectedId });
           capture("signal_reveal", { competitor_id: selectedId, signal_count: json.signals?.length ?? 0 });
@@ -623,10 +625,10 @@ export default function Radar({
   }, [selectedId]);
 
   return (
-    <div className="flex flex-col gap-3 md:grid md:h-full md:grid-cols-[1fr_360px] xl:grid-cols-[1fr_420px]">
+    <div className="grid h-full gap-3 grid-cols-[1fr_360px] xl:grid-cols-[1fr_420px]">
       {/* ── Radar panel ─────────────────────────────────────────── */}
       <section
-        className="flex flex-col overflow-hidden rounded-[20px] border border-[#0d2010] h-[calc(100svh-9.5rem)] md:h-auto md:min-h-0 md:flex-1"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[#0d2010]"
         style={{
           background: "#000000",
           boxShadow: "inset 0 1px 0 0 rgba(46,230,166,0.08), 0 0 80px rgba(0,0,0,0.9)",
@@ -648,7 +650,7 @@ export default function Radar({
                 </div>
                 <div className="h-7 w-px bg-[#0e2210]" />
                 <div>
-                  <div className="text-[10px] uppercase tracking-[0.26em] text-slate-600">Signals 7d</div>
+                  <div className="text-[10px] uppercase tracking-[0.26em] text-slate-600">Signals</div>
                   <div
                     className="mt-0.5 text-[13px] font-semibold tabular-nums"
                     style={{ color: sorted.reduce((s, c) => s + (c.signals_7d ?? 0), 0) > 0 ? "#2EE6A6" : "#475569" }}
@@ -1286,7 +1288,7 @@ export default function Radar({
 
       {/* ── Right panel — intelligence console ──────────────────── */}
       <aside
-        className="overflow-y-auto rounded-[20px] border bg-[#000000] p-6 transition-colors duration-500 min-h-[380px] md:min-h-0"
+        className="min-h-0 overflow-y-auto rounded-[20px] border bg-[#000000] p-6 transition-colors duration-500"
         style={{
           borderColor: selected
             ? `${getMovementColor(selected.latest_movement_type)}38`

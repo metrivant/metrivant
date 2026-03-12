@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import Link from "next/link";
 import Radar from "../../components/Radar";
 import RadarViewedTracker from "../../components/RadarViewedTracker";
@@ -6,8 +5,7 @@ import NotificationBell from "../../components/NotificationBell";
 import SectorSwitcher from "../../components/SectorSwitcher";
 import PlanBadge from "../../components/PlanBadge";
 import UpgradePrompt from "../../components/UpgradePrompt";
-import MobileHeader from "../../components/MobileHeader";
-import MobileBottomNav from "../../components/MobileBottomNav";
+import SidebarNav from "../../components/SidebarNav";
 import { getRadarFeed } from "../../lib/api";
 import { formatRelative } from "../../lib/format";
 import { createClient } from "../../lib/supabase/server";
@@ -65,7 +63,7 @@ export default async function Page() {
     : `${activeCount} rival${activeCount !== 1 ? "s" : ""} moving · ${totalSignals7d} signal${totalSignals7d !== 1 ? "s" : ""} this week${lastSignalAt ? ` · last signal ${formatRelative(lastSignalAt)}` : ""}`;
 
   return (
-    <main className="flex w-full flex-col bg-black text-white min-h-[100svh] overflow-x-hidden md:h-screen md:overflow-hidden">
+    <main className="flex h-screen w-full flex-col overflow-hidden bg-black text-white">
 
       {/* ── Atmospheric depth layers ─────────────────────────────────────── */}
       <div
@@ -91,16 +89,8 @@ export default async function Page() {
         }}
       />
 
-      {/* ── Mobile header (portrait / landscape mobile only) ─────────────── */}
-      <MobileHeader
-        sector={sector}
-        isQuiet={isQuiet}
-        isFresh={isFresh}
-        lastSignalAt={lastSignalAt}
-      />
-
-      {/* ── Desktop header — brand + stats ───────────────────────────────── */}
-      <header className="relative z-20 hidden h-[68px] shrink-0 items-center border-b border-[#0e2210] bg-[rgba(0,0,0,0.98)] backdrop-blur-xl md:flex">
+      {/* ── Header — brand + stats ───────────────────────────────────────── */}
+      <header className="relative z-20 flex h-[68px] shrink-0 items-center border-b border-[#0e2210] bg-[rgba(0,0,0,0.98)] backdrop-blur-xl">
 
         {/* Accent line at top of header */}
         <div
@@ -152,7 +142,7 @@ export default async function Page() {
               </div>
               <div className="h-8 w-px bg-[#0f2010]" />
               <div className="text-right">
-                <div className="text-[10px] uppercase tracking-[0.22em] text-slate-600">Signals 7d</div>
+                <div className="text-[10px] uppercase tracking-[0.22em] text-slate-600">Signals</div>
                 <div className="mt-0.5 text-[20px] font-semibold leading-none tabular-nums text-slate-200">{totalSignals7d}</div>
               </div>
               <div className="h-8 w-px bg-[#0f2010]" />
@@ -181,100 +171,14 @@ export default async function Page() {
       </header>
 
       {/* ── Body: sidebar nav + radar ─────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col overflow-x-hidden md:flex-row md:overflow-hidden">
+      <div className="flex flex-1 flex-row overflow-hidden">
 
-        {/* ── Left sidebar — desktop navigation only ────────────────────── */}
+        {/* ── Left sidebar — navigation ─────────────────────────────────── */}
         <nav
-          className="hidden w-[220px] shrink-0 flex-col border-r border-[#0e2210] bg-[rgba(0,0,0,0.98)] xl:w-[280px] md:flex"
+          className="flex w-[220px] shrink-0 flex-col border-r border-[#0e2210] bg-[rgba(0,0,0,0.98)] xl:w-[280px]"
           aria-label="App navigation"
         >
-          <div className="flex flex-col gap-1 p-3 pt-5">
-
-            {(
-              [
-                {
-                  href: "/app/discover",
-                  label: "Discover",
-                  icon: (
-                    <svg width="13" height="13" viewBox="0 0 11 11" fill="none" aria-hidden="true">
-                      <circle cx="5" cy="5" r="3.5" stroke="currentColor" strokeWidth="1.3" />
-                      <path d="M7.5 7.5L10 10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-                    </svg>
-                  ),
-                },
-                {
-                  href: "/app/briefs",
-                  label: "Briefs",
-                  icon: (
-                    <svg width="13" height="13" viewBox="0 0 11 11" fill="none" aria-hidden="true">
-                      <rect x="1.5" y="1" width="8" height="9" rx="1.3" stroke="currentColor" strokeWidth="1.3" />
-                      <path d="M3.5 3.5h4M3.5 5.5h4M3.5 7.5h2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                    </svg>
-                  ),
-                },
-                {
-                  href: "/app/market-map",
-                  label: "Market Map",
-                  icon: (
-                    <svg width="13" height="13" viewBox="0 0 11 11" fill="none" aria-hidden="true">
-                      <rect x="1" y="1" width="9" height="9" rx="1" stroke="currentColor" strokeWidth="1.2" />
-                      <line x1="5.5" y1="1" x2="5.5" y2="10" stroke="currentColor" strokeWidth="1" strokeDasharray="1.5 1.5" />
-                      <line x1="1" y1="5.5" x2="10" y2="5.5" stroke="currentColor" strokeWidth="1" strokeDasharray="1.5 1.5" />
-                    </svg>
-                  ),
-                },
-                {
-                  href: "/app/strategy",
-                  label: "Strategy",
-                  icon: (
-                    <svg width="13" height="13" viewBox="0 0 11 11" fill="none" aria-hidden="true">
-                      <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.3" />
-                      <circle cx="5.5" cy="5.5" r="1.8" stroke="currentColor" strokeWidth="1.2" />
-                      <line x1="5.5" y1="1.5" x2="5.5" y2="3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                      <line x1="5.5" y1="8" x2="5.5" y2="9.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                      <line x1="1.5" y1="5.5" x2="3" y2="5.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                      <line x1="8" y1="5.5" x2="9.5" y2="5.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                    </svg>
-                  ),
-                },
-              ] as { href: string; label: string; icon: ReactNode }[]
-            ).map(({ href, label, icon }) => (
-              <Link
-                key={href}
-                href={href}
-                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-medium text-slate-500 transition-colors hover:bg-[#0a1a0a] hover:text-slate-300"
-              >
-                {icon}
-                {label}
-              </Link>
-            ))}
-
-            <div className="my-2 h-px bg-[#0e2210]" />
-
-            {/* Lemonade Mode */}
-            <Link
-              href="/app/lemonade"
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-medium text-slate-500 transition-colors hover:bg-[#0a1a0a] hover:text-slate-300"
-              title="Lemonade Mode"
-            >
-              <span className="text-base leading-none">🍋</span>
-              Lemonade Mode
-            </Link>
-          </div>
-
-          {/* ── Plan / billing ─────────────────────────────────────────── */}
-          <div className="mt-auto border-t border-[#0e2210] p-3">
-            <Link
-              href="/app/billing"
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-medium text-slate-600 transition-colors hover:bg-[#0a1a0a] hover:text-slate-300"
-            >
-              <svg width="13" height="13" viewBox="0 0 11 11" fill="none" aria-hidden="true">
-                <rect x="1" y="3" width="9" height="7" rx="1.2" stroke="currentColor" strokeWidth="1.2" />
-                <path d="M3.5 3V2.5a2 2 0 0 1 4 0V3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-              </svg>
-              {(plan === "analyst" || plan === "starter") ? "Upgrade plan" : "Billing"}
-            </Link>
-          </div>
+          <SidebarNav plan={plan} />
         </nav>
 
         {/* ── Radar content area ─────────────────────────────────────────── */}
@@ -282,15 +186,12 @@ export default async function Page() {
           Desktop: flex-1 overflow-hidden p-3 (fixed viewport height)
           Mobile:  natural height, p-3 with extra bottom padding to clear the fixed bottom nav
         */}
-        <div className="relative z-10 flex flex-1 flex-col p-3 pb-[4.5rem] md:overflow-hidden md:pb-3">
+        <div className="relative z-10 flex flex-1 flex-col overflow-hidden p-3">
           <RadarViewedTracker />
           <Radar competitors={competitors} sector={sector} />
         </div>
 
       </div>
-
-      {/* ── Mobile bottom navigation ──────────────────────────────────────── */}
-      <MobileBottomNav />
 
       {/* ── Timed upgrade prompt — shown after 60s for Analyst plan users ── */}
       <UpgradePrompt plan={plan} />
