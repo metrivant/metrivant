@@ -3,12 +3,13 @@ import Link from "next/link";
 import Radar from "../../components/Radar";
 import RadarViewedTracker from "../../components/RadarViewedTracker";
 import NotificationBell from "../../components/NotificationBell";
+import SectorSwitcher from "../../components/SectorSwitcher";
 import { getRadarFeed } from "../../lib/api";
 import { formatRelative } from "../../lib/format";
 import { createClient } from "../../lib/supabase/server";
 
 export default async function Page() {
-  const competitors = await getRadarFeed(24);
+  const competitors = await getRadarFeed(50);
 
   // Read org sector for display language — best-effort, defaults to "saas"
   let sector = "saas";
@@ -135,6 +136,7 @@ export default async function Page() {
 
           {/* ── Right: stats + notification + live badge ───────────────── */}
           <div className="hidden items-center gap-4 md:flex">
+            <SectorSwitcher sector={sector} />
             <NotificationBell />
 
             <div className="flex items-center gap-5">

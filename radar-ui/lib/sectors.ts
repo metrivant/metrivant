@@ -183,6 +183,29 @@ export function translateSignalType(
   return config.signalLabels[type] ?? type.replace(/_/g, " ");
 }
 
+// Label map for all sectors including those without a full SectorConfig.
+const SECTOR_LABELS: Record<string, string> = {
+  saas:               "SaaS & Software",
+  defense:            "Defense & Aerospace",
+  energy:             "Energy & Resources",
+  cybersecurity:      "Cybersecurity",
+  fintech:            "Fintech",
+  "ai-infrastructure": "AI Infrastructure",
+  devtools:           "DevTools",
+  healthcare:         "Healthcare",
+  "consumer-tech":    "Consumer Tech",
+  custom:             "Custom",
+};
+
+/** Return the display label for any sector string. Falls back to capitalised slug. */
+export function getSectorLabel(sector: string | null | undefined): string {
+  if (!sector) return "SaaS & Software";
+  return (
+    SECTOR_LABELS[sector] ??
+    sector.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  );
+}
+
 /** Translate a canonical pattern_type to sector-specific display label. */
 export function translatePatternType(
   type: string,

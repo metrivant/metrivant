@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { scaleLinear } from "d3-scale";
 import type { RadarCompetitor, CompetitorDetail, MonitoredPage } from "../lib/api";
@@ -8,7 +9,7 @@ import { formatRelative } from "../lib/format";
 import { getMomentumConfig, getMomentumEchoDuration } from "../lib/momentum";
 import MomentumSparkline from "./MomentumSparkline";
 import { capture } from "../lib/posthog";
-import { translateMovementType, translateSignalType } from "../lib/sectors";
+import { translateMovementType, translateSignalType, getSectorLabel } from "../lib/sectors";
 
 // ─── Radar geometry ──────────────────────────────────────────────────────────
 const SIZE = 1000;
@@ -397,6 +398,7 @@ export default function Radar({
   competitors: RadarCompetitor[];
   sector?: string;
 }) {
+  const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // ── Cinematic entry sequence ─────────────────────────────────────────────
@@ -411,8 +413,17 @@ export default function Radar({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Auto-refresh for new users ───────────────────────────────────────────
+  // When radar is empty (sector just initialized, pipeline not yet run),
+  // refresh server data every 30s until blips appear.
+  useEffect(() => {
+    if (competitors.length > 0) return;
+    const interval = setInterval(() => router.refresh(), 30_000);
+    return () => clearInterval(interval);
+  }, [competitors.length, router]);
+
   const sorted = useMemo(
-    () => sortCompetitors(competitors).slice(0, 24),
+    () => sortCompetitors(competitors).slice(0, 50),
     [competitors]
   );
 
@@ -529,6 +540,72 @@ export default function Radar({
           boxShadow: "inset 0 1px 0 0 rgba(46,230,166,0.08), 0 0 80px rgba(0,0,0,0.9)",
         }}
       >
+          {/* ── Market Activity panel ────────────────────────────── */}
+          <div
+            className="shrink-0 border-b border-[#0a1c0a] px-5 py-3"
+            style={{ opacity: entryPhase >= 1 ? 1 : 0, transition: "opacity 0.5s ease" }}
+          >
+            <div className="flex items-center justify-between gap-4">
+              {/* Left: sector label + signal count */}
+              <div className="flex items-center gap-4">
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.26em] text-slate-600">Sector</div>
+                  <div className="mt-0.5 text-[13px] font-semibold text-slate-200">
+                    {getSectorLabel(sector)}
+                  </div>
+                </div>
+                <div className="h-7 w-px bg-[#0e2210]" />
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.26em] text-slate-600">Signals 7d</div>
+                  <div
+                    className="mt-0.5 text-[13px] font-semibold tabular-nums"
+                    style={{ color: sorted.reduce((s, c) => s + (c.signals_7d ?? 0), 0) > 0 ? "#2EE6A6" : "#475569" }}
+                  >
+                    {sorted.reduce((s, c) => s + (c.signals_7d ?? 0), 0)}
+                  </div>
+                </div>
+                {sorted.length > 0 && (
+                  <>
+                    <div className="h-7 w-px bg-[#0e2210]" />
+                    <div>
+                      <div className="text-[10px] uppercase tracking-[0.26em] text-slate-600">Most Active</div>
+                      <div className="mt-0.5 text-[13px] font-semibold text-slate-200">
+                        {sorted[0].competitor_name}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+              {/* Right: latest change */}
+              {(() => {
+                const latestSignalAt = sorted.reduce<string | null>((latest, c) => {
+                  if (!c.last_signal_at) return latest;
+                  if (!latest) return c.last_signal_at;
+                  return c.last_signal_at > latest ? c.last_signal_at : latest;
+                }, null);
+                const latestMover = latestSignalAt
+                  ? sorted.find((c) => c.last_signal_at === latestSignalAt) ?? null
+                  : null;
+                return latestSignalAt ? (
+                  <div className="hidden text-right md:block">
+                    <div className="text-[10px] uppercase tracking-[0.26em] text-slate-600">Latest Change</div>
+                    <div className="mt-0.5 text-[12px] text-slate-400">
+                      {latestMover && (
+                        <span className="text-slate-300">{latestMover.competitor_name} · </span>
+                      )}
+                      {formatRelative(latestSignalAt)}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="hidden text-right md:block">
+                    <div className="text-[10px] uppercase tracking-[0.26em] text-slate-600">Status</div>
+                    <div className="mt-0.5 text-[12px] text-slate-500">Initializing radar…</div>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
           <div
             className="relative flex flex-1 items-center justify-center overflow-hidden"
             style={{ opacity: entryPhase >= 1 ? 1 : 0, transition: "opacity 0.5s ease" }}
@@ -847,7 +924,7 @@ export default function Radar({
                     fontFamily="Inter, system-ui, sans-serif"
                     letterSpacing="0.06em"
                   >
-                    NO RIVALS TRACKED
+                    INITIALIZING RADAR
                   </text>
                   <text
                     x={CENTER}
@@ -858,7 +935,7 @@ export default function Radar({
                     fontSize="10"
                     fontFamily="Inter, system-ui, sans-serif"
                   >
-                    Add competitors to begin monitoring
+                    Pipeline running — first signals arriving shortly
                   </text>
                 </>
               )}
@@ -905,7 +982,7 @@ export default function Radar({
                   { color: "#ff3b3b", label: "Pricing" },
                   { color: "#00e5ff", label: "Product" },
                   { color: "#ffcc00", label: "Market" },
-                  { color: "#9b5cff", label: "Enterprise" },
+                  { color: "#9b5cff", label: "New Entrant" },
                   { color: "#94a3b8", label: "Quiet" },
                 ] as { color: string; label: string }[]
               ).map(({ color, label }) => (
