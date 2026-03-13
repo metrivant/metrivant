@@ -1,22 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { getPatternConfig, confidenceColor, type PatternType } from "../../../lib/strategy";
-
-type HorizonTier = "Immediate" | "Near-Term" | "Emerging";
-
-function getHorizon(createdAt: string, confidence: number): HorizonTier {
-  const ageHours = (Date.now() - new Date(createdAt).getTime()) / 3_600_000;
-  if (ageHours < 48 && confidence >= 0.70) return "Immediate";
-  if (ageHours < 168 || confidence >= 0.60) return "Near-Term";
-  return "Emerging";
-}
-
-const HORIZON_COLOR: Record<HorizonTier, string> = {
-  "Immediate": "#ef4444",
-  "Near-Term": "#f59e0b",
-  "Emerging":  "#64748b",
-};
+import {
+  getPatternConfig,
+  confidenceColor,
+  getHorizon,
+  HORIZON_STYLES,
+  type PatternType,
+  type HorizonTier,
+} from "../../../lib/strategy";
 
 // Minimal shape — only what this component needs from InsightRow
 type TimelineInsight = {
@@ -128,7 +120,7 @@ export default function StrategyTimeline({ insights }: Props) {
               const confColor = confidenceColor(insight.confidence);
               const confPct = Math.round(insight.confidence * 100);
               const horizon = getHorizon(insight.created_at, insight.confidence);
-              const horizonColor = HORIZON_COLOR[horizon];
+              const horizonColor = HORIZON_STYLES[horizon].color;
               const dateStr = new Date(insight.created_at).toLocaleDateString("en-US", {
                 month: "short",
                 day: "numeric",

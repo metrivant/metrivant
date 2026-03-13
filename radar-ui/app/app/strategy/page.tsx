@@ -5,7 +5,10 @@ import {
   getPatternConfig,
   confidenceLabel,
   confidenceColor,
+  getHorizon,
+  HORIZON_STYLES,
   type PatternType,
+  type HorizonTier,
 } from "../../../lib/strategy";
 import StrategyTracker from "./StrategyTracker";
 import StrategyActionButton from "./StrategyActionButton";
@@ -308,22 +311,6 @@ export default async function StrategyPage({
   );
 }
 
-// ── Strategic Horizon classification ─────────────────────────────────────────
-
-type HorizonTier = "Immediate" | "Near-Term" | "Emerging";
-
-function getHorizon(createdAt: string, confidence: number): HorizonTier {
-  const ageHours = (Date.now() - new Date(createdAt).getTime()) / 3_600_000;
-  if (ageHours < 48 && confidence >= 0.70) return "Immediate";
-  if (ageHours < 168 || confidence >= 0.60) return "Near-Term";
-  return "Emerging";
-}
-
-const HORIZON_STYLES: Record<HorizonTier, { color: string; bg: string; border: string }> = {
-  "Immediate": { color: "#ef4444", bg: "rgba(239,68,68,0.07)",   border: "rgba(239,68,68,0.22)"   },
-  "Near-Term": { color: "#f59e0b", bg: "rgba(245,158,11,0.07)",  border: "rgba(245,158,11,0.20)"  },
-  "Emerging":  { color: "#64748b", bg: "rgba(100,116,139,0.06)", border: "rgba(100,116,139,0.16)" },
-};
 
 function HorizonBadge({ createdAt, confidence }: { createdAt: string; confidence: number }) {
   const tier = getHorizon(createdAt, confidence);
