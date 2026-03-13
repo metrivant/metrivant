@@ -108,7 +108,7 @@ export async function POST(request: Request) {
     .from("tracked_competitors")
     .upsert(
       { org_id: orgId, website_url: url, name },
-      { onConflict: "org_id,website_url" }
+      { onConflict: "org_id,website_url", ignoreDuplicates: true }
     );
 
   if (competitorError) {

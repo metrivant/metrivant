@@ -160,7 +160,7 @@ export async function POST(request: Request) {
 
     const { error: seedError } = await supabase
       .from("tracked_competitors")
-      .upsert(rows, { onConflict: "org_id,website_url" });
+      .insert(rows);
 
     if (seedError) {
       captureException(seedError, {
