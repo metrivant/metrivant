@@ -24,6 +24,19 @@ const CENTER = SIZE / 2;
 const OUTER_RADIUS = 420;
 const RING_FACTORS = [1, 0.857, 0.571, 0.286];
 
+// ─── Gravity Mode colour system ────────────────────────────────────────────────
+// Violet/indigo field language — distinct from Standard Mode scan-green.
+const G = {
+  primary:  "#818cf8", // soft indigo — field lines, pulse rings
+  core:     "#7c3aed", // deep violet — singularity well
+  coreLt:   "#a78bfa", // light violet — attractor rings
+  ring:     "#1a1640", // near-black violet — SVG grid rings, crosshairs
+  bg:       "#020115", // near-black violet — background base
+  dot:      "#ede9fe", // near-white violet — center emitter dot
+  glow:     "#6366f1", // indigo — sonar glow filter
+  dim:      "#2a2042", // very dark violet — dimmed inactive text
+} as const;
+
 // ─── Pulse cycle ──────────────────────────────────────────────────────────────
 // 12-second cycle drives node ping/echo timing.
 // No rotating sweep — radar stays alive through pulse rings and node behavior.
@@ -440,15 +453,15 @@ const BlipNode = memo(function BlipNode({
         />
       ))}
 
-      {/* Signal age atmospheric glow — static halo, intensity reflects recency */}
+      {/* Signal age atmospheric glow — larger + more diffuse in Gravity Mode (influence sphere) */}
       {!isDimmed && !timeDimmed && signalAgeGlow > 0.18 && (
         <circle
           cx={x}
           cy={y}
-          r={nodeSize + 16}
+          r={gravityMode ? nodeSize + 34 : nodeSize + 16}
           fill={color}
-          fillOpacity={signalAgeGlow * 0.08}
-          filter="url(#blipGlow)"
+          fillOpacity={gravityMode ? signalAgeGlow * 0.12 : signalAgeGlow * 0.08}
+          filter={gravityMode ? "url(#gravityGlow)" : "url(#blipGlow)"}
           style={{ pointerEvents: "none" }}
         />
       )}
@@ -1139,11 +1152,14 @@ export default function Radar({
     <div className="grid h-full gap-3 grid-cols-1 md:grid-cols-[1fr_360px] xl:grid-cols-[1fr_420px]">
       {/* ── Radar panel ─────────────────────────────────────────── */}
       <section
-        className={`flex min-h-0 flex-1 flex-col overflow-hidden border border-[#0d2010]${isolated ? "" : " rounded-[20px]"}`}
+        className={`flex min-h-0 flex-1 flex-col overflow-hidden${isolated ? "" : " rounded-[20px]"}`}
         style={{
           background: "#000000",
-          boxShadow: "inset 0 1px 0 0 rgba(46,230,166,0.08), 0 0 80px rgba(0,0,0,0.9)",
-          transition: "border-radius 0.2s ease",
+          border: `1px solid ${gravityMode ? "#1a1040" : "#0d2010"}`,
+          boxShadow: gravityMode
+            ? "inset 0 1px 0 0 rgba(129,140,248,0.06), 0 0 80px rgba(0,0,0,0.95), 0 0 140px rgba(76,29,149,0.07)"
+            : "inset 0 1px 0 0 rgba(46,230,166,0.08), 0 0 80px rgba(0,0,0,0.9)",
+          transition: "border-radius 0.2s ease, border-color 0.8s ease, box-shadow 0.8s ease",
           ...(isolated
             ? { position: "fixed", inset: 0, zIndex: 50, borderRadius: 0 }
             : {}),
@@ -1151,8 +1167,12 @@ export default function Radar({
       >
           {/* ── Market Activity panel ────────────────────────────── */}
           <div
-            className="shrink-0 border-b border-[#0a1c0a] px-5 py-3"
-            style={{ opacity: entryPhase >= 1 ? 1 : 0, transition: "opacity 0.5s ease" }}
+            className="shrink-0 px-5 py-3"
+            style={{
+              borderBottom: `1px solid ${gravityMode ? "#150f30" : "#0a1c0a"}`,
+              opacity: entryPhase >= 1 ? 1 : 0,
+              transition: "border-color 0.8s ease, opacity 0.5s ease",
+            }}
           >
             <div className="flex items-center justify-between gap-4">
               {/* Left: sector label + signal count */}
@@ -1189,16 +1209,21 @@ export default function Radar({
               <div className="flex items-center gap-4">
                 {/* Radar mode toggle: Standard / Gravity Field */}
                 <div
-                  className="flex items-center gap-0.5 rounded-[8px] border border-[#0e2210] p-0.5"
-                  style={{ background: "#020602" }}
+                  className="flex items-center gap-0.5 rounded-[8px] p-0.5"
+                  style={{
+                    background: gravityMode ? "#07051a" : "#020602",
+                    border: `1px solid ${gravityMode ? "#1e1545" : "#0e2210"}`,
+                    transition: "background 0.8s ease, border-color 0.8s ease",
+                  }}
                 >
                   <button
                     onClick={() => { if (gravityMode) { setGravityMode(false); getAudioManager().play("swoosh"); } }}
                     className="rounded-[6px] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all duration-200"
                     style={{
                       background: !gravityMode ? "rgba(46,230,166,0.09)" : "transparent",
-                      color: !gravityMode ? "#2EE6A6" : "#3a5a3a",
+                      color: !gravityMode ? "#2EE6A6" : gravityMode ? G.dim : "#3a5a3a",
                       boxShadow: !gravityMode ? "inset 0 0 0 1px rgba(46,230,166,0.18)" : "none",
+                      transition: "color 0.6s ease, background 0.6s ease",
                     }}
                   >
                     Standard
@@ -1207,9 +1232,10 @@ export default function Radar({
                     onClick={() => { if (!gravityMode) { setGravityMode(true); getAudioManager().play("swoosh"); } }}
                     className="rounded-[6px] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all duration-200"
                     style={{
-                      background: gravityMode ? "rgba(46,230,166,0.09)" : "transparent",
-                      color: gravityMode ? "#2EE6A6" : "#3a5a3a",
-                      boxShadow: gravityMode ? "inset 0 0 0 1px rgba(46,230,166,0.18)" : "none",
+                      background: gravityMode ? "rgba(129,140,248,0.12)" : "transparent",
+                      color: gravityMode ? G.primary : "#3a5a3a",
+                      boxShadow: gravityMode ? `inset 0 0 0 1px rgba(129,140,248,0.28)` : "none",
+                      transition: "color 0.6s ease, background 0.6s ease, box-shadow 0.6s ease",
                     }}
                   >
                     Gravity Field
@@ -1352,6 +1378,29 @@ export default function Radar({
                   <stop offset="100%" stopColor="#14532d" stopOpacity="0.01" />
                 </linearGradient>
 
+                {/* Gravity Mode: deep violet atmospheric core */}
+                <radialGradient id="radarCoreGravity" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%"   stopColor="#7c3aed" stopOpacity="0.30" />
+                  <stop offset="28%"  stopColor="#4f46e5" stopOpacity="0.13" />
+                  <stop offset="62%"  stopColor="#3730a3" stopOpacity="0.04" />
+                  <stop offset="100%" stopColor="#1e1b4b" stopOpacity="0" />
+                </radialGradient>
+
+                {/* Gravity Mode: violet panel sheen */}
+                <linearGradient id="panelSheenGravity" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%"   stopColor="#4c1d95" stopOpacity="0.07" />
+                  <stop offset="100%" stopColor="#1e1b4b" stopOpacity="0.02" />
+                </linearGradient>
+
+                {/* Gravity glow — wider spread for field-wave effect */}
+                <filter id="gravityGlow" x="-200%" y="-200%" width="500%" height="500%">
+                  <feGaussianBlur stdDeviation="16" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+
                 {/* Hard circular clip — enforces a clean instrument boundary */}
                 <clipPath id="radarClip">
                   <circle cx={CENTER} cy={CENTER} r={OUTER_RADIUS} />
@@ -1361,31 +1410,34 @@ export default function Radar({
               {/* All radar content clipped to a perfect circle */}
               <g clipPath="url(#radarClip)">
 
-              {/* Vantablack base — near-pure-black instrument field */}
+              {/* Base field — shifts from black-green to black-violet in Gravity Mode */}
               <rect
                 x="0"
                 y="0"
                 width={SIZE}
                 height={SIZE}
-                fill="#010201"
+                fill={gravityMode ? G.bg : "#010201"}
+                style={{ transition: "fill 0.9s ease" }}
               />
 
-              {/* Panel sheen */}
+              {/* Panel sheen — green in Standard, violet in Gravity */}
               <rect
-                x="0"
-                y="0"
-                width={SIZE}
-                height={SIZE}
+                x="0" y="0" width={SIZE} height={SIZE}
                 fill="url(#panelSheen)"
-                opacity="0.6"
+                style={{ opacity: gravityMode ? 0.08 : 0.6, transition: "opacity 0.9s ease" }}
+              />
+              <rect
+                x="0" y="0" width={SIZE} height={SIZE}
+                fill="url(#panelSheenGravity)"
+                style={{ opacity: gravityMode ? 0.55 : 0, transition: "opacity 0.9s ease" }}
               />
 
-              {/* Central atmospheric glow */}
-              <circle
-                cx={CENTER}
-                cy={CENTER}
-                r={OUTER_RADIUS}
-                fill="url(#radarCore)"
+              {/* Central atmospheric glow — cross-fades between scan-green and gravity-violet */}
+              <circle cx={CENTER} cy={CENTER} r={OUTER_RADIUS} fill="url(#radarCore)"
+                style={{ opacity: gravityMode ? 0 : 1, transition: "opacity 0.9s ease" }}
+              />
+              <circle cx={CENTER} cy={CENTER} r={OUTER_RADIUS} fill="url(#radarCoreGravity)"
+                style={{ opacity: gravityMode ? 1 : 0, transition: "opacity 0.9s ease" }}
               />
 
               {/* ── Rotating grid layer — rings, crosshairs, ticks ─── */}
@@ -1405,9 +1457,10 @@ export default function Radar({
                     cy={CENTER}
                     r={OUTER_RADIUS * factor}
                     fill="none"
-                    stroke="#0f3d20"
+                    stroke={gravityMode ? G.ring : "#0f3d20"}
                     strokeWidth="1.5"
                     opacity="0.9"
+                    style={{ transition: "stroke 0.8s ease" }}
                   />
                 ))}
 
@@ -1423,9 +1476,10 @@ export default function Radar({
                       y1={CENTER - dy}
                       x2={CENTER + dx}
                       y2={CENTER + dy}
-                      stroke="#0f3d20"
+                      stroke={gravityMode ? G.ring : "#0f3d20"}
                       strokeWidth="1"
                       opacity="0.65"
+                      style={{ transition: "stroke 0.8s ease" }}
                     />
                   );
                 })}
@@ -1438,9 +1492,10 @@ export default function Radar({
                     y1={tick.y1}
                     x2={tick.x2}
                     y2={tick.y2}
-                    stroke="#0f3d20"
+                    stroke={gravityMode ? G.ring : "#0f3d20"}
                     strokeWidth={tick.isMajor ? 1.5 : tick.isMedium ? 1.0 : 0.7}
                     opacity={tick.isMajor ? 0.90 : tick.isMedium ? 0.60 : 0.35}
+                    style={{ transition: "stroke 0.8s ease" }}
                   />
                 ))}
 
@@ -1448,92 +1503,98 @@ export default function Radar({
 
               {/* Cardinal labels rendered outside clip (see below) */}
 
-              {/* ── Sonar pulse field ───────────────────────────────── */}
-              {/* Main pulse rings — thick, luminous.
-                  Duration 16s = calmer cycle. Stagger 8s = 2-ring coverage.
-                  Near-linear ease: physically accurate constant-speed wavefront. */}
-              {[0, 1].map((i) => (
+              {/* ── Sonar pulse field — Standard Mode (fades out in Gravity) ── */}
+              <g style={{ opacity: gravityMode ? 0 : 1, transition: "opacity 1.0s ease", pointerEvents: "none" }}>
+                {[0, 1].map((i) => (
+                  <motion.circle
+                    key={`sonar-main-${i}`}
+                    cx={CENTER} cy={CENTER} r={OUTER_RADIUS}
+                    fill="none" stroke="#22c55e" strokeWidth="5"
+                    filter="url(#sonarGlow)"
+                    initial={{ scale: 0.08, opacity: 1.0 }}
+                    animate={{ scale: 1.0, opacity: 0 }}
+                    transition={{ duration: 16, repeat: Infinity, ease: [0.2, 0, 0.6, 1], delay: i * 8 }}
+                    style={{ transformOrigin: `${CENTER}px ${CENTER}px` }}
+                  />
+                ))}
+                {[0, 1].map((i) => (
+                  <motion.circle
+                    key={`sonar-echo-${i}`}
+                    cx={CENTER} cy={CENTER} r={OUTER_RADIUS}
+                    fill="none" stroke="#2EE6A6" strokeWidth="2.5"
+                    filter="url(#sonarGlow)"
+                    initial={{ scale: 0.08, opacity: 0.5 }}
+                    animate={{ scale: 1.0, opacity: 0 }}
+                    transition={{ duration: 30, repeat: Infinity, ease: [0.2, 0, 0.6, 1], delay: i * 15 + 7 }}
+                    style={{ transformOrigin: `${CENTER}px ${CENTER}px` }}
+                  />
+                ))}
                 <motion.circle
-                  key={`sonar-main-${i}`}
-                  cx={CENTER}
-                  cy={CENTER}
-                  r={OUTER_RADIUS}
-                  fill="none"
-                  stroke="#22c55e"
-                  strokeWidth="5"
-                  filter="url(#sonarGlow)"
-                  initial={{ scale: 0.08, opacity: 1.0 }}
-                  animate={{ scale: 1.0, opacity: 0 }}
-                  transition={{
-                    duration: 16,
-                    repeat: Infinity,
-                    ease: [0.2, 0, 0.6, 1],
-                    delay: i * 8,
-                  }}
+                  cx={CENTER} cy={CENTER} r={OUTER_RADIUS * 0.14}
+                  fill="none" stroke="#22c55e" strokeWidth="1.2"
+                  initial={{ scale: 0.12, opacity: 0.5 }}
+                  animate={{ scale: 1, opacity: 0 }}
+                  transition={{ duration: 4.5, repeat: Infinity, ease: "easeOut" }}
                   style={{ transformOrigin: `${CENTER}px ${CENTER}px` }}
                 />
-              ))}
+              </g>
 
-              {/* Echo pulses — thinner, slower, atmospheric depth.
-                  Duration 30s, stagger 15s = steady depth layer. */}
-              {[0, 1].map((i) => (
+              {/* ── Gravity field propagation — slow, heavy, deep (fades in in Gravity Mode) ── */}
+              <g style={{ opacity: gravityMode ? 1 : 0, transition: "opacity 1.0s ease", pointerEvents: "none" }}>
+                {/* Primary field waves — slower than sonar, heavy gravitational cadence */}
+                {[0, 1].map((i) => (
+                  <motion.circle
+                    key={`grav-pulse-${i}`}
+                    cx={CENTER} cy={CENTER} r={OUTER_RADIUS}
+                    fill="none" stroke={G.glow} strokeWidth="4"
+                    filter="url(#gravityGlow)"
+                    initial={{ scale: 0.08, opacity: 0.75 }}
+                    animate={{ scale: 1.0, opacity: 0 }}
+                    transition={{ duration: 22, repeat: Infinity, ease: [0.1, 0, 0.4, 1], delay: i * 11 }}
+                    style={{ transformOrigin: `${CENTER}px ${CENTER}px` }}
+                  />
+                ))}
+                {/* Field echo — thinner, even slower */}
+                {[0, 1].map((i) => (
+                  <motion.circle
+                    key={`grav-echo-${i}`}
+                    cx={CENTER} cy={CENTER} r={OUTER_RADIUS}
+                    fill="none" stroke={G.primary} strokeWidth="2"
+                    filter="url(#gravityGlow)"
+                    initial={{ scale: 0.08, opacity: 0.40 }}
+                    animate={{ scale: 1.0, opacity: 0 }}
+                    transition={{ duration: 38, repeat: Infinity, ease: [0.1, 0, 0.4, 1], delay: i * 19 + 9 }}
+                    style={{ transformOrigin: `${CENTER}px ${CENTER}px` }}
+                  />
+                ))}
+                {/* Inner field emitter */}
                 <motion.circle
-                  key={`sonar-echo-${i}`}
-                  cx={CENTER}
-                  cy={CENTER}
-                  r={OUTER_RADIUS}
-                  fill="none"
-                  stroke="#2EE6A6"
-                  strokeWidth="2.5"
-                  filter="url(#sonarGlow)"
-                  initial={{ scale: 0.08, opacity: 0.5 }}
-                  animate={{ scale: 1.0, opacity: 0 }}
-                  transition={{
-                    duration: 30,
-                    repeat: Infinity,
-                    ease: [0.2, 0, 0.6, 1],
-                    delay: i * 15 + 7,
-                  }}
+                  cx={CENTER} cy={CENTER} r={OUTER_RADIUS * 0.14}
+                  fill="none" stroke={G.coreLt} strokeWidth="1.0"
+                  initial={{ scale: 0.12, opacity: 0.45 }}
+                  animate={{ scale: 1, opacity: 0 }}
+                  transition={{ duration: 6, repeat: Infinity, ease: "easeOut" }}
                   style={{ transformOrigin: `${CENTER}px ${CENTER}px` }}
                 />
-              ))}
+              </g>
 
-              {/* Core emitter ring — single tight alive pulse */}
-              <motion.circle
-                key="core-ring-0"
-                cx={CENTER}
-                cy={CENTER}
-                r={OUTER_RADIUS * 0.14}
-                fill="none"
-                stroke="#22c55e"
-                strokeWidth="1.2"
-                initial={{ scale: 0.12, opacity: 0.5 }}
-                animate={{ scale: 1, opacity: 0 }}
-                transition={{
-                  duration: 4.5,
-                  repeat: Infinity,
-                  ease: "easeOut",
-                }}
-                style={{ transformOrigin: `${CENTER}px ${CENTER}px` }}
+              {/* Center atmospheric fill — cross-fades on mode switch */}
+              <circle cx={CENTER} cy={CENTER} r={44} fill="url(#radarCore)"
+                style={{ opacity: gravityMode ? 0 : 0.95, transition: "opacity 0.9s ease" }}
+              />
+              <circle cx={CENTER} cy={CENTER} r={44} fill="url(#radarCoreGravity)"
+                style={{ opacity: gravityMode ? 0.95 : 0, transition: "opacity 0.9s ease" }}
               />
 
-              {/* Center atmospheric fill */}
-              <circle
-                cx={CENTER}
-                cy={CENTER}
-                r={44}
-                fill="url(#radarCore)"
-                opacity="0.95"
-              />
-
-              {/* Emitter bloom */}
+              {/* Emitter bloom — shifts to violet singularity in Gravity Mode */}
               <circle
                 cx={CENTER}
                 cy={CENTER}
                 r={30}
-                fill="#2EE6A6"
-                opacity="0.14"
-                filter="url(#blipGlowStrong)"
+                fill={gravityMode ? G.core : "#2EE6A6"}
+                opacity={gravityMode ? 0.22 : 0.14}
+                filter={gravityMode ? "url(#gravityGlow)" : "url(#blipGlowStrong)"}
+                style={{ transition: "opacity 0.8s ease" }}
               />
 
               {/* Breathing emitter dot */}
@@ -1541,7 +1602,7 @@ export default function Radar({
                 cx={CENTER}
                 cy={CENTER}
                 r={7}
-                fill="#dcfce7"
+                fill={gravityMode ? G.dot : "#dcfce7"}
                 filter="url(#blipGlow)"
                 animate={{ opacity: [1.0, 0.55, 1.0], scale: [1, 1.18, 1] }}
                 transition={{
@@ -1557,16 +1618,50 @@ export default function Radar({
                 cx={CENTER}
                 cy={CENTER}
                 r={3}
-                fill="#ffffff"
+                fill={gravityMode ? "#e0d7ff" : "#ffffff"}
                 opacity="0.98"
+                style={{ transition: "fill 0.8s ease" }}
               />
 
               {/* ── Gravity Field layers — cluster halos + relationship lines ── */}
               {gravityMode && (
                 <g style={{ opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.55s ease" }}>
-                  {/* Central gravity attractor */}
-                  <circle cx={500} cy={500} r={20} fill="#2EE6A6" fillOpacity={0.04} stroke="#2EE6A6" strokeWidth={0.5} strokeOpacity={0.14} />
-                  <circle cx={500} cy={500} r={5}  fill="#2EE6A6" fillOpacity={0.20} />
+                  {/* ── Gravity Well ─────────────────────────────────────────── */}
+                  {/* Concentric rotating field-rings — simulate gravitational contours */}
+                  {([180, 130, 85, 48] as const).map((r, i) => (
+                    <motion.circle
+                      key={`well-ring-${i}`}
+                      cx={500} cy={500} r={r}
+                      fill="none"
+                      stroke={G.primary}
+                      strokeWidth={0.7 - i * 0.12}
+                      strokeOpacity={0.07 + i * 0.045}
+                      strokeDasharray={`${3 + i} ${14 - i * 2}`}
+                      animate={{ rotate: i % 2 === 0 ? 360 : -360 }}
+                      transition={{ duration: 44 - i * 7, repeat: Infinity, ease: "linear" }}
+                      style={{ transformOrigin: "500px 500px" }}
+                    />
+                  ))}
+                  {/* Outer diffuse fill — gravitational influence zone */}
+                  <circle cx={500} cy={500} r={32}
+                    fill={G.core} fillOpacity={0.15}
+                    stroke={G.primary} strokeWidth={1.0} strokeOpacity={0.35}
+                  />
+                  {/* Pulsing attractor ring */}
+                  <motion.circle
+                    cx={500} cy={500} r={32}
+                    fill="none"
+                    stroke={G.coreLt} strokeWidth={1.2} strokeOpacity={0.55}
+                    animate={{ scale: [1, 1.14, 1] }}
+                    transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+                    style={{ transformOrigin: "500px 500px" }}
+                  />
+                  {/* Singularity core */}
+                  <circle cx={500} cy={500} r={12}
+                    fill={G.core} fillOpacity={0.65}
+                    filter="url(#gravityGlow)"
+                  />
+                  <circle cx={500} cy={500} r={5} fill={G.dot} fillOpacity={0.95} />
 
                   {/* Cluster halos — soft field around each movement-type group */}
                   {gravityGroups.map(({ type, color, label, nodes }) => {
@@ -1577,29 +1672,50 @@ export default function Radar({
                     ) + 36;
                     return (
                       <g key={`halo-${type}`} style={{ pointerEvents: "none" }}>
+                        {/* Outer diffuse boundary — gravitational influence fringe */}
+                        <circle
+                          cx={cx} cy={cy} r={maxR + 28}
+                          fill={color} fillOpacity={0.02}
+                          stroke={color} strokeWidth={0.5} strokeOpacity={0.07}
+                          strokeDasharray="2 14"
+                        />
+                        {/* Main cluster halo */}
                         <circle
                           cx={cx} cy={cy} r={maxR}
-                          fill={color} fillOpacity={0.07}
-                          stroke={color} strokeWidth={1.2} strokeOpacity={0.28}
-                          strokeDasharray="3 6"
+                          fill={color} fillOpacity={0.10}
+                          stroke={color} strokeWidth={1.4} strokeOpacity={0.40}
+                          strokeDasharray="4 5"
+                          filter="url(#blipGlow)"
                         />
+                        {/* Inner pressure core */}
                         <circle
-                          cx={cx} cy={cy} r={maxR + 10}
-                          fill="none"
-                          stroke={color} strokeWidth={0.5} strokeOpacity={0.10}
-                          strokeDasharray="1 9"
+                          cx={cx} cy={cy} r={maxR * 0.55}
+                          fill={color} fillOpacity={0.05}
+                          stroke="none"
                         />
+                        {/* Cluster label — brighter, monospace, legible */}
                         <text
-                          x={cx} y={cy - maxR - 7}
+                          x={cx} y={cy - maxR - 11}
                           textAnchor="middle"
                           fill={color}
-                          fontSize="8"
-                          opacity={0.35}
-                          letterSpacing="0.12em"
-                          fontFamily="Inter, system-ui, sans-serif"
-                          fontWeight="600"
+                          fontSize="9"
+                          opacity={0.65}
+                          letterSpacing="0.18em"
+                          fontFamily="ui-monospace, 'Courier New', monospace"
+                          fontWeight="700"
                         >
                           {label}
+                        </text>
+                        <text
+                          x={cx} y={cy - maxR - 1}
+                          textAnchor="middle"
+                          fill={color}
+                          fontSize="7"
+                          opacity={0.28}
+                          letterSpacing="0.10em"
+                          fontFamily="ui-monospace, monospace"
+                        >
+                          {nodes.length} RIVALS
                         </text>
                       </g>
                     );
@@ -1815,11 +1931,12 @@ export default function Radar({
                   y={y}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fill="rgba(30,41,59,0.7)"
+                  fill={gravityMode ? "rgba(40,35,80,0.85)" : "rgba(30,41,59,0.7)"}
                   fontSize="11"
                   fontWeight="600"
                   fontFamily="Inter, system-ui, sans-serif"
                   letterSpacing="0.06em"
+                  style={{ transition: "fill 0.8s ease" }}
                 >
                   {label}
                 </text>
@@ -2051,13 +2168,17 @@ export default function Radar({
                   <div
                     className="pointer-events-none absolute bottom-5 left-5 flex flex-col gap-2 rounded-[12px] px-4 py-3"
                     style={{
-                      background: "rgba(0,0,0,0.82)",
-                      border: "1px solid #0e2210",
+                      background: gravityMode ? "rgba(2,1,20,0.90)" : "rgba(0,0,0,0.82)",
+                      border: `1px solid ${gravityMode ? "#1e1545" : "#0e2210"}`,
                       backdropFilter: "blur(8px)",
+                      transition: "background 0.8s ease, border-color 0.8s ease",
                     }}
                   >
-                    <div className="mb-0.5 text-[8px] font-bold uppercase tracking-[0.24em] text-slate-700">
-                      Signal Type
+                    <div
+                      className="mb-0.5 text-[8px] font-bold uppercase tracking-[0.24em]"
+                      style={{ color: gravityMode ? "rgba(129,140,248,0.5)" : "rgb(71,85,105)", transition: "color 0.8s ease" }}
+                    >
+                      {gravityMode ? "Field Type" : "Signal Type"}
                     </div>
                     {(
                       [
@@ -2084,9 +2205,10 @@ export default function Radar({
                   <div
                     className="pointer-events-auto absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-0.5 rounded-[10px] p-1"
                     style={{
-                      background: "rgba(0,0,0,0.82)",
-                      border: "1px solid #0e2210",
+                      background: gravityMode ? "rgba(2,1,20,0.90)" : "rgba(0,0,0,0.82)",
+                      border: `1px solid ${gravityMode ? "#1e1545" : "#0e2210"}`,
                       backdropFilter: "blur(8px)",
+                      transition: "background 0.8s ease, border-color 0.8s ease",
                     }}
                   >
                     {(["24h", "7d", "all"] as const).map((f) => (
@@ -2095,13 +2217,15 @@ export default function Radar({
                         onClick={() => setTemporalFilter(f)}
                         className="rounded-[7px] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all duration-200"
                         style={{
-                          background:
-                            temporalFilter === f ? "rgba(46,230,166,0.09)" : "transparent",
-                          color: temporalFilter === f ? "#2EE6A6" : "#3a5a3a",
-                          boxShadow:
-                            temporalFilter === f
-                              ? "inset 0 0 0 1px rgba(46,230,166,0.2)"
-                              : "none",
+                          background: temporalFilter === f
+                            ? gravityMode ? "rgba(129,140,248,0.10)" : "rgba(46,230,166,0.09)"
+                            : "transparent",
+                          color: temporalFilter === f
+                            ? gravityMode ? G.primary : "#2EE6A6"
+                            : gravityMode ? G.dim : "#3a5a3a",
+                          boxShadow: temporalFilter === f
+                            ? gravityMode ? "inset 0 0 0 1px rgba(129,140,248,0.22)" : "inset 0 0 0 1px rgba(46,230,166,0.2)"
+                            : "none",
                         }}
                       >
                         {f === "all" ? "All time" : `Last ${f}`}
@@ -2123,7 +2247,13 @@ export default function Radar({
           </div>
 
           {/* ── Footer: legend + ticker ─────────────────────────────── */}
-          <div className="shrink-0 border-t border-[#0a1c0a]">
+          <div
+            className="shrink-0"
+            style={{
+              borderTop: `1px solid ${gravityMode ? "#150f30" : "#0a1c0a"}`,
+              transition: "border-color 0.8s ease",
+            }}
+          >
 
             {/* Legend row */}
             <div className="flex items-center justify-center gap-5 px-4 py-2.5">
