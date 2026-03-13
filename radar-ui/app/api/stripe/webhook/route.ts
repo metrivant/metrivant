@@ -12,6 +12,7 @@ import type Stripe from "stripe";
 import { getStripe } from "../../../../lib/stripe";
 import { createServiceClient } from "../../../../lib/supabase/service";
 import { captureException } from "../../../../lib/sentry";
+import { sendEmail, FROM_ALERTS } from "../../../../lib/email";
 
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? "";
 
@@ -154,11 +155,12 @@ async function handleSubscriptionUpdated(
 
   await syncSubscription(service, subscription, plan, orgId, customerId);
 
-  // If subscription was canceled via portal, fire PostHog event
-  if (subscription.cancel_at_period_end) {
-    const posthogKey = process.env.POSTHOG_API_KEY;
-    const userId = subscription.metadata?.user_id;
-    if (posthogKey && userId) {
+  const posthogKey = process.env.POSTHOG_API_KEY;
+  const userId = subscription.metadata?.user_id;
+
+  if (posthogKey && userId) {
+    // Canceled via portal
+    if (subscription.cancel_at_period_end) {
       void fetch("https://app.posthog.com/capture", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
@@ -167,6 +169,20 @@ async function handleSubscriptionUpdated(
           event:       "subscription_canceled",
           distinct_id: userId,
           properties:  { plan },
+        }),
+      }).catch(() => null);
+    }
+
+    // Upgraded to Pro (active, not canceling)
+    if (plan === "pro" && subscription.status === "active" && !subscription.cancel_at_period_end) {
+      void fetch("https://app.posthog.com/capture", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          api_key:     posthogKey,
+          event:       "subscription_upgraded",
+          distinct_id: userId,
+          properties:  { plan: "pro" },
         }),
       }).catch(() => null);
     }
@@ -215,24 +231,84 @@ async function handlePaymentFailed(
     });
   }
 
+  // Retrieve subscription to get user context for analytics + email
+  const subscription = await getStripe().subscriptions.retrieve(subscriptionId).catch(() => null);
+  const userId       = subscription?.metadata?.user_id;
+
   // PostHog — best-effort
   const posthogKey = process.env.POSTHOG_API_KEY;
-  if (posthogKey) {
-    const subscription = await getStripe().subscriptions.retrieve(subscriptionId).catch(() => null);
-    const userId = subscription?.metadata?.user_id;
-    if (userId) {
-      void fetch("https://app.posthog.com/capture", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          api_key:     posthogKey,
-          event:       "payment_failed",
-          distinct_id: userId,
-          properties:  {},
-        }),
+  if (posthogKey && userId) {
+    void fetch("https://app.posthog.com/capture", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key:     posthogKey,
+        event:       "payment_failed",
+        distinct_id: userId,
+        properties:  {},
+      }),
+    }).catch(() => null);
+  }
+
+  // Payment failure email — best-effort
+  if (userId) {
+    const { data: userData } = await service.auth.admin.getUserById(userId).catch(() => ({ data: null }));
+    const userEmail = userData?.user?.email;
+    if (userEmail) {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
+      await sendEmail({
+        to:      userEmail,
+        from:    FROM_ALERTS,
+        subject: "Action required: payment failed",
+        html:    buildPaymentFailedEmailHtml(siteUrl),
       }).catch(() => null);
     }
   }
+}
+
+function buildPaymentFailedEmailHtml(siteUrl: string): string {
+  const billingUrl = `${siteUrl}/app/billing`;
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Payment failed — Metrivant</title>
+</head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,'Inter',system-ui,sans-serif;color:#111827;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:32px 16px;">
+  <tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;">
+      <tr>
+        <td style="background:#020802;padding:20px 28px;border-bottom:1px solid #0d2010;">
+          <div style="font-size:10px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(46,230,166,0.65);margin-bottom:3px;">Metrivant</div>
+          <div style="font-size:17px;font-weight:700;color:#ffffff;">Payment failed</div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:24px 28px 20px;">
+          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">
+            We were unable to process your subscription payment.
+          </p>
+          <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#6b7280;">
+            Update your payment method to keep your radar running. Stripe will retry automatically, but you can resolve this now to avoid any interruption.
+          </p>
+          <a href="${billingUrl}"
+             style="display:inline-block;background:#2EE6A6;color:#020802;font-weight:700;font-size:13px;padding:10px 22px;border-radius:99px;text-decoration:none;">
+            Update payment method &rarr;
+          </a>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:16px 28px;border-top:1px solid #f3f4f6;">
+          <div style="font-size:11px;color:#9ca3af;">If you believe this is an error, reply to this email.</div>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
 }
 
 // ── syncSubscription ──────────────────────────────────────────────────────────

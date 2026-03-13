@@ -70,7 +70,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       customer_email:      existingCustomer ? undefined : (user.email ?? undefined),
       line_items:          [{ price: priceId, quantity: 1 }],
       success_url:         `${SITE_URL}/app/billing?checkout=success`,
-      cancel_url:          `${SITE_URL}/app/billing`,
+      cancel_url:          `${SITE_URL}/pricing`,
       client_reference_id: user.id,
       metadata: {
         user_id: user.id,

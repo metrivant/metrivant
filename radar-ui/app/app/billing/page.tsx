@@ -122,8 +122,8 @@ export default async function BillingPage() {
             <circle cx="23" cy="23" r="21.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.50" />
             <circle cx="23" cy="23" r="13"   stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.28" />
             <circle cx="23" cy="23" r="5.5"  stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.42" />
-            <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#2EE6A6" fillOpacity="0.10" />
-            <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.80" />
+            <path d="M23 23 L13.91 3.51 A21.5 21.5 0 0 1 23 1.5 Z" fill="#2EE6A6" fillOpacity="0.10" />
+            <line x1="23" y1="23" x2="23" y2="1.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.80" />
             <circle cx="23" cy="23" r="2.5" fill="#2EE6A6" />
           </svg>
           <span className="text-[13px] font-bold tracking-[0.08em] text-white">METRIVANT</span>
@@ -225,6 +225,18 @@ export default async function BillingPage() {
                   </CheckoutButton>
                 </UpgradeClickTracker>
               )}
+              {hasActiveSub && validPlan === "analyst" && (
+                <UpgradeClickTracker source="billing_current_plan">
+                  <form action="/api/stripe/upgrade" method="POST">
+                    <button
+                      type="submit"
+                      className="rounded-full bg-[#2EE6A6] px-5 py-2 text-[12px] font-bold text-black transition-opacity hover:opacity-90"
+                    >
+                      Upgrade to Pro
+                    </button>
+                  </form>
+                </UpgradeClickTracker>
+              )}
               {canManageBilling && (
                 <form action="/api/stripe/portal" method="POST">
                   <button
@@ -240,7 +252,7 @@ export default async function BillingPage() {
         </section>
 
         {/* ── Upgrade card (Analyst → Pro) ───────────────────────────── */}
-        {isUpgradable && !hasActiveSub && (
+        {isUpgradable && (!hasActiveSub || validPlan === "analyst") && (
           <section
             className="relative mb-4 overflow-hidden rounded-[16px] border border-[#2EE6A6]/18 bg-[#030c03] p-6"
             style={{ boxShadow: "0 0 30px rgba(46,230,166,0.03)" }}
@@ -271,12 +283,23 @@ export default async function BillingPage() {
             </ul>
 
             <UpgradeClickTracker source="billing_upgrade_card">
-              <CheckoutButton
-                plan="pro"
-                className="block w-full rounded-full bg-[#2EE6A6] py-2.5 text-center text-[13px] font-bold text-black transition-opacity hover:opacity-90"
-              >
-                Upgrade →
-              </CheckoutButton>
+              {hasActiveSub && validPlan === "analyst" ? (
+                <form action="/api/stripe/upgrade" method="POST">
+                  <button
+                    type="submit"
+                    className="block w-full rounded-full bg-[#2EE6A6] py-2.5 text-center text-[13px] font-bold text-black transition-opacity hover:opacity-90"
+                  >
+                    Upgrade to Pro →
+                  </button>
+                </form>
+              ) : (
+                <CheckoutButton
+                  plan="pro"
+                  className="block w-full rounded-full bg-[#2EE6A6] py-2.5 text-center text-[13px] font-bold text-black transition-opacity hover:opacity-90"
+                >
+                  Upgrade →
+                </CheckoutButton>
+              )}
             </UpgradeClickTracker>
           </section>
         )}
