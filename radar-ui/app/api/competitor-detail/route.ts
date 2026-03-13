@@ -20,10 +20,13 @@ export async function GET(request: Request) {
   }
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
     const upstream = await fetch(
       `${baseUrl}/api/competitor-detail?id=${encodeURIComponent(id)}`,
-      { cache: "no-store", headers }
-    );
+      { cache: "no-store", headers, signal: controller.signal }
+    ).finally(() => clearTimeout(timeoutId));
 
     // Guard: upstream may return an HTML error page (502/503) — not valid JSON.
     const contentType = upstream.headers.get("content-type") ?? "";

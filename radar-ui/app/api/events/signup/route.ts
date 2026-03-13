@@ -5,7 +5,14 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({})) as { email?: string; plan?: string };
   const { email, plan } = body;
 
-  if (!email || typeof email !== "string" || !email.includes("@")) {
+  // Strict email validation — reject newlines (header injection) and malformed addresses.
+  const emailOk = typeof email === "string" &&
+    email.length <= 254 &&
+    !email.includes("\n") &&
+    !email.includes("\r") &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  if (!emailOk) {
     return NextResponse.json({ error: "Invalid email" }, { status: 400 });
   }
 

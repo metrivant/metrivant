@@ -11,8 +11,11 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json().catch(() => ({})) as { alertIds?: string[] };
-  const { alertIds } = body;
+  const body = await request.json().catch(() => ({})) as { alertIds?: unknown };
+  const rawIds = body.alertIds;
+  const alertIds = Array.isArray(rawIds)
+    ? (rawIds as unknown[]).slice(0, 100).filter((x): x is string => typeof x === "string")
+    : undefined;
 
   const { data: org } = await supabase
     .from("organizations")
@@ -38,7 +41,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   const { error, count } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to update alerts" }, { status: 500 });
   }
 
   // PostHog (best-effort)
@@ -50,7 +53,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       body: JSON.stringify({
         api_key: posthogKey,
         event: "alert_viewed",
-        distinct_id: user.email ?? user.id,
+        distinct_id: user.id,
         properties: { count: count ?? 0 },
       }),
     });

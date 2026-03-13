@@ -15,8 +15,28 @@ export async function POST(request: Request) {
   const body = await request.json() as { url?: string; name?: string; domain?: string };
   const { url, name, domain } = body;
 
-  if (!url || !name) {
+  if (!url || typeof url !== "string" || !name || typeof name !== "string") {
     return NextResponse.json({ error: "url and name are required" }, { status: 400 });
+  }
+
+  if (url.length > 2048 || name.length > 200) {
+    return NextResponse.json({ error: "Input exceeds maximum length" }, { status: 400 });
+  }
+
+  // Prevent SSRF: only allow http/https URLs with no internal/loopback targets.
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error("protocol");
+    }
+    const h = parsed.hostname.toLowerCase();
+    if (h === "localhost" || h.startsWith("127.") || h.startsWith("10.") ||
+        h.startsWith("192.168.") || h === "0.0.0.0" || h.endsWith(".local") ||
+        h === "169.254.169.254") {
+      throw new Error("internal");
+    }
+  } catch {
+    return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
   }
 
   // ── Resolve organization: select first, insert on miss, handle race condition.
@@ -41,10 +61,7 @@ export async function POST(request: Request) {
       step: "org_select",
       user_id: user.id,
     });
-    return NextResponse.json(
-      { error: "Failed to resolve organization", detail: selectError.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to resolve organization" }, { status: 500 });
   }
 
   const existingOrg = orgRows?.[0] ?? null;
@@ -78,10 +95,7 @@ export async function POST(request: Request) {
           step: "org_insert",
           user_id: user.id,
         });
-        return NextResponse.json(
-          { error: "Failed to create organization", detail: String(err) },
-          { status: 500 }
-        );
+        return NextResponse.json({ error: "Failed to create organization" }, { status: 500 });
       }
     } else {
       orgId = newOrg.id as string;
@@ -104,10 +118,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       org_id: orgId,
     });
-    return NextResponse.json(
-      { error: "Failed to track competitor", detail: competitorError.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to track competitor" }, { status: 500 });
   }
 
   // PostHog — best-effort, fire-and-forget.
@@ -121,13 +132,13 @@ export async function POST(request: Request) {
         batch: [
           {
             event: "competitor_discovered",
-            distinct_id: user.email ?? user.id,
-            properties: { domain, name, source: "discovery" },
+            distinct_id: user.id,
+            properties: { source: "discovery" },
           },
           {
             event: "competitor_added_from_discovery",
-            distinct_id: user.email ?? user.id,
-            properties: { domain, name },
+            distinct_id: user.id,
+            properties: {},
           },
         ],
       }),

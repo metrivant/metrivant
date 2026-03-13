@@ -5,7 +5,6 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "../../../../lib/supabase/server";
-import { createServiceClient } from "../../../../lib/supabase/service";
 
 export async function GET(request: Request): Promise<NextResponse> {
   const { searchParams } = new URL(request.url);
@@ -33,8 +32,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     return NextResponse.json({ points: [] });
   }
 
-  const service = createServiceClient();
-  const { data: history } = await service
+  const { data: history } = await supabase
     .from("momentum_history")
     .select("momentum_score, momentum_state, recorded_at")
     .eq("org_id", org.id)

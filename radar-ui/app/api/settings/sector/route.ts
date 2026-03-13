@@ -19,12 +19,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid sector" }, { status: 400 });
   }
 
-  // Ensure org exists before updating
-  const { data: existingOrg } = await supabase
+  // Resolve org — use limit(1) to tolerate duplicate org rows (maybeSingle throws PGRST116 if >1).
+  const { data: orgRows } = await supabase
     .from("organizations")
     .select("id")
     .eq("owner_id", user.id)
-    .maybeSingle();
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  const existingOrg = orgRows?.[0] ?? null;
 
   if (existingOrg) {
     const { error } = await supabase
@@ -33,7 +36,7 @@ export async function POST(request: Request) {
       .eq("owner_id", user.id);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to update sector" }, { status: 500 });
     }
   } else {
     // First visit — create org with chosen sector
@@ -42,7 +45,7 @@ export async function POST(request: Request) {
       .insert({ owner_id: user.id, sector });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to create organization" }, { status: 500 });
     }
   }
 

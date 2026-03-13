@@ -14,6 +14,19 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   // Restrict browser feature access
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), browsing-topics=()" },
+  // Content Security Policy — restrict resource loading to trusted origins
+  {
+    key: "Content-Security-Policy",
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://app.posthog.com https://us-assets.i.posthog.com",
+      "connect-src 'self' https://*.supabase.co https://app.posthog.com https://us.i.posthog.com https://sentry.io https://o*.ingest.sentry.io",
+      "img-src 'self' data: blob:",
+      "style-src 'self' 'unsafe-inline'",
+      "font-src 'self'",
+      "frame-ancestors 'none'",
+    ].join("; "),
+  },
 ];
 
 const nextConfig: NextConfig = {

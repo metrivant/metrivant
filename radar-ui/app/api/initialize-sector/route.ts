@@ -67,7 +67,7 @@ export async function POST(request: Request) {
       step: "org_select",
       user_id: user.id,
     });
-    return NextResponse.json({ error: selectError.message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to resolve organization" }, { status: 500 });
   }
 
   const existingOrg = orgRows?.[0] ?? null;
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
         user_id: user.id,
         sector,
       });
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to update sector" }, { status: 500 });
     }
   } else {
     const { data: newOrg, error: insertError } = await supabase
@@ -115,7 +115,7 @@ export async function POST(request: Request) {
           step: "org_insert",
           user_id: user.id,
         });
-        return NextResponse.json({ error: String(err) }, { status: 500 });
+        return NextResponse.json({ error: "Failed to create organization" }, { status: 500 });
       }
     } else {
       orgId = newOrg.id as string;
@@ -139,7 +139,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       org_id: orgId,
     });
-    return NextResponse.json({ error: deleteError.message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to clear existing competitors" }, { status: 500 });
   }
 
   // ── Step 3: Seed default competitors for the selected sector ──────────────
@@ -170,7 +170,7 @@ export async function POST(request: Request) {
         org_id: orgId,
         sector,
       });
-      return NextResponse.json({ error: seedError.message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to seed competitors" }, { status: 500 });
     }
 
     seeded = defaults.length;
