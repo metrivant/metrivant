@@ -96,11 +96,13 @@ function MapOverlay({
           return;
         }
 
-        const { data: org } = await supabase
+        const { data: orgRows } = await supabase
           .from("organizations")
           .select("id")
           .eq("owner_id", user.id)
-          .single();
+          .order("created_at", { ascending: true })
+          .limit(1);
+        const org = orgRows?.[0] ?? null;
 
         if (!org) {
           setMapData([]);

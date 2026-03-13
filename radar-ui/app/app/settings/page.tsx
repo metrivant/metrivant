@@ -8,11 +8,13 @@ export default async function SettingsPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: org } = await supabase
+  const { data: orgRows } = await supabase
     .from("organizations")
     .select("sector")
     .eq("owner_id", user.id)
-    .maybeSingle();
+    .order("created_at", { ascending: true })
+    .limit(1);
+  const org = orgRows?.[0] ?? null;
 
   return (
     <div className="min-h-screen bg-[#000200] text-white">

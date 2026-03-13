@@ -40,8 +40,8 @@ export default function MobileHeader({
           <circle cx="23" cy="23" r="21.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.50" />
           <circle cx="23" cy="23" r="13"   stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.28" />
           <circle cx="23" cy="23" r="5.5"  stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.42" />
-          <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#2EE6A6" fillOpacity="0.10" />
-          <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.80" />
+          <path d="M23 23 L13.91 3.51 A21.5 21.5 0 0 1 23 1.5 Z" fill="#2EE6A6" fillOpacity="0.10" />
+          <line x1="23" y1="23" x2="23" y2="1.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.85" />
           <circle cx="23" cy="23" r="2.5" fill="#2EE6A6" />
         </svg>
         <div className="flex flex-col gap-[2px]">

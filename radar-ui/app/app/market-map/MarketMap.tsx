@@ -58,7 +58,7 @@ function getMovementColor(type: string | null): string {
 }
 
 function getMovementLabel(type: string | null): string {
-  if (!type) return "Quiet";
+  if (!type) return "Dormant";
   return type.split("_").map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
 }
 
@@ -808,7 +808,7 @@ export default function MarketMap({ competitors }: Props) {
             { color: "#57a6ff", label: "Product" },
             { color: "#34d399", label: "Market" },
             { color: "#c084fc", label: "Enterprise" },
-            { color: "#94a3b8", label: "Quiet" },
+            { color: "#94a3b8", label: "Dormant" },
           ] as { color: string; label: string }[]
         ).map(({ color, label }) => (
           <span key={label} className="flex items-center gap-1.5">

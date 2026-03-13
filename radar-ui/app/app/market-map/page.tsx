@@ -14,12 +14,14 @@ export default async function MarketMapPage() {
 
   if (!user) redirect("/login");
 
-  // Resolve org
-  const { data: org } = await supabase
+  // Resolve org — limit(1) tolerates duplicate org rows (single() throws PGRST116 if >1)
+  const { data: orgRows } = await supabase
     .from("organizations")
     .select("id")
     .eq("owner_id", user.id)
-    .single();
+    .order("created_at", { ascending: true })
+    .limit(1);
+  const org = orgRows?.[0] ?? null;
 
   let competitors: MapCompetitor[] = [];
   let fetchError = false;

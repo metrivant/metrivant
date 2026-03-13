@@ -15,11 +15,13 @@ export default async function DiscoverPage() {
   let trackedDomains: string[] = [];
   let orgSector = "saas";
   try {
-    const { data: org } = await supabase
+    const { data: orgRows } = await supabase
       .from("organizations")
       .select("id, sector")
       .eq("owner_id", user.id)
-      .maybeSingle();
+      .order("created_at", { ascending: true })
+      .limit(1);
+    const org = orgRows?.[0] ?? null;
 
     if (org) {
       orgSector = org.sector ?? "saas";

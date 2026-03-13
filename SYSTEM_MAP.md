@@ -45,7 +45,7 @@ Downstream layers (derived, not pipeline stages):
 | Monitoring | Sentry (`@sentry/nextjs`) |
 | Analytics | PostHog (manual events only) |
 | Email | Resend |
-| Payments | Stripe (not yet integrated in UI) |
+| Payments | Stripe (checkout, webhooks, portal — integrated) |
 | Version control | GitHub |
 
 ---
