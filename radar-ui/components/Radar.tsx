@@ -738,15 +738,18 @@ export default function Radar({
     }
   }, [isolated]);
 
-  // ESC exits isolation mode
+  // ESC exits isolation mode or closes the intelligence report
   useEffect(() => {
-    if (!isolated) return;
+    if (!isolated && !selectedId) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsolated(false);
+      if (e.key === "Escape") {
+        if (selectedId) setSelectedId(null);
+        else setIsolated(false);
+      }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [isolated]);
+  }, [isolated, selectedId]);
 
   // Non-passive wheel zoom + non-passive touchmove for pinch
   useEffect(() => {
