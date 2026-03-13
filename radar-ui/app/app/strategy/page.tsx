@@ -308,6 +308,36 @@ export default async function StrategyPage({
   );
 }
 
+// ── Strategic Horizon classification ─────────────────────────────────────────
+
+type HorizonTier = "Immediate" | "Near-Term" | "Emerging";
+
+function getHorizon(createdAt: string, confidence: number): HorizonTier {
+  const ageHours = (Date.now() - new Date(createdAt).getTime()) / 3_600_000;
+  if (ageHours < 48 && confidence >= 0.70) return "Immediate";
+  if (ageHours < 168 || confidence >= 0.60) return "Near-Term";
+  return "Emerging";
+}
+
+const HORIZON_STYLES: Record<HorizonTier, { color: string; bg: string; border: string }> = {
+  "Immediate": { color: "#ef4444", bg: "rgba(239,68,68,0.07)",   border: "rgba(239,68,68,0.22)"   },
+  "Near-Term": { color: "#f59e0b", bg: "rgba(245,158,11,0.07)",  border: "rgba(245,158,11,0.20)"  },
+  "Emerging":  { color: "#64748b", bg: "rgba(100,116,139,0.06)", border: "rgba(100,116,139,0.16)" },
+};
+
+function HorizonBadge({ createdAt, confidence }: { createdAt: string; confidence: number }) {
+  const tier = getHorizon(createdAt, confidence);
+  const s = HORIZON_STYLES[tier];
+  return (
+    <span
+      className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.10em]"
+      style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}
+    >
+      {tier}
+    </span>
+  );
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function movementDisplayLabel(movementType: string | null): string {
@@ -510,7 +540,7 @@ function MajorSignalCard({ insight }: { insight: InsightRow }) {
       />
 
       <div className="min-w-0">
-        {/* Pattern type badge + competitor count */}
+        {/* Pattern type badge + horizon + competitor count */}
         <div className="mb-3 flex items-center gap-2">
           <span
             className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
@@ -518,6 +548,7 @@ function MajorSignalCard({ insight }: { insight: InsightRow }) {
           >
             {cfg.label}
           </span>
+          <HorizonBadge createdAt={insight.created_at} confidence={insight.confidence} />
           {insight.competitor_count >= 3 && (
             <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-red-400">
               {insight.competitor_count} rivals
@@ -562,16 +593,19 @@ function PatternCard({ insight }: { insight: InsightRow }) {
     >
       {/* Header row */}
       <div className="mb-3 flex items-start justify-between gap-2">
-        <span
-          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
-          style={{ background: cfg.bg, color: cfg.color }}
-        >
+        <div className="flex items-center gap-1.5">
           <span
-            className="h-1.5 w-1.5 rounded-full"
-            style={{ backgroundColor: cfg.color }}
-          />
-          {cfg.label}
-        </span>
+            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
+            style={{ background: cfg.bg, color: cfg.color }}
+          >
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: cfg.color }}
+            />
+            {cfg.label}
+          </span>
+          <HorizonBadge createdAt={insight.created_at} confidence={insight.confidence} />
+        </div>
         {insight.is_major && (
           <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-red-400">
             Major

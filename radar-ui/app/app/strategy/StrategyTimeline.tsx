@@ -3,6 +3,21 @@
 import { useState } from "react";
 import { getPatternConfig, confidenceColor, type PatternType } from "../../../lib/strategy";
 
+type HorizonTier = "Immediate" | "Near-Term" | "Emerging";
+
+function getHorizon(createdAt: string, confidence: number): HorizonTier {
+  const ageHours = (Date.now() - new Date(createdAt).getTime()) / 3_600_000;
+  if (ageHours < 48 && confidence >= 0.70) return "Immediate";
+  if (ageHours < 168 || confidence >= 0.60) return "Near-Term";
+  return "Emerging";
+}
+
+const HORIZON_COLOR: Record<HorizonTier, string> = {
+  "Immediate": "#ef4444",
+  "Near-Term": "#f59e0b",
+  "Emerging":  "#64748b",
+};
+
 // Minimal shape — only what this component needs from InsightRow
 type TimelineInsight = {
   id: string;
@@ -112,6 +127,8 @@ export default function StrategyTimeline({ insights }: Props) {
               const cfg = getPatternConfig(insight.pattern_type);
               const confColor = confidenceColor(insight.confidence);
               const confPct = Math.round(insight.confidence * 100);
+              const horizon = getHorizon(insight.created_at, insight.confidence);
+              const horizonColor = HORIZON_COLOR[horizon];
               const dateStr = new Date(insight.created_at).toLocaleDateString("en-US", {
                 month: "short",
                 day: "numeric",
@@ -142,6 +159,12 @@ export default function StrategyTimeline({ insights }: Props) {
                       style={{ color: cfg.color }}
                     >
                       {cfg.label}
+                    </span>
+                    <span
+                      className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase"
+                      style={{ color: horizonColor, background: `${horizonColor}12` }}
+                    >
+                      {horizon}
                     </span>
                     {insight.is_major && (
                       <span className="rounded-full bg-red-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-red-400">

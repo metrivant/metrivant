@@ -167,6 +167,16 @@ function getAgeOpacity(_lastSeenAt: string | null): number {
   return 1.0;
 }
 
+// Signal age glow: intensity multiplier 0–1 based on last_signal_at.
+// Fresh (<6h)=1.0 | Recent (<24h)=0.60 | Older=0.22 | None=0.14
+function getSignalAgeGlow(lastSignalAt: string | null): number {
+  if (!lastSignalAt) return 0.14;
+  const ageHours = (Date.now() - new Date(lastSignalAt).getTime()) / 3_600_000;
+  if (ageHours < 6)  return 1.0;
+  if (ageHours < 24) return 0.60;
+  return 0.22;
+}
+
 function sortCompetitors(competitors: RadarCompetitor[]): RadarCompetitor[] {
   return [...competitors].sort((a, b) => {
     const momentumDiff =
@@ -364,6 +374,8 @@ type BlipNodeProps = {
   gravityMode?: boolean;
   /** Temporal filter: node has no signal in the active time window */
   timeDimmed?: boolean;
+  /** Signal age glow intensity 0–1: 1.0=fresh<6h, 0.60=recent<24h, 0.22=old */
+  signalAgeGlow?: number;
 };
 
 const BlipNode = memo(function BlipNode({
@@ -378,6 +390,7 @@ const BlipNode = memo(function BlipNode({
   gravityPos,
   gravityMode,
   timeDimmed,
+  signalAgeGlow = 0.22,
 }: BlipNodeProps) {
   const [hovered, setHovered] = useState(false);
   const momentum = Number(competitor.momentum_score ?? 0);
@@ -387,7 +400,8 @@ const BlipNode = memo(function BlipNode({
   const color = getMovementColor(competitor.latest_movement_type);
   const nodeSize = getNodeSize(momentum);
   const echoDuration = getMomentumEchoDuration(momentum);
-  const pingPeak = momentum >= 5 ? 0.88 : 0.68;
+  // Ping brightness scaled by signal recency — fresh nodes flash brighter
+  const pingPeak = (momentum >= 5 ? 0.88 : 0.68) * (0.45 + signalAgeGlow * 0.55);
 
   const ageOpacity = getAgeOpacity(competitor.latest_movement_last_seen_at);
   const groupOpacity = isDimmed ? 0.22 : timeDimmed ? 0.12 : isSelected ? 1.0 : ageOpacity;
@@ -415,6 +429,19 @@ const BlipNode = memo(function BlipNode({
           opacity={0.06 + pi * 0.07}
         />
       ))}
+
+      {/* Signal age atmospheric glow — static halo, intensity reflects recency */}
+      {!isDimmed && !timeDimmed && signalAgeGlow > 0.18 && (
+        <circle
+          cx={x}
+          cy={y}
+          r={nodeSize + 16}
+          fill={color}
+          fillOpacity={signalAgeGlow * 0.08}
+          filter="url(#blipGlow)"
+          style={{ pointerEvents: "none" }}
+        />
+      )}
 
       {/* Alert state: breathing outer bloom — marks the accelerating competitor */}
       {isAlerted && !isDimmed && !isSelected && (
@@ -494,6 +521,28 @@ const BlipNode = memo(function BlipNode({
         />
       )}
 
+      {/* Sweep memory trail — slow-fading ring after beam crossing, scaled by signal age */}
+      {!isDimmed && signalAgeGlow > 0.35 && (
+        <motion.circle
+          cx={x}
+          cy={y}
+          r={nodeSize + 2}
+          fill="none"
+          stroke={color}
+          strokeWidth="0.75"
+          initial={{ opacity: 0 }}
+          animate={{ scale: [1, 1.85], opacity: [0.28 * signalAgeGlow, 0] }}
+          transition={{
+            duration: 6.5,
+            repeat: Infinity,
+            repeatDelay: SWEEP_DURATION - 6.5,
+            delay: sweepDelay + 0.80,
+            ease: [0.2, 0, 0.8, 1],
+          }}
+          style={{ transformOrigin: `${x}px ${y}px` }}
+        />
+      )}
+
       {/* Momentum state ring — static ambient ring indicating acceleration state */}
       {!isDimmed && !isSelected && momentum >= 5 && (
         <motion.circle
@@ -503,7 +552,7 @@ const BlipNode = memo(function BlipNode({
           fill="none"
           stroke={color}
           strokeWidth="0.75"
-          animate={{ opacity: [0.20, 0.40, 0.20] }}
+          animate={{ opacity: [0.18 * signalAgeGlow, 0.38 * signalAgeGlow, 0.18 * signalAgeGlow] }}
           transition={{ duration: 2.0, repeat: Infinity, ease: "easeInOut" }}
           style={{ transformOrigin: `${x}px ${y}px` }}
         />
@@ -516,7 +565,7 @@ const BlipNode = memo(function BlipNode({
           fill="none"
           stroke={color}
           strokeWidth="0.5"
-          opacity={0.15}
+          opacity={0.12 * signalAgeGlow}
         />
       )}
 
@@ -1574,6 +1623,7 @@ export default function Radar({
                     timeDimmedSet.has(competitor.competitor_id) &&
                     !(alertActive && competitor.competitor_id === criticalAlert?.competitor_id)
                   }
+                  signalAgeGlow={getSignalAgeGlow(competitor.last_signal_at)}
                 />
               ))}
               </g>
