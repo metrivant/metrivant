@@ -73,7 +73,7 @@ class AudioManager {
     if (!ctx) return;
     try {
       switch (name) {
-        case "blip":    this._blip(ctx);    break;
+        case "blip":    this._blip(ctx, 0); break;
         case "echo":    this._echo(ctx);    break;
         case "swoosh":  this._swoosh(ctx);  break;
         case "alert":   this._alert(ctx);   break;
@@ -85,23 +85,46 @@ class AudioManager {
   }
 
   /**
-   * BLIP — radar node hover.
-   * Soft sine sweep, 70ms, very quiet. Debounced at 80ms to prevent
-   * rapid-fire noise when the cursor crosses multiple nodes.
+   * playBlip — pitch-relative radar node hover.
+   * Small (low momentum) blips = higher pitch.
+   * Large (high momentum) blips = lower pitch.
+   * Momentum 0 → 660 Hz. Momentum 10+ → 220 Hz. Linear interpolation.
    */
-  private _blip(ctx: AudioContext): void {
+  playBlip(momentum: number): void {
+    if (!this._enabled) return;
+    const ctx = this._ctx();
+    if (!ctx) return;
+    try {
+      this._blip(ctx, momentum);
+    } catch {
+      // Audio errors are never surfaced to the user
+    }
+  }
+
+  /**
+   * BLIP — radar node hover.
+   * Pitch scales inversely with momentum: low momentum = high pitch, high = low.
+   * Frequency range: 660 Hz (momentum 0) → 220 Hz (momentum ≥ 10).
+   * Debounced at 80ms to prevent rapid-fire noise when crossing multiple nodes.
+   */
+  private _blip(ctx: AudioContext, momentum: number): void {
     const now = Date.now();
     if (now - this.lastBlipAt < 80) return;
     this.lastBlipAt = now;
 
     const t = ctx.currentTime;
+
+    // Map momentum → base frequency (linear, clamped 220–660 Hz)
+    const baseFreq = Math.max(220, 660 - Math.min(momentum, 10) * 44);
+    const sweepFreq = baseFreq + 60; // fixed 60 Hz upward sweep regardless of pitch
+
     const osc  = ctx.createOscillator();
     const filt = ctx.createBiquadFilter();
     const gain = ctx.createGain();
 
     osc.type = "sine";
-    osc.frequency.setValueAtTime(440, t);
-    osc.frequency.linearRampToValueAtTime(520, t + 0.065);
+    osc.frequency.setValueAtTime(baseFreq, t);
+    osc.frequency.linearRampToValueAtTime(sweepFreq, t + 0.065);
 
     filt.type = "lowpass";
     filt.frequency.value = 1800;
@@ -275,6 +298,7 @@ export function getAudioManager(): AudioManager {
       toggle: () => false,
       setEnabled: () => {},
       play: () => {},
+      playBlip: () => {},
     } as unknown as AudioManager;
   }
   if (!_manager) _manager = new AudioManager();

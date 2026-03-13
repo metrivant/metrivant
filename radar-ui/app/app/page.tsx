@@ -5,6 +5,7 @@ import NotificationBell from "../../components/NotificationBell";
 import SectorSwitcher from "../../components/SectorSwitcher";
 import PlanBadge from "../../components/PlanBadge";
 import UpgradePrompt from "../../components/UpgradePrompt";
+import FirstSignalCelebration from "../../components/FirstSignalCelebration";
 import SidebarNav from "../../components/SidebarNav";
 import RadarLogo from "../../components/RadarLogo";
 import IntelligenceStrip from "../../components/IntelligenceStrip";
@@ -15,6 +16,34 @@ import MobileNav from "../../components/MobileNav";
 import { getRadarFeed } from "../../lib/api";
 import { createClient } from "../../lib/supabase/server";
 import { getSubscriptionState } from "../../lib/subscription";
+
+// ── Sector news — Google News RSS, cached 1 hour ──────────────────────────────
+
+const SECTOR_QUERIES: Record<string, string> = {
+  saas:               "B2B SaaS software competitive market",
+  defense:            "defense aerospace government contract",
+  energy:             "energy oil gas renewables market",
+  cybersecurity:      "cybersecurity threat intelligence breach",
+  fintech:            "fintech financial technology market",
+  "ai-infrastructure": "artificial intelligence AI infrastructure market",
+  devtools:           "developer tools software platform",
+  healthcare:         "healthcare technology digital health",
+  "consumer-tech":    "consumer technology product launch",
+};
+
+async function fetchSectorNews(sector: string): Promise<string[]> {
+  const q = SECTOR_QUERIES[sector] ?? "technology market intelligence";
+  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=en&gl=US&ceid=US:en`;
+  try {
+    const res = await fetch(url, { next: { revalidate: 3600 } });
+    if (!res.ok) return [];
+    const xml = await res.text();
+    const matches = [...xml.matchAll(/<title><!\[CDATA\[([^\]]+)\]\]><\/title>/g)];
+    return matches.slice(1, 7).map((m) => m[1]);
+  } catch {
+    return [];
+  }
+}
 
 export default async function Page() {
   const competitorsRaw = await getRadarFeed(50);
@@ -87,6 +116,8 @@ export default async function Page() {
     0
   );
 
+  // Sector news — fetched server-side, cached 1 hour. Non-blocking; falls back to [].
+  const newsItems = await fetchSectorNews(sector);
 
   return (
     <main className="flex h-screen w-full flex-col overflow-hidden bg-black text-white">
@@ -218,7 +249,7 @@ export default async function Page() {
       </header>
 
       {/* ── Intelligence strip — Bloomberg-style live ticker ──────────────── */}
-      <IntelligenceStrip competitors={competitors} />
+      <IntelligenceStrip competitors={competitors} newsItems={newsItems} />
 
       {/* ── Body: sidebar nav + radar ─────────────────────────────────────── */}
       <div className="flex flex-1 flex-row overflow-hidden">
@@ -240,6 +271,9 @@ export default async function Page() {
         </div>
 
       </div>
+
+      {/* ── First signal celebration — shown once when pipeline delivers first intel */}
+      <FirstSignalCelebration hasSignals={totalSignals7d > 0} />
 
       {/* ── Timed upgrade prompt — shown after 60s for Analyst plan users ── */}
       <UpgradePrompt plan={plan} />

@@ -7,7 +7,6 @@ import { getSectorLabel } from "../lib/sectors";
 const SECTOR_OPTIONS = [
   { value: "ai-infrastructure",  label: "AI Infrastructure" },
   { value: "consumer-tech",      label: "Consumer Tech" },
-  { value: "custom",             label: "Custom" },
   { value: "cybersecurity",      label: "Cybersecurity" },
   { value: "defense",            label: "Defense & Aerospace" },
   { value: "devtools",           label: "DevTools" },

@@ -161,9 +161,6 @@ export default function SidebarNav({
         </Link> */}
       </div>
 
-      {/* Signal Constellation */}
-      <SignalConstellation competitors={competitors} />
-
       {/* Keybind legend */}
       <div className="px-3 pb-2">
         <div
@@ -203,18 +200,41 @@ export default function SidebarNav({
         />
       </div>
 
+      {/* Signal Constellation */}
+      <SignalConstellation competitors={competitors} />
+
       {/* Plan / billing */}
-      <div className="mt-auto border-t border-[#0e2210] p-3">
-        <Link
-          href="/app/billing"
-          className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-medium transition-colors hover:bg-[#0a1a0a] hover:text-slate-300${plan === "analyst" || plan === "starter" ? " upgrade-glow" : " text-slate-600"}`}
-        >
-          <svg width="13" height="13" viewBox="0 0 11 11" fill="none" aria-hidden="true">
-            <rect x="1" y="3" width="9" height="7" rx="1.2" stroke="currentColor" strokeWidth="1.2" />
-            <path d="M3.5 3V2.5a2 2 0 0 1 4 0V3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-          </svg>
-          {plan === "analyst" || plan === "starter" ? "Upgrade plan" : "Billing"}
-        </Link>
+      <div className="mt-auto border-t border-[#0e2210] px-3 pb-3 pt-2.5">
+        {plan === "analyst" || plan === "starter" ? (
+          <Link
+            href="/app/billing"
+            className="flex w-full items-center justify-center rounded-lg border border-[rgba(46,230,166,0.22)] px-3 py-2.5 text-[11px] font-bold tracking-[0.22em] transition-all hover:border-[rgba(46,230,166,0.45)] hover:bg-[rgba(46,230,166,0.04)]"
+            style={{ color: "rgba(46,230,166,0.75)", fontFamily: "'Courier New', Monaco, monospace" }}
+          >
+            UPGRADE RADAR
+          </Link>
+        ) : (
+          <Link
+            href="/app/billing"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2.5 transition-all hover:opacity-80"
+            style={{
+              borderColor: "rgba(245,158,11,0.25)",
+              background:  "rgba(245,158,11,0.04)",
+              fontFamily:  "'Courier New', Monaco, monospace",
+            }}
+          >
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ background: "#f59e0b", boxShadow: "0 0 6px #f59e0b" }}
+            />
+            <span
+              className="text-[11px] font-bold tracking-[0.22em]"
+              style={{ color: "#f59e0b" }}
+            >
+              PLAN ACTIVE
+            </span>
+          </Link>
+        )}
       </div>
     </>
   );

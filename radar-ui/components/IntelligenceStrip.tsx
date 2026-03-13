@@ -68,7 +68,7 @@ function formatDate(date: Date, tz: string): string {
   return `${weekday} ${day} ${month}`;
 }
 
-function buildTickerText(competitors: RadarCompetitor[]): string {
+function buildTickerText(competitors: RadarCompetitor[], newsItems: string[]): string {
   const segments: string[] = [];
 
   for (const c of competitors) {
@@ -82,7 +82,12 @@ function buildTickerText(competitors: RadarCompetitor[]): string {
     );
   }
 
-  if (segments.length === 0) segments.push("NO ACTIVE MOVEMENTS DETECTED");
+  // Interleave sector news headlines
+  for (const headline of newsItems) {
+    segments.push(`MARKET INTEL  ${headline.slice(0, 100)}`);
+  }
+
+  if (segments.length === 0) segments.push("MONITORING ACTIVE — AWAITING FIRST SIGNAL");
 
   // Separator between items; doubled for seamless infinite scroll
   const joined = segments.join("   ·   ");
@@ -93,19 +98,33 @@ function buildTickerText(competitors: RadarCompetitor[]): string {
 
 export default function IntelligenceStrip({
   competitors,
+  newsItems = [],
 }: {
   competitors: RadarCompetitor[];
+  newsItems?: string[];
 }) {
   const [tz, setTz]                 = useState("UTC");
   const [now, setNow]               = useState<Date | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
 
-  // Hydrate timezone from localStorage after mount
+  // Hydrate timezone from localStorage after mount.
+  // If no saved preference, auto-detect from browser locale.
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) setTz(saved);
+      if (saved) {
+        setTz(saved);
+      } else {
+        const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const match = TIMEZONE_OPTIONS.find((o) => o.value === browserTz);
+        if (match) {
+          setTz(match.value);
+          localStorage.setItem(STORAGE_KEY, match.value);
+        }
+        // If no match, leave UTC as default — all IANA tz values still work
+        // in formatClock/formatDate via Intl.DateTimeFormat
+      }
     } catch {}
   }, []);
 
@@ -138,7 +157,7 @@ export default function IntelligenceStrip({
   const dateStr = now ? formatDate(now, tz)  : "--- -- ---";
   const tzAbbr  = getTzAbbr(tz);
 
-  const tickerText = buildTickerText(competitors);
+  const tickerText = buildTickerText(competitors, newsItems);
   // Scale duration: faster for fewer items (feels more active), slower for many
   const tickerDuration = `${Math.max(22, competitors.filter((c) => c.latest_movement_type).length * 7)}s`;
 
@@ -149,7 +168,7 @@ export default function IntelligenceStrip({
     >
 
       {/* ── Clock | Date | TZ ───────────────────────────────────────────── */}
-      <div className="flex shrink-0 items-center gap-2.5 border-r border-[#0d1f0d] px-4">
+      <div className="relative flex shrink-0 items-center gap-2.5 border-r border-[#0d1f0d] px-4" ref={settingsRef}>
         <span
           className="text-[11px] tabular-nums tracking-[0.06em]"
           style={{ color: "#2EE6A6" }}
@@ -159,12 +178,39 @@ export default function IntelligenceStrip({
         <span className="hidden text-[10px] tracking-[0.04em] text-slate-700 md:inline">
           {dateStr}
         </span>
-        <span
-          className="rounded px-1 py-[1px] text-[9px] font-bold tracking-[0.12em] text-slate-700"
+        <button
+          onClick={() => setShowSettings((v) => !v)}
+          className="rounded px-1 py-[1px] text-[9px] font-bold tracking-[0.12em] text-slate-700 transition-colors hover:text-slate-400"
           style={{ background: "#0a1a0a" }}
+          aria-label="Change timezone"
         >
           {tzAbbr}
-        </span>
+        </button>
+
+        {showSettings && (
+          <div
+            className="absolute left-0 top-full z-50 mt-1 w-40 rounded-[10px] border border-[#1a3020] bg-[#060d06] py-1"
+            style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.92), 0 0 0 1px rgba(46,230,166,0.04)" }}
+          >
+            <div className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.22em] text-slate-700">
+              Timezone
+            </div>
+            {TIMEZONE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => selectTz(opt.value)}
+                className={`flex w-full items-center justify-between px-3 py-1 text-left text-[11px] transition-colors hover:bg-[#0a1a0a] ${
+                  tz === opt.value ? "text-[#2EE6A6]" : "text-slate-600"
+                }`}
+              >
+                <span>{opt.label}</span>
+                {tz === opt.value && (
+                  <span className="h-1 w-1 rounded-full bg-[#2EE6A6]" />
+                )}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Scrolling ticker ─────────────────────────────────────────────── */}
@@ -196,49 +242,6 @@ export default function IntelligenceStrip({
         </div>
       </div>
 
-      {/* ── Timezone settings ────────────────────────────────────────────── */}
-      <div className="relative shrink-0 border-l border-[#0d1f0d]" ref={settingsRef}>
-        <button
-          onClick={() => setShowSettings((v) => !v)}
-          className="flex h-full w-9 items-center justify-center text-slate-800 transition-colors hover:text-slate-500"
-          aria-label="Timezone settings"
-        >
-          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path d="M8 10a2 2 0 100-4 2 2 0 000 4z" stroke="currentColor" strokeWidth="1.3" />
-            <path
-              d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.05 3.05l1.06 1.06M11.89 11.89l1.06 1.06M3.05 12.95l1.06-1.06M11.89 4.11l1.06-1.06"
-              stroke="currentColor"
-              strokeWidth="1.3"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
-
-        {showSettings && (
-          <div
-            className="absolute right-0 top-full z-50 mt-1 w-40 rounded-[10px] border border-[#1a3020] bg-[#060d06] py-1"
-            style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.92), 0 0 0 1px rgba(46,230,166,0.04)" }}
-          >
-            <div className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.22em] text-slate-700">
-              Timezone
-            </div>
-            {TIMEZONE_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => selectTz(opt.value)}
-                className={`flex w-full items-center justify-between px-3 py-1 text-left text-[11px] transition-colors hover:bg-[#0a1a0a] ${
-                  tz === opt.value ? "text-[#2EE6A6]" : "text-slate-600"
-                }`}
-              >
-                <span>{opt.label}</span>
-                {tz === opt.value && (
-                  <span className="h-1 w-1 rounded-full bg-[#2EE6A6]" />
-                )}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }

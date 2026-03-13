@@ -425,7 +425,7 @@ const BlipNode = memo(function BlipNode({
       style={{ cursor: "pointer", opacity: groupOpacity, transformOrigin: `${x}px ${y}px` }}
       whileHover={{ scale: 1.2 }}
       transition={{ duration: 0.18, ease: "easeOut" }}
-      onHoverStart={() => { setHovered(true); getAudioManager().play("blip"); }}
+      onHoverStart={() => { setHovered(true); getAudioManager().playBlip(momentum); }}
       onHoverEnd={() => setHovered(false)}
     >
       {/* Trail dots — motion history leading to blip */}
@@ -2274,14 +2274,14 @@ export default function Radar({
                   {!removeConfirming && !removeLoading && (
                     <button
                       onClick={() => { setRemoveConfirming(true); setRemoveError(null); }}
-                      className="mt-2 text-[11px] text-slate-600 transition-colors hover:text-red-400"
+                      className="mt-2 font-mono text-[10px] font-bold tracking-[0.18em] text-slate-700 transition-colors hover:text-red-400"
                     >
-                      Stop tracking
+                      STOP TRACKING
                     </button>
                   )}
                   {removeConfirming && (
                     <div className="mt-2 flex items-center gap-2">
-                      <span className="text-[11px] text-slate-400">Stop tracking?</span>
+                      <span className="font-mono text-[10px] font-bold tracking-[0.14em] text-slate-500">STOP TRACKING?</span>
                       <button
                         onClick={() => selected.website_url && handleRemoveConfirmed(selected.website_url)}
                         disabled={!selected.website_url}

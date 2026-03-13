@@ -57,14 +57,19 @@ export default function RadarLogo() {
       {/* Needle + sweep sector — continuous clockwise rotation (watch-dial).
           Entire group rotates around center (23,23). Base stays fixed at center.
           Needle tip is at 12-o'clock: (23, 1.5), exactly on radius 21.5.
-          Trailing sector from −115° (13.91, 3.51) → −90° (23, 1.5) clockwise. */}
+          Trailing sector from −115° (13.91, 3.51) → −90° (23, 1.5) clockwise.
+          transformBox: view-box resolves transformOrigin against the SVG viewport
+          so the 50%/50% pivot is guaranteed to be (23,23) in all browsers.
+          rotate: 360 with repeatType: loop guarantees clockwise direction. */}
       <motion.g
-        style={{ transformOrigin: "23px 23px" }}
-        animate={{ rotate: [0, 360] }}
+        style={{ transformOrigin: "50% 50%", transformBox: "view-box" }}
+        initial={{ rotate: 0 }}
+        animate={{ rotate: 360 }}
         transition={{
-          duration: 9,
-          repeat:   Infinity,
-          ease:     "linear",
+          duration:    9,
+          repeat:      Infinity,
+          ease:        "linear",
+          repeatType:  "loop",
         }}
       >
         {/* Trailing sweep sector */}

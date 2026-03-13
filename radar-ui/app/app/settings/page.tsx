@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "../../../lib/supabase/server";
 import Link from "next/link";
 import SoundSettings from "../../../components/SoundSettings";
+import TimezoneSettings from "../../../components/TimezoneSettings";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -74,6 +75,17 @@ export default async function SettingsPage() {
             Sound
           </h2>
           <SoundSettings />
+        </section>
+
+        {/* ── Display ─────────────────────────────────────────────────── */}
+        <section className="mb-6 rounded-[14px] border border-[#0d2010] bg-[#020802] p-6">
+          <h2 className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+            Display
+          </h2>
+          <p className="mb-4 text-[12px] text-slate-700">
+            Timezone is used for the intelligence strip clock. Auto-detected from your browser on first visit.
+          </p>
+          <TimezoneSettings />
         </section>
 
         {/* ── Session ─────────────────────────────────────────────────── */}
