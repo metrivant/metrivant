@@ -91,10 +91,10 @@ export default function UpgradePrompt({ plan }: { plan: string }) {
                 Metrivant Pro
               </div>
               <div className="text-[15px] font-semibold leading-snug text-white">
-                25 competitors. Live alerts.
+                5× wider radar coverage.
               </div>
               <p className="mt-1.5 text-[12px] leading-relaxed text-slate-500">
-                Real-time signal alerts, 90-day history, and strategic movement analysis. $19/mo.
+                Real-time signal alerts and 90-day history — detect movements before the market catches up. $19/mo.
               </p>
             </div>
 
@@ -104,7 +104,7 @@ export default function UpgradePrompt({ plan }: { plan: string }) {
                   plan="pro"
                   className="w-full rounded-full bg-[#2EE6A6] py-2 text-center text-[12px] font-bold text-black transition-opacity hover:opacity-90"
                 >
-                  Upgrade to Pro
+                  Expand your radar →
                 </CheckoutButton>
               </div>
               <button

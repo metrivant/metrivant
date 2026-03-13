@@ -10,6 +10,7 @@ import RadarLogo from "../../components/RadarLogo";
 import IntelligenceStrip from "../../components/IntelligenceStrip";
 import AppOverlays from "../../components/AppOverlays";
 import TrialLockScreen from "../../components/TrialLockScreen";
+import DailyBriefOverlay from "../../components/DailyBriefOverlay";
 import { getRadarFeed } from "../../lib/api";
 import { createClient } from "../../lib/supabase/server";
 import { getSubscriptionState } from "../../lib/subscription";
@@ -242,6 +243,9 @@ export default async function Page() {
 
       {/* ── Full-screen/slide-in overlays for Map, Briefs, Strategy ─────── */}
       <AppOverlays competitors={competitors} />
+
+      {/* ── Daily scan brief — shown once per day on first radar load ──────── */}
+      {!trialExpired && <DailyBriefOverlay competitors={competitors} />}
 
       {/* ── Trial lock screen — shown when trial expired and plan is not Pro ── */}
       {trialExpired && <TrialLockScreen />}

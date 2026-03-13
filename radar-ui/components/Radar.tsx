@@ -376,6 +376,8 @@ type BlipNodeProps = {
   timeDimmed?: boolean;
   /** Signal age glow intensity 0–1: 1.0=fresh<6h, 0.60=recent<24h, 0.22=old */
   signalAgeGlow?: number;
+  /** True when this competitor has signals but has not been opened this session */
+  isUnvisited?: boolean;
 };
 
 const BlipNode = memo(function BlipNode({
@@ -391,9 +393,17 @@ const BlipNode = memo(function BlipNode({
   gravityMode,
   timeDimmed,
   signalAgeGlow = 0.22,
+  isUnvisited = false,
 }: BlipNodeProps) {
   const [hovered, setHovered] = useState(false);
   const momentum = Number(competitor.momentum_score ?? 0);
+
+  // "Movement building" — rising momentum with a recent signal (not yet critical)
+  const isBuilding =
+    momentum >= 3 &&
+    momentum < 5 &&
+    !!competitor.last_signal_at &&
+    Date.now() - new Date(competitor.last_signal_at).getTime() < 24 * 60 * 60 * 1000;
   const radius = radiusScale(momentum);
   const { x, y } = gravityPos ?? getNodePosition(index, total, radius);
   const trail = gravityMode ? [] : getTrailPoints(index, radius);
@@ -440,6 +450,36 @@ const BlipNode = memo(function BlipNode({
           fillOpacity={signalAgeGlow * 0.08}
           filter="url(#blipGlow)"
           style={{ pointerEvents: "none" }}
+        />
+      )}
+
+      {/* "Movement building" — amber slow-pulse ring for rising competitors with recent signal */}
+      {isBuilding && !isDimmed && !isSelected && !isAlerted && (
+        <motion.circle
+          cx={x}
+          cy={y}
+          r={nodeSize + 18}
+          fill="none"
+          stroke="#f59e0b"
+          strokeWidth="0.6"
+          animate={{ opacity: [0.0, 0.22, 0.0] }}
+          transition={{ duration: 4.0, repeat: Infinity, ease: "easeInOut", delay: 0.8 }}
+          style={{ transformOrigin: `${x}px ${y}px`, pointerEvents: "none" }}
+        />
+      )}
+
+      {/* Unvisited discovery ring — faint white ring for nodes with unseen signals */}
+      {isUnvisited && !isDimmed && !isSelected && !isAlerted && (
+        <motion.circle
+          cx={x}
+          cy={y}
+          r={nodeSize + 11}
+          fill="none"
+          stroke="rgba(255,255,255,0.55)"
+          strokeWidth="0.5"
+          animate={{ opacity: [0.0, 0.18, 0.0] }}
+          transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
+          style={{ transformOrigin: `${x}px ${y}px`, pointerEvents: "none" }}
         />
       )}
 
@@ -989,8 +1029,12 @@ export default function Radar({
     [sorted]
   );
 
+  // Track which competitor nodes have been opened this session (for unvisited glow)
+  const [visitedIds, setVisitedIds] = useState<Set<string>>(() => new Set());
+
   const handleBlipClick = useCallback((id: string) => {
     getAudioManager().play("echo");
+    setVisitedIds((prev) => { const next = new Set(prev); next.add(id); return next; });
     setSelectedId((prev) => {
       if (prev !== id) {
         capture("competitor_selected", { competitor_id: id });
@@ -1672,6 +1716,10 @@ export default function Radar({
                     !(alertActive && competitor.competitor_id === criticalAlert?.competitor_id)
                   }
                   signalAgeGlow={getSignalAgeGlow(competitor.last_signal_at)}
+                  isUnvisited={
+                    !visitedIds.has(competitor.competitor_id) &&
+                    (competitor.signals_7d ?? 0) > 0
+                  }
                 />
               ))}
               </g>
@@ -2570,6 +2618,16 @@ export default function Radar({
                                   style={getUrgencyStyle(signal.urgency)}
                                 >
                                   {getUrgencyLabel(signal.urgency)}
+                                </span>
+                              )}
+                              {/* "Caught early" — signal detected within 6 hours */}
+                              {signal.detected_at &&
+                                Date.now() - new Date(signal.detected_at).getTime() < 6 * 60 * 60 * 1000 && (
+                                <span
+                                  className="rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.1em]"
+                                  style={{ backgroundColor: "rgba(46,230,166,0.08)", color: "#2EE6A6", border: "1px solid rgba(46,230,166,0.2)" }}
+                                >
+                                  detected early
                                 </span>
                               )}
                               <span className="text-[11px] text-slate-500">
