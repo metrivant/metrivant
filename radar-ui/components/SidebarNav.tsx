@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import type { RadarCompetitor } from "../lib/api";
+import SignalConstellation from "./SignalConstellation";
 
 const NAV_ITEMS: { href: string; label: string; icon: ReactNode }[] = [
   {
@@ -48,6 +50,16 @@ const NAV_ITEMS: { href: string; label: string; icon: ReactNode }[] = [
         <line x1="5.5" y1="8" x2="5.5" y2="9.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
         <line x1="1.5" y1="5.5" x2="3" y2="5.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
         <line x1="8" y1="5.5" x2="9.5" y2="5.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    href: "/app/settings",
+    label: "Settings",
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 11 11" fill="none" aria-hidden="true">
+        <circle cx="5.5" cy="5.5" r="1.6" stroke="currentColor" strokeWidth="1.2" />
+        <path d="M5.5 1v1.1M5.5 8.9V10M1 5.5h1.1M8.9 5.5H10M2.3 2.3l.78.78M7.92 7.92l.78.78M2.3 8.7l.78-.78M7.92 3.08l.78-.78" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -98,7 +110,13 @@ function NavLink({
   );
 }
 
-export default function SidebarNav({ plan }: { plan: string }) {
+export default function SidebarNav({
+  plan,
+  competitors = [],
+}: {
+  plan: string;
+  competitors?: RadarCompetitor[];
+}) {
   const pathname = usePathname();
 
   return (
@@ -116,8 +134,8 @@ export default function SidebarNav({ plan }: { plan: string }) {
 
         <div className="my-2 h-px bg-[#0e2210]" />
 
-        {/* Lemonade Mode — hidden easter egg */}
-        <Link
+        {/* Lemonade Mode — hidden, reserved for future use */}
+        {/* <Link
           href="/app/lemonade"
           className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-medium transition-colors hover:bg-[#0a1a0a] hover:text-slate-300"
           style={{ color: "#64748b" }}
@@ -125,8 +143,11 @@ export default function SidebarNav({ plan }: { plan: string }) {
         >
           <span className="text-base leading-none">🍋</span>
           Lemonade Mode
-        </Link>
+        </Link> */}
       </div>
+
+      {/* Signal Constellation */}
+      <SignalConstellation competitors={competitors} />
 
       {/* Plan / billing */}
       <div className="mt-auto border-t border-[#0e2210] p-3">

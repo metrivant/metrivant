@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { scaleLinear } from "d3-scale";
@@ -206,7 +206,130 @@ function getTrailPoints(index: number, radius: number): Point[] {
 }
 
 function getNodeSize(momentum: number): number {
-  return 14 + Math.sqrt(Math.max(momentum, 0)) * 2.8;
+  return 16 + Math.sqrt(Math.max(momentum, 0)) * 3.2;
+}
+
+// ─── Gravity Field layout ─────────────────────────────────────────────────────
+// Computes similarity between two competitors based on observable data only.
+// movement_type match is the dominant signal (0.50); signals_7d and momentum
+// proximity each contribute up to 0.25 for a max similarity of 1.0.
+function computeSimilarity(
+  a: RadarCompetitor,
+  b: RadarCompetitor,
+  maxSignals: number,
+  maxMomentum: number,
+): number {
+  const typeMatch =
+    a.latest_movement_type != null &&
+    a.latest_movement_type === b.latest_movement_type
+      ? 0.5
+      : 0;
+  const signalSim =
+    1 - Math.abs((a.signals_7d ?? 0) - (b.signals_7d ?? 0)) / Math.max(maxSignals, 1);
+  const momentumSim =
+    1 -
+    Math.abs(Number(a.momentum_score ?? 0) - Number(b.momentum_score ?? 0)) /
+      Math.max(maxMomentum, 1);
+  return typeMatch + signalSim * 0.25 + momentumSim * 0.25;
+}
+
+// Runs a simplified spring-based force layout (80 iterations, deterministic).
+// Similar competitors attract; all pairs repel to prevent overlap.
+// Returns a Map<competitor_id, Point> of final positions.
+function computeGravityPositions(
+  competitors: RadarCompetitor[],
+): Map<string, Point> {
+  if (competitors.length === 0) return new Map();
+  const n = competitors.length;
+  const MAX_R = OUTER_RADIUS * 0.76;
+  const maxSignals = Math.max(...competitors.map((c) => c.signals_7d ?? 0), 1);
+  const maxMomentum = Math.max(
+    ...competitors.map((c) => Number(c.momentum_score ?? 0)),
+    1,
+  );
+
+  // Similarity matrix — O(n²) but n ≤ 50, so fine as a one-time memoized call
+  const sim: number[][] = Array.from({ length: n }, (_, i) =>
+    Array.from({ length: n }, (_, j) =>
+      i === j
+        ? 1
+        : computeSimilarity(competitors[i], competitors[j], maxSignals, maxMomentum),
+    ),
+  );
+
+  // Initial positions evenly distributed on a medium circle
+  const positions: Point[] = competitors.map((_, i) => {
+    const angle = (i / n) * 2 * Math.PI;
+    const r = MAX_R * 0.52;
+    return { x: CENTER + r * Math.cos(angle), y: CENTER + r * Math.sin(angle) };
+  });
+
+  const K_SPRING = MAX_R * 0.4; // ideal separation for fully dissimilar pair
+  const MIN_DIST  = 40;          // hard minimum separation
+  const STIFFNESS = 0.014;
+  const REPEL     = 0.9;
+  const ITERS     = 80;
+
+  for (let iter = 0; iter < ITERS; iter++) {
+    const forces: Point[] = Array.from({ length: n }, () => ({ x: 0, y: 0 }));
+
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const dx = positions[j].x - positions[i].x;
+        const dy = positions[j].y - positions[i].y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+        const ux = dx / dist;
+        const uy = dy / dist;
+        const s = sim[i][j];
+
+        // Spring toward ideal separation (closer for similar, farther for dissimilar)
+        const idealDist = K_SPRING * (1 - s * 0.68);
+        const springF = (dist - idealDist) * STIFFNESS;
+        forces[i].x += ux * springF;
+        forces[i].y += uy * springF;
+        forces[j].x -= ux * springF;
+        forces[j].y -= uy * springF;
+
+        // Hard repulsion below minimum distance
+        if (dist < MIN_DIST) {
+          const repelF = (MIN_DIST - dist) * REPEL;
+          forces[i].x -= ux * repelF;
+          forces[i].y -= uy * repelF;
+          forces[j].x += ux * repelF;
+          forces[j].y += uy * repelF;
+        }
+      }
+    }
+
+    // Apply forces; clamp within boundary
+    for (let i = 0; i < n; i++) {
+      positions[i].x += forces[i].x;
+      positions[i].y += forces[i].y;
+      const dx = positions[i].x - CENTER;
+      const dy = positions[i].y - CENTER;
+      const r = Math.sqrt(dx * dx + dy * dy);
+      if (r > MAX_R) {
+        const s = MAX_R / r;
+        positions[i].x = CENTER + dx * s;
+        positions[i].y = CENTER + dy * s;
+      }
+    }
+  }
+
+  const result = new Map<string, Point>();
+  competitors.forEach((c, i) => result.set(c.competitor_id, positions[i]));
+  return result;
+}
+
+function getClusterLabel(movementType: string): string {
+  switch (movementType) {
+    case "pricing_strategy_shift": return "PRICING CLUSTER";
+    case "product_expansion":      return "PRODUCT CLUSTER";
+    case "market_reposition":      return "MARKET CLUSTER";
+    case "enterprise_push":        return "ENTERPRISE ZONE";
+    case "ecosystem_expansion":    return "ECOSYSTEM ZONE";
+    default:                       return "ACTIVITY CLUSTER";
+  }
 }
 
 // ─── BlipNode sub-component ───────────────────────────────────────────────────
@@ -222,6 +345,12 @@ type BlipNodeProps = {
   isDimmed: boolean;
   isAlerted: boolean;
   onSelect: (id: string) => void;
+  /** Gravity Field mode: override position (skips golden-spiral layout) */
+  gravityPos?: Point;
+  /** Gravity Field mode: suppress trail dots */
+  gravityMode?: boolean;
+  /** Temporal filter: node has no signal in the active time window */
+  timeDimmed?: boolean;
 };
 
 const BlipNode = memo(function BlipNode({
@@ -233,18 +362,21 @@ const BlipNode = memo(function BlipNode({
   isDimmed,
   isAlerted,
   onSelect,
+  gravityPos,
+  gravityMode,
+  timeDimmed,
 }: BlipNodeProps) {
   const momentum = Number(competitor.momentum_score ?? 0);
   const radius = radiusScale(momentum);
-  const { x, y } = getNodePosition(index, total, radius);
-  const trail = getTrailPoints(index, radius);
+  const { x, y } = gravityPos ?? getNodePosition(index, total, radius);
+  const trail = gravityMode ? [] : getTrailPoints(index, radius);
   const color = getMovementColor(competitor.latest_movement_type);
   const nodeSize = getNodeSize(momentum);
   const echoDuration = getMomentumEchoDuration(momentum);
   const pingPeak = momentum >= 5 ? 0.88 : 0.68;
 
   const ageOpacity = getAgeOpacity(competitor.latest_movement_last_seen_at);
-  const groupOpacity = isDimmed ? 0.22 : isSelected ? 1.0 : ageOpacity;
+  const groupOpacity = isDimmed ? 0.22 : timeDimmed ? 0.12 : isSelected ? 1.0 : ageOpacity;
 
   // When the beam crosses this blip (seconds into the 12s sweep cycle)
   const sweepDelay = getSweepDelay(x, y);
@@ -253,8 +385,8 @@ const BlipNode = memo(function BlipNode({
     <motion.g
       onClick={() => onSelect(competitor.competitor_id)}
       style={{ cursor: "pointer", opacity: groupOpacity, transformOrigin: `${x}px ${y}px` }}
-      whileHover={{ scale: 1.14 }}
-      transition={{ duration: 0.15, ease: "easeOut" }}
+      whileHover={{ scale: 1.2 }}
+      transition={{ duration: 0.18, ease: "easeOut" }}
     >
       {/* Trail dots — motion history leading to blip */}
       {trail.map((point, pi) => (
@@ -527,6 +659,147 @@ export default function Radar({
     return scaleLinear().domain([0, maxMomentum]).range([68, OUTER_RADIUS]);
   }, [sorted]);
 
+  // ── Gravity Field mode ───────────────────────────────────────────────────
+  const [gravityMode, setGravityMode] = useState(false);
+
+  // Positions are computed once per sorted set — memoized, deterministic, ~1ms
+  const gravityPositions = useMemo(
+    () => computeGravityPositions(sorted),
+    [sorted],
+  );
+
+  // Cluster groups: movement_type buckets with ≥2 nodes for halo rendering
+  type GravityCluster = { type: string; color: string; label: string; nodes: Point[] };
+  const gravityGroups = useMemo((): GravityCluster[] => {
+    if (!gravityMode || gravityPositions.size === 0) return [];
+    const map = new Map<string, GravityCluster>();
+    for (const c of sorted) {
+      const type = c.latest_movement_type;
+      if (!type) continue;
+      const pos = gravityPositions.get(c.competitor_id);
+      if (!pos) continue;
+      if (!map.has(type)) {
+        map.set(type, {
+          type,
+          color: getMovementColor(type),
+          label: getClusterLabel(type),
+          nodes: [],
+        });
+      }
+      map.get(type)!.nodes.push(pos);
+    }
+    return [...map.values()].filter((g) => g.nodes.length >= 2);
+  }, [gravityMode, gravityPositions, sorted]);
+
+  // ── Isolation + zoom + pan ───────────────────────────────────────────────
+  const [isolated, setIsolated] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [temporalFilter, setTemporalFilter] = useState<"24h" | "7d" | "all">("all");
+  const zoomCanvasRef = useRef<HTMLDivElement>(null);
+  const panStartRef = useRef({ screenX: 0, screenY: 0, panX: 0, panY: 0 });
+  const touchDistRef = useRef(0);
+
+  // Reset view and temporal filter when exiting isolation
+  useEffect(() => {
+    if (!isolated) {
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
+      setTemporalFilter("all");
+    }
+  }, [isolated]);
+
+  // ESC exits isolation mode
+  useEffect(() => {
+    if (!isolated) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsolated(false);
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [isolated]);
+
+  // Non-passive wheel zoom + non-passive touchmove for pinch
+  useEffect(() => {
+    const el = zoomCanvasRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+      setZoom((prev) => Math.max(0.4, Math.min(6, prev * factor)));
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2) e.preventDefault();
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("touchmove", onTouchMove);
+    };
+  }, []);
+
+  const handlePanStart = useCallback(
+    (e: React.MouseEvent) => {
+      if (zoom <= 1) return;
+      setIsPanning(true);
+      panStartRef.current = {
+        screenX: e.clientX,
+        screenY: e.clientY,
+        panX: pan.x,
+        panY: pan.y,
+      };
+    },
+    [zoom, pan],
+  );
+
+  const handlePanMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (!isPanning) return;
+      const dx = (e.clientX - panStartRef.current.screenX) / zoom;
+      const dy = (e.clientY - panStartRef.current.screenY) / zoom;
+      setPan({ x: panStartRef.current.panX + dx, y: panStartRef.current.panY + dy });
+    },
+    [isPanning, zoom],
+  );
+
+  const handlePanEnd = useCallback(() => setIsPanning(false), []);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      touchDistRef.current = Math.sqrt(dx * dx + dy * dy);
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2 && touchDistRef.current > 0) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      setZoom((prev) => Math.max(0.4, Math.min(6, prev * (dist / touchDistRef.current))));
+      touchDistRef.current = dist;
+    }
+  }, []);
+
+  // Temporal filter: set of competitor IDs with no signal in the active window
+  const timeDimmedSet = useMemo(() => {
+    if (temporalFilter === "all") return new Set<string>();
+    const cutoff =
+      temporalFilter === "24h"
+        ? Date.now() - 24 * 60 * 60 * 1000
+        : Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return new Set(
+      sorted
+        .filter(
+          (c) => !c.last_signal_at || new Date(c.last_signal_at).getTime() < cutoff,
+        )
+        .map((c) => c.competitor_id),
+    );
+  }, [temporalFilter, sorted]);
+
   const selected = selectedId
     ? (sorted.find((c) => c.competitor_id === selectedId) ?? null)
     : null;
@@ -628,10 +901,14 @@ export default function Radar({
     <div className="grid h-full gap-3 grid-cols-[1fr_360px] xl:grid-cols-[1fr_420px]">
       {/* ── Radar panel ─────────────────────────────────────────── */}
       <section
-        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[#0d2010]"
+        className={`flex min-h-0 flex-1 flex-col overflow-hidden border border-[#0d2010]${isolated ? "" : " rounded-[20px]"}`}
         style={{
           background: "#000000",
           boxShadow: "inset 0 1px 0 0 rgba(46,230,166,0.08), 0 0 80px rgba(0,0,0,0.9)",
+          transition: "border-radius 0.2s ease",
+          ...(isolated
+            ? { position: "fixed", inset: 0, zIndex: 50, borderRadius: 0 }
+            : {}),
         }}
       >
           {/* ── Market Activity panel ────────────────────────────── */}
@@ -670,40 +947,91 @@ export default function Radar({
                   </>
                 )}
               </div>
-              {/* Right: latest change */}
-              {(() => {
-                const latestSignalAt = sorted.reduce<string | null>((latest, c) => {
-                  if (!c.last_signal_at) return latest;
-                  if (!latest) return c.last_signal_at;
-                  return c.last_signal_at > latest ? c.last_signal_at : latest;
-                }, null);
-                const latestMover = latestSignalAt
-                  ? sorted.find((c) => c.last_signal_at === latestSignalAt) ?? null
-                  : null;
-                return latestSignalAt ? (
-                  <div className="hidden text-right md:block">
-                    <div className="text-[10px] uppercase tracking-[0.26em] text-slate-600">Latest Change</div>
-                    <div className="mt-0.5 text-[12px] text-slate-400">
-                      {latestMover && (
-                        <span className="text-slate-300">{latestMover.competitor_name} · </span>
-                      )}
-                      {formatRelative(latestSignalAt)}
+              {/* Right: mode toggle + latest change */}
+              <div className="flex items-center gap-4">
+                {/* Radar mode toggle: Standard / Gravity Field */}
+                <div
+                  className="flex items-center gap-0.5 rounded-[8px] border border-[#0e2210] p-0.5"
+                  style={{ background: "#020602" }}
+                >
+                  <button
+                    onClick={() => setGravityMode(false)}
+                    className="rounded-[6px] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all duration-200"
+                    style={{
+                      background: !gravityMode ? "rgba(46,230,166,0.09)" : "transparent",
+                      color: !gravityMode ? "#2EE6A6" : "#3a5a3a",
+                      boxShadow: !gravityMode ? "inset 0 0 0 1px rgba(46,230,166,0.18)" : "none",
+                    }}
+                  >
+                    Standard
+                  </button>
+                  <button
+                    onClick={() => setGravityMode(true)}
+                    className="rounded-[6px] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all duration-200"
+                    style={{
+                      background: gravityMode ? "rgba(46,230,166,0.09)" : "transparent",
+                      color: gravityMode ? "#2EE6A6" : "#3a5a3a",
+                      boxShadow: gravityMode ? "inset 0 0 0 1px rgba(46,230,166,0.18)" : "none",
+                    }}
+                  >
+                    Gravity Field
+                  </button>
+                </div>
+
+                {/* Latest change */}
+                {(() => {
+                  const latestSignalAt = sorted.reduce<string | null>((latest, c) => {
+                    if (!c.last_signal_at) return latest;
+                    if (!latest) return c.last_signal_at;
+                    return c.last_signal_at > latest ? c.last_signal_at : latest;
+                  }, null);
+                  const latestMover = latestSignalAt
+                    ? sorted.find((c) => c.last_signal_at === latestSignalAt) ?? null
+                    : null;
+                  return latestSignalAt ? (
+                    <div className="hidden text-right md:block">
+                      <div className="text-[10px] uppercase tracking-[0.26em] text-slate-600">Latest Change</div>
+                      <div className="mt-0.5 text-[12px] text-slate-400">
+                        {latestMover && (
+                          <span className="text-slate-300">{latestMover.competitor_name} · </span>
+                        )}
+                        {formatRelative(latestSignalAt)}
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="hidden text-right md:block">
-                    <div className="text-[10px] uppercase tracking-[0.26em] text-slate-600">Status</div>
-                    <div className="mt-0.5 text-[12px] text-slate-500">Initializing radar…</div>
-                  </div>
-                );
-              })()}
+                  ) : (
+                    <div className="hidden text-right md:block">
+                      <div className="text-[10px] uppercase tracking-[0.26em] text-slate-600">Status</div>
+                      <div className="mt-0.5 text-[12px] text-slate-500">Initializing radar…</div>
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
           </div>
 
           <div
+            ref={zoomCanvasRef}
             className="relative flex flex-1 items-center justify-center overflow-hidden"
             style={{ opacity: entryPhase >= 1 ? 1 : 0, transition: "opacity 0.5s ease" }}
           >
+            {/* ── Zoom + pan canvas ──────────────────────────────────── */}
+            <div
+              className="flex h-full w-full items-center justify-center"
+              style={{
+                transform: `scale(${zoom}) translate(${pan.x}px, ${pan.y}px)`,
+                transformOrigin: "center center",
+                transition: isPanning ? "none" : "transform 0.18s ease-out",
+                cursor: zoom > 1 ? (isPanning ? "grabbing" : "grab") : "default",
+                willChange: "transform",
+              }}
+              onMouseDown={handlePanStart}
+              onMouseMove={handlePanMove}
+              onMouseUp={handlePanEnd}
+              onMouseLeave={handlePanEnd}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handlePanEnd}
+            >
             <svg
               width="100%"
               height="100%"
@@ -989,6 +1317,101 @@ export default function Radar({
                 opacity="0.98"
               />
 
+              {/* ── Gravity Field layers — cluster halos + relationship lines ── */}
+              {gravityMode && (
+                <g style={{ opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.55s ease" }}>
+                  {/* Cluster halos — soft field around each movement-type group */}
+                  {gravityGroups.map(({ type, color, label, nodes }) => {
+                    const cx = nodes.reduce((s, p) => s + p.x, 0) / nodes.length;
+                    const cy = nodes.reduce((s, p) => s + p.y, 0) / nodes.length;
+                    const maxR = Math.max(
+                      ...nodes.map((p) => Math.sqrt((p.x - cx) ** 2 + (p.y - cy) ** 2)),
+                    ) + 36;
+                    return (
+                      <g key={`halo-${type}`} style={{ pointerEvents: "none" }}>
+                        <circle
+                          cx={cx} cy={cy} r={maxR}
+                          fill={color} fillOpacity={0.042}
+                          stroke={color} strokeWidth={1} strokeOpacity={0.13}
+                          strokeDasharray="3 6"
+                        />
+                        <text
+                          x={cx} y={cy - maxR - 7}
+                          textAnchor="middle"
+                          fill={color}
+                          fontSize="8"
+                          opacity={0.35}
+                          letterSpacing="0.12em"
+                          fontFamily="Inter, system-ui, sans-serif"
+                          fontWeight="600"
+                        >
+                          {label}
+                        </text>
+                      </g>
+                    );
+                  })}
+
+                  {/* Relationship lines — selected node to same-type peers */}
+                  {selected && (() => {
+                    const selPos = gravityPositions.get(selected.competitor_id);
+                    if (!selPos || !selected.latest_movement_type) return null;
+                    const relColor = getMovementColor(selected.latest_movement_type);
+                    return sorted
+                      .filter(
+                        (c) =>
+                          c.competitor_id !== selected.competitor_id &&
+                          c.latest_movement_type === selected.latest_movement_type,
+                      )
+                      .map((c) => {
+                        const pos = gravityPositions.get(c.competitor_id);
+                        if (!pos) return null;
+                        return (
+                          <line
+                            key={`rel-${c.competitor_id}`}
+                            x1={selPos.x} y1={selPos.y}
+                            x2={pos.x} y2={pos.y}
+                            stroke={relColor}
+                            strokeWidth={1}
+                            strokeOpacity={0.22}
+                            strokeDasharray="3 7"
+                            style={{ pointerEvents: "none" }}
+                          />
+                        );
+                      });
+                  })()}
+
+                  {/* Relationship summary — badge above selected node */}
+                  {selected && (() => {
+                    const selPos = gravityPositions.get(selected.competitor_id);
+                    if (!selPos || !selected.latest_movement_type) return null;
+                    const relCount = sorted.filter(
+                      (c) =>
+                        c.competitor_id !== selected.competitor_id &&
+                        c.latest_movement_type === selected.latest_movement_type,
+                    ).length;
+                    if (relCount === 0) return null;
+                    const relColor = getMovementColor(selected.latest_movement_type);
+                    const label = getMovementLabel(selected.latest_movement_type);
+                    const nodeR = getNodeSize(Number(selected.momentum_score ?? 0));
+                    return (
+                      <text
+                        x={selPos.x}
+                        y={selPos.y - nodeR - 22}
+                        textAnchor="middle"
+                        fill={relColor}
+                        fontSize="9"
+                        opacity={0.55}
+                        letterSpacing="0.06em"
+                        fontFamily="Inter, system-ui, sans-serif"
+                        style={{ pointerEvents: "none" }}
+                      >
+                        {relCount} rival{relCount !== 1 ? "s" : ""} share {label.toLowerCase()} pattern
+                      </text>
+                    );
+                  })()}
+                </g>
+              )}
+
               {/* ── Competitor blips — revealed at entry phase 2 ──────── */}
               <g style={{ opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.4s ease" }}>
               {sorted.map((competitor, index) => (
@@ -1002,6 +1425,12 @@ export default function Radar({
                   isDimmed={selectedId !== null && competitor.competitor_id !== selectedId}
                   isAlerted={alertActive && competitor.competitor_id === criticalAlert?.competitor_id}
                   onSelect={handleBlipClick}
+                  gravityPos={gravityMode ? gravityPositions.get(competitor.competitor_id) : undefined}
+                  gravityMode={gravityMode}
+                  timeDimmed={
+                    timeDimmedSet.has(competitor.competitor_id) &&
+                    !(alertActive && competitor.competitor_id === criticalAlert?.competitor_id)
+                  }
                 />
               ))}
               </g>
@@ -1107,6 +1536,7 @@ export default function Radar({
                 </text>
               ))}
             </svg>
+            </div>{/* end zoom canvas */}
 
             {/* ── Critical alert banner overlay ──────────────────────── */}
             {/* Positioned inside the radar SVG container so it overlays the
@@ -1212,6 +1642,166 @@ export default function Radar({
                 );
               })()}
             </AnimatePresence>
+
+            {/* ── Radar controls overlay (always visible) ─────────── */}
+            <div className="absolute right-3 top-3 z-20 flex flex-col gap-1.5">
+              {/* Observatory isolation toggle */}
+              <button
+                onClick={() => setIsolated((p) => !p)}
+                title={isolated ? "Exit observatory mode (Esc)" : "Observatory mode"}
+                className="flex h-7 w-7 items-center justify-center rounded-lg transition-all"
+                style={{
+                  background: "rgba(0,0,0,0.88)",
+                  border: `1px solid ${isolated ? "rgba(46,230,166,0.3)" : "#0e2210"}`,
+                  color: isolated ? "#2EE6A6" : "#3a5a3a",
+                  boxShadow: isolated ? "0 0 10px rgba(46,230,166,0.18)" : "none",
+                }}
+              >
+                {isolated ? (
+                  <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
+                    <path d="M1 4H4V1M7 1V4H10M10 7H7V10M4 10V7H1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                ) : (
+                  <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
+                    <path d="M1 4V1H4M7 1H10V4M10 7V10H7M4 10H1V7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </button>
+
+              {/* Zoom controls */}
+              <div className="flex flex-col gap-0.5">
+                <button
+                  onClick={() => setZoom((p) => Math.min(6, p * 1.3))}
+                  title="Zoom in (+)"
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-[16px] font-light leading-none transition-all hover:border-[rgba(46,230,166,0.25)] hover:text-[#2EE6A6]"
+                  style={{ background: "rgba(0,0,0,0.88)", border: "1px solid #0e2210", color: "#3a5a3a" }}
+                >
+                  +
+                </button>
+                <button
+                  onClick={() => setZoom((p) => Math.max(0.4, p / 1.3))}
+                  title="Zoom out (−)"
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-[16px] font-light leading-none transition-all hover:border-[rgba(46,230,166,0.25)] hover:text-[#2EE6A6]"
+                  style={{ background: "rgba(0,0,0,0.88)", border: "1px solid #0e2210", color: "#3a5a3a" }}
+                >
+                  −
+                </button>
+
+                {/* Reset view — only shown when view is non-default */}
+                {(zoom !== 1 || pan.x !== 0 || pan.y !== 0) && (
+                  <button
+                    onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
+                    title="Reset view"
+                    className="flex h-7 w-7 items-center justify-center rounded-lg transition-all"
+                    style={{
+                      background: "rgba(0,0,0,0.88)",
+                      border: "1px solid rgba(46,230,166,0.25)",
+                      color: "#2EE6A6",
+                    }}
+                  >
+                    <svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden="true">
+                      <circle cx="4.5" cy="4.5" r="3.5" stroke="currentColor" strokeWidth="1.2" />
+                      <circle cx="4.5" cy="4.5" r="1.2" fill="currentColor" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+
+              {/* Zoom level readout */}
+              {zoom !== 1 && (
+                <div
+                  className="flex h-7 w-7 items-center justify-center text-[8px] font-bold tabular-nums"
+                  style={{ color: "rgba(46,230,166,0.38)" }}
+                >
+                  {Math.round(zoom * 100)}%
+                </div>
+              )}
+            </div>
+
+            {/* ── Observatory mode overlays ────────────────────────── */}
+            <AnimatePresence>
+              {isolated && (
+                <motion.div
+                  key="isolation-overlay"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                  className="pointer-events-none absolute inset-0 z-10"
+                >
+                  {/* Legend — bottom left */}
+                  <div
+                    className="pointer-events-none absolute bottom-5 left-5 flex flex-col gap-2 rounded-[12px] px-4 py-3"
+                    style={{
+                      background: "rgba(0,0,0,0.82)",
+                      border: "1px solid #0e2210",
+                      backdropFilter: "blur(8px)",
+                    }}
+                  >
+                    <div className="mb-0.5 text-[8px] font-bold uppercase tracking-[0.24em] text-slate-700">
+                      Signal Type
+                    </div>
+                    {(
+                      [
+                        { color: "#ff3b3b", label: "Pricing" },
+                        { color: "#00e5ff", label: "Product" },
+                        { color: "#ffcc00", label: "Market" },
+                        { color: "#9b5cff", label: "Enterprise" },
+                        { color: "#94a3b8", label: "Quiet" },
+                      ] as { color: string; label: string }[]
+                    ).map(({ color, label }) => (
+                      <span key={label} className="flex items-center gap-2">
+                        <span
+                          className="h-[5px] w-[5px] shrink-0 rounded-full"
+                          style={{ backgroundColor: color, boxShadow: `0 0 5px ${color}66` }}
+                        />
+                        <span className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                          {label}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Temporal filter — bottom center */}
+                  <div
+                    className="pointer-events-auto absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-0.5 rounded-[10px] p-1"
+                    style={{
+                      background: "rgba(0,0,0,0.82)",
+                      border: "1px solid #0e2210",
+                      backdropFilter: "blur(8px)",
+                    }}
+                  >
+                    {(["24h", "7d", "all"] as const).map((f) => (
+                      <button
+                        key={f}
+                        onClick={() => setTemporalFilter(f)}
+                        className="rounded-[7px] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all duration-200"
+                        style={{
+                          background:
+                            temporalFilter === f ? "rgba(46,230,166,0.09)" : "transparent",
+                          color: temporalFilter === f ? "#2EE6A6" : "#3a5a3a",
+                          boxShadow:
+                            temporalFilter === f
+                              ? "inset 0 0 0 1px rgba(46,230,166,0.2)"
+                              : "none",
+                        }}
+                      >
+                        {f === "all" ? "All time" : `Last ${f}`}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Observatory label — top center */}
+                  <div
+                    className="absolute left-1/2 top-4 -translate-x-1/2 text-[9px] font-bold uppercase tracking-[0.32em]"
+                    style={{ color: "rgba(46,230,166,0.25)" }}
+                  >
+                    Observatory Mode
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
           </div>
 
           {/* ── Footer: legend + ticker ─────────────────────────────── */}
@@ -1313,12 +1903,29 @@ export default function Radar({
               {/* ── Drawer header ──────────────────────────────── */}
               <div className="mb-6 flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.32em]" style={{ color: "rgba(46,230,166,0.6)" }}>
-                    Intelligence Report
+                  {/* Competitor identity row */}
+                  <div className="mb-2 flex items-start gap-3">
+                    {/* Letter monogram — movement-color branded */}
+                    <div
+                      className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] text-[17px] font-bold"
+                      style={{
+                        background: `${getMovementColor(selected.latest_movement_type)}18`,
+                        border: `1px solid ${getMovementColor(selected.latest_movement_type)}30`,
+                        color: getMovementColor(selected.latest_movement_type),
+                        textShadow: `0 0 10px ${getMovementColor(selected.latest_movement_type)}60`,
+                      }}
+                    >
+                      {selected.competitor_name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.32em]" style={{ color: "rgba(46,230,166,0.5)" }}>
+                        Intelligence Report
+                      </div>
+                      <h2 className="mt-0.5 text-[22px] font-bold leading-tight tracking-tight text-white">
+                        {selected.competitor_name}
+                      </h2>
+                    </div>
                   </div>
-                  <h2 className="mt-2 text-[26px] font-semibold leading-tight tracking-tight text-slate-100">
-                    {selected.competitor_name}
-                  </h2>
                   {selected.website_url && (
                     <a
                       href={selected.website_url}
@@ -1384,8 +1991,16 @@ export default function Radar({
               />
 
               {/* ── Assessment ──────────────────────────────────── */}
-              <div className="rounded-[14px] border border-[#152415] bg-[#071507] px-4 py-3.5">
-                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">
+              <div className="overflow-hidden rounded-[14px] border border-[#152415]" style={{ background: "#071507" }}>
+                {/* Movement-color accent line */}
+                <div
+                  className="h-px w-full"
+                  style={{
+                    background: `linear-gradient(90deg, transparent, ${getMovementColor(selected.latest_movement_type)}45 35%, ${getMovementColor(selected.latest_movement_type)}60 50%, ${getMovementColor(selected.latest_movement_type)}45 65%, transparent)`,
+                  }}
+                />
+                <div className="px-4 py-3.5">
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: `${getMovementColor(selected.latest_movement_type)}90` }}>
                   Assessment
                 </div>
                 {detailLoading ? (
@@ -1407,19 +2022,22 @@ export default function Radar({
                     Analysing…
                   </p>
                 )}
+                </div>
               </div>
 
               {/* ── Recommended action ──────────────────────────── */}
               {!detailLoading && primarySignal?.recommended_action && (
                 <div
-                  className="mt-3 rounded-[14px] border border-[#152415] bg-[#071507] px-4 py-3.5"
+                  className="mt-3 rounded-[14px] border border-[#1a2d18] px-4 py-3.5"
                   style={{
-                    borderLeftColor: `${getMovementColor(selected.latest_movement_type)}60`,
+                    background: "#070e07",
+                    borderLeftColor: `${getMovementColor(selected.latest_movement_type)}55`,
                     borderLeftWidth: "2px",
                   }}
                 >
-                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">
-                    Recommended Action
+                  <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: `${getMovementColor(selected.latest_movement_type)}95` }}>
+                    <span style={{ opacity: 0.7 }}>→</span>
+                    <span>Recommended Action</span>
                   </div>
                   <p className="text-sm leading-relaxed text-slate-200">
                     {primarySignal.recommended_action}
@@ -1429,30 +2047,33 @@ export default function Radar({
 
               {/* ── Stats grid ──────────────────────────────────── */}
               <div className="mt-4 grid grid-cols-3 gap-2.5">
-                <div className="rounded-[14px] border border-[#152415] bg-[#071507] p-4">
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                <div className="rounded-[14px] border border-[#0f1c0f] bg-[#040904] p-4">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-600">
                     Momentum
                   </div>
-                  <div className="mt-2 text-xl font-semibold tabular-nums text-slate-100">
+                  <div
+                    className="mt-2 text-xl font-bold tabular-nums leading-none"
+                    style={{ color: getMovementColor(selected.latest_movement_type) }}
+                  >
                     {formatNumber(selected.momentum_score)}
                   </div>
-                  <div className="mt-0.5 text-[11px] text-slate-600">
+                  <div className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-slate-700">
                     score
                   </div>
                 </div>
-                <div className="rounded-[14px] border border-[#152415] bg-[#071507] p-4">
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                    Activity 7d
+                <div className="rounded-[14px] border border-[#0f1c0f] bg-[#040904] p-4">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-600">
+                    Signals 7d
                   </div>
-                  <div className="mt-2 text-xl font-semibold tabular-nums text-slate-100">
+                  <div className="mt-2 text-xl font-bold tabular-nums leading-none text-slate-200">
                     {formatNumber(selected.signals_7d, 0)}
                   </div>
                 </div>
-                <div className="rounded-[14px] border border-[#152415] bg-[#071507] p-4">
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                <div className="rounded-[14px] border border-[#0f1c0f] bg-[#040904] p-4">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-600">
                     Signals
                   </div>
-                  <div className="mt-2 text-xl font-semibold tabular-nums text-slate-100">
+                  <div className="mt-2 text-xl font-bold tabular-nums leading-none text-slate-200">
                     {formatNumber(selected.latest_movement_signal_count, 0)}
                   </div>
                 </div>
@@ -1462,7 +2083,7 @@ export default function Radar({
               {(() => {
                 const mCfg = getMomentumConfig(Number(selected.momentum_score ?? 0));
                 return (
-                  <div className="mt-2.5 rounded-[14px] border border-[#152415] bg-[#071507] px-4 py-3.5">
+                  <div className="mt-2.5 rounded-[14px] border border-[#122012] bg-[#050d07] px-4 py-3.5">
                     <div className="mb-2.5 flex items-center justify-between">
                       <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
                         Momentum Trend
@@ -1481,16 +2102,16 @@ export default function Radar({
 
               {/* ── Timeline ────────────────────────────────────── */}
               <div className="mt-2.5 grid grid-cols-2 gap-2.5">
-                <div className="rounded-[14px] border border-[#152415] bg-[#071507] px-4 py-3">
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                <div className="rounded-[14px] border border-[#0f1c0f] bg-[#050b07] px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-600">
                     First seen
                   </div>
                   <div className="mt-1.5 text-sm font-medium text-slate-300">
                     {formatDate(selected.latest_movement_first_seen_at)}
                   </div>
                 </div>
-                <div className="rounded-[14px] border border-[#152415] bg-[#071507] px-4 py-3">
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                <div className="rounded-[14px] border border-[#0f1c0f] bg-[#050b07] px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-600">
                     Last seen
                   </div>
                   <div className="mt-1.5 text-sm font-medium text-slate-300">
@@ -1499,31 +2120,97 @@ export default function Radar({
                 </div>
               </div>
 
-              {/* ── Confidence bar ──────────────────────────────── */}
-              <div className="mt-2.5 rounded-[14px] border border-[#152415] bg-[#071507] px-4 py-3">
+              {/* ── Signal Integrity (instrument panel) ─────────── */}
+              <div className="mt-2.5 rounded-[14px] border border-[#1a2d1a] bg-[#030703] px-4 py-3.5">
                 <div className="mb-3 flex items-center justify-between">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">
-                    Signal Integrity
+                  <div className="flex items-center gap-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+                      Signal Integrity
+                    </div>
+                    {interpretationConf !== null && (
+                      <span
+                        className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em]"
+                        style={
+                          interpretationConf >= 0.75
+                            ? { background: "rgba(46,230,166,0.1)", color: "#2EE6A6" }
+                            : interpretationConf >= 0.5
+                            ? { background: "rgba(245,158,11,0.1)", color: "#f59e0b" }
+                            : { background: "rgba(148,163,184,0.08)", color: "#64748b" }
+                        }
+                      >
+                        {interpretationConf >= 0.75
+                          ? "Strong"
+                          : interpretationConf >= 0.5
+                          ? "Moderate"
+                          : "Low"}
+                      </span>
+                    )}
                   </div>
-                  <div className="text-sm font-semibold text-slate-300">
+                  <div
+                    className="text-[18px] font-bold tabular-nums leading-none"
+                    style={{
+                      color:
+                        interpretationConf === null
+                          ? "#475569"
+                          : interpretationConf >= 0.75
+                          ? getMovementColor(selected.latest_movement_type)
+                          : interpretationConf >= 0.5
+                          ? "#f59e0b"
+                          : "#94a3b8",
+                      textShadow:
+                        interpretationConf !== null && interpretationConf >= 0.75
+                          ? `0 0 14px ${getMovementColor(selected.latest_movement_type)}55`
+                          : undefined,
+                    }}
+                  >
                     {interpretationConf !== null
                       ? `${Math.round(interpretationConf * 100)}%`
                       : "—"}
                   </div>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-[#0a180a]">
+
+                {/* Bar track */}
+                <div className="relative h-[10px] w-full rounded-full bg-[#060e06]">
+                  {/* Segment tick marks at 25 / 50 / 75 */}
+                  {[25, 50, 75].map((pct) => (
+                    <div
+                      key={pct}
+                      className="absolute top-0 h-full w-px bg-black/50"
+                      style={{ left: `${pct}%`, zIndex: 2 }}
+                    />
+                  ))}
+                  {/* Fill bar */}
                   <motion.div
-                    className="h-full rounded-full"
+                    className="absolute inset-y-0 left-0 rounded-full"
                     style={{
-                      backgroundColor: getMovementColor(selected.latest_movement_type),
-                      boxShadow: `0 0 8px ${getMovementColor(selected.latest_movement_type)}60`,
+                      background:
+                        interpretationConf !== null && interpretationConf >= 0.75
+                          ? `linear-gradient(90deg, ${getMovementColor(selected.latest_movement_type)}70, ${getMovementColor(selected.latest_movement_type)})`
+                          : interpretationConf !== null && interpretationConf >= 0.5
+                          ? "linear-gradient(90deg, #f59e0b70, #f59e0b)"
+                          : "linear-gradient(90deg, #64748b50, #64748b)",
+                      boxShadow:
+                        interpretationConf !== null && interpretationConf >= 0.5
+                          ? interpretationConf >= 0.75
+                            ? `0 0 12px ${getMovementColor(selected.latest_movement_type)}65`
+                            : "0 0 8px rgba(245,158,11,0.5)"
+                          : undefined,
                     }}
                     initial={{ width: 0 }}
                     animate={{
                       width: `${Math.round((interpretationConf ?? 0) * 100)}%`,
                     }}
-                    transition={{ duration: 0.6, ease: "easeOut" }}
+                    transition={{ duration: 0.7, ease: "easeOut" }}
                   />
+                </div>
+
+                {/* Scale labels */}
+                <div className="mt-1.5 flex justify-between text-[9px] uppercase tracking-[0.12em] text-slate-700">
+                  <span>0%</span>
+                  <span>25</span>
+                  <span>50</span>
+                  <span>75</span>
+                  <span>100%</span>
                 </div>
               </div>
 
@@ -1554,7 +2241,7 @@ export default function Radar({
                           initial={{ opacity: 0, y: 6 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.28, ease: "easeOut", delay: si * 0.07 }}
-                          className="rounded-[12px] border border-[#152415] bg-[#071507] p-3.5"
+                          className="rounded-[12px] border border-[#152415] bg-[#060b06] p-3.5"
                         >
                           <div className="mb-2 flex items-center justify-between gap-2">
                             <div className="flex flex-wrap items-center gap-1.5">
@@ -1636,7 +2323,7 @@ export default function Radar({
                       return (
                         <div
                           key={i}
-                          className="flex items-center justify-between rounded-[12px] border border-[#152415] bg-[#071507] px-4 py-2.5"
+                          className="flex items-center justify-between rounded-[12px] border border-[#0f1c0f] bg-[#050a05] px-4 py-2.5"
                         >
                           <div className="flex items-center gap-2.5">
                             <span

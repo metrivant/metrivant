@@ -6,6 +6,8 @@ import SectorSwitcher from "../../components/SectorSwitcher";
 import PlanBadge from "../../components/PlanBadge";
 import UpgradePrompt from "../../components/UpgradePrompt";
 import SidebarNav from "../../components/SidebarNav";
+import RadarLogo from "../../components/RadarLogo";
+import LiveIndicator from "../../components/LiveIndicator";
 import { getRadarFeed } from "../../lib/api";
 import { formatRelative } from "../../lib/format";
 import { createClient } from "../../lib/supabase/server";
@@ -105,14 +107,7 @@ export default async function Page() {
 
           {/* ── Brand ──────────────────────────────────────────────────── */}
           <div className="flex items-center gap-4">
-            <svg width="46" height="46" viewBox="0 0 46 46" fill="none" aria-hidden="true">
-              <circle cx="23" cy="23" r="21.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.50" />
-              <circle cx="23" cy="23" r="13"   stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.28" />
-              <circle cx="23" cy="23" r="5.5"  stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.42" />
-              <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#2EE6A6" fillOpacity="0.10" />
-              <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.80" />
-              <circle cx="23" cy="23" r="2.5" fill="#2EE6A6" />
-            </svg>
+            <RadarLogo />
 
             <div className="flex flex-col gap-y-[4px]">
               <div className="text-[22px] font-bold leading-none text-white" style={{ letterSpacing: "0.09em" }}>
@@ -152,20 +147,12 @@ export default async function Page() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-[6px] w-[6px] shrink-0">
-                {!isQuiet && isFresh && (
-                  <span className="absolute inset-0 animate-ping rounded-full bg-[#2EE6A6] opacity-55" />
-                )}
-                <span className={`relative h-[6px] w-[6px] rounded-full ${isQuiet ? "bg-slate-600" : isFresh ? "bg-[#2EE6A6] shadow-[0_0_6px_rgba(46,230,166,0.7)]" : "bg-amber-500"}`} />
-              </span>
-              <span className="text-[11px] leading-none text-slate-400">
-                {statusText}
-                {!isFresh && lastSignalAt !== null && (
-                  <span className="ml-2 text-amber-500/80">· data may be out of date</span>
-                )}
-              </span>
-            </div>
+            <LiveIndicator
+              isQuiet={isQuiet}
+              isFresh={isFresh}
+              statusText={statusText}
+              showStaleWarning={!isFresh && lastSignalAt !== null}
+            />
           </div>
         </div>
       </header>
@@ -178,7 +165,7 @@ export default async function Page() {
           className="flex w-[220px] shrink-0 flex-col border-r border-[#0e2210] bg-[rgba(0,0,0,0.98)] xl:w-[280px]"
           aria-label="App navigation"
         >
-          <SidebarNav plan={plan} />
+          <SidebarNav plan={plan} competitors={competitors} />
         </nav>
 
         {/* ── Radar content area ─────────────────────────────────────────── */}
