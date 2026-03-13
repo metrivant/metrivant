@@ -321,7 +321,7 @@ function BriefsOverlay({ onClose }: { onClose: () => void }) {
 
   return (
     <motion.div
-      className="fixed inset-y-0 right-0 z-[100] flex w-[500px] flex-col border-l border-[#0e2210] bg-[#000200]"
+      className="fixed inset-0 z-[100] flex flex-col border-[#0e2210] bg-[#000200] md:inset-y-0 md:left-auto md:right-0 md:w-[500px] md:border-l"
       style={{ boxShadow: "-20px 0 60px rgba(0,0,0,0.75)" }}
       initial={{ x: "100%" }}
       animate={{ x: 0 }}
@@ -343,7 +343,7 @@ function BriefsOverlay({ onClose }: { onClose: () => void }) {
           Intelligence Briefs
         </span>
         <div className="flex items-center gap-3">
-          <span className="text-[10px] text-slate-600">ESC to close</span>
+          <span className="hidden text-[10px] text-slate-600 md:inline">ESC to close</span>
           <CloseButton onClose={onClose} />
         </div>
       </div>
@@ -536,7 +536,7 @@ function StrategyOverlay({ onClose }: { onClose: () => void }) {
 
   return (
     <motion.div
-      className="fixed inset-y-0 right-0 z-[100] flex w-[500px] flex-col border-l border-[#0e2210] bg-[#000200]"
+      className="fixed inset-0 z-[100] flex flex-col border-[#0e2210] bg-[#000200] md:inset-y-0 md:left-auto md:right-0 md:w-[500px] md:border-l"
       style={{ boxShadow: "-20px 0 60px rgba(0,0,0,0.75)" }}
       initial={{ x: "100%" }}
       animate={{ x: 0 }}
@@ -558,7 +558,7 @@ function StrategyOverlay({ onClose }: { onClose: () => void }) {
           Strategic Patterns
         </span>
         <div className="flex items-center gap-3">
-          <span className="text-[10px] text-slate-600">ESC to close</span>
+          <span className="hidden text-[10px] text-slate-600 md:inline">ESC to close</span>
           <CloseButton onClose={onClose} />
         </div>
       </div>

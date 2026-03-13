@@ -50,7 +50,7 @@ export default function UpgradePrompt({ plan }: { plan: string }) {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 16, scale: 0.98 }}
           transition={{ duration: 0.35, ease: "easeOut" }}
-          className="fixed bottom-6 right-6 z-50 w-[296px]"
+          className="fixed bottom-[76px] right-4 z-50 w-[280px] md:bottom-6 md:right-6 md:w-[296px]"
           role="dialog"
           aria-label="Upgrade to Metrivant Pro"
         >

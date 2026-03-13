@@ -1136,7 +1136,7 @@ export default function Radar({
   }
 
   return (
-    <div className="grid h-full gap-3 grid-cols-[1fr_360px] xl:grid-cols-[1fr_420px]">
+    <div className="grid h-full gap-3 grid-cols-1 md:grid-cols-[1fr_360px] xl:grid-cols-[1fr_420px]">
       {/* ── Radar panel ─────────────────────────────────────────── */}
       <section
         className={`flex min-h-0 flex-1 flex-col overflow-hidden border border-[#0d2010]${isolated ? "" : " rounded-[20px]"}`}
@@ -2194,9 +2194,24 @@ export default function Radar({
           </div>
       </section>
 
+      {/* ── Mobile backdrop — dims radar behind open drawer on small screens ── */}
+      {selected && (
+        <div
+          className="fixed inset-0 z-30 bg-black/60 md:hidden"
+          onClick={() => setSelectedId(null)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* ── Right panel — intelligence console ──────────────────── */}
+      {/* Mobile: hidden when nothing selected; bottom-sheet when selected.  */}
+      {/* Desktop (md+): always-visible second grid column.                  */}
       <aside
-        className="min-h-0 overflow-y-auto rounded-[20px] border bg-[#000000] p-6 transition-colors duration-500"
+        className={`border bg-[#000000] p-6 transition-colors duration-500${
+          selected
+            ? " fixed inset-x-0 bottom-0 z-40 max-h-[75vh] overflow-y-auto rounded-t-[20px]"
+            : " hidden"
+        } md:static md:block md:inset-auto md:z-auto md:min-h-0 md:max-h-none md:overflow-y-auto md:rounded-[20px]`}
         style={{
           borderColor: selected
             ? `${getMovementColor(selected.latest_movement_type)}38`

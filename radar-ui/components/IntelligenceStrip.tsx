@@ -156,7 +156,7 @@ export default function IntelligenceStrip({
         >
           {clock}
         </span>
-        <span className="text-[10px] tracking-[0.04em] text-slate-700">
+        <span className="hidden text-[10px] tracking-[0.04em] text-slate-700 md:inline">
           {dateStr}
         </span>
         <span

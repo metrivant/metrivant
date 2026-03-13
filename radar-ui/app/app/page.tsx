@@ -11,6 +11,7 @@ import IntelligenceStrip from "../../components/IntelligenceStrip";
 import AppOverlays from "../../components/AppOverlays";
 import TrialLockScreen from "../../components/TrialLockScreen";
 import DailyBriefOverlay from "../../components/DailyBriefOverlay";
+import MobileNav from "../../components/MobileNav";
 import { getRadarFeed } from "../../lib/api";
 import { createClient } from "../../lib/supabase/server";
 import { getSubscriptionState } from "../../lib/subscription";
@@ -134,13 +135,13 @@ export default async function Page() {
 
             <div className="flex flex-col gap-y-[3px]">
               <div
-                className="text-[20px] font-bold leading-none text-white"
+                className="text-[18px] font-bold leading-none text-white md:text-[20px]"
                 style={{ letterSpacing: "0.10em" }}
               >
                 METRIVANT
               </div>
               <div
-                className="text-[9px] font-semibold uppercase"
+                className="hidden text-[9px] font-semibold uppercase md:block"
                 style={{ letterSpacing: "0.32em", color: "rgba(46,230,166,0.48)" }}
               >
                 Competitive Intelligence
@@ -149,12 +150,16 @@ export default async function Page() {
           </div>
 
           {/* ── Right: stats + notification ────────────────────────────── */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 md:gap-4">
             <PlanBadge plan={plan} trialDaysRemaining={trialDaysRemaining} />
-            <SectorSwitcher sector={sector} />
+            {/* SectorSwitcher: accessible via Settings on mobile */}
+            <div className="hidden md:block">
+              <SectorSwitcher sector={sector} />
+            </div>
             <NotificationBell />
 
-            <div className="flex items-center gap-5">
+            {/* Stats — hidden on mobile, shown on desktop */}
+            <div className="hidden md:flex items-center gap-5">
               {/* Rivals */}
               <div className="group relative cursor-default text-right">
                 <div className="text-[10px] uppercase tracking-[0.22em] text-slate-600">Rivals</div>
@@ -218,20 +223,18 @@ export default async function Page() {
       {/* ── Body: sidebar nav + radar ─────────────────────────────────────── */}
       <div className="flex flex-1 flex-row overflow-hidden">
 
-        {/* ── Left sidebar — navigation ─────────────────────────────────── */}
+        {/* ── Left sidebar — navigation (desktop only) ──────────────────── */}
         <nav
-          className="flex w-[190px] shrink-0 flex-col border-r border-[#0e2210] bg-[rgba(0,0,0,0.98)] xl:w-[240px]"
+          className="hidden w-[190px] shrink-0 flex-col border-r border-[#0e2210] bg-[rgba(0,0,0,0.98)] md:flex xl:w-[240px]"
           aria-label="App navigation"
         >
           <SidebarNav plan={plan} competitors={competitors} />
         </nav>
 
         {/* ── Radar content area ─────────────────────────────────────────── */}
-        {/*
-          Desktop: flex-1 overflow-hidden p-3 (fixed viewport height)
-          Mobile:  natural height, p-3 with extra bottom padding to clear the fixed bottom nav
-        */}
-        <div className="relative z-10 flex flex-1 flex-col overflow-hidden p-3">
+        {/* Desktop: flex-1 overflow-hidden p-3 (fixed viewport height)       */}
+        {/* Mobile:  p-3 pb-[76px] — extra bottom padding clears mobile nav   */}
+        <div className="relative z-10 flex flex-1 flex-col overflow-hidden p-3 pb-[76px] md:pb-3">
           <RadarViewedTracker />
           <Radar competitors={competitors} sector={sector} />
         </div>
@@ -249,6 +252,9 @@ export default async function Page() {
 
       {/* ── Trial lock screen — shown when trial expired and plan is not Pro ── */}
       {trialExpired && <TrialLockScreen />}
+
+      {/* ── Mobile bottom navigation — md:hidden inside component ─────────── */}
+      <MobileNav />
 
     </main>
   );
