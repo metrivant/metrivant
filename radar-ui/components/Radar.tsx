@@ -16,6 +16,7 @@ import {
   getAlertExplanation,
   type CriticalAlert,
 } from "../lib/criticalAlert";
+import { getAudioManager } from "../lib/audio";
 
 // ─── Radar geometry ──────────────────────────────────────────────────────────
 const SIZE = 1000;
@@ -366,6 +367,7 @@ const BlipNode = memo(function BlipNode({
   gravityMode,
   timeDimmed,
 }: BlipNodeProps) {
+  const [hovered, setHovered] = useState(false);
   const momentum = Number(competitor.momentum_score ?? 0);
   const radius = radiusScale(momentum);
   const { x, y } = gravityPos ?? getNodePosition(index, total, radius);
@@ -387,6 +389,8 @@ const BlipNode = memo(function BlipNode({
       style={{ cursor: "pointer", opacity: groupOpacity, transformOrigin: `${x}px ${y}px` }}
       whileHover={{ scale: 1.2 }}
       transition={{ duration: 0.18, ease: "easeOut" }}
+      onHoverStart={() => { setHovered(true); getAudioManager().play("blip"); }}
+      onHoverEnd={() => setHovered(false)}
     >
       {/* Trail dots — motion history leading to blip */}
       {trail.map((point, pi) => (
@@ -544,13 +548,27 @@ const BlipNode = memo(function BlipNode({
       {/* Label */}
       <text
         x={x}
-        y={y + nodeSize + 16}
+        y={y + nodeSize + 14}
         textAnchor="middle"
-        fill={isSelected ? "#e2f5e2" : "#546d54"}
-        fontSize="12"
-        fontWeight={isSelected ? "600" : "400"}
+        fill={
+          isSelected
+            ? "#e2f5e2"
+            : hovered
+            ? "#a8cca8"
+            : "#7eb47e"
+        }
+        fontSize="13"
+        fontWeight={isSelected ? "600" : hovered ? "500" : "400"}
         fontFamily="Inter, system-ui, sans-serif"
         letterSpacing="0.02em"
+        style={{
+          filter: isSelected
+            ? "drop-shadow(0 0 5px rgba(46,230,166,0.65))"
+            : hovered
+            ? "drop-shadow(0 0 4px rgba(46,230,166,0.4))"
+            : "drop-shadow(0 0 3px rgba(0,0,0,0.95))",
+          pointerEvents: "none",
+        }}
       >
         {competitor.competitor_name}
       </text>
@@ -607,6 +625,7 @@ export default function Radar({
       return;
     }
     setAlertDismissed(false);
+    getAudioManager().play("alert");
     capture("critical_alert_triggered", {
       competitor_id:   criticalAlert.competitor_id,
       competitor_name: criticalAlert.competitor_name,
@@ -690,6 +709,15 @@ export default function Radar({
     }
     return [...map.values()].filter((g) => g.nodes.length >= 2);
   }, [gravityMode, gravityPositions, sorted]);
+
+  // ── Sound toggle (radar-level quick access) ──────────────────────────────
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  useEffect(() => { setSoundEnabled(getAudioManager().isEnabled); }, []);
+  const handleSoundToggle = useCallback(() => {
+    const next = getAudioManager().toggle();
+    setSoundEnabled(next);
+    if (next) getAudioManager().play("blip");
+  }, []);
 
   // ── Isolation + zoom + pan ───────────────────────────────────────────────
   const [isolated, setIsolated] = useState(false);
@@ -829,6 +857,7 @@ export default function Radar({
   );
 
   const handleBlipClick = useCallback((id: string) => {
+    getAudioManager().play("echo");
     setSelectedId((prev) => {
       if (prev !== id) {
         capture("competitor_selected", { competitor_id: id });
@@ -955,7 +984,7 @@ export default function Radar({
                   style={{ background: "#020602" }}
                 >
                   <button
-                    onClick={() => setGravityMode(false)}
+                    onClick={() => { if (gravityMode) { setGravityMode(false); getAudioManager().play("swoosh"); } }}
                     className="rounded-[6px] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all duration-200"
                     style={{
                       background: !gravityMode ? "rgba(46,230,166,0.09)" : "transparent",
@@ -966,7 +995,7 @@ export default function Radar({
                     Standard
                   </button>
                   <button
-                    onClick={() => setGravityMode(true)}
+                    onClick={() => { if (!gravityMode) { setGravityMode(true); getAudioManager().play("swoosh"); } }}
                     className="rounded-[6px] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all duration-200"
                     style={{
                       background: gravityMode ? "rgba(46,230,166,0.09)" : "transparent",
@@ -1647,7 +1676,7 @@ export default function Radar({
             <div className="absolute right-3 top-3 z-20 flex flex-col gap-1.5">
               {/* Observatory isolation toggle */}
               <button
-                onClick={() => setIsolated((p) => !p)}
+                onClick={() => { setIsolated((p) => !p); getAudioManager().play("swoosh"); }}
                 title={isolated ? "Exit observatory mode (Esc)" : "Observatory mode"}
                 className="flex h-7 w-7 items-center justify-center rounded-lg transition-all"
                 style={{
@@ -1716,6 +1745,35 @@ export default function Radar({
                   {Math.round(zoom * 100)}%
                 </div>
               )}
+
+              {/* Sound toggle */}
+              <button
+                onClick={handleSoundToggle}
+                title={soundEnabled ? "Sound on — click to mute" : "Sound off — click to enable"}
+                aria-label={soundEnabled ? "Disable sound effects" : "Enable sound effects"}
+                aria-pressed={soundEnabled}
+                className="flex h-7 w-7 items-center justify-center rounded-lg transition-all"
+                style={{
+                  background: "rgba(0,0,0,0.88)",
+                  border: `1px solid ${soundEnabled ? "rgba(46,230,166,0.3)" : "#0e2210"}`,
+                  color: soundEnabled ? "#2EE6A6" : "#3a5a3a",
+                  boxShadow: soundEnabled ? "0 0 8px rgba(46,230,166,0.15)" : "none",
+                  marginTop: "4px",
+                }}
+              >
+                {soundEnabled ? (
+                  <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
+                    <path d="M2 4H1v3h1l3 2.5V1.5L2 4z" fill="currentColor" />
+                    <path d="M7 3.5c.8.6 1.3 1.5 1.3 2.5S7.8 7.9 7 8.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                    <path d="M8.5 2c1.2 1 2 2.5 2 4s-.8 3-2 4" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" opacity="0.6" />
+                  </svg>
+                ) : (
+                  <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
+                    <path d="M2 4H1v3h1l3 2.5V1.5L2 4z" fill="currentColor" />
+                    <path d="M8 4l-2 2m0-2l2 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                  </svg>
+                )}
+              </button>
             </div>
 
             {/* ── Observatory mode overlays ────────────────────────── */}

@@ -1,0 +1,282 @@
+/**
+ * Metrivant Audio Manager
+ *
+ * Minimal Web Audio API synthesizer — zero external files, zero loading state.
+ * All sounds are generated procedurally via oscillators, noise, and envelopes.
+ *
+ * Rules:
+ * - Default OFF. User must opt in.
+ * - AudioContext created lazily on first play() call (user gesture required).
+ * - All sound code is wrapped in try/catch — audio never blocks interaction.
+ * - SSR-safe: all window access is guarded.
+ */
+
+const STORAGE_KEY = "mv_sound_enabled";
+
+export type SoundName = "blip" | "echo" | "swoosh" | "alert" | "success";
+
+class AudioManager {
+  private ctx: AudioContext | null = null;
+  private _enabled: boolean = false;
+  private lastBlipAt: number = 0;
+
+  constructor() {
+    if (typeof window === "undefined") return;
+    try {
+      this._enabled = localStorage.getItem(STORAGE_KEY) === "1";
+    } catch {
+      // localStorage unavailable — default stays false
+    }
+  }
+
+  get isEnabled(): boolean {
+    return this._enabled;
+  }
+
+  toggle(): boolean {
+    this._enabled = !this._enabled;
+    this._persist();
+    return this._enabled;
+  }
+
+  setEnabled(v: boolean): void {
+    this._enabled = v;
+    this._persist();
+  }
+
+  private _persist(): void {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(STORAGE_KEY, this._enabled ? "1" : "0");
+    } catch {}
+  }
+
+  private _ctx(): AudioContext | null {
+    if (typeof window === "undefined") return null;
+    try {
+      if (!this.ctx) {
+        this.ctx = new AudioContext();
+      }
+      // Resume if browser suspended the context (common on first user gesture)
+      if (this.ctx.state === "suspended") {
+        void this.ctx.resume();
+      }
+      return this.ctx;
+    } catch {
+      return null;
+    }
+  }
+
+  play(name: SoundName): void {
+    if (!this._enabled) return;
+    const ctx = this._ctx();
+    if (!ctx) return;
+    try {
+      switch (name) {
+        case "blip":    this._blip(ctx);    break;
+        case "echo":    this._echo(ctx);    break;
+        case "swoosh":  this._swoosh(ctx);  break;
+        case "alert":   this._alert(ctx);   break;
+        case "success": this._success(ctx); break;
+      }
+    } catch {
+      // Audio errors are never surfaced to the user
+    }
+  }
+
+  /**
+   * BLIP — radar node hover.
+   * Soft sine sweep, 70ms, very quiet. Debounced at 80ms to prevent
+   * rapid-fire noise when the cursor crosses multiple nodes.
+   */
+  private _blip(ctx: AudioContext): void {
+    const now = Date.now();
+    if (now - this.lastBlipAt < 80) return;
+    this.lastBlipAt = now;
+
+    const t = ctx.currentTime;
+    const osc  = ctx.createOscillator();
+    const filt = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(440, t);
+    osc.frequency.linearRampToValueAtTime(520, t + 0.065);
+
+    filt.type = "lowpass";
+    filt.frequency.value = 1800;
+    filt.Q.value = 0.8;
+
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.05, t + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+
+    osc.connect(filt);
+    filt.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(t);
+    osc.stop(t + 0.08);
+  }
+
+  /**
+   * ECHO — node selection.
+   * Airy sine with soft delay feedback. Spatial and premium-feeling.
+   * Decay feedback tapers out to prevent infinite ringing.
+   */
+  private _echo(ctx: AudioContext): void {
+    const t = ctx.currentTime;
+    const osc  = ctx.createOscillator();
+    const filt = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+    const delay = ctx.createDelay(0.5);
+    const fb    = ctx.createGain();
+    const wet   = ctx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(528, t);
+    osc.frequency.linearRampToValueAtTime(498, t + 0.3);
+
+    filt.type = "lowpass";
+    filt.frequency.value = 1600;
+    filt.Q.value = 1.0;
+
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.09, t + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.38);
+
+    delay.delayTime.value = 0.11;
+    fb.gain.setValueAtTime(0.26, t);
+    fb.gain.exponentialRampToValueAtTime(0.0001, t + 0.65); // taper off feedback loop
+    wet.gain.value = 0.18;
+
+    osc.connect(filt);
+    filt.connect(gain);
+    gain.connect(ctx.destination);
+    gain.connect(delay);
+    delay.connect(fb);
+    fb.connect(delay);
+    delay.connect(wet);
+    wet.connect(ctx.destination);
+
+    osc.start(t);
+    osc.stop(t + 0.45);
+  }
+
+  /**
+   * SWOOSH — mode transitions (observatory, gravity field, panel reveals).
+   * Bandpass-filtered white noise sweeping upward in frequency. Implies motion.
+   */
+  private _swoosh(ctx: AudioContext): void {
+    const t   = ctx.currentTime;
+    const dur = 0.22;
+    const bufLen = Math.ceil(ctx.sampleRate * dur);
+    const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
+
+    const src  = ctx.createBufferSource();
+    const filt = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+
+    src.buffer = buf;
+
+    filt.type = "bandpass";
+    filt.frequency.setValueAtTime(180, t);
+    filt.frequency.exponentialRampToValueAtTime(860, t + dur);
+    filt.Q.value = 2.5;
+
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.062, t + 0.018);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+    src.connect(filt);
+    filt.connect(gain);
+    gain.connect(ctx.destination);
+
+    src.start(t);
+    src.stop(t + dur + 0.02);
+  }
+
+  /**
+   * ALERT — critical strategic movement detected.
+   * Two-tone soft chime (major third: A4 + C#5), staggered slightly.
+   * Attention-grabbing but warm — not harsh or shrill.
+   */
+  private _alert(ctx: AudioContext): void {
+    const t = ctx.currentTime;
+    [440, 554].forEach((freq, i) => {
+      const osc  = ctx.createOscillator();
+      const filt = ctx.createBiquadFilter();
+      const gain = ctx.createGain();
+      const s = t + i * 0.045;
+
+      osc.type = "sine";
+      osc.frequency.value = freq;
+
+      filt.type = "lowpass";
+      filt.frequency.value = 2600;
+      filt.Q.value = 0.7;
+
+      gain.gain.setValueAtTime(0, s);
+      gain.gain.linearRampToValueAtTime(0.11, s + 0.018);
+      gain.gain.exponentialRampToValueAtTime(0.0001, s + 0.55);
+
+      osc.connect(filt);
+      filt.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(s);
+      osc.stop(s + 0.62);
+    });
+  }
+
+  /**
+   * SUCCESS — action confirmed (competitor tracked, save confirmed).
+   * Short ascending two-note: A4 → E5. Restrained, positive.
+   */
+  private _success(ctx: AudioContext): void {
+    const t = ctx.currentTime;
+    [{ f: 440, s: 0 }, { f: 660, s: 0.1 }].forEach(({ f, s }) => {
+      const osc  = ctx.createOscillator();
+      const filt = ctx.createBiquadFilter();
+      const gain = ctx.createGain();
+      const at = t + s;
+
+      osc.type = "sine";
+      osc.frequency.value = f;
+
+      filt.type = "lowpass";
+      filt.frequency.value = 2200;
+
+      gain.gain.setValueAtTime(0, at);
+      gain.gain.linearRampToValueAtTime(0.07, at + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.13);
+
+      osc.connect(filt);
+      filt.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(at);
+      osc.stop(at + 0.15);
+    });
+  }
+}
+
+// ─── Client-side singleton ────────────────────────────────────────────────────
+// SSR returns a no-op stub; client gets the real manager.
+let _manager: AudioManager | null = null;
+
+export function getAudioManager(): AudioManager {
+  if (typeof window === "undefined") {
+    // SSR stub — none of these calls do anything
+    return {
+      isEnabled: false,
+      toggle: () => false,
+      setEnabled: () => {},
+      play: () => {},
+    } as unknown as AudioManager;
+  }
+  if (!_manager) _manager = new AudioManager();
+  return _manager;
+}

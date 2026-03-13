@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "../../../lib/supabase/server";
 import Link from "next/link";
 import { SECTOR_CONFIGS, SECTORS, getSectorConfig } from "../../../lib/sectors";
+import SoundSettings from "../../../components/SoundSettings";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -127,6 +128,14 @@ export default async function SettingsPage() {
               Save sector
             </button>
           </form>
+        </section>
+
+        {/* ── Sound ───────────────────────────────────────────────────── */}
+        <section className="mb-6 rounded-[14px] border border-[#0d2010] bg-[#020802] p-6">
+          <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+            Sound
+          </h2>
+          <SoundSettings />
         </section>
 
         {/* ── Session ─────────────────────────────────────────────────── */}
