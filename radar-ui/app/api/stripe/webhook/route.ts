@@ -9,7 +9,7 @@
 
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
-import { stripe } from "../../../../lib/stripe";
+import { getStripe } from "../../../../lib/stripe";
 import { createServiceClient } from "../../../../lib/supabase/service";
 import { captureException } from "../../../../lib/sentry";
 
@@ -30,7 +30,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(buf, sig, WEBHOOK_SECRET);
+    event = getStripe().webhooks.constructEvent(buf, sig, WEBHOOK_SECRET);
   } catch (err) {
     captureException(
       err instanceof Error ? err : new Error("Stripe webhook signature verification failed"),
@@ -96,7 +96,7 @@ async function handleCheckoutCompleted(
   const userId = session.client_reference_id ?? session.metadata?.user_id ?? null;
 
   // Retrieve full subscription object for period / cancel state
-  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const subscription = await getStripe().subscriptions.retrieve(subscriptionId);
   const plan = (subscription.metadata?.plan ?? "analyst") as "analyst" | "pro";
 
   await syncSubscription(service, subscription, plan, orgId, customerId);
@@ -218,7 +218,7 @@ async function handlePaymentFailed(
   // PostHog — best-effort
   const posthogKey = process.env.POSTHOG_API_KEY;
   if (posthogKey) {
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId).catch(() => null);
+    const subscription = await getStripe().subscriptions.retrieve(subscriptionId).catch(() => null);
     const userId = subscription?.metadata?.user_id;
     if (userId) {
       void fetch("https://app.posthog.com/capture", {

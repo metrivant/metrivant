@@ -7,7 +7,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "../../../../lib/supabase/server";
-import { stripe, getPriceId, VALID_PLANS } from "../../../../lib/stripe";
+import { getStripe, getPriceId, VALID_PLANS } from "../../../../lib/stripe";
 import { captureException } from "../../../../lib/sentry";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
@@ -64,7 +64,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   // ── Create checkout session ───────────────────────────────────────────────
   try {
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       mode:                "subscription",
       customer:            existingCustomer ?? undefined,
       customer_email:      existingCustomer ? undefined : (user.email ?? undefined),

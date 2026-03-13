@@ -4,7 +4,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "../../../../lib/supabase/server";
-import { stripe } from "../../../../lib/stripe";
+import { getStripe } from "../../../../lib/stripe";
 import { captureException } from "../../../../lib/sentry";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
@@ -35,7 +35,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   // ── Create portal session ─────────────────────────────────────────────────
   try {
-    const portalSession = await stripe.billingPortal.sessions.create({
+    const portalSession = await getStripe().billingPortal.sessions.create({
       customer:   stripeCustomerId,
       return_url: `${SITE_URL}/app/billing`,
     });
