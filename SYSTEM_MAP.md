@@ -103,7 +103,22 @@ The pipeline is sector-agnostic. Sector controls display language, catalog curat
 
 ---
 
-## 8. System Constraints
+## 8. Scaling Safeguards
+
+| Safeguard | Location |
+|---|---|
+| Cron heartbeats | `lib/cronHeartbeat.ts` — upserts one row per run into `cron_heartbeats` |
+| Health endpoint | `/api/health` — public diagnostic endpoint; returns DB connectivity + cron staleness; HTTP 503 when stale |
+| OpenAI org cap | `OPENAI_MAX_ORGS_PER_RUN` env var (default 100) — caps GPT-4o calls per run in `strategic-analysis` and `update-positioning` |
+| History pruning | `momentum_history` and `positioning_history` pruned to 90 days on each cron run |
+| Idempotency guard | `strategic-analysis` and `update-positioning` skip re-generation if an org was already processed in the last hour |
+| Plan enforcement | `/api/discover/track` enforces competitor limits (analyst=5, pro=25) server-side |
+
+Migration required: `migrations/016_cron_heartbeats.sql` (creates `cron_heartbeats` table and pruning indexes).
+
+---
+
+## 9. System Constraints
 
 Do not introduce:
 

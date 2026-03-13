@@ -130,6 +130,7 @@ async function handleCheckoutCompleted(
   // PostHog — best-effort
   const posthogKey = process.env.POSTHOG_API_KEY;
   if (posthogKey && userId) {
+    const PLAN_AMOUNT_CENTS: Record<string, number> = { analyst: 900, pro: 1900 };
     void fetch("https://app.posthog.com/capture", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
@@ -137,7 +138,7 @@ async function handleCheckoutCompleted(
         api_key:     posthogKey,
         event:       "checkout_completed",
         distinct_id: userId,
-        properties:  { plan },
+        properties:  { plan, amount_cents: PLAN_AMOUNT_CENTS[plan] ?? null },
       }),
     }).catch(() => null);
   }

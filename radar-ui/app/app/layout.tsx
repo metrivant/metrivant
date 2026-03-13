@@ -17,9 +17,20 @@ export default async function AppLayout({
     redirect("/login");
   }
 
+  // Fetch org sector for PostHog segmentation — non-blocking, best-effort.
+  const { data: orgRows } = await supabase
+    .from("organizations")
+    .select("sector")
+    .eq("owner_id", user.id)
+    .limit(1);
+
+  const sector = (orgRows?.[0]?.sector as string | null) ?? null;
+  const planRaw = user.user_metadata?.plan as string | undefined;
+  const plan = planRaw === "pro" ? "pro" : "analyst";
+
   return (
     <>
-      <PostHogIdentify userId={user.id} email={user.email ?? null} />
+      <PostHogIdentify userId={user.id} email={user.email ?? null} plan={plan} sector={sector} />
       <KeybindingHint />
       {children}
     </>

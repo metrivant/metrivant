@@ -93,6 +93,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     // PostHog — best-effort
     const posthogKey = process.env.POSTHOG_API_KEY;
     if (posthogKey) {
+      const PLAN_AMOUNT_CENTS: Record<string, number> = { analyst: 900, pro: 1900 };
       void fetch("https://app.posthog.com/capture", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
@@ -100,7 +101,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           api_key:     posthogKey,
           event:       "checkout_started",
           distinct_id: user.id,
-          properties:  { plan: validPlan },
+          properties:  { plan: validPlan, amount_cents: PLAN_AMOUNT_CENTS[validPlan] ?? null },
         }),
       }).catch(() => null);
     }

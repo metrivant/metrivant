@@ -40,11 +40,12 @@ async function handler(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const service      = createServiceClient();
+
   if (!OPENAI_API_KEY) {
+    await writeCronHeartbeat(service, "/api/strategic-analysis", "error", 0, 0, "OPENAI_API_KEY not configured");
     return NextResponse.json({ error: "OPENAI_API_KEY not configured" }, { status: 500 });
   }
-
-  const service      = createServiceClient();
   const runStart     = Date.now();
   const analysisDate = new Date().toLocaleDateString("en-US", {
     month: "long", day: "numeric", year: "numeric",

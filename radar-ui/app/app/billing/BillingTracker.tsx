@@ -17,7 +17,10 @@ export default function BillingTracker() {
 
   useEffect(() => {
     if (!checkoutDone) return;
-    capture("checkout_completed", { source: "billing_redirect" });
+    // "checkout_success_confirmed" = client-side UI confirmation of successful payment.
+    // The authoritative "checkout_completed" event is fired server-side by the Stripe webhook.
+    // Using a distinct event name prevents double-counting conversions in PostHog funnels.
+    capture("checkout_success_confirmed", { source: "billing_redirect" });
 
     // Auto-dismiss after 6 s
     const t = setTimeout(() => setShow(false), 6000);

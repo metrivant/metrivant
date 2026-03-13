@@ -39,6 +39,7 @@ async function handler(request: Request): Promise<NextResponse> {
   }
 
   if (!OPENAI_API_KEY) {
+    await writeCronHeartbeat(createServiceClient(), "/api/update-positioning", "error", 0, 0, "OPENAI_API_KEY not configured");
     return NextResponse.json({ error: "OPENAI_API_KEY not configured" }, { status: 500 });
   }
 

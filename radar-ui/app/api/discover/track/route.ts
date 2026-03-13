@@ -102,6 +102,33 @@ export async function POST(request: Request) {
     }
   }
 
+  // ── Plan limit enforcement ────────────────────────────────────────────────
+  // Check against the limit only when adding a NEW competitor (not re-adding
+  // an existing one — the upsert below is idempotent for duplicates).
+
+  const { count: alreadyTracked } = await supabase
+    .from("tracked_competitors")
+    .select("*", { count: "exact", head: true })
+    .eq("org_id", orgId)
+    .eq("website_url", url);
+
+  if ((alreadyTracked ?? 0) === 0) {
+    const planValue = user.user_metadata?.plan as string | undefined;
+    const limit = planValue === "pro" ? 25 : 5;
+
+    const { count: currentCount } = await supabase
+      .from("tracked_competitors")
+      .select("*", { count: "exact", head: true })
+      .eq("org_id", orgId);
+
+    if ((currentCount ?? 0) >= limit) {
+      return NextResponse.json(
+        { error: "Competitor limit reached for your plan", limit, upgrade_url: "/pricing" },
+        { status: 403 }
+      );
+    }
+  }
+
   // ── Upsert tracked competitor (idempotent on org_id + website_url) ──────────
 
   const { error: competitorError } = await supabase
