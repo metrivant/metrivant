@@ -12,6 +12,7 @@ import {
   buildMomentumAlertEmailHtml,
 } from "../../../lib/momentum";
 import { sendEmail, FROM_ALERTS } from "../../../lib/email";
+import { captureException } from "../../../lib/sentry";
 import { writeCronHeartbeat } from "../../../lib/cronHeartbeat";
 
 const POSTHOG_API_KEY = process.env.POSTHOG_API_KEY ?? "";
@@ -43,6 +44,9 @@ async function handler(request: Request): Promise<NextResponse> {
     .select("id, owner_id");
 
   if (orgError || !orgs) {
+    captureException(orgError ?? new Error("orgs returned null"), {
+      route: "update-momentum", step: "orgs_select",
+    });
     return NextResponse.json({ error: "Failed to load orgs" }, { status: 500 });
   }
 
@@ -50,6 +54,7 @@ async function handler(request: Request): Promise<NextResponse> {
   let totalAlerts    = 0;
 
   for (const org of orgs) {
+    try {
     // Load current radar_feed for this org — ordered for deterministic top-50 selection
     const { data: feed } = await service
       .from("radar_feed")
@@ -184,6 +189,12 @@ async function handler(request: Request): Promise<NextResponse> {
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ api_key: POSTHOG_API_KEY, batch: events }),
       }).catch(() => null);
+    }
+    } catch (err) {
+      captureException(err instanceof Error ? err : new Error(String(err)), {
+        route: "update-momentum", org_id: String(org.id),
+      });
+      console.error(`update-momentum: org ${org.id as string} failed:`, err);
     }
   }
 

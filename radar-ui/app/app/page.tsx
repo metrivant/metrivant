@@ -13,6 +13,7 @@ import AppOverlays from "../../components/AppOverlays";
 import TrialLockScreen from "../../components/TrialLockScreen";
 import DailyBriefOverlay from "../../components/DailyBriefOverlay";
 import MobileNav from "../../components/MobileNav";
+import AchievementsButton from "../../components/AchievementsButton";
 import { getRadarFeed } from "../../lib/api";
 import { createClient } from "../../lib/supabase/server";
 import { getSubscriptionState } from "../../lib/subscription";
@@ -105,6 +106,16 @@ export default async function Page() {
     (c) => Number(c.momentum_score ?? 0) > 0
   ).length;
 
+  const hasCriticalAlert = competitors.some(
+    (c) =>
+      Number(c.momentum_score ?? 0) >= 7 &&
+      Number(c.signals_7d ?? 0) >= 3 &&
+      Number(c.latest_movement_confidence ?? 0) >= 0.7 &&
+      c.latest_movement_type != null &&
+      c.latest_movement_last_seen_at != null &&
+      Date.now() - new Date(c.latest_movement_last_seen_at).getTime() < 48 * 60 * 60 * 1000
+  );
+
   // Competitors with any signal in the last 24h — the habit-forming daily metric.
   const newToday = competitors.filter((c) => {
     if (!c.last_signal_at) return false;
@@ -182,6 +193,12 @@ export default async function Page() {
 
           {/* ── Right: stats + notification ────────────────────────────── */}
           <div className="flex items-center gap-3 md:gap-4">
+            <AchievementsButton
+              totalSignals7d={totalSignals7d}
+              competitorCount={competitors.length}
+              hasMovement={competitors.some((c) => c.latest_movement_type != null)}
+              hasCriticalAlert={hasCriticalAlert}
+            />
             <PlanBadge plan={plan} trialDaysRemaining={trialDaysRemaining} />
             {/* SectorSwitcher: accessible via Settings on mobile */}
             <div className="hidden md:block">

@@ -304,6 +304,9 @@ function BriefsOverlay({ onClose }: { onClose: () => void }) {
           setError(true);
         } else {
           setBriefs((data ?? []) as WeeklyBrief[]);
+          if (data && data.length > 0) {
+            window.dispatchEvent(new CustomEvent("mv:achieve", { detail: "brief_viewed" }));
+          }
         }
       } catch {
         if (!cancelled) setError(true);
@@ -521,6 +524,9 @@ function StrategyOverlay({ onClose }: { onClose: () => void }) {
           setError(true);
         } else {
           setInsights((data ?? []) as unknown as InsightRow[]);
+          if (data && data.length > 0) {
+            window.dispatchEvent(new CustomEvent("mv:achieve", { detail: "strategy_reviewed" }));
+          }
         }
       } catch {
         if (!cancelled) setError(true);

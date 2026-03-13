@@ -7,6 +7,7 @@ import {
   FROM_ALERTS,
 } from "../../../lib/email";
 import { createServiceClient } from "../../../lib/supabase/service";
+import { captureException } from "../../../lib/sentry";
 import { writeCronHeartbeat } from "../../../lib/cronHeartbeat";
 
 function isAuthorized(request: Request): boolean {
@@ -30,16 +31,29 @@ async function runCheck(): Promise<NextResponse> {
   const supabase = createServiceClient();
 
   // 1 — Get all orgs
-  const { data: orgs } = await supabase
+  const { data: orgs, error: orgsError } = await supabase
     .from("organizations")
     .select("id, owner_id");
+
+  if (orgsError) {
+    captureException(orgsError, { route: "check-signals", step: "orgs_select" });
+    return NextResponse.json({ error: "Failed to load orgs" }, { status: 500 });
+  }
 
   if (!orgs || orgs.length === 0) {
     return NextResponse.json({ ok: true, message: "No orgs registered" });
   }
 
   // 2 — Fetch active competitors (signals in last 7 days)
-  const competitors = await getRadarFeed(50);
+  let competitors;
+  try {
+    competitors = await getRadarFeed(50);
+  } catch (err) {
+    captureException(err instanceof Error ? err : new Error(String(err)), {
+      route: "check-signals", step: "radar_feed",
+    });
+    return NextResponse.json({ error: "Failed to fetch radar feed" }, { status: 500 });
+  }
   const active = competitors.filter((c) => c.signals_7d > 0);
 
   if (active.length === 0) {
@@ -109,12 +123,17 @@ async function runCheck(): Promise<NextResponse> {
       severity:        q.severity,
     }));
 
-    const { data: inserted } = await supabase
+    const { data: inserted, error: upsertError } = await supabase
       .from("alerts")
       .upsert(payload, { onConflict: "org_id,signal_id", ignoreDuplicates: true })
       .select("id, signal_id, competitor_name, signal_type, summary, urgency, severity, created_at, read");
 
-    if (inserted && inserted.length > 0) {
+    if (upsertError) {
+      captureException(upsertError, {
+        route: "check-signals", step: "alert_upsert", org_id: org.id,
+      });
+      // Non-fatal — continue to next org
+    } else if (inserted && inserted.length > 0) {
       alertsCreated += inserted.length;
       newAlertsByOrg.set(org.id, inserted as AlertRow[]);
     }
@@ -132,9 +151,16 @@ async function runCheck(): Promise<NextResponse> {
   // 6 — Send emails to org owners who have new alerts
   const emailsSent: string[] = [];
 
-  const {
-    data: { users },
-  } = await supabase.auth.admin.listUsers({ perPage: 500 });
+  let users: Awaited<ReturnType<typeof supabase.auth.admin.listUsers>>["data"]["users"];
+  try {
+    const result = await supabase.auth.admin.listUsers({ perPage: 500 });
+    users = result.data.users;
+  } catch (err) {
+    captureException(err instanceof Error ? err : new Error(String(err)), {
+      route: "check-signals", step: "list_users",
+    });
+    users = [];
+  }
 
   const emailTasks = (orgs as Array<{ id: string; owner_id: string }>)
     .filter((org) => newAlertsByOrg.has(org.id))

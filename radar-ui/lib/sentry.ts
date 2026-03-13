@@ -35,3 +35,26 @@ export function captureException(
     // Never let Sentry errors surface to callers.
   }
 }
+
+/**
+ * Capture a non-exception message (e.g. unexpected empty state, config warning).
+ * level defaults to "warning". Fire-and-forget.
+ */
+export function captureMessage(
+  message: string,
+  context?: Record<string, string | number | boolean | null>,
+  level: "debug" | "info" | "warning" | "error" | "fatal" = "warning"
+): void {
+  try {
+    init();
+    SentrySDK.withScope((scope) => {
+      scope.setLevel(level);
+      if (context) {
+        scope.setExtras(context as Record<string, unknown>);
+      }
+      SentrySDK.captureMessage(message);
+    });
+  } catch {
+    // Never let Sentry errors surface to callers.
+  }
+}

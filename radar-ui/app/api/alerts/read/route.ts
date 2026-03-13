@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "../../../../lib/supabase/server";
+import { captureException } from "../../../../lib/sentry";
 
 export async function POST(request: Request): Promise<NextResponse> {
   const supabase = await createClient();
@@ -41,6 +42,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   const { error, count } = await query;
 
   if (error) {
+    captureException(error, { route: "alerts/read", step: "alerts_update", org_id: org.id });
     return NextResponse.json({ error: "Failed to update alerts" }, { status: 500 });
   }
 

@@ -13,7 +13,7 @@
 
 const STORAGE_KEY = "mv_sound_enabled";
 
-export type SoundName = "blip" | "echo" | "swoosh" | "alert" | "success";
+export type SoundName = "blip" | "echo" | "swoosh" | "alert" | "success" | "achieve";
 
 class AudioManager {
   private ctx: AudioContext | null = null;
@@ -73,11 +73,12 @@ class AudioManager {
     if (!ctx) return;
     try {
       switch (name) {
-        case "blip":    this._blip(ctx, 0); break;
-        case "echo":    this._echo(ctx);    break;
-        case "swoosh":  this._swoosh(ctx);  break;
-        case "alert":   this._alert(ctx);   break;
-        case "success": this._success(ctx); break;
+        case "blip":    this._blip(ctx, 0);    break;
+        case "echo":    this._echo(ctx);       break;
+        case "swoosh":  this._swoosh(ctx);     break;
+        case "alert":   this._alert(ctx);      break;
+        case "success": this._success(ctx);    break;
+        case "achieve": this._achieve(ctx);    break;
       }
     } catch {
       // Audio errors are never surfaced to the user
@@ -251,6 +252,39 @@ class AudioManager {
 
       osc.start(s);
       osc.stop(s + 0.62);
+    });
+  }
+
+  /**
+   * ACHIEVE — Intel Score achievement unlocked.
+   * Soft ascending three-note arpeggio: C5 → E5 → G5 (major chord).
+   * Each note fades gently. Warm, rewarding, non-jarring.
+   */
+  private _achieve(ctx: AudioContext): void {
+    const t = ctx.currentTime;
+    [523, 659, 784].forEach((freq, i) => {
+      const osc  = ctx.createOscillator();
+      const filt = ctx.createBiquadFilter();
+      const gain = ctx.createGain();
+      const s = t + i * 0.082;
+
+      osc.type = "sine";
+      osc.frequency.value = freq;
+
+      filt.type = "lowpass";
+      filt.frequency.value = 2800;
+      filt.Q.value = 0.5;
+
+      gain.gain.setValueAtTime(0, s);
+      gain.gain.linearRampToValueAtTime(0.055, s + 0.016);
+      gain.gain.exponentialRampToValueAtTime(0.0001, s + 0.44);
+
+      osc.connect(filt);
+      filt.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(s);
+      osc.stop(s + 0.46);
     });
   }
 

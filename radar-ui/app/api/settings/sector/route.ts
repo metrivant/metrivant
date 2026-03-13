@@ -1,6 +1,7 @@
 import { createClient } from "../../../../lib/supabase/server";
 import { NextResponse } from "next/server";
 import { SECTORS } from "../../../../lib/sectors";
+import { captureException } from "../../../../lib/sentry";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -36,6 +37,7 @@ export async function POST(request: Request) {
       .eq("owner_id", user.id);
 
     if (error) {
+      captureException(error, { route: "settings/sector", step: "org_update", user_id: user.id });
       return NextResponse.json({ error: "Failed to update sector" }, { status: 500 });
     }
   } else {
@@ -45,6 +47,7 @@ export async function POST(request: Request) {
       .insert({ owner_id: user.id, sector });
 
     if (error) {
+      captureException(error, { route: "settings/sector", step: "org_insert", user_id: user.id });
       return NextResponse.json({ error: "Failed to create organization" }, { status: 500 });
     }
   }

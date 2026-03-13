@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "../../../lib/supabase/server";
 import type { AlertRow } from "../../../lib/alert";
+import { captureException } from "../../../lib/sentry";
 
 export async function GET(): Promise<NextResponse> {
   const supabase = await createClient();
@@ -33,6 +34,7 @@ export async function GET(): Promise<NextResponse> {
     .limit(40);
 
   if (error) {
+    captureException(error, { route: "alerts", step: "alerts_select", org_id: org.id });
     return NextResponse.json({ error: "Failed to load alerts" }, { status: 500 });
   }
 

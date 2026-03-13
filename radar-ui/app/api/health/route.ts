@@ -8,6 +8,7 @@
 
 import { NextResponse } from "next/server";
 import { createServiceClient } from "../../../lib/supabase/service";
+import { captureMessage } from "../../../lib/sentry";
 
 // Expected minimum run frequency (minutes) per cron route.
 // Stale if last_run_at is older than these thresholds.
@@ -43,9 +44,17 @@ export async function GET(): Promise<NextResponse> {
     if (!error) {
       dbConnected = true;
       orgCount    = count ?? 0;
+    } else {
+      captureMessage("Health check: Supabase DB query error", {
+        route: "health", error_code: error.code ?? null, error_message: error.message,
+      }, "error");
     }
-  } catch {
+  } catch (err) {
     // dbConnected stays false
+    captureMessage("Health check: Supabase DB unreachable", {
+      route: "health",
+      detail: err instanceof Error ? err.message : String(err),
+    }, "error");
   }
 
   // ── Cron heartbeats ───────────────────────────────────────────────────────
