@@ -5,8 +5,9 @@ import { motion } from "framer-motion";
 /**
  * Animated radar logo for the app header.
  *
- * Outer ring: slow opacity pulse (3.5s, continuous).
- * Needle + sweep area: intermittent rotation — pause 4s, sweep 5s, pause 3s, repeat.
+ * Outer ring: slow opacity breathe (3.5s).
+ * Needle + sweep area: continuous clockwise rotation — watch-dial style (9s per revolution).
+ * Echo pulse: outer ring flares softly every ~20s.
  */
 export default function RadarLogo() {
   return (
@@ -18,8 +19,28 @@ export default function RadarLogo() {
         r="21.5"
         stroke="#2EE6A6"
         strokeWidth="1.5"
-        animate={{ strokeOpacity: [0.35, 0.65, 0.35] }}
+        animate={{ strokeOpacity: [0.35, 0.55, 0.35] }}
         transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      {/* Echo pulse ring — soft flare every ~20s */}
+      <motion.circle
+        cx="23"
+        cy="23"
+        r="21.5"
+        stroke="#2EE6A6"
+        strokeWidth="1"
+        animate={{
+          strokeOpacity: [0, 0, 0.55, 0],
+          scale:         [1, 1, 1.08, 1.16],
+        }}
+        style={{ transformOrigin: "23px 23px" }}
+        transition={{
+          duration:    1.8,
+          repeat:      Infinity,
+          repeatDelay: 19,
+          ease:        "easeOut",
+        }}
       />
 
       {/* Middle ring */}
@@ -28,22 +49,20 @@ export default function RadarLogo() {
       {/* Inner ring */}
       <circle cx="23" cy="23" r="5.5" stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.42" />
 
-      {/* Needle + sweep sector — intermittent rotation around center */}
-      {/* Pause 33% → sweep 50% → pause 17% of each 12s cycle */}
+      {/* Needle + sweep sector — continuous clockwise rotation (watch-dial) */}
       <motion.g
         style={{ transformOrigin: "23px 23px" }}
-        animate={{ rotate: [0, 0, 360, 360] }}
+        animate={{ rotate: [0, 360] }}
         transition={{
-          duration: 12,
-          repeat: Infinity,
-          ease: "linear",
-          times: [0, 0.33, 0.83, 1],
+          duration: 9,
+          repeat:   Infinity,
+          ease:     "linear",
         }}
       >
         <path
           d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z"
           fill="#2EE6A6"
-          fillOpacity="0.10"
+          fillOpacity="0.09"
         />
         <line
           x1="23"
@@ -52,7 +71,7 @@ export default function RadarLogo() {
           y2="9.8"
           stroke="#2EE6A6"
           strokeWidth="1.5"
-          strokeOpacity="0.85"
+          strokeOpacity="0.80"
         />
       </motion.g>
 

@@ -37,30 +37,6 @@ export default function KeybindingHint() {
     return () => document.removeEventListener("keydown", handler);
   }, [router]);
 
-  return (
-    // Hidden on mobile, visible on md+ screens
-    <div className="pointer-events-none fixed bottom-5 right-5 z-40 hidden items-center gap-3 md:flex">
-      {SHORTCUTS.map(({ key, label }) => (
-        <span key={key} className="flex items-center gap-1.5">
-          <span
-            className="flex h-5 min-w-[20px] items-center justify-center rounded px-1.5 font-mono text-[9px] font-bold uppercase"
-            style={{
-              background: "rgba(0,0,0,0.72)",
-              border: "1px solid rgba(46,230,166,0.18)",
-              color: "rgba(46,230,166,0.55)",
-              boxShadow: "0 0 6px rgba(46,230,166,0.08)",
-            }}
-          >
-            {key}
-          </span>
-          <span
-            className="text-[9px] uppercase tracking-[0.16em]"
-            style={{ color: "rgba(100,116,139,0.55)" }}
-          >
-            {label}
-          </span>
-        </span>
-      ))}
-    </div>
-  );
+  // Keyboard handler only — legend is rendered in SidebarNav
+  return null;
 }

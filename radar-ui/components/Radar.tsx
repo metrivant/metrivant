@@ -1867,7 +1867,7 @@ export default function Radar({
                   onClick={() => setZoom((p) => Math.min(6, p * 1.3))}
                   title="Zoom in (+)"
                   className="flex h-7 w-7 items-center justify-center rounded-lg text-[16px] font-light leading-none transition-all hover:border-[rgba(46,230,166,0.25)] hover:text-[#2EE6A6]"
-                  style={{ background: "rgba(0,0,0,0.88)", border: "1px solid #0e2210", color: "#3a5a3a" }}
+                  style={{ background: "rgba(0,0,0,0.88)", border: "1px solid #0e2210", color: "#3a5a3a", cursor: "zoom-in" }}
                 >
                   +
                 </button>
@@ -1875,7 +1875,7 @@ export default function Radar({
                   onClick={() => setZoom((p) => Math.max(0.4, p / 1.3))}
                   title="Zoom out (−)"
                   className="flex h-7 w-7 items-center justify-center rounded-lg text-[16px] font-light leading-none transition-all hover:border-[rgba(46,230,166,0.25)] hover:text-[#2EE6A6]"
-                  style={{ background: "rgba(0,0,0,0.88)", border: "1px solid #0e2210", color: "#3a5a3a" }}
+                  style={{ background: "rgba(0,0,0,0.88)", border: "1px solid #0e2210", color: "#3a5a3a", cursor: "zoom-out" }}
                 >
                   −
                 </button>

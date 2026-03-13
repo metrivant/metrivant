@@ -149,11 +149,50 @@ export default function SidebarNav({
       {/* Signal Constellation */}
       <SignalConstellation competitors={competitors} />
 
+      {/* Keybind legend */}
+      <div className="px-3 pb-2">
+        <div
+          className="mb-2.5 h-px"
+          style={{ background: "linear-gradient(90deg, rgba(46,230,166,0.18) 0%, transparent 100%)" }}
+        />
+        <div className="grid grid-cols-2 gap-x-1 gap-y-1.5">
+          {[
+            { key: "M", label: "Map" },
+            { key: "B", label: "Briefs" },
+            { key: "S", label: "Strategy" },
+            { key: "D", label: "Discover" },
+          ].map(({ key, label }) => (
+            <span key={key} className="flex items-center gap-1.5">
+              <span
+                className="flex h-4 min-w-[16px] items-center justify-center rounded px-1 font-mono text-[9px] font-bold"
+                style={{
+                  background: "#0a1a0a",
+                  border: "1px solid rgba(46,230,166,0.18)",
+                  color: "rgba(46,230,166,0.55)",
+                }}
+              >
+                {key}
+              </span>
+              <span
+                className="text-[10px] uppercase tracking-[0.12em]"
+                style={{ color: "rgba(100,116,139,0.50)" }}
+              >
+                {label}
+              </span>
+            </span>
+          ))}
+        </div>
+        <div
+          className="mt-2.5 h-px"
+          style={{ background: "linear-gradient(90deg, rgba(46,230,166,0.18) 0%, transparent 100%)" }}
+        />
+      </div>
+
       {/* Plan / billing */}
       <div className="mt-auto border-t border-[#0e2210] p-3">
         <Link
           href="/app/billing"
-          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-medium text-slate-600 transition-colors hover:bg-[#0a1a0a] hover:text-slate-300"
+          className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-medium transition-colors hover:bg-[#0a1a0a] hover:text-slate-300${plan === "analyst" || plan === "starter" ? " upgrade-glow" : " text-slate-600"}`}
         >
           <svg width="13" height="13" viewBox="0 0 11 11" fill="none" aria-hidden="true">
             <rect x="1" y="3" width="9" height="7" rx="1.2" stroke="currentColor" strokeWidth="1.2" />

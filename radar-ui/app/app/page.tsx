@@ -9,7 +9,6 @@ import SidebarNav from "../../components/SidebarNav";
 import RadarLogo from "../../components/RadarLogo";
 import LiveIndicator from "../../components/LiveIndicator";
 import { getRadarFeed } from "../../lib/api";
-import { formatRelative } from "../../lib/format";
 import { createClient } from "../../lib/supabase/server";
 
 export default async function Page() {
@@ -60,9 +59,34 @@ export default async function Page() {
     lastSignalAt !== null &&
     Date.now() - new Date(lastSignalAt).getTime() < 12 * 60 * 60 * 1000;
 
-  const statusText = isQuiet
-    ? `Watching ${competitors.length} rival${competitors.length !== 1 ? "s" : ""} — no movement detected`
-    : `${activeCount} rival${activeCount !== 1 ? "s" : ""} moving · ${totalSignals7d} signal${totalSignals7d !== 1 ? "s" : ""} this week${lastSignalAt ? ` · last signal ${formatRelative(lastSignalAt)}` : ""}`;
+  // Most active rival by momentum score
+  const topRivalData = competitors.length > 0
+    ? [...competitors].sort((a, b) => Number(b.momentum_score ?? 0) - Number(a.momentum_score ?? 0))[0]
+    : null;
+  const topRival = topRivalData
+    ? { name: topRivalData.competitor_name, movementType: topRivalData.latest_movement_type }
+    : null;
+
+  // Market pressure from dominant movement type across all competitors
+  const movementCounts = new Map<string, number>();
+  for (const c of competitors) {
+    if (c.latest_movement_type) {
+      movementCounts.set(c.latest_movement_type, (movementCounts.get(c.latest_movement_type) ?? 0) + 1);
+    }
+  }
+  const topMovement = movementCounts.size > 0
+    ? [...movementCounts.entries()].sort((a, b) => b[1] - a[1])[0][0]
+    : null;
+  const MOVEMENT_PRESSURE: Record<string, string> = {
+    pricing_strategy_shift: "Pricing pressure rising",
+    product_expansion:       "Product velocity high",
+    market_reposition:       "Narrative shift active",
+    enterprise_push:         "Enterprise segment heating",
+    ecosystem_expansion:     "Platform plays emerging",
+  };
+  const marketPressure = topMovement
+    ? (MOVEMENT_PRESSURE[topMovement] ?? "Strategic movement active")
+    : "No active movements";
 
   return (
     <main className="flex h-screen w-full flex-col overflow-hidden bg-black text-white">
@@ -106,14 +130,20 @@ export default async function Page() {
         <div className="flex w-full items-center justify-between px-5">
 
           {/* ── Brand ──────────────────────────────────────────────────── */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3.5">
             <RadarLogo />
 
-            <div className="flex flex-col gap-y-[4px]">
-              <div className="text-[22px] font-bold leading-none text-white" style={{ letterSpacing: "0.09em" }}>
+            <div className="flex flex-col gap-y-[3px]">
+              <div
+                className="text-[20px] font-bold leading-none text-white"
+                style={{ letterSpacing: "0.10em" }}
+              >
                 METRIVANT
               </div>
-              <div className="text-[11px] font-medium uppercase tracking-[0.25em]" style={{ color: "rgba(46,230,166,0.55)" }}>
+              <div
+                className="text-[9px] font-semibold uppercase"
+                style={{ letterSpacing: "0.32em", color: "rgba(46,230,166,0.48)" }}
+              >
                 Competitive Intelligence
               </div>
             </div>
@@ -126,31 +156,64 @@ export default async function Page() {
             <NotificationBell />
 
             <div className="flex items-center gap-5">
-              <div className="text-right">
+              {/* Rivals */}
+              <div className="group relative cursor-default text-right">
                 <div className="text-[10px] uppercase tracking-[0.22em] text-slate-600">Rivals</div>
                 <div className="mt-0.5 text-[20px] font-semibold leading-none tabular-nums text-slate-200">{competitors.length}</div>
+                <div
+                  className="pointer-events-none absolute right-0 top-full z-30 mt-2 w-52 rounded-[10px] border border-[#1a3020] bg-[#060d06] px-3 py-2.5 text-left opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                  style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85), 0 0 0 1px rgba(46,230,166,0.06)" }}
+                >
+                  <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#2EE6A6]">Rivals</div>
+                  <div className="text-[11px] leading-snug text-slate-500">Companies currently monitored by Metrivant.</div>
+                </div>
               </div>
               <div className="h-8 w-px bg-[#0f2010]" />
-              <div className="text-right">
+              {/* Active */}
+              <div className="group relative cursor-default text-right">
                 <div className="text-[10px] uppercase tracking-[0.22em] text-slate-600">Active</div>
                 <div className="mt-0.5 text-[20px] font-semibold leading-none tabular-nums" style={{ color: activeCount > 0 ? "#2EE6A6" : "#475569" }}>{activeCount}</div>
+                <div
+                  className="pointer-events-none absolute right-0 top-full z-30 mt-2 w-52 rounded-[10px] border border-[#1a3020] bg-[#060d06] px-3 py-2.5 text-left opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                  style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85), 0 0 0 1px rgba(46,230,166,0.06)" }}
+                >
+                  <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#2EE6A6]">Active</div>
+                  <div className="text-[11px] leading-snug text-slate-500">Competitors showing recent strategic movement in the last 7 days.</div>
+                </div>
               </div>
               <div className="h-8 w-px bg-[#0f2010]" />
-              <div className="text-right">
+              {/* Signals */}
+              <div className="group relative cursor-default text-right">
                 <div className="text-[10px] uppercase tracking-[0.22em] text-slate-600">Signals</div>
                 <div className="mt-0.5 text-[20px] font-semibold leading-none tabular-nums text-slate-200">{totalSignals7d}</div>
+                <div
+                  className="pointer-events-none absolute right-0 top-full z-30 mt-2 w-52 rounded-[10px] border border-[#1a3020] bg-[#060d06] px-3 py-2.5 text-left opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                  style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85), 0 0 0 1px rgba(46,230,166,0.06)" }}
+                >
+                  <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#2EE6A6]">Signals</div>
+                  <div className="text-[11px] leading-snug text-slate-500">Detected competitive changes across monitored sources in the last 7 days.</div>
+                </div>
               </div>
               <div className="h-8 w-px bg-[#0f2010]" />
-              <div className="text-right">
+              {/* New 24h */}
+              <div className="group relative cursor-default text-right">
                 <div className="text-[10px] uppercase tracking-[0.22em] text-slate-600">New 24h</div>
                 <div className="mt-0.5 text-[20px] font-semibold leading-none tabular-nums" style={{ color: newToday > 0 ? "#2EE6A6" : "#475569" }}>{newToday}</div>
+                <div
+                  className="pointer-events-none absolute right-0 top-full z-30 mt-2 w-52 rounded-[10px] border border-[#1a3020] bg-[#060d06] px-3 py-2.5 text-left opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                  style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85), 0 0 0 1px rgba(46,230,166,0.06)" }}
+                >
+                  <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#2EE6A6]">New 24h</div>
+                  <div className="text-[11px] leading-snug text-slate-500">Rivals with new signal activity detected in the last 24 hours.</div>
+                </div>
               </div>
             </div>
 
             <LiveIndicator
               isQuiet={isQuiet}
               isFresh={isFresh}
-              statusText={statusText}
+              topRival={topRival}
+              marketPressure={marketPressure}
               showStaleWarning={!isFresh && lastSignalAt !== null}
             />
           </div>
