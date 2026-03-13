@@ -30,7 +30,7 @@ export interface SectorConfig {
 
 const SAAS_CONFIG: SectorConfig = {
   id: "saas",
-  label: "SaaS & Software",
+  label: "Software",
   description: "Track competitors in the software and technology sector",
   catalogCategories: [
     "project-management",
@@ -166,7 +166,7 @@ export function translateMovementType(
   type: string | null,
   sector: string | null | undefined
 ): string {
-  if (!type) return "Quiet";
+  if (!type) return "Dormant";
   const config = getSectorConfig(sector);
   return (
     config.movementLabels[type] ??
@@ -185,7 +185,7 @@ export function translateSignalType(
 
 // Label map for all sectors including those without a full SectorConfig.
 const SECTOR_LABELS: Record<string, string> = {
-  saas:               "SaaS & Software",
+  saas:               "Software",
   defense:            "Defense & Aerospace",
   energy:             "Energy & Resources",
   cybersecurity:      "Cybersecurity",
@@ -199,7 +199,7 @@ const SECTOR_LABELS: Record<string, string> = {
 
 /** Return the display label for any sector string. Falls back to capitalised slug. */
 export function getSectorLabel(sector: string | null | undefined): string {
-  if (!sector) return "SaaS & Software";
+  if (!sector) return "Software";
   return (
     SECTOR_LABELS[sector] ??
     sector.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())

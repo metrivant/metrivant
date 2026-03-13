@@ -7,7 +7,12 @@ import { motion } from "framer-motion";
  *
  * Outer ring: slow opacity breathe (3.5s).
  * Needle + sweep area: continuous clockwise rotation — watch-dial style (9s per revolution).
- * Echo pulse: outer ring flares softly every ~20s.
+ * Echo pulse: bright vibrant flare every ~15s.
+ *
+ * Geometry: needle base is fixed at center (23,23).
+ * Needle tip starts at 12-o'clock position: (23, 1.5) — exactly on radius 21.5.
+ * Trailing sweep sector spans 25° behind the needle (clockwise).
+ *   Sector start at −115°: (13.91, 3.51)  →  needle tip at −90°: (23, 1.5)
  */
 export default function RadarLogo() {
   return (
@@ -23,22 +28,22 @@ export default function RadarLogo() {
         transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
       />
 
-      {/* Echo pulse ring — soft flare every ~20s */}
+      {/* Vibrant echo pulse — bright, clean, radar-like. Every ~15s. */}
       <motion.circle
         cx="23"
         cy="23"
         r="21.5"
         stroke="#2EE6A6"
-        strokeWidth="1"
+        strokeWidth="1.5"
         animate={{
-          strokeOpacity: [0, 0, 0.55, 0],
-          scale:         [1, 1, 1.08, 1.16],
+          strokeOpacity: [0, 0, 0.9, 0.5, 0],
+          scale:         [1, 1, 1.04, 1.12, 1.20],
         }}
         style={{ transformOrigin: "23px 23px" }}
         transition={{
-          duration:    1.8,
+          duration:    1.6,
           repeat:      Infinity,
-          repeatDelay: 19,
+          repeatDelay: 13.4,
           ease:        "easeOut",
         }}
       />
@@ -49,7 +54,10 @@ export default function RadarLogo() {
       {/* Inner ring */}
       <circle cx="23" cy="23" r="5.5" stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.42" />
 
-      {/* Needle + sweep sector — continuous clockwise rotation (watch-dial) */}
+      {/* Needle + sweep sector — continuous clockwise rotation (watch-dial).
+          Entire group rotates around center (23,23). Base stays fixed at center.
+          Needle tip is at 12-o'clock: (23, 1.5), exactly on radius 21.5.
+          Trailing sector from −115° (13.91, 3.51) → −90° (23, 1.5) clockwise. */}
       <motion.g
         style={{ transformOrigin: "23px 23px" }}
         animate={{ rotate: [0, 360] }}
@@ -59,19 +67,21 @@ export default function RadarLogo() {
           ease:     "linear",
         }}
       >
+        {/* Trailing sweep sector */}
         <path
-          d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z"
+          d="M23 23 L13.91 3.51 A21.5 21.5 0 0 1 23 1.5 Z"
           fill="#2EE6A6"
-          fillOpacity="0.09"
+          fillOpacity="0.10"
         />
+        {/* Needle — base at center, tip at 12-o'clock on the circle */}
         <line
           x1="23"
           y1="23"
-          x2="38.2"
-          y2="9.8"
+          x2="23"
+          y2="1.5"
           stroke="#2EE6A6"
           strokeWidth="1.5"
-          strokeOpacity="0.80"
+          strokeOpacity="0.85"
         />
       </motion.g>
 

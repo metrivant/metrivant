@@ -14,7 +14,7 @@ const SECTOR_OPTIONS = [
   { value: "energy",             label: "Energy & Resources" },
   { value: "fintech",            label: "Fintech" },
   { value: "healthcare",         label: "Healthcare" },
-  { value: "saas",               label: "SaaS & Software" },
+  { value: "saas",               label: "Software" },
 ] as const;
 
 export default function SectorSwitcher({ sector }: { sector: string }) {

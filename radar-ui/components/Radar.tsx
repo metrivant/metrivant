@@ -98,7 +98,7 @@ function getMovementColor(movementType: string | null): string {
 }
 
 function getMovementLabel(movementType: string | null): string {
-  if (!movementType) return "Quiet";
+  if (!movementType) return "Dormant";
   return movementType
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
@@ -639,10 +639,10 @@ const BlipNode = memo(function BlipNode({
         textAnchor="middle"
         fill={
           isSelected
-            ? "#e2f5e2"
+            ? "#f0fff4"
             : hovered
-            ? "#a8cca8"
-            : "#7eb47e"
+            ? "#d0ead0"
+            : "#b8d0b8"
         }
         fontSize="13"
         fontWeight={isSelected ? "600" : hovered ? "500" : "400"}
@@ -650,10 +650,10 @@ const BlipNode = memo(function BlipNode({
         letterSpacing="0.02em"
         style={{
           filter: isSelected
-            ? "drop-shadow(0 0 5px rgba(46,230,166,0.65))"
+            ? "drop-shadow(0 0 6px rgba(46,230,166,0.70)) drop-shadow(0 1px 3px rgba(0,0,0,0.98))"
             : hovered
-            ? "drop-shadow(0 0 4px rgba(46,230,166,0.4))"
-            : "drop-shadow(0 0 3px rgba(0,0,0,0.95))",
+            ? "drop-shadow(0 0 4px rgba(46,230,166,0.45)) drop-shadow(0 1px 3px rgba(0,0,0,0.98))"
+            : "drop-shadow(0 1px 4px rgba(0,0,0,0.99)) drop-shadow(0 0 2px rgba(0,0,0,0.99))",
           pointerEvents: "none",
         }}
       >
@@ -1285,6 +1285,15 @@ export default function Radar({
               {/* All radar content clipped to a perfect circle */}
               <g clipPath="url(#radarClip)">
 
+              {/* Vantablack base — near-pure-black instrument field */}
+              <rect
+                x="0"
+                y="0"
+                width={SIZE}
+                height={SIZE}
+                fill="#010201"
+              />
+
               {/* Panel sheen */}
               <rect
                 x="0"
@@ -1320,9 +1329,9 @@ export default function Radar({
                     cy={CENTER}
                     r={OUTER_RADIUS * factor}
                     fill="none"
-                    stroke="#1e293b"
+                    stroke="#0f3d20"
                     strokeWidth="1.5"
-                    opacity="0.7"
+                    opacity="0.9"
                   />
                 ))}
 
@@ -1338,9 +1347,9 @@ export default function Radar({
                       y1={CENTER - dy}
                       x2={CENTER + dx}
                       y2={CENTER + dy}
-                      stroke="#1e293b"
+                      stroke="#0f3d20"
                       strokeWidth="1"
-                      opacity="0.5"
+                      opacity="0.65"
                     />
                   );
                 })}
@@ -1353,9 +1362,9 @@ export default function Radar({
                     y1={tick.y1}
                     x2={tick.x2}
                     y2={tick.y2}
-                    stroke="#1e293b"
+                    stroke="#0f3d20"
                     strokeWidth={tick.isMajor ? 1.5 : tick.isMedium ? 1.0 : 0.7}
-                    opacity={tick.isMajor ? 0.7 : tick.isMedium ? 0.45 : 0.25}
+                    opacity={tick.isMajor ? 0.90 : tick.isMedium ? 0.60 : 0.35}
                   />
                 ))}
 
@@ -1365,9 +1374,9 @@ export default function Radar({
 
               {/* ── Sonar pulse field ───────────────────────────────── */}
               {/* Main pulse rings — thick, luminous.
-                  Duration 12s = cycle period. Stagger 4s = perfect 3-ring coverage.
+                  Duration 16s = calmer cycle. Stagger 8s = 2-ring coverage.
                   Near-linear ease: physically accurate constant-speed wavefront. */}
-              {[0, 1, 2].map((i) => (
+              {[0, 1].map((i) => (
                 <motion.circle
                   key={`sonar-main-${i}`}
                   cx={CENTER}
@@ -1380,17 +1389,17 @@ export default function Radar({
                   initial={{ scale: 0.08, opacity: 1.0 }}
                   animate={{ scale: 1.0, opacity: 0 }}
                   transition={{
-                    duration: 12,
+                    duration: 16,
                     repeat: Infinity,
                     ease: [0.2, 0, 0.6, 1],
-                    delay: i * 4,
+                    delay: i * 8,
                   }}
                   style={{ transformOrigin: `${CENTER}px ${CENTER}px` }}
                 />
               ))}
 
-              {/* Echo pulses — thinner, 2× slower, atmospheric depth.
-                  Duration 24s, stagger 12s = 2 even echoes between main pulses. */}
+              {/* Echo pulses — thinner, slower, atmospheric depth.
+                  Duration 30s, stagger 15s = steady depth layer. */}
               {[0, 1].map((i) => (
                 <motion.circle
                   key={`sonar-echo-${i}`}
@@ -1401,39 +1410,36 @@ export default function Radar({
                   stroke="#2EE6A6"
                   strokeWidth="2.5"
                   filter="url(#sonarGlow)"
-                  initial={{ scale: 0.08, opacity: 0.6 }}
+                  initial={{ scale: 0.08, opacity: 0.5 }}
                   animate={{ scale: 1.0, opacity: 0 }}
                   transition={{
-                    duration: 24,
+                    duration: 30,
                     repeat: Infinity,
                     ease: [0.2, 0, 0.6, 1],
-                    delay: i * 12 + 6,
+                    delay: i * 15 + 7,
                   }}
                   style={{ transformOrigin: `${CENTER}px ${CENTER}px` }}
                 />
               ))}
 
-              {/* Core emitter rings — tight alive pulses */}
-              {[0, 1].map((i) => (
-                <motion.circle
-                  key={`core-ring-${i}`}
-                  cx={CENTER}
-                  cy={CENTER}
-                  r={OUTER_RADIUS * 0.14}
-                  fill="none"
-                  stroke="#22c55e"
-                  strokeWidth="1.2"
-                  initial={{ scale: 0.12, opacity: 0.5 }}
-                  animate={{ scale: 1, opacity: 0 }}
-                  transition={{
-                    duration: 3.5,
-                    repeat: Infinity,
-                    ease: "easeOut",
-                    delay: i * 1.75,
-                  }}
-                  style={{ transformOrigin: `${CENTER}px ${CENTER}px` }}
-                />
-              ))}
+              {/* Core emitter ring — single tight alive pulse */}
+              <motion.circle
+                key="core-ring-0"
+                cx={CENTER}
+                cy={CENTER}
+                r={OUTER_RADIUS * 0.14}
+                fill="none"
+                stroke="#22c55e"
+                strokeWidth="1.2"
+                initial={{ scale: 0.12, opacity: 0.5 }}
+                animate={{ scale: 1, opacity: 0 }}
+                transition={{
+                  duration: 4.5,
+                  repeat: Infinity,
+                  ease: "easeOut",
+                }}
+                style={{ transformOrigin: `${CENTER}px ${CENTER}px` }}
+              />
 
               {/* Center atmospheric fill */}
               <circle
@@ -1979,7 +1985,7 @@ export default function Radar({
                         { color: "#00e5ff", label: "Product" },
                         { color: "#ffcc00", label: "Market" },
                         { color: "#9b5cff", label: "Enterprise" },
-                        { color: "#94a3b8", label: "Quiet" },
+                        { color: "#94a3b8", label: "Dormant" },
                       ] as { color: string; label: string }[]
                     ).map(({ color, label }) => (
                       <span key={label} className="flex items-center gap-2">
@@ -2046,8 +2052,8 @@ export default function Radar({
                   { color: "#ff3b3b", label: "Pricing" },
                   { color: "#00e5ff", label: "Product" },
                   { color: "#ffcc00", label: "Market" },
-                  { color: "#9b5cff", label: "New Entrant" },
-                  { color: "#94a3b8", label: "Quiet" },
+                  { color: "#9b5cff", label: "Enterprise" },
+                  { color: "#94a3b8", label: "Dormant" },
                 ] as { color: string; label: string }[]
               ).map(({ color, label }) => (
                 <span key={label} className="flex items-center gap-1.5">
