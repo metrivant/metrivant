@@ -20,6 +20,7 @@ import {
 } from "../../../lib/strategy";
 import { sendEmail, FROM_ALERTS } from "../../../lib/email";
 import { captureException } from "../../../lib/sentry";
+import { writeCronHeartbeat } from "../../../lib/cronHeartbeat";
 
 const OPENAI_API_KEY  = process.env.OPENAI_API_KEY  ?? "";
 const POSTHOG_API_KEY = process.env.POSTHOG_API_KEY ?? "";
@@ -43,10 +44,15 @@ async function handler(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "OPENAI_API_KEY not configured" }, { status: 500 });
   }
 
-  const service = createServiceClient();
+  const service      = createServiceClient();
+  const runStart     = Date.now();
   const analysisDate = new Date().toLocaleDateString("en-US", {
     month: "long", day: "numeric", year: "numeric",
   });
+  // Cap OpenAI calls per run — prevents runaway costs at scale.
+  // Override via OPENAI_MAX_ORGS_PER_RUN env var (default: 100).
+  const maxOrgsPerRun = parseInt(process.env.OPENAI_MAX_ORGS_PER_RUN ?? "100");
+  let processedOrgCount = 0;
 
   const { data: orgs } = await service
     .from("organizations")
@@ -60,6 +66,7 @@ async function handler(request: Request): Promise<NextResponse> {
   let totalMajor    = 0;
 
   for (const org of orgs) {
+    if (processedOrgCount >= maxOrgsPerRun) break;
     try {
       // Load radar feed for this org
       const { data: feed } = await service
@@ -186,7 +193,10 @@ async function handler(request: Request): Promise<NextResponse> {
       });
       console.error(`strategic-analysis: org ${org.id as string} failed:`, err);
     }
+    processedOrgCount++;
   }
+
+  await writeCronHeartbeat(service, "/api/strategic-analysis", "ok", Date.now() - runStart, totalInsights);
 
   return NextResponse.json({
     ok:            true,

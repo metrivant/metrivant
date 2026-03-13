@@ -22,6 +22,7 @@ import {
 } from "../../../lib/positioning";
 import { sendEmail, FROM_ALERTS } from "../../../lib/email";
 import { captureException } from "../../../lib/sentry";
+import { writeCronHeartbeat } from "../../../lib/cronHeartbeat";
 
 const OPENAI_API_KEY  = process.env.OPENAI_API_KEY  ?? "";
 const POSTHOG_API_KEY = process.env.POSTHOG_API_KEY ?? "";
@@ -42,9 +43,12 @@ async function handler(request: Request): Promise<NextResponse> {
   }
 
   const service      = createServiceClient();
+  const runStart     = Date.now();
   const analysisDate = new Date().toLocaleDateString("en-US", {
     month: "long", day: "numeric", year: "numeric",
   });
+  const maxOrgsPerRun = parseInt(process.env.OPENAI_MAX_ORGS_PER_RUN ?? "100");
+  let processedOrgCount = 0;
 
   const { data: orgs } = await service
     .from("organizations")
@@ -58,7 +62,17 @@ async function handler(request: Request): Promise<NextResponse> {
   let totalShifts  = 0;
 
   for (const org of orgs) {
+    if (processedOrgCount >= maxOrgsPerRun) break;
     try {
+      // Guard: skip if positioning was updated in the last hour (prevents double-fire)
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { count: recentCount } = await service
+        .from("competitor_positioning")
+        .select("*", { count: "exact", head: true })
+        .eq("org_id", org.id)
+        .gte("updated_at", oneHourAgo);
+      if ((recentCount ?? 0) > 0) { processedOrgCount++; continue; }
+
       // Load radar feed for this org
       const { data: feed } = await service
         .from("radar_feed")
@@ -199,7 +213,18 @@ async function handler(request: Request): Promise<NextResponse> {
       });
       console.error(`update-positioning: org ${org.id as string} failed:`, err);
     }
+    processedOrgCount++;
   }
+
+  // Prune positioning_history records older than 90 days — best-effort
+  try {
+    const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+    await service.from("positioning_history").delete().lt("recorded_at", cutoff);
+  } catch {
+    // Non-fatal
+  }
+
+  await writeCronHeartbeat(service, "/api/update-positioning", "ok", Date.now() - runStart, totalUpdated);
 
   return NextResponse.json({
     ok:            true,

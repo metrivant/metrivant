@@ -12,6 +12,7 @@ import {
   buildMomentumAlertEmailHtml,
 } from "../../../lib/momentum";
 import { sendEmail, FROM_ALERTS } from "../../../lib/email";
+import { writeCronHeartbeat } from "../../../lib/cronHeartbeat";
 
 const POSTHOG_API_KEY = process.env.POSTHOG_API_KEY ?? "";
 const SITE_URL        = process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
@@ -32,8 +33,9 @@ async function handler(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const service = createServiceClient();
-  const now = new Date().toISOString();
+  const service  = createServiceClient();
+  const runStart = Date.now();
+  const now      = new Date().toISOString();
 
   // Load all orgs
   const { data: orgs, error: orgError } = await service
@@ -184,6 +186,17 @@ async function handler(request: Request): Promise<NextResponse> {
       }).catch(() => null);
     }
   }
+
+  // Prune momentum_history records older than 90 days — best-effort
+  // Prevents unbounded table growth at scale (orgs × competitors × 4 runs/day).
+  try {
+    const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+    await service.from("momentum_history").delete().lt("recorded_at", cutoff);
+  } catch {
+    // Non-fatal — pruning failure must not fail the cron
+  }
+
+  await writeCronHeartbeat(service, "/api/update-momentum", "ok", Date.now() - runStart, totalSnapshots);
 
   return NextResponse.json({
     ok:             true,

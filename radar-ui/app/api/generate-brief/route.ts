@@ -4,6 +4,7 @@ import { generateBrief, buildBriefEmailHtml } from "../../../lib/brief";
 import { sendEmail, FROM_BRIEFS } from "../../../lib/email";
 import { createServiceClient } from "../../../lib/supabase/service";
 import { captureException } from "../../../lib/sentry";
+import { writeCronHeartbeat } from "../../../lib/cronHeartbeat";
 
 function weekLabel(date: Date): string {
   return date.toLocaleDateString("en-US", {
@@ -29,8 +30,8 @@ async function runGeneration(): Promise<NextResponse> {
     );
   }
 
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
+  const runStart = Date.now();
+  const siteUrl  = process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
 
   // 1 — Fetch active competitors (signals in last 7 days)
   const allCompetitors = await getRadarFeed(50);
@@ -127,6 +128,9 @@ async function runGeneration(): Promise<NextResponse> {
       }),
     });
   }
+
+  const supabaseFinal = createServiceClient();
+  await writeCronHeartbeat(supabaseFinal, "/api/generate-brief", "ok", Date.now() - runStart, emailsSent.length);
 
   return NextResponse.json({
     ok:                   true,

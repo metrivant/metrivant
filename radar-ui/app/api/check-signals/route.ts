@@ -7,6 +7,7 @@ import {
   FROM_ALERTS,
 } from "../../../lib/email";
 import { createServiceClient } from "../../../lib/supabase/service";
+import { writeCronHeartbeat } from "../../../lib/cronHeartbeat";
 
 function isAuthorized(request: Request): boolean {
   const secret = process.env.CRON_SECRET;
@@ -23,6 +24,7 @@ function isRecent(detectedAt: string): boolean {
 }
 
 async function runCheck(): Promise<NextResponse> {
+  const runStart = Date.now();
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
   const supabase = createServiceClient();
@@ -189,6 +191,8 @@ async function runCheck(): Promise<NextResponse> {
       body:    JSON.stringify({ api_key: posthogKey, batch: events }),
     });
   }
+
+  await writeCronHeartbeat(supabase, "/api/check-signals", "ok", Date.now() - runStart, alertsCreated);
 
   return NextResponse.json({
     ok:           true,
