@@ -10,7 +10,7 @@ export default function UpgradeClickTracker({
   source: string;
 }) {
   return (
-    <div onClick={() => capture("upgrade_clicked", { source })}>
+    <div className="contents" onClick={() => capture("upgrade_clicked", { source })}>
       {children}
     </div>
   );

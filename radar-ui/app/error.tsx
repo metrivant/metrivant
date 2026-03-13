@@ -1,11 +1,19 @@
 "use client";
 
+import { useEffect } from "react";
+import { captureException } from "../lib/sentry";
+
 export default function Error({
+  error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    captureException(error, { boundary: "root-error" });
+  }, [error]);
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#000200]">
       <div className="text-center">

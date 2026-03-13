@@ -52,6 +52,16 @@ const NAV_ITEMS = [
     ),
   },
   {
+    href: "/app/billing",
+    label: "Billing",
+    icon: (active: boolean) => (
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+        <rect x="3" y="6" width="16" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.2" strokeOpacity={active ? 1 : 0.45} />
+        <path d="M6.5 6V5a4.5 4.5 0 0 1 9 0v1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeOpacity={active ? 1 : 0.45} />
+      </svg>
+    ),
+  },
+  {
     href: "/app/settings",
     label: "Settings",
     icon: (active: boolean) => (

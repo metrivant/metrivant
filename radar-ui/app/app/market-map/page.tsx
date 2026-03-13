@@ -198,10 +198,7 @@ export default async function MarketMapPage() {
         <div className="flex flex-1 items-center justify-center p-8">
           <div className="rounded-[14px] border border-[#1a2a1a] bg-[#0a140a] px-8 py-6 text-center">
             <p className="text-[13px] text-slate-600">
-              Could not load market map. Run{" "}
-              <code className="font-mono text-[12px] text-slate-500">007_market_map.sql</code>{" "}
-              in Supabase, then trigger{" "}
-              <code className="font-mono text-[12px] text-slate-500">POST /api/update-positioning</code>.
+              Market positioning data is being generated. Check back after the next daily analysis run.
             </p>
           </div>
         </div>
