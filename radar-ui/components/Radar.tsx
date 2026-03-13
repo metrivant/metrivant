@@ -333,6 +333,18 @@ function getClusterLabel(movementType: string): string {
   }
 }
 
+// Human-readable trajectory labels for pressure zone overlays
+function getTrajectoryLabel(movementType: string): string {
+  switch (movementType) {
+    case "pricing_strategy_shift": return "Pricing Pressure";
+    case "product_expansion":      return "Product Acceleration";
+    case "market_reposition":      return "Market Repositioning";
+    case "enterprise_push":        return "Enterprise Expansion";
+    case "ecosystem_expansion":    return "Ecosystem Expansion";
+    default:                       return "Strategic Activity";
+  }
+}
+
 // ─── BlipNode sub-component ───────────────────────────────────────────────────
 // Isolates each competitor blip. Prevents unrelated state changes in the parent
 // from causing all blips to re-render simultaneously.
@@ -479,6 +491,32 @@ const BlipNode = memo(function BlipNode({
             ease: "easeOut",
           }}
           style={{ transformOrigin: `${x}px ${y}px` }}
+        />
+      )}
+
+      {/* Momentum state ring — static ambient ring indicating acceleration state */}
+      {!isDimmed && !isSelected && momentum >= 5 && (
+        <motion.circle
+          cx={x}
+          cy={y}
+          r={nodeSize + 6}
+          fill="none"
+          stroke={color}
+          strokeWidth="0.75"
+          animate={{ opacity: [0.20, 0.40, 0.20] }}
+          transition={{ duration: 2.0, repeat: Infinity, ease: "easeInOut" }}
+          style={{ transformOrigin: `${x}px ${y}px` }}
+        />
+      )}
+      {!isDimmed && !isSelected && momentum >= 1.5 && momentum < 5 && (
+        <circle
+          cx={x}
+          cy={y}
+          r={nodeSize + 6}
+          fill="none"
+          stroke={color}
+          strokeWidth="0.5"
+          opacity={0.15}
         />
       )}
 
@@ -709,6 +747,49 @@ export default function Radar({
     }
     return [...map.values()].filter((g) => g.nodes.length >= 2);
   }, [gravityMode, gravityPositions, sorted]);
+
+  // Standard-mode node positions: same layout as golden-spiral, precomputed for pressure zones
+  const standardPositions = useMemo((): Map<string, Point> => {
+    const map = new Map<string, Point>();
+    sorted.forEach((c, i) => {
+      const pos = getNodePosition(i, sorted.length, radiusScale(Number(c.momentum_score ?? 0)));
+      map.set(c.competitor_id, pos);
+    });
+    return map;
+  }, [sorted, radiusScale]);
+
+  // Pressure zones: movement-type clusters with 2+ nodes in standard mode
+  const pressureZones = useMemo(() => {
+    if (gravityMode) return [];
+    const map = new Map<string, { color: string; label: string; positions: Point[] }>();
+    for (const c of sorted) {
+      const type = c.latest_movement_type;
+      if (!type) continue;
+      const pos = standardPositions.get(c.competitor_id);
+      if (!pos) continue;
+      if (!map.has(type)) {
+        map.set(type, { color: getMovementColor(type), label: getTrajectoryLabel(type), positions: [] });
+      }
+      map.get(type)!.positions.push(pos);
+    }
+    return [...map.values()].filter((z) => z.positions.length >= 2);
+  }, [gravityMode, sorted, standardPositions]);
+
+  // Radar synergy: focus a competitor from briefs/strategy via localStorage key mv_radar_focus
+  const radarFocusApplied = useRef(false);
+  useEffect(() => {
+    if (radarFocusApplied.current || sorted.length === 0) return;
+    const focusName = localStorage.getItem("mv_radar_focus");
+    if (!focusName) return;
+    const match = sorted.find(
+      (c) => c.competitor_name.toLowerCase() === focusName.toLowerCase()
+    );
+    if (match) {
+      setSelectedId(match.competitor_id);
+      localStorage.removeItem("mv_radar_focus");
+      radarFocusApplied.current = true;
+    }
+  }, [sorted]);
 
   // ── Sound toggle (radar-level quick access) ──────────────────────────────
   const [soundEnabled, setSoundEnabled] = useState(false);
@@ -1441,6 +1522,36 @@ export default function Radar({
                       </text>
                     );
                   })()}
+                </g>
+              )}
+
+              {/* ── Standard-mode pressure zones — trajectory clusters ──── */}
+              {!gravityMode && pressureZones.length > 0 && (
+                <g style={{ pointerEvents: "none", opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.55s ease" }}>
+                  {pressureZones.map(({ color, label, positions }) => {
+                    const cx = positions.reduce((s, p) => s + p.x, 0) / positions.length;
+                    const cy = positions.reduce((s, p) => s + p.y, 0) / positions.length;
+                    const maxR = Math.max(...positions.map((p) => Math.sqrt((p.x - cx) ** 2 + (p.y - cy) ** 2))) + 38;
+                    return (
+                      <g key={label}>
+                        <circle
+                          cx={cx} cy={cy} r={maxR}
+                          fill={color} fillOpacity={0.025}
+                          stroke={color} strokeWidth={0.75} strokeOpacity={0.08}
+                          strokeDasharray="4 8"
+                        />
+                        <text
+                          x={cx} y={cy - maxR - 6}
+                          textAnchor="middle"
+                          fill={color} fontSize="8" opacity={0.28}
+                          letterSpacing="0.14em"
+                          fontFamily="Inter, system-ui, sans-serif" fontWeight="600"
+                        >
+                          {label} · {positions.length} rivals
+                        </text>
+                      </g>
+                    );
+                  })}
                 </g>
               )}
 

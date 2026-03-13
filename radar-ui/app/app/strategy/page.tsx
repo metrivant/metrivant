@@ -9,6 +9,7 @@ import {
 } from "../../../lib/strategy";
 import StrategyTracker from "./StrategyTracker";
 import StrategyActionButton from "./StrategyActionButton";
+import StrategyTimeline from "./StrategyTimeline";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -293,6 +294,12 @@ export default async function StrategyPage({
                   ))}
               </div>
             </section>
+
+            {/* ══════════════════════════════════════════════════════════
+                SECTION 4 — Competitor Timeline
+                Per-competitor signal history from cross-competitor patterns
+            ═══════════════════════════════════════════════════════════ */}
+            <StrategyTimeline insights={allPatterns} />
 
           </div>
         )}

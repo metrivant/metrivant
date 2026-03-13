@@ -28,6 +28,24 @@ function deriveTrajectory(move: string): TrajectoryLabel {
   return "Strategic Movement";
 }
 
+// Severity → confidence proxy (displayed in dossier cards)
+function deriveConfidence(severity: BriefSeverity): number {
+  return severity === "high" ? 0.82 : severity === "medium" ? 0.60 : 0.38;
+}
+
+// Short intelligence interpretation for each trajectory + severity combination
+function deriveBriefInterpretation(trajectory: TrajectoryLabel, severity: BriefSeverity): string {
+  const prefix = severity === "high" ? "Immediate" : severity === "medium" ? "Elevated" : "Low-level";
+  switch (trajectory) {
+    case "Enterprise Expansion":  return `${prefix} pressure on enterprise segment`;
+    case "Pricing War":           return `${prefix} pricing competition detected`;
+    case "Product Acceleration":  return `${prefix} velocity in product surface`;
+    case "Market Repositioning":  return `${prefix} shift in competitive narrative`;
+    case "Ecosystem Expansion":   return `${prefix} platform and partnership play`;
+    default:                      return `${prefix} competitive activity detected`;
+  }
+}
+
 const TRAJECTORY_STYLES: Record<TrajectoryLabel, { color: string; bg: string; border: string }> = {
   "Enterprise Expansion":  { color: "#c084fc", bg: "rgba(192,132,252,0.08)", border: "rgba(192,132,252,0.22)" },
   "Pricing War":           { color: "#ff6b6b", bg: "rgba(255,107,107,0.08)", border: "rgba(255,107,107,0.20)" },
@@ -369,6 +387,9 @@ export default function BriefViewer({
               {brief.major_moves.map((move, i) => {
                 const traj = deriveTrajectory(move.move);
                 const ts = TRAJECTORY_STYLES[traj];
+                const conf = deriveConfidence(move.severity);
+                const confPct = Math.round(conf * 100);
+                const interpretation = deriveBriefInterpretation(traj, move.severity);
                 return (
                   <div
                     key={i}
@@ -404,6 +425,28 @@ export default function BriefViewer({
                         </svg>
                         Radar
                       </button>
+                    </div>
+
+                    {/* Dossier footer — confidence bar + interpretation */}
+                    <div className="mt-3 flex items-center gap-4 border-t border-[#0d1a0d] pt-2.5">
+                      <div className="flex flex-1 items-center gap-2">
+                        <span className="w-[60px] shrink-0 text-[10px] text-slate-700">Confidence</span>
+                        <div className="h-[2px] flex-1 overflow-hidden rounded-full bg-[#0d1a0d]">
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${confPct}%`, backgroundColor: ts.color }}
+                          />
+                        </div>
+                        <span
+                          className="w-[28px] text-right font-mono text-[10px] tabular-nums"
+                          style={{ color: ts.color }}
+                        >
+                          {confPct}%
+                        </span>
+                      </div>
+                      <span className="shrink-0 text-[11px] italic text-slate-600">
+                        {interpretation}
+                      </span>
                     </div>
                   </div>
                 );
