@@ -52,11 +52,14 @@ export async function POST(request: Request) {
 
   let orgId: string | null = null;
 
-  const { data: existingOrg, error: selectError } = await supabase
+  // Use limit(1) instead of maybeSingle() to tolerate duplicate org rows.
+  // maybeSingle() returns PGRST116 if >1 row exists; limit(1) always succeeds.
+  const { data: orgRows, error: selectError } = await supabase
     .from("organizations")
     .select("id")
     .eq("owner_id", user.id)
-    .maybeSingle();
+    .order("created_at", { ascending: true })
+    .limit(1);
 
   if (selectError) {
     captureException(selectError, {
@@ -66,6 +69,8 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ error: selectError.message }, { status: 500 });
   }
+
+  const existingOrg = orgRows?.[0] ?? null;
 
   if (existingOrg) {
     orgId = existingOrg.id as string;
@@ -93,12 +98,14 @@ export async function POST(request: Request) {
 
     if (insertError || !newOrg) {
       // Race condition: re-select before failing.
-      const { data: raceOrg } = await supabase
+      const { data: raceRows } = await supabase
         .from("organizations")
         .select("id")
         .eq("owner_id", user.id)
-        .maybeSingle();
+        .order("created_at", { ascending: true })
+        .limit(1);
 
+      const raceOrg = raceRows?.[0] ?? null;
       if (raceOrg) {
         orgId = raceOrg.id as string;
       } else {

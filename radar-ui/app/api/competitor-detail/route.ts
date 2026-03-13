@@ -1,5 +1,7 @@
 export const dynamic = "force-dynamic";
 
+import { captureException } from "../../../lib/sentry";
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
@@ -17,11 +19,32 @@ export async function GET(request: Request) {
     headers["Authorization"] = `Bearer ${secret}`;
   }
 
-  const upstream = await fetch(
-    `${baseUrl}/api/competitor-detail?id=${encodeURIComponent(id)}`,
-    { cache: "no-store", headers }
-  );
+  try {
+    const upstream = await fetch(
+      `${baseUrl}/api/competitor-detail?id=${encodeURIComponent(id)}`,
+      { cache: "no-store", headers }
+    );
 
-  const data = await upstream.json();
-  return Response.json(data, { status: upstream.status });
+    // Guard: upstream may return an HTML error page (502/503) — not valid JSON.
+    const contentType = upstream.headers.get("content-type") ?? "";
+    if (!contentType.includes("application/json")) {
+      captureException(
+        new Error(`competitor-detail upstream non-JSON response: ${upstream.status}`),
+        { id, status: upstream.status }
+      );
+      return Response.json(
+        { ok: false, error: "upstream unavailable" },
+        { status: 502 }
+      );
+    }
+
+    const data = await upstream.json() as unknown;
+    return Response.json(data, { status: upstream.status });
+  } catch (err) {
+    captureException(err, { route: "competitor-detail", id });
+    return Response.json(
+      { ok: false, error: "upstream unavailable" },
+      { status: 502 }
+    );
+  }
 }

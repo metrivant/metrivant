@@ -156,36 +156,47 @@ export default function SignalConstellation({
                 x2={pos.x}
                 y2={pos.y}
                 stroke={color}
-                strokeWidth="0.7"
+                strokeWidth="0.9"
                 strokeLinecap="round"
                 initial={{ pathLength: 0, opacity: 0 }}
-                animate={{ pathLength: 1, opacity: 0.4 }}
+                animate={{ pathLength: 1, opacity: 0.55 }}
                 transition={{
                   duration: 0.35,
                   delay: LINE_START + (i - 1) * LINE_STAGGER,
                   ease: "easeOut",
                 }}
-                style={{ filter: `drop-shadow(0 0 2px ${color}55)` }}
+                style={{ filter: `drop-shadow(0 0 3px ${color}88)` }}
               />
             );
           })}
 
           {/* Stars */}
-          {positions.map((pos, i) => (
-            <g key={`star-${i}`}>
-              {/* Outer glow — pulses once then breathes gently */}
+          {positions.map((pos, i) => {
+            // Per-node slow drift: each star oscillates slightly for a living feel
+            const driftY = [3, -2, 2.5, -3, 1.5][i % 5];
+            const driftX = [1.5, -2, 1, -1.5, 2][i % 5];
+            const driftDur = 6 + i * 0.8;
+            return (
+            <motion.g
+              key={`star-${i}`}
+              animate={{ x: [0, driftX, 0, -driftX, 0], y: [0, driftY, 0, -driftY, 0] }}
+              transition={{ duration: driftDur, repeat: Infinity, ease: "easeInOut", delay: i * 0.4 }}
+            >
+              {/* Outer glow — breathes continuously */}
               <motion.circle
                 cx={pos.x}
                 cy={pos.y}
                 r={6}
                 fill={color}
                 initial={{ opacity: 0, scale: 0 }}
-                animate={{ opacity: [0, 0.12, 0.06], scale: [0, 1.4, 1] }}
+                animate={{ opacity: [0, 0.14, 0.08, 0.14, 0.08], scale: [0, 1.4, 1, 1.2, 1] }}
                 transition={{
                   duration: 0.5,
                   delay: i * STAR_STAGGER,
                   ease: "easeOut",
-                  times: [0, 0.5, 1],
+                  times: [0, 0.4, 0.7, 0.85, 1],
+                  opacity: { repeat: Infinity, repeatDelay: 2.5 + i * 0.5, duration: 3 },
+                  scale: { duration: 0.5, delay: i * STAR_STAGGER },
                 }}
                 style={{ transformBox: "fill-box", transformOrigin: "center" }}
               />
@@ -196,19 +207,19 @@ export default function SignalConstellation({
                 r={2.4}
                 fill={color}
                 initial={{ opacity: 0, scale: 0 }}
-                animate={{ opacity: 0.92, scale: 1 }}
+                animate={{ opacity: 0.95, scale: 1 }}
                 transition={{
                   duration: 0.2,
                   delay: i * STAR_STAGGER,
                   ease: "easeOut",
                 }}
                 style={{
-                  filter: `drop-shadow(0 0 3px ${color})`,
+                  filter: `drop-shadow(0 0 4px ${color})`,
                   transformBox: "fill-box",
                   transformOrigin: "center",
                 }}
               />
-              {/* Single pulse ring after constellation forms */}
+              {/* Repeating slow pulse ring */}
               <motion.circle
                 cx={pos.x}
                 cy={pos.y}
@@ -217,17 +228,20 @@ export default function SignalConstellation({
                 stroke={color}
                 strokeWidth="0.8"
                 initial={{ opacity: 0, scale: 1 }}
-                animate={{ opacity: [0, 0.7, 0], scale: [1, 2.8, 3.2] }}
+                animate={{ opacity: [0, 0.65, 0], scale: [1, 2.8, 3.4] }}
                 transition={{
-                  duration: 0.9,
-                  delay: PULSE_START + i * 0.08,
+                  duration: 1.1,
+                  delay: PULSE_START + i * 0.12,
                   ease: "easeOut",
+                  repeat: Infinity,
+                  repeatDelay: 4 + i * 0.6,
                   times: [0, 0.3, 1],
                 }}
                 style={{ transformBox: "fill-box", transformOrigin: "center" }}
               />
-            </g>
-          ))}
+            </motion.g>
+            );
+          })}
 
           {/* Pattern title block */}
           <motion.g

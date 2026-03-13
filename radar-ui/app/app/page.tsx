@@ -7,21 +7,39 @@ import PlanBadge from "../../components/PlanBadge";
 import UpgradePrompt from "../../components/UpgradePrompt";
 import SidebarNav from "../../components/SidebarNav";
 import RadarLogo from "../../components/RadarLogo";
-import LiveIndicator from "../../components/LiveIndicator";
+import IntelligenceStrip from "../../components/IntelligenceStrip";
+import AppOverlays from "../../components/AppOverlays";
+import TrialLockScreen from "../../components/TrialLockScreen";
 import { getRadarFeed } from "../../lib/api";
 import { createClient } from "../../lib/supabase/server";
 
+const TRIAL_DAYS = 3;
+
 export default async function Page() {
-  const competitors = await getRadarFeed(50);
+  const competitorsRaw = await getRadarFeed(50);
+  // Deduplicate by name (keep highest-momentum entry per name — feed is already sorted desc)
+  const _seenNames = new Set<string>();
+  const competitors = competitorsRaw.filter((c) => {
+    const key = c.competitor_name.toLowerCase().trim();
+    if (_seenNames.has(key)) return false;
+    _seenNames.add(key);
+    return true;
+  });
 
   // Read org sector + user plan — best-effort, both default to safe values
-  let sector = "saas";
-  let plan   = "starter";
+  let sector       = "saas";
+  let plan         = "starter";
+  let trialExpired = false;
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       plan = (user.user_metadata?.plan as string | undefined) ?? "starter";
+      // Trial expires 3 days after account creation. Pro users are never locked.
+      if (plan !== "pro") {
+        const trialEnd = new Date(user.created_at).getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000;
+        trialExpired = Date.now() > trialEnd;
+      }
       const { data: org } = await supabase
         .from("organizations")
         .select("sector")
@@ -48,45 +66,6 @@ export default async function Page() {
     0
   );
 
-  const lastSignalAt = competitors.reduce<string | null>((latest, c) => {
-    if (!c.last_signal_at) return latest;
-    if (!latest) return c.last_signal_at;
-    return c.last_signal_at > latest ? c.last_signal_at : latest;
-  }, null);
-
-  const isQuiet = totalSignals7d === 0;
-  const isFresh =
-    lastSignalAt !== null &&
-    Date.now() - new Date(lastSignalAt).getTime() < 12 * 60 * 60 * 1000;
-
-  // Most active rival by momentum score
-  const topRivalData = competitors.length > 0
-    ? [...competitors].sort((a, b) => Number(b.momentum_score ?? 0) - Number(a.momentum_score ?? 0))[0]
-    : null;
-  const topRival = topRivalData
-    ? { name: topRivalData.competitor_name, movementType: topRivalData.latest_movement_type }
-    : null;
-
-  // Market pressure from dominant movement type across all competitors
-  const movementCounts = new Map<string, number>();
-  for (const c of competitors) {
-    if (c.latest_movement_type) {
-      movementCounts.set(c.latest_movement_type, (movementCounts.get(c.latest_movement_type) ?? 0) + 1);
-    }
-  }
-  const topMovement = movementCounts.size > 0
-    ? [...movementCounts.entries()].sort((a, b) => b[1] - a[1])[0][0]
-    : null;
-  const MOVEMENT_PRESSURE: Record<string, string> = {
-    pricing_strategy_shift: "Pricing pressure rising",
-    product_expansion:       "Product velocity high",
-    market_reposition:       "Narrative shift active",
-    enterprise_push:         "Enterprise segment heating",
-    ecosystem_expansion:     "Platform plays emerging",
-  };
-  const marketPressure = topMovement
-    ? (MOVEMENT_PRESSURE[topMovement] ?? "Strategic movement active")
-    : "No active movements";
 
   return (
     <main className="flex h-screen w-full flex-col overflow-hidden bg-black text-white">
@@ -149,7 +128,7 @@ export default async function Page() {
             </div>
           </div>
 
-          {/* ── Right: stats + notification + live badge ───────────────── */}
+          {/* ── Right: stats + notification ────────────────────────────── */}
           <div className="flex items-center gap-4">
             <PlanBadge plan={plan} />
             <SectorSwitcher sector={sector} />
@@ -209,23 +188,19 @@ export default async function Page() {
               </div>
             </div>
 
-            <LiveIndicator
-              isQuiet={isQuiet}
-              isFresh={isFresh}
-              topRival={topRival}
-              marketPressure={marketPressure}
-              showStaleWarning={!isFresh && lastSignalAt !== null}
-            />
           </div>
         </div>
       </header>
+
+      {/* ── Intelligence strip — Bloomberg-style live ticker ──────────────── */}
+      <IntelligenceStrip competitors={competitors} />
 
       {/* ── Body: sidebar nav + radar ─────────────────────────────────────── */}
       <div className="flex flex-1 flex-row overflow-hidden">
 
         {/* ── Left sidebar — navigation ─────────────────────────────────── */}
         <nav
-          className="flex w-[220px] shrink-0 flex-col border-r border-[#0e2210] bg-[rgba(0,0,0,0.98)] xl:w-[280px]"
+          className="flex w-[190px] shrink-0 flex-col border-r border-[#0e2210] bg-[rgba(0,0,0,0.98)] xl:w-[240px]"
           aria-label="App navigation"
         >
           <SidebarNav plan={plan} competitors={competitors} />
@@ -245,6 +220,12 @@ export default async function Page() {
 
       {/* ── Timed upgrade prompt — shown after 60s for Analyst plan users ── */}
       <UpgradePrompt plan={plan} />
+
+      {/* ── Full-screen/slide-in overlays for Map, Briefs, Strategy ─────── */}
+      <AppOverlays competitors={competitors} />
+
+      {/* ── Trial lock screen — shown when trial expired and plan is not Pro ── */}
+      {trialExpired && <TrialLockScreen />}
 
     </main>
   );

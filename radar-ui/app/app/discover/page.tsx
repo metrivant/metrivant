@@ -19,7 +19,7 @@ export default async function DiscoverPage() {
       .from("organizations")
       .select("id, sector")
       .eq("owner_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (org) {
       orgSector = org.sector ?? "saas";

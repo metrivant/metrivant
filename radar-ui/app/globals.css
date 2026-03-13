@@ -45,6 +45,12 @@ body {
   animation: upgrade-glow 16s ease-in-out infinite;
 }
 
+/* ── Intelligence strip ticker scroll ───────────────────────────────────── */
+@keyframes intelligence-ticker {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
 /* Premium scrollbar — visible but restrained */
 ::-webkit-scrollbar {
   width: 4px;

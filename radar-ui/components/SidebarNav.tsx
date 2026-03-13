@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import type { RadarCompetitor } from "../lib/api";
 import SignalConstellation from "./SignalConstellation";
 
-const NAV_ITEMS: { href: string; label: string; icon: ReactNode }[] = [
+const NAV_ITEMS: { href: string; label: string; icon: ReactNode; overlayKey?: string }[] = [
   {
     href: "/app/discover",
     label: "Discover",
@@ -21,6 +21,7 @@ const NAV_ITEMS: { href: string; label: string; icon: ReactNode }[] = [
   {
     href: "/app/briefs",
     label: "Briefs",
+    overlayKey: "briefs",
     icon: (
       <svg width="13" height="13" viewBox="0 0 11 11" fill="none" aria-hidden="true">
         <rect x="1.5" y="1" width="8" height="9" rx="1.3" stroke="currentColor" strokeWidth="1.3" />
@@ -31,6 +32,7 @@ const NAV_ITEMS: { href: string; label: string; icon: ReactNode }[] = [
   {
     href: "/app/market-map",
     label: "Market Map",
+    overlayKey: "map",
     icon: (
       <svg width="13" height="13" viewBox="0 0 11 11" fill="none" aria-hidden="true">
         <rect x="1" y="1" width="9" height="9" rx="1" stroke="currentColor" strokeWidth="1.2" />
@@ -42,6 +44,7 @@ const NAV_ITEMS: { href: string; label: string; icon: ReactNode }[] = [
   {
     href: "/app/strategy",
     label: "Strategy",
+    overlayKey: "strategy",
     icon: (
       <svg width="13" height="13" viewBox="0 0 11 11" fill="none" aria-hidden="true">
         <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.3" />
@@ -73,9 +76,10 @@ const ACTIVE_STYLE: React.CSSProperties = {
 };
 
 const HOVER_STYLE: React.CSSProperties = {
-  color: "rgba(46,230,166,0.6)",
-  background: "#0a1a0a",
-  textShadow: "0 0 8px rgba(46,230,166,0.22)",
+  color: "rgba(46,230,166,0.80)",
+  background: "rgba(46,230,166,0.05)",
+  textShadow: "0 0 10px rgba(46,230,166,0.50), 0 0 24px rgba(46,230,166,0.18)",
+  boxShadow: "inset 2px 0 0 rgba(46,230,166,0.20)",
 };
 
 const DEFAULT_STYLE: React.CSSProperties = {
@@ -87,18 +91,28 @@ function NavLink({
   label,
   icon,
   isActive,
+  overlayKey,
 }: {
   href: string;
   label: string;
   icon: ReactNode;
   isActive: boolean;
+  overlayKey?: string;
 }) {
   const [hovered, setHovered] = useState(false);
   const style = isActive ? ACTIVE_STYLE : hovered ? HOVER_STYLE : DEFAULT_STYLE;
 
+  function handleClick(e: React.MouseEvent) {
+    if (overlayKey) {
+      e.preventDefault();
+      window.dispatchEvent(new CustomEvent("mv:overlay", { detail: overlayKey }));
+    }
+  }
+
   return (
     <Link
       href={href}
+      onClick={handleClick}
       className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-medium transition-all duration-150"
       style={style}
       onMouseEnter={() => setHovered(true)}
@@ -122,13 +136,14 @@ export default function SidebarNav({
   return (
     <>
       <div className="flex flex-col gap-1 p-3 pt-5">
-        {NAV_ITEMS.map(({ href, label, icon }) => (
+        {NAV_ITEMS.map(({ href, label, icon, overlayKey }) => (
           <NavLink
             key={href}
             href={href}
             label={label}
             icon={icon}
             isActive={pathname.startsWith(href)}
+            overlayKey={overlayKey}
           />
         ))}
 

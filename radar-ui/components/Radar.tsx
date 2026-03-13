@@ -1482,6 +1482,10 @@ export default function Radar({
               {/* ── Gravity Field layers — cluster halos + relationship lines ── */}
               {gravityMode && (
                 <g style={{ opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.55s ease" }}>
+                  {/* Central gravity attractor */}
+                  <circle cx={500} cy={500} r={20} fill="#2EE6A6" fillOpacity={0.04} stroke="#2EE6A6" strokeWidth={0.5} strokeOpacity={0.14} />
+                  <circle cx={500} cy={500} r={5}  fill="#2EE6A6" fillOpacity={0.20} />
+
                   {/* Cluster halos — soft field around each movement-type group */}
                   {gravityGroups.map(({ type, color, label, nodes }) => {
                     const cx = nodes.reduce((s, p) => s + p.x, 0) / nodes.length;
@@ -1493,9 +1497,15 @@ export default function Radar({
                       <g key={`halo-${type}`} style={{ pointerEvents: "none" }}>
                         <circle
                           cx={cx} cy={cy} r={maxR}
-                          fill={color} fillOpacity={0.042}
-                          stroke={color} strokeWidth={1} strokeOpacity={0.13}
+                          fill={color} fillOpacity={0.07}
+                          stroke={color} strokeWidth={1.2} strokeOpacity={0.28}
                           strokeDasharray="3 6"
+                        />
+                        <circle
+                          cx={cx} cy={cy} r={maxR + 10}
+                          fill="none"
+                          stroke={color} strokeWidth={0.5} strokeOpacity={0.10}
+                          strokeDasharray="1 9"
                         />
                         <text
                           x={cx} y={cy - maxR - 7}
@@ -1533,10 +1543,10 @@ export default function Radar({
                             x1={selPos.x} y1={selPos.y}
                             x2={pos.x} y2={pos.y}
                             stroke={relColor}
-                            strokeWidth={1}
-                            strokeOpacity={0.22}
-                            strokeDasharray="3 7"
-                            style={{ pointerEvents: "none" }}
+                            strokeWidth={1.5}
+                            strokeOpacity={0.40}
+                            strokeDasharray="4 6"
+                            style={{ pointerEvents: "none", filter: `drop-shadow(0 0 3px ${relColor}55)` }}
                           />
                         );
                       });
@@ -2235,7 +2245,11 @@ export default function Radar({
                   <p className="text-sm leading-relaxed text-slate-300">
                     {primarySignal.strategic_implication}
                   </p>
-                ) : detail?.signals && detail.signals.length === 0 ? (
+                ) : primarySignal?.summary ? (
+                  <p className="text-sm leading-relaxed text-slate-400">
+                    {primarySignal.summary}
+                  </p>
+) : detail?.signals && detail.signals.length === 0 ? (
                   <p className="text-sm leading-6 text-slate-500">
                     Monitoring active — no signals yet.
                   </p>

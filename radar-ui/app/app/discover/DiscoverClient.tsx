@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   COMPETITOR_CATALOG,
   CATEGORY_LABELS,
@@ -8,7 +8,22 @@ import {
   type CatalogEntry,
   type CatalogCategory,
 } from "../../../lib/catalog";
-import { getSectorConfig } from "../../../lib/sectors";
+import { getSectorConfig, getSectorLabel } from "../../../lib/sectors";
+
+// ── Sector options (alphabetical) ─────────────────────────────────────────────
+
+const SECTOR_OPTIONS = [
+  { value: "ai-infrastructure", label: "AI Infrastructure" },
+  { value: "consumer-tech",     label: "Consumer Tech" },
+  { value: "custom",            label: "Custom" },
+  { value: "cybersecurity",     label: "Cybersecurity" },
+  { value: "defense",           label: "Defense & Aerospace" },
+  { value: "devtools",          label: "DevTools" },
+  { value: "energy",            label: "Energy & Resources" },
+  { value: "fintech",           label: "Fintech" },
+  { value: "healthcare",        label: "Healthcare" },
+  { value: "saas",              label: "SaaS & Software" },
+] as const;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -129,14 +144,62 @@ export default function DiscoverClient({
   const [page, setPage] = useState(1);
   const [trackError, setTrackError] = useState<string | null>(null);
 
+  // ── Sector state ──────────────────────────────────────────────────────────
+  const [sector, setSector] = useState(initialSector);
+  const [sectorOpen, setSectorOpen] = useState(false);
+  const [sectorSwitching, setSectorSwitching] = useState(false);
+  const [sectorError, setSectorError] = useState(false);
+  const sectorRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function onPointerDown(e: PointerEvent) {
+      if (sectorRef.current && !sectorRef.current.contains(e.target as Node)) {
+        setSectorOpen(false);
+      }
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, []);
+
+  async function handleSectorSelect(value: string) {
+    if (value === sector) { setSectorOpen(false); return; }
+    const prev = sector;
+    setSector(value);         // optimistic — catalog re-filters immediately
+    setSectorOpen(false);
+    setActiveCategory(null);  // reset filters for new sector
+    setQuery("");
+    setPage(1);
+    setSectorSwitching(true);
+    setSectorError(false);
+    try {
+      const res = await fetch("/api/initialize-sector", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sector: value }),
+      });
+      if (!res.ok) {
+        setSector(prev);
+        setSectorError(true);
+        setTimeout(() => setSectorError(false), 2500);
+      }
+    } catch {
+      setSector(prev);
+      setSectorError(true);
+      setTimeout(() => setSectorError(false), 2500);
+    } finally {
+      setSectorSwitching(false);
+    }
+  }
+
   // All categories for this sector
-  const sectorConfig = getSectorConfig(initialSector);
+  const sectorConfig = getSectorConfig(sector);
   const sectorCategories = sectorConfig.catalogCategories as CatalogCategory[];
 
   // Sector-filtered base catalog
   const sectorCatalog = useMemo(
-    () => COMPETITOR_CATALOG.filter((e) => CATEGORY_SECTOR[e.category] === initialSector),
-    [initialSector]
+    () => COMPETITOR_CATALOG.filter((e) => CATEGORY_SECTOR[e.category] === sector),
+    [sector]
   );
 
   // Detect domain input (e.g. "notion.so") vs. text search
@@ -209,24 +272,61 @@ export default function DiscoverClient({
   return (
     <div className="mx-auto max-w-6xl px-6 pb-20 pt-10">
 
-      {/* ── Sector indicator ─────────────────────────────────────────── */}
+      {/* ── Sector selector ──────────────────────────────────────────── */}
       <div className="mb-6 flex items-center gap-2">
-        <span
-          className="inline-flex items-center gap-1.5 rounded-full border border-[#0d2010] px-3 py-1 text-[11px] font-medium text-slate-500"
-          style={{ background: "rgba(46,230,166,0.03)" }}
-        >
-          <span
-            className="h-1.5 w-1.5 rounded-full"
-            style={{ background: "#2EE6A6", opacity: 0.8 }}
-          />
-          {sectorConfig.label} catalog
-        </span>
-        <a
-          href="/app/settings"
-          className="text-[11px] text-slate-700 transition-colors hover:text-slate-400"
-        >
-          Change sector →
-        </a>
+        <div ref={sectorRef} className="relative">
+          <button
+            onClick={() => setSectorOpen((v) => !v)}
+            disabled={sectorSwitching}
+            className="inline-flex items-center gap-2 rounded-full border border-[#0d2010] px-3 py-1 text-[11px] font-medium transition-colors hover:border-[#1a3020] disabled:opacity-50"
+            style={{
+              background: "rgba(46,230,166,0.03)",
+              color: sectorError ? "#ef4444" : "#64748b",
+            }}
+          >
+            <span
+              className="h-1.5 w-1.5 shrink-0 rounded-full"
+              style={{ background: sectorError ? "#ef4444" : "#2EE6A6", opacity: 0.8 }}
+            />
+            <span style={{ color: sectorError ? "#ef4444" : "rgba(46,230,166,0.65)" }}>
+              {sectorSwitching ? "Switching…" : sectorError ? "Failed" : getSectorLabel(sector)}
+            </span>
+            <span className="text-slate-700">catalog</span>
+            <svg
+              width="8"
+              height="8"
+              viewBox="0 0 9 9"
+              fill="none"
+              aria-hidden="true"
+              className="opacity-40"
+              style={{ transform: sectorOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
+            >
+              <path d="M1.5 3L4.5 6.5L7.5 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+
+          {sectorOpen && (
+            <div
+              className="absolute left-0 top-full z-50 mt-1.5 w-52 overflow-hidden rounded-[12px] border border-[#1a3020] bg-[#060d06] py-1"
+              style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85)" }}
+            >
+              {SECTOR_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => handleSectorSelect(opt.value)}
+                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-[12px] transition-colors hover:bg-[#0a1a0a]"
+                  style={{ color: opt.value === sector ? "#2EE6A6" : "#64748b" }}
+                >
+                  <span
+                    className="h-1 w-1 shrink-0 rounded-full"
+                    style={{ background: opt.value === sector ? "#2EE6A6" : "transparent" }}
+                  />
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Search bar ──────────────────────────────────────────────── */}

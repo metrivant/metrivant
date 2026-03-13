@@ -20,7 +20,6 @@ const PLANS = [
       "Weekly signal digest",
       "Radar dashboard",
       "30-day signal history",
-      "Email support",
     ],
     cta: "Start free trial",
     href: "/signup?plan=analyst",
@@ -37,7 +36,6 @@ const PLANS = [
       "Full intelligence drawer",
       "90-day signal history",
       "Strategic movement analysis",
-      "Priority support",
     ],
     cta: "Start free trial",
     href: "/signup?plan=pro",
@@ -143,8 +141,13 @@ export default function AboutPage() {
           </h1>
 
           <p className="mx-auto mt-6 max-w-sm text-[15px] leading-relaxed text-slate-500">
-            Metrivant monitors competitors across pricing, product, and
-            positioning — and surfaces movement before it becomes public knowledge.
+            Metrivant is a competitive intelligence radar.
+          </p>
+          <p className="mx-auto mt-2 max-w-sm text-[15px] leading-relaxed text-slate-500">
+            It continuously watches competitor movement across markets and surfaces signals that matter.
+          </p>
+          <p className="mx-auto mt-2 max-w-sm text-[15px] leading-relaxed text-slate-500">
+            See strategic shifts before they happen.
           </p>
 
           <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
@@ -184,7 +187,7 @@ export default function AboutPage() {
               Four intelligence surfaces.
             </h2>
             <p className="mt-3 text-[14px] text-slate-500">
-              Every dimension of competitor movement — monitored, structured, and surfaced.
+              Every dimension of competitor movement — monitored and surfaced.
             </p>
           </div>
 
@@ -503,10 +506,10 @@ export default function AboutPage() {
               Pricing
             </div>
             <h2 className="text-[26px] font-bold tracking-tight text-white md:text-[34px]">
-              Simple plans. No seat fees.
+              Simple plans.
             </h2>
             <p className="mt-3 text-[14px] text-slate-500">
-              Pay for what you monitor. Every plan includes a free trial.
+              All signals. One subscription. Every plan includes a free trial.
             </p>
           </div>
 

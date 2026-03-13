@@ -5,16 +5,16 @@ import { useRouter } from "next/navigation";
 import { getSectorLabel } from "../lib/sectors";
 
 const SECTOR_OPTIONS = [
-  { value: "saas",               label: "SaaS & Software" },
-  { value: "cybersecurity",      label: "Cybersecurity" },
-  { value: "energy",             label: "Energy & Resources" },
-  { value: "defense",            label: "Defense & Aerospace" },
-  { value: "fintech",            label: "Fintech" },
   { value: "ai-infrastructure",  label: "AI Infrastructure" },
-  { value: "devtools",           label: "DevTools" },
-  { value: "healthcare",         label: "Healthcare" },
   { value: "consumer-tech",      label: "Consumer Tech" },
   { value: "custom",             label: "Custom" },
+  { value: "cybersecurity",      label: "Cybersecurity" },
+  { value: "defense",            label: "Defense & Aerospace" },
+  { value: "devtools",           label: "DevTools" },
+  { value: "energy",             label: "Energy & Resources" },
+  { value: "fintech",            label: "Fintech" },
+  { value: "healthcare",         label: "Healthcare" },
+  { value: "saas",               label: "SaaS & Software" },
 ] as const;
 
 export default function SectorSwitcher({ sector }: { sector: string }) {

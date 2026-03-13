@@ -3,20 +3,21 @@ import Link from "next/link";
 import { createClient } from "../../../lib/supabase/server";
 import BillingTracker from "./BillingTracker";
 import UpgradeClickTracker from "./UpgradeClickTracker";
+import ManageSubscriptionPanel from "../../../components/ManageSubscriptionPanel";
 
-// ── Plan data ──────────────────────────────────────────────────────────────────
+// ── Constants ──────────────────────────────────────────────────────────────────
 
-// "analyst" is the current base plan key. "starter" is a legacy alias from
-// earlier signups — both resolve to the same plan display.
+const TRIAL_DAYS = 3;
+
 type PlanKey = "analyst" | "pro";
 
+// Support tiers removed — plans focus on intelligence value only.
 const PLAN_FEATURES: Record<PlanKey, string[]> = {
   analyst: [
     "5 competitors monitored",
     "Weekly signal digest",
     "Radar dashboard",
     "30-day signal history",
-    "Email support",
   ],
   pro: [
     "25 competitors monitored",
@@ -24,7 +25,6 @@ const PLAN_FEATURES: Record<PlanKey, string[]> = {
     "Full intelligence drawer",
     "90-day signal history",
     "Strategic movement analysis",
-    "Priority support",
   ],
 };
 
@@ -43,7 +43,6 @@ const PRO_UPGRADE_FEATURES = [
   "Real-time signal alerts",
   "90-day signal history",
   "Strategic movement analysis",
-  "Priority support",
 ];
 
 // ── Page ───────────────────────────────────────────────────────────────────────
@@ -54,14 +53,19 @@ export default async function BillingPage() {
   if (!user) redirect("/login");
 
   const rawPlan = (user.user_metadata?.plan as string | undefined) ?? "analyst";
-  // Normalise legacy "starter" key from earlier signups to the current "analyst" key.
   const normPlan = rawPlan === "starter" ? "analyst" : rawPlan;
   const validPlan: PlanKey = (["analyst", "pro"] as PlanKey[]).includes(normPlan as PlanKey)
     ? (normPlan as PlanKey)
     : "analyst";
 
   const isUpgradable = validPlan === "analyst";
-  const isPro        = validPlan === "pro";
+
+  // Trial state: 3 days from account creation
+  const createdAt = user.created_at; // ISO string from Supabase auth
+  const trialExpiredAt = new Date(
+    new Date(createdAt).getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000
+  ).toISOString();
+  const trialActive = validPlan !== "pro" && Date.now() < new Date(trialExpiredAt).getTime();
 
   return (
     <div className="min-h-screen bg-[#000200] text-white">
@@ -76,7 +80,7 @@ export default async function BillingPage() {
         }}
       />
 
-      {/* Mini header */}
+      {/* Header */}
       <header className="relative z-10 flex h-14 items-center justify-between border-b border-[#0e2210] bg-[rgba(0,2,0,0.97)] px-6">
         <div
           className="absolute inset-x-0 top-0 h-[1px]"
@@ -96,7 +100,15 @@ export default async function BillingPage() {
           </svg>
           <span className="text-[13px] font-bold tracking-[0.08em] text-white">METRIVANT</span>
         </Link>
-        <div className="flex items-center gap-5">
+
+        <div className="flex items-center gap-4">
+          {/* Manage Subscription button — client component */}
+          <ManageSubscriptionPanel
+            plan={validPlan}
+            trialActive={trialActive}
+            trialExpiredAt={trialExpiredAt}
+            createdAt={createdAt}
+          />
           <Link href="/app/settings" className="text-[12px] text-slate-600 transition-colors hover:text-slate-400">
             Settings
           </Link>
@@ -195,7 +207,7 @@ export default async function BillingPage() {
                 href="/pricing"
                 className="block rounded-full bg-[#2EE6A6] py-2.5 text-center text-[13px] font-bold text-black transition-opacity hover:opacity-90"
               >
-                See all plans →
+                Upgrade →
               </Link>
             </UpgradeClickTracker>
           </section>
