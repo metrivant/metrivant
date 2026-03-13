@@ -2,28 +2,27 @@ import Link from "next/link";
 import PublicNav from "../../components/PublicNav";
 import PricingTracker from "../../components/PricingTracker";
 
-// Support tiers removed — plans focus on intelligence value only.
 const PLANS = [
   {
-    name: "Analyst",
-    price: "$9",
-    period: "/mo",
-    description: "Monitor your competitive landscape with weekly intelligence.",
+    name:        "Analyst",
+    price:       "$9",
+    period:      "/mo",
+    description: "Structured weekly intelligence on your top competitors.",
     features: [
       "5 competitors monitored",
-      "Weekly signal digest",
-      "Radar dashboard",
+      "Weekly intelligence digest",
+      "Live radar dashboard",
       "30-day signal history",
     ],
-    cta: "Start free trial",
-    href: "/signup?plan=analyst",
+    cta:       "Start free trial",
+    href:      "/signup?plan=analyst",
     highlight: false,
   },
   {
-    name: "Pro",
-    price: "$19",
-    period: "/mo",
-    description: "Real-time intelligence for active competitive strategy.",
+    name:        "Pro",
+    price:       "$19",
+    period:      "/mo",
+    description: "Live signals and alerts when rivals make their move.",
     features: [
       "25 competitors monitored",
       "Real-time signal alerts",
@@ -31,8 +30,8 @@ const PLANS = [
       "90-day signal history",
       "Strategic movement analysis",
     ],
-    cta: "Start free trial",
-    href: "/signup?plan=pro",
+    cta:       "Start free trial",
+    href:      "/signup?plan=pro",
     highlight: true,
   },
 ];
@@ -41,7 +40,7 @@ const PLANS = [
 
 function RadarGraphic() {
   return (
-    <svg width="88" height="88" viewBox="0 0 200 200" fill="none" aria-hidden="true" className="shrink-0 opacity-65">
+    <svg width="88" height="88" viewBox="0 0 200 200" fill="none" aria-hidden="true" className="shrink-0 opacity-60">
       <circle cx="100" cy="100" r="88"  stroke="#2EE6A6" strokeWidth="0.6" strokeOpacity="0.18"/>
       <circle cx="100" cy="100" r="64"  stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.14"/>
       <circle cx="100" cy="100" r="40"  stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.20"/>
@@ -62,7 +61,7 @@ function RadarGraphic() {
 
 function MapGraphic() {
   return (
-    <svg width="88" height="88" viewBox="0 0 200 200" fill="none" aria-hidden="true" className="shrink-0 opacity-65">
+    <svg width="88" height="88" viewBox="0 0 200 200" fill="none" aria-hidden="true" className="shrink-0 opacity-60">
       <rect x="15" y="15" width="170" height="170" rx="2" stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.14"/>
       <line x1="100" y1="15"  x2="100" y2="185" stroke="#2EE6A6" strokeWidth="0.3" strokeOpacity="0.09" strokeDasharray="3 5"/>
       <line x1="15"  y1="100" x2="185" y2="100" stroke="#2EE6A6" strokeWidth="0.3" strokeOpacity="0.09" strokeDasharray="3 5"/>
@@ -103,11 +102,10 @@ export default function PricingPage() {
       <section className="mx-auto max-w-5xl px-6 pb-24 pt-36">
         <div className="mb-14 text-center">
           <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl">
-            Simple pricing
+            Know what your competitors are doing.
           </h1>
-          {/* Task 8: psychologically compelling messaging */}
           <p className="mt-4 text-[15px] text-slate-500">
-            All signals. One subscription.
+            3-day free trial. Cancel anytime.
           </p>
         </div>
 
@@ -117,19 +115,19 @@ export default function PricingPage() {
               key={plan.name}
               className={`relative flex flex-col rounded-[16px] border p-7 ${
                 plan.highlight
-                  ? "border-[#2EE6A6]/30 bg-[#030c03]"
+                  ? "border-[#2EE6A6]/40 bg-[#030c03]"
                   : "border-[#0d2010] bg-[#020802]"
               }`}
               style={
                 plan.highlight
-                  ? { boxShadow: "0 0 40px rgba(46,230,166,0.04)" }
+                  ? { boxShadow: "0 0 48px rgba(46,230,166,0.07), 0 0 0 0 transparent" }
                   : undefined
               }
             >
               {plan.highlight && (
                 <div
                   className="absolute -top-px inset-x-0 h-[1px] rounded-t-[16px]"
-                  style={{ background: "linear-gradient(90deg, transparent, rgba(46,230,166,0.5), transparent)" }}
+                  style={{ background: "linear-gradient(90deg, transparent, rgba(46,230,166,0.65), transparent)" }}
                 />
               )}
 
@@ -141,8 +139,15 @@ export default function PricingPage() {
                       {plan.name}
                     </div>
                     {plan.highlight && (
-                      <span className="rounded-full bg-[#2EE6A6]/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-[#2EE6A6]">
-                        Popular
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]"
+                        style={{
+                          background: "rgba(46,230,166,0.15)",
+                          color:      "#2EE6A6",
+                          border:     "1px solid rgba(46,230,166,0.25)",
+                        }}
+                      >
+                        Most popular
                       </span>
                     )}
                   </div>
@@ -157,7 +162,6 @@ export default function PricingPage() {
                   </p>
                 </div>
 
-                {/* Intelligence-style plan graphic */}
                 {GRAPHICS[plan.name as keyof typeof GRAPHICS]}
               </div>
 
@@ -166,7 +170,7 @@ export default function PricingPage() {
                   <li key={f} className="flex items-start gap-2.5">
                     <span
                       className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full"
-                      style={{ background: "#2EE6A6", opacity: 0.7 }}
+                      style={{ background: "#2EE6A6", opacity: plan.highlight ? 0.85 : 0.65 }}
                     />
                     <span className="text-[13px] text-slate-400">{f}</span>
                   </li>
@@ -185,6 +189,27 @@ export default function PricingPage() {
               </Link>
             </div>
           ))}
+        </div>
+
+        {/* Trust line */}
+        <p className="mt-8 text-center text-[11px] text-slate-700">
+          No contracts · No setup fees · Cancel anytime
+        </p>
+
+        {/* Price anchor */}
+        <div className="mt-12 flex items-center justify-center gap-3">
+          <div className="flex items-center gap-2 rounded-full border border-[#0d1e0d] bg-[#020802] px-4 py-2">
+            <span className="text-[11px] text-slate-600">Typical intelligence platforms</span>
+            <span className="text-[13px] font-semibold text-slate-600 line-through decoration-slate-700/60">$200–$1,000/mo</span>
+          </div>
+          <span className="text-[11px] text-slate-700">vs</span>
+          <div
+            className="flex items-center gap-2 rounded-full border border-[#2EE6A6]/20 px-4 py-2"
+            style={{ background: "rgba(46,230,166,0.04)" }}
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-[#2EE6A6]" />
+            <span className="text-[13px] font-semibold text-[#2EE6A6]">Metrivant from $9/mo</span>
+          </div>
         </div>
       </section>
     </div>

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { capture } from "../lib/posthog";
+import CheckoutButton from "./CheckoutButton";
 
 // Shows after TRIGGER_DELAY_MS of continuous dashboard use — Analyst plan only.
 // Dismissed state persists for the entire browser session via sessionStorage.
@@ -50,15 +50,15 @@ export default function UpgradePrompt({ plan }: { plan: string }) {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 16, scale: 0.98 }}
           transition={{ duration: 0.35, ease: "easeOut" }}
-          className="fixed bottom-6 right-6 z-50 w-[280px]"
+          className="fixed bottom-6 right-6 z-50 w-[296px]"
           role="dialog"
           aria-label="Upgrade to Metrivant Pro"
         >
           <div
             className="relative overflow-hidden rounded-[18px] border border-[#1a3020] p-5"
             style={{
-              background: "rgba(2,8,2,0.98)",
-              boxShadow: "0 12px 48px rgba(0,0,0,0.85), 0 0 0 1px rgba(46,230,166,0.05)",
+              background:     "rgba(2,8,2,0.98)",
+              boxShadow:      "0 12px 48px rgba(0,0,0,0.85), 0 0 0 1px rgba(46,230,166,0.05)",
               backdropFilter: "blur(20px)",
             }}
           >
@@ -67,7 +67,7 @@ export default function UpgradePrompt({ plan }: { plan: string }) {
               className="absolute inset-x-0 top-0 h-[1px]"
               style={{
                 background:
-                  "linear-gradient(90deg, transparent, rgba(46,230,166,0.40), transparent)",
+                  "linear-gradient(90deg, transparent, rgba(46,230,166,0.45), transparent)",
               }}
             />
 
@@ -91,27 +91,27 @@ export default function UpgradePrompt({ plan }: { plan: string }) {
                 Metrivant Pro
               </div>
               <div className="text-[15px] font-semibold leading-snug text-white">
-                Monitor 25 competitors in real time
+                25 competitors. Live alerts.
               </div>
               <p className="mt-1.5 text-[12px] leading-relaxed text-slate-500">
-                Upgrade for live signal alerts, 90-day history, and strategic
-                movement analysis.
+                Real-time signal alerts, 90-day history, and strategic movement analysis. $19/mo.
               </p>
             </div>
 
             <div className="flex items-center gap-2">
-              <Link
-                href="/pricing"
-                onClick={handleUpgradeClick}
-                className="flex-1 rounded-full bg-[#2EE6A6] py-2 text-center text-[12px] font-bold text-black transition-opacity hover:opacity-90"
-              >
-                See plans
-              </Link>
+              <div className="flex-1" onClick={handleUpgradeClick}>
+                <CheckoutButton
+                  plan="pro"
+                  className="w-full rounded-full bg-[#2EE6A6] py-2 text-center text-[12px] font-bold text-black transition-opacity hover:opacity-90"
+                >
+                  Upgrade to Pro
+                </CheckoutButton>
+              </div>
               <button
                 onClick={handleDismiss}
                 className="rounded-full border border-[#1e3020] px-3 py-2 text-[12px] text-slate-600 transition-colors hover:text-slate-400"
               >
-                Not now
+                Later
               </button>
             </div>
           </div>

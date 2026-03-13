@@ -86,6 +86,11 @@ export default async function BillingPage() {
     new Date(user.created_at).getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000
   ).toISOString();
 
+  // Trial countdown — days remaining for active trial users
+  const trialDaysRemaining = Math.max(0, Math.ceil(
+    (new Date(trialExpiredAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+  ));
+
   const hasActiveSub     = subState.status === "active" || subState.status === "canceled_active" || subState.status === "past_due";
   const isUpgradable     = !hasActiveSub || validPlan !== "pro";
   const canManageBilling = !!subState.stripeCustomerId;
@@ -185,13 +190,29 @@ export default async function BillingPage() {
                   </span>
                 )}
                 {subState.status === "past_due" && (
-                  <span className="text-[12px] text-red-400">
-                    Payment failed — update payment method in billing portal
-                  </span>
+                  <div>
+                    <span className="block text-[12px] text-red-400">
+                      Payment failed — action required
+                    </span>
+                    {canManageBilling && (
+                      <form action="/api/stripe/portal" method="POST" className="mt-1.5 inline">
+                        <button
+                          type="submit"
+                          className="text-[12px] font-medium text-[#2EE6A6] transition-opacity hover:opacity-75"
+                        >
+                          Update payment method →
+                        </button>
+                      </form>
+                    )}
+                  </div>
                 )}
                 {subState.status === "trial" && (
                   <span className="text-[12px] text-amber-400">
-                    Trial active — expires {fmtDate(trialExpiredAt)}
+                    {trialDaysRemaining === 0
+                      ? "Trial ends today — subscribe to keep access"
+                      : trialDaysRemaining === 1
+                        ? "Trial ends tomorrow"
+                        : `Trial active — ${trialDaysRemaining} days remaining`}
                   </span>
                 )}
                 {subState.status === "expired" && (

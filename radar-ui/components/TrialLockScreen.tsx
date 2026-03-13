@@ -158,8 +158,8 @@ export default function TrialLockScreen() {
             <circle cx="23" cy="23" r="21.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.55"/>
             <circle cx="23" cy="23" r="13"   stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.30"/>
             <circle cx="23" cy="23" r="5.5"  stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.45"/>
-            <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#2EE6A6" fillOpacity="0.12"/>
-            <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.85"/>
+            <path d="M23 23 L13.91 3.51 A21.5 21.5 0 0 1 23 1.5 Z" fill="#2EE6A6" fillOpacity="0.12"/>
+            <line x1="23" y1="23" x2="23" y2="1.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.85"/>
             <circle cx="23" cy="23" r="2.5" fill="#2EE6A6"/>
           </svg>
 
@@ -167,13 +167,13 @@ export default function TrialLockScreen() {
             className="mb-3 text-[9px] font-bold uppercase tracking-[0.32em]"
             style={{ color: "rgba(46,230,166,0.50)" }}
           >
-            Trial Period Ended
+            Trial ended
           </div>
           <h1 className="text-[36px] font-bold leading-[1.08] tracking-tight text-white md:text-[48px]">
-            Unlock Competitive Intelligence
+            Your competitors are still moving.
           </h1>
           <p className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-slate-500">
-            Metrivant monitors markets so you don&apos;t have to.
+            Subscribe to keep watching. From $9/month — less than one competitor&apos;s ad spend in an hour.
           </p>
         </div>
 

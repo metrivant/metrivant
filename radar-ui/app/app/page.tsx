@@ -26,9 +26,10 @@ export default async function Page() {
   });
 
   // Read org sector + subscription state — best-effort, both default to safe values
-  let sector       = "saas";
-  let plan         = "analyst";
-  let trialExpired = false;
+  let sector             = "saas";
+  let plan               = "analyst";
+  let trialExpired       = false;
+  let trialDaysRemaining: number | null = null;
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -49,12 +50,19 @@ export default async function Page() {
         const subState = await getSubscriptionState(supabase, org.id as string, user.created_at);
         plan         = subState.plan;
         trialExpired = subState.status === "expired";
+        if (subState.status === "trial") {
+          const trialEnd = new Date(user.created_at).getTime() + 3 * 24 * 60 * 60 * 1000;
+          trialDaysRemaining = Math.max(0, Math.ceil((trialEnd - Date.now()) / (1000 * 60 * 60 * 24)));
+        }
       } else {
         // No org yet — fall back to time-based trial check
         plan = (user.user_metadata?.plan as string | undefined) ?? "analyst";
         if (plan !== "pro") {
           const trialEnd = new Date(user.created_at).getTime() + 3 * 24 * 60 * 60 * 1000;
-          trialExpired   = Date.now() > trialEnd;
+          trialExpired = Date.now() > trialEnd;
+          if (!trialExpired) {
+            trialDaysRemaining = Math.max(0, Math.ceil((trialEnd - Date.now()) / (1000 * 60 * 60 * 24)));
+          }
         }
       }
     }
@@ -141,7 +149,7 @@ export default async function Page() {
 
           {/* ── Right: stats + notification ────────────────────────────── */}
           <div className="flex items-center gap-4">
-            <PlanBadge plan={plan} />
+            <PlanBadge plan={plan} trialDaysRemaining={trialDaysRemaining} />
             <SectorSwitcher sector={sector} />
             <NotificationBell />
 
