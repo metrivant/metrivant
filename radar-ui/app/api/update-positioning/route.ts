@@ -70,6 +70,7 @@ async function handler(request: Request): Promise<NextResponse> {
           "latest_movement_summary, momentum_score"
         )
         .eq("org_id", org.id)
+        .order("momentum_score", { ascending: false })
         .limit(30);
 
       if (!feed || feed.length === 0) continue;

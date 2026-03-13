@@ -72,6 +72,7 @@ async function handler(request: Request): Promise<NextResponse> {
           "latest_movement_summary, momentum_score"
         )
         .eq("org_id", org.id)
+        .order("momentum_score", { ascending: false })
         .limit(30);
 
       if (!feed || feed.length < 2) continue;
@@ -101,6 +102,15 @@ async function handler(request: Request): Promise<NextResponse> {
       // (idempotent daily run: delete today's then insert fresh)
       const todayStart = new Date();
       todayStart.setUTCHours(0, 0, 0, 0);
+      // Guard: if insights were already inserted in the last hour, skip re-generation
+      // to prevent double-fire email spam from concurrent cron executions.
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { count: recentCount } = await service
+        .from("strategic_insights")
+        .select("*", { count: "exact", head: true })
+        .eq("org_id", org.id)
+        .gte("created_at", oneHourAgo);
+      if ((recentCount ?? 0) > 0) continue;
 
       await service
         .from("strategic_insights")

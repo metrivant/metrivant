@@ -61,6 +61,8 @@ async function runCheck(): Promise<NextResponse> {
   };
 
   const qualifying: QualifyingSignal[] = [];
+  // JS-level dedup: guard against backend returning the same signal_id twice
+  const seenSignalIds = new Set<string>();
 
   detailResults.forEach((result, i) => {
     if (result.status !== "fulfilled" || !result.value) return;
@@ -68,8 +70,12 @@ async function runCheck(): Promise<NextResponse> {
     const competitorName = toCheck[i].competitor_name;
 
     signals.forEach((signal) => {
+      if (seenSignalIds.has(signal.id)) return;
       const urgency = signal.urgency ?? 0;
-      if (urgency >= 3 && signal.detected_at && isRecent(signal.detected_at)) {
+      // Validate detected_at before using it — malformed dates silently fail isRecent()
+      const detectedMs = signal.detected_at ? new Date(signal.detected_at).getTime() : NaN;
+      if (urgency >= 3 && !isNaN(detectedMs) && isRecent(signal.detected_at)) {
+        seenSignalIds.add(signal.id);
         qualifying.push({
           signal_id:       signal.id,
           competitor_name: competitorName,

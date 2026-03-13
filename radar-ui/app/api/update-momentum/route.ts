@@ -48,23 +48,30 @@ async function handler(request: Request): Promise<NextResponse> {
   let totalAlerts    = 0;
 
   for (const org of orgs) {
-    // Load current radar_feed for this org
+    // Load current radar_feed for this org — ordered for deterministic top-50 selection
     const { data: feed } = await service
       .from("radar_feed")
       .select("competitor_id, competitor_name, momentum_score")
       .eq("org_id", org.id)
+      .order("momentum_score", { ascending: false })
       .limit(50);
 
     if (!feed || feed.length === 0) continue;
 
-    // Load existing momentum states for threshold detection
+    // Load existing momentum states and threshold timestamps for transition detection
     const { data: existing } = await service
       .from("competitor_momentum")
-      .select("competitor_id, momentum_state")
+      .select("competitor_id, momentum_state, threshold_crossed_at")
       .eq("org_id", org.id);
 
-    const prevStateMap = new Map<string, string>(
-      (existing ?? []).map((r) => [r.competitor_id as string, r.momentum_state as string])
+    const prevStateMap = new Map<string, { state: string; threshold_crossed_at: string | null }>(
+      (existing ?? []).map((r) => [
+        r.competitor_id as string,
+        {
+          state:                r.momentum_state as string,
+          threshold_crossed_at: (r.threshold_crossed_at as string | null) ?? null,
+        },
+      ])
     );
 
     const historyRows: {
@@ -91,7 +98,8 @@ async function handler(request: Request): Promise<NextResponse> {
     for (const comp of feed) {
       const score = Number(comp.momentum_score ?? 0);
       const state = getMomentumState(score);
-      const prevState = prevStateMap.get(comp.competitor_id as string) ?? null;
+      const prevEntry = prevStateMap.get(comp.competitor_id as string) ?? null;
+      const prevState = prevEntry?.state ?? null;
       const crossed = prevState !== "accelerating" && state === "accelerating";
 
       historyRows.push({
@@ -102,6 +110,14 @@ async function handler(request: Request): Promise<NextResponse> {
         recorded_at:    now,
       });
 
+      // Preserve the original threshold_crossed_at when a competitor remains
+      // accelerating across runs — prevents overwriting the first-crossing timestamp.
+      const thresholdCrossedAt = crossed
+        ? now
+        : state === "accelerating" && prevEntry?.threshold_crossed_at
+          ? prevEntry.threshold_crossed_at
+          : null;
+
       momentumUpserts.push({
         org_id:               org.id,
         competitor_id:        comp.competitor_id as string,
@@ -109,7 +125,7 @@ async function handler(request: Request): Promise<NextResponse> {
         momentum_score:       score,
         momentum_state:       state,
         previous_state:       prevState,
-        threshold_crossed_at: crossed ? now : null,
+        threshold_crossed_at: thresholdCrossedAt,
         updated_at:           now,
       });
 

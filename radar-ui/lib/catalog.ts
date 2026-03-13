@@ -93,7 +93,7 @@ export const COMPETITOR_CATALOG: CatalogEntry[] = [
   { id: "taskade",       domain: "taskade.com",         company_name: "Taskade",              category: "project-management", popularity_score: 66 },
   { id: "hive",          domain: "hive.com",            company_name: "Hive",                 category: "project-management", popularity_score: 64 },
   { id: "proofhub",      domain: "proofhub.com",        company_name: "ProofHub",             category: "project-management", popularity_score: 62 },
-  { id: "zoho-projects", domain: "zoho.com",            company_name: "Zoho Projects",        category: "project-management", popularity_score: 60 },
+  { id: "zoho-projects", domain: "projects.zoho.com",   company_name: "Zoho Projects",        category: "project-management", popularity_score: 60 },
 
   // ── Developer Tools ──────────────────────────────────────────────────────────
   { id: "github",        domain: "github.com",          company_name: "GitHub",               category: "developer-tools", popularity_score: 99 },
@@ -121,6 +121,8 @@ export const COMPETITOR_CATALOG: CatalogEntry[] = [
   { id: "resend",        domain: "resend.com",          company_name: "Resend",               category: "developer-tools", popularity_score: 72 },
   { id: "upstash",       domain: "upstash.com",         company_name: "Upstash",              category: "developer-tools", popularity_score: 70 },
   { id: "planetscale",   domain: "planetscale.com",     company_name: "PlanetScale",          category: "developer-tools", popularity_score: 80 },
+  { id: "warp",          domain: "warp.dev",            company_name: "Warp",                 category: "developer-tools", popularity_score: 76 },
+  { id: "windsurf",      domain: "windsurf.com",        company_name: "Windsurf",             category: "developer-tools", popularity_score: 79 },
 
   // ── Analytics ────────────────────────────────────────────────────────────────
   { id: "amplitude",     domain: "amplitude.com",       company_name: "Amplitude",            category: "analytics", popularity_score: 91 },
@@ -153,7 +155,7 @@ export const COMPETITOR_CATALOG: CatalogEntry[] = [
   { id: "activecampaign",domain: "activecampaign.com",  company_name: "ActiveCampaign",       category: "crm", popularity_score: 84 },
   { id: "close",         domain: "close.com",           company_name: "Close",                category: "crm", popularity_score: 80 },
   { id: "attio",         domain: "attio.com",           company_name: "Attio",                category: "crm", popularity_score: 76 },
-  { id: "zoho-crm",      domain: "zoho.com/crm",        company_name: "Zoho CRM",             category: "crm", popularity_score: 82 },
+  { id: "zoho-crm",      domain: "zoho.com",            company_name: "Zoho CRM",             category: "crm", popularity_score: 82 },
   { id: "freshsales",    domain: "freshsales.io",       company_name: "Freshsales",           category: "crm", popularity_score: 78 },
   { id: "copper",        domain: "copper.com",          company_name: "Copper",               category: "crm", popularity_score: 74 },
   { id: "streak",        domain: "streak.com",          company_name: "Streak",               category: "crm", popularity_score: 72 },
@@ -182,6 +184,9 @@ export const COMPETITOR_CATALOG: CatalogEntry[] = [
   { id: "huggingface",   domain: "huggingface.co",      company_name: "Hugging Face",         category: "ai-tools", popularity_score: 93 },
   { id: "xai",           domain: "x.ai",                company_name: "xAI",                  category: "ai-tools", popularity_score: 88 },
   { id: "qdrant",        domain: "qdrant.tech",         company_name: "Qdrant",               category: "ai-tools", popularity_score: 66 },
+  { id: "replit",        domain: "replit.com",          company_name: "Replit",               category: "ai-tools", popularity_score: 87 },
+  { id: "bolt",          domain: "bolt.new",            company_name: "Bolt",                 category: "ai-tools", popularity_score: 80 },
+  { id: "lovable",       domain: "lovable.dev",         company_name: "Lovable",              category: "ai-tools", popularity_score: 75 },
 
   // ── Design Tools ─────────────────────────────────────────────────────────────
   { id: "figma",         domain: "figma.com",           company_name: "Figma",                category: "design-tools", popularity_score: 98 },
@@ -278,6 +283,6 @@ export const COMPETITOR_CATALOG: CatalogEntry[] = [
   { id: "schneider",     domain: "se.com",              company_name: "Schneider Electric",   category: "energy-tech", popularity_score: 87 },
   { id: "honeywell-e",   domain: "honeywell.com",       company_name: "Honeywell Energy",     category: "energy-tech", popularity_score: 85 },
   { id: "emerson",       domain: "emerson.com",         company_name: "Emerson Electric",     category: "energy-tech", popularity_score: 83 },
-  { id: "osp-group",     domain: "ospregroup.com",      company_name: "Ospre Group",          category: "energy-tech", popularity_score: 62 },
+  { id: "hexagon",       domain: "hexagon.com",         company_name: "Hexagon",              category: "energy-tech", popularity_score: 78 },
   { id: "aspentech",     domain: "aspentech.com",       company_name: "AspenTech",            category: "energy-tech", popularity_score: 76 },
 ];
