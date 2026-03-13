@@ -48,8 +48,8 @@ export default function LandingPage() {
           METRIVANT
         </div>
 
-        <p className="mt-4 max-w-xs text-[14px] leading-relaxed text-slate-500">
-          Real-time signal detection across your competitive landscape.
+        <p className="mt-4 max-w-sm text-[14px] leading-relaxed text-slate-500">
+          Know when competitors change pricing, launch features, or shift strategy — before the market does.
         </p>
 
         <div className="mt-8 flex items-center gap-3">
@@ -67,8 +67,28 @@ export default function LandingPage() {
           </Link>
         </div>
 
+        {/* Signal type proof points */}
+        <div className="mt-8 flex flex-wrap justify-center gap-2">
+          {[
+            "Pricing changes",
+            "Feature launches",
+            "Positioning shifts",
+            "Enterprise moves",
+            "Market expansion",
+            "Product pivots",
+          ].map((label) => (
+            <span
+              key={label}
+              className="rounded-full border border-[#0d2010] px-3 py-1 text-[11px] text-slate-600"
+              style={{ background: "rgba(46,230,166,0.02)" }}
+            >
+              {label}
+            </span>
+          ))}
+        </div>
+
         {/* Pricing teaser */}
-        <div className="mt-5 flex items-center gap-2.5 text-[12px]">
+        <div className="mt-6 flex items-center gap-2.5 text-[12px]">
           <Link href="/pricing" className="text-slate-600 transition-colors hover:text-slate-400">
             From $9/mo
           </Link>

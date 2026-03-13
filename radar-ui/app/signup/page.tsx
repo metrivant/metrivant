@@ -157,7 +157,9 @@ export default function SignupPage() {
             </svg>
             <span className="text-[17px] font-bold tracking-[0.08em] text-white">METRIVANT</span>
           </Link>
-          <p className="mt-3 text-[13px] text-slate-500">Create your account</p>
+          <p className="mt-3 text-[13px] text-slate-500">
+            Your radar is ready. Create an account to activate it.
+          </p>
         </div>
 
         {/* Card */}

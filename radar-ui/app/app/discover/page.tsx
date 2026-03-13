@@ -116,11 +116,11 @@ export default async function DiscoverPage() {
           </span>
         </div>
         <h1 className="text-[22px] font-bold tracking-tight text-white">
-          Find competitors to track
+          Who&apos;s making moves in your market?
         </h1>
         <p className="mt-1 max-w-lg text-[13px] leading-relaxed text-slate-500">
-          Search by name, browse by category, or enter a domain to surface similar
-          companies. One click to add them to your radar.
+          Add competitors to your radar and Metrivant starts watching them immediately —
+          pricing changes, feature launches, positioning shifts. Browse by category or search by name.
         </p>
       </div>
 

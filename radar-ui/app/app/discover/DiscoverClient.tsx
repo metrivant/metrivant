@@ -112,6 +112,25 @@ function CompanyLogo({ domain, name }: { domain: string; name: string }) {
   );
 }
 
+// ── Category intelligence teasers ─────────────────────────────────────────────
+
+const CATEGORY_TEASER: Partial<Record<CatalogCategory, string>> = {
+  "project-management": "Pricing, roadmap & positioning signals",
+  "developer-tools":    "API changes, pricing & feature launches",
+  "analytics":          "Pricing shifts & product expansion",
+  "crm":                "Enterprise push & deal structure moves",
+  "ai-tools":           "Model updates, pricing & capability launches",
+  "design-tools":       "Plan restructuring & feature expansion",
+  "defense-primes":     "Contract positioning & capability signals",
+  "aerospace":          "Program expansion & partnership signals",
+  "cyber-intel":        "Threat posture & product repositioning",
+  "defense-services":   "Service expansion & market positioning",
+  "oil-gas":            "Pricing, capacity & market positioning",
+  "renewables":         "Expansion signals & partnership moves",
+  "energy-services":    "Service expansion & contract signals",
+  "energy-tech":        "Product launches & market positioning",
+};
+
 // ── Category pill ─────────────────────────────────────────────────────────────
 
 function CategoryBadge({ category }: { category: CatalogCategory }) {
@@ -496,9 +515,15 @@ export default function DiscoverClient({
                   </div>
                 </div>
 
-                <div className="mb-4">
+                <div className="mb-3 flex items-center gap-2">
                   <CategoryBadge category={entry.category} />
                 </div>
+
+                {CATEGORY_TEASER[entry.category] && (
+                  <p className="mb-4 text-[11px] leading-snug text-slate-700">
+                    {CATEGORY_TEASER[entry.category]}
+                  </p>
+                )}
 
                 <button
                   onClick={() => trackCompetitor(entry)}
