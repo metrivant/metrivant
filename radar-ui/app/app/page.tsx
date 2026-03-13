@@ -12,8 +12,7 @@ import AppOverlays from "../../components/AppOverlays";
 import TrialLockScreen from "../../components/TrialLockScreen";
 import { getRadarFeed } from "../../lib/api";
 import { createClient } from "../../lib/supabase/server";
-
-const TRIAL_DAYS = 3;
+import { getSubscriptionState } from "../../lib/subscription";
 
 export default async function Page() {
   const competitorsRaw = await getRadarFeed(50);
@@ -26,26 +25,38 @@ export default async function Page() {
     return true;
   });
 
-  // Read org sector + user plan — best-effort, both default to safe values
+  // Read org sector + subscription state — best-effort, both default to safe values
   let sector       = "saas";
-  let plan         = "starter";
+  let plan         = "analyst";
   let trialExpired = false;
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      plan = (user.user_metadata?.plan as string | undefined) ?? "starter";
-      // Trial expires 3 days after account creation. Pro users are never locked.
-      if (plan !== "pro") {
-        const trialEnd = new Date(user.created_at).getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000;
-        trialExpired = Date.now() > trialEnd;
-      }
-      const { data: org } = await supabase
+      // Resolve org for both sector and subscription lookup
+      const { data: orgRows } = await supabase
         .from("organizations")
-        .select("sector")
+        .select("id, sector")
         .eq("owner_id", user.id)
-        .maybeSingle();
-      if (org?.sector) sector = org.sector;
+        .order("created_at", { ascending: true })
+        .limit(1);
+
+      const org = orgRows?.[0] ?? null;
+      if (org?.sector) sector = org.sector as string;
+
+      // Subscription state — authoritative source for plan + trial gate
+      if (org?.id) {
+        const subState = await getSubscriptionState(supabase, org.id as string, user.created_at);
+        plan         = subState.plan;
+        trialExpired = subState.status === "expired";
+      } else {
+        // No org yet — fall back to time-based trial check
+        plan = (user.user_metadata?.plan as string | undefined) ?? "analyst";
+        if (plan !== "pro") {
+          const trialEnd = new Date(user.created_at).getTime() + 3 * 24 * 60 * 60 * 1000;
+          trialExpired   = Date.now() > trialEnd;
+        }
+      }
     }
   } catch {
     // Non-fatal — sector and plan display are optional

@@ -1,17 +1,16 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "../../../lib/supabase/server";
+import { getSubscriptionState, TRIAL_DAYS } from "../../../lib/subscription";
 import BillingTracker from "./BillingTracker";
 import UpgradeClickTracker from "./UpgradeClickTracker";
 import ManageSubscriptionPanel from "../../../components/ManageSubscriptionPanel";
+import CheckoutButton from "../../../components/CheckoutButton";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const TRIAL_DAYS = 3;
-
 type PlanKey = "analyst" | "pro";
 
-// Support tiers removed — plans focus on intelligence value only.
 const PLAN_FEATURES: Record<PlanKey, string[]> = {
   analyst: [
     "5 competitors monitored",
@@ -45,6 +44,13 @@ const PRO_UPGRADE_FEATURES = [
   "Strategic movement analysis",
 ];
 
+function fmtDate(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "long", day: "numeric", year: "numeric",
+  });
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default async function BillingPage() {
@@ -52,20 +58,42 @@ export default async function BillingPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const rawPlan = (user.user_metadata?.plan as string | undefined) ?? "analyst";
-  const normPlan = rawPlan === "starter" ? "analyst" : rawPlan;
-  const validPlan: PlanKey = (["analyst", "pro"] as PlanKey[]).includes(normPlan as PlanKey)
-    ? (normPlan as PlanKey)
-    : "analyst";
+  // Resolve org for subscription lookup
+  const { data: orgRows } = await supabase
+    .from("organizations")
+    .select("id")
+    .eq("owner_id", user.id)
+    .order("created_at", { ascending: true })
+    .limit(1);
 
-  const isUpgradable = validPlan === "analyst";
+  const orgId = (orgRows?.[0]?.id as string | null) ?? null;
 
-  // Trial state: 3 days from account creation
-  const createdAt = user.created_at; // ISO string from Supabase auth
+  // ── Subscription state (authoritative from DB) ─────────────────────────────
+  const subState = orgId
+    ? await getSubscriptionState(supabase, orgId, user.created_at)
+    : {
+        plan:              "analyst" as PlanKey,
+        status:            "trial"  as const,
+        currentPeriodEnd:  null,
+        cancelAtPeriodEnd: false,
+        stripeCustomerId:  null,
+      };
+
+  const validPlan: PlanKey = subState.plan;
+
+  // Trial end date — used in ManageSubscriptionPanel for non-paying users
   const trialExpiredAt = new Date(
-    new Date(createdAt).getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000
+    new Date(user.created_at).getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000
   ).toISOString();
-  const trialActive = validPlan !== "pro" && Date.now() < new Date(trialExpiredAt).getTime();
+
+  const hasActiveSub     = subState.status === "active" || subState.status === "canceled_active" || subState.status === "past_due";
+  const isUpgradable     = !hasActiveSub || validPlan !== "pro";
+  const canManageBilling = !!subState.stripeCustomerId;
+
+  // Checkout success banner
+  // (URL param checked client-side via searchParams — server receives it from request.url
+  //  but for simplicity the banner is driven by the URL in BillingTracker which fires
+  //  a client-side check.)
 
   return (
     <div className="min-h-screen bg-[#000200] text-white">
@@ -102,12 +130,10 @@ export default async function BillingPage() {
         </Link>
 
         <div className="flex items-center gap-4">
-          {/* Manage Subscription button — client component */}
           <ManageSubscriptionPanel
-            plan={validPlan}
-            trialActive={trialActive}
+            subState={subState}
             trialExpiredAt={trialExpiredAt}
-            createdAt={createdAt}
+            createdAt={user.created_at}
           />
           <Link href="/app/settings" className="text-[12px] text-slate-600 transition-colors hover:text-slate-400">
             Settings
@@ -140,12 +166,42 @@ export default async function BillingPage() {
           </div>
 
           <div className="flex items-start justify-between gap-6">
-            <div>
+            <div className="flex-1">
               <div className="flex items-baseline gap-2">
                 <span className="text-[22px] font-bold text-white">{PLAN_LABEL[validPlan]}</span>
                 <span className="text-[14px] text-slate-500">{PLAN_PRICE[validPlan]}</span>
               </div>
-              <ul className="mt-4 space-y-2">
+
+              {/* Subscription status line */}
+              <div className="mt-2 mb-4">
+                {subState.status === "active" && (
+                  <span className="text-[12px] text-[#2EE6A6]">
+                    Active — renews {fmtDate(subState.currentPeriodEnd)}
+                  </span>
+                )}
+                {subState.status === "canceled_active" && (
+                  <span className="text-[12px] text-amber-400">
+                    Canceled — access until {fmtDate(subState.currentPeriodEnd)}
+                  </span>
+                )}
+                {subState.status === "past_due" && (
+                  <span className="text-[12px] text-red-400">
+                    Payment failed — update payment method in billing portal
+                  </span>
+                )}
+                {subState.status === "trial" && (
+                  <span className="text-[12px] text-amber-400">
+                    Trial active — expires {fmtDate(trialExpiredAt)}
+                  </span>
+                )}
+                {subState.status === "expired" && (
+                  <span className="text-[12px] text-red-400">
+                    Trial expired — subscribe to continue
+                  </span>
+                )}
+              </div>
+
+              <ul className="space-y-2">
                 {PLAN_FEATURES[validPlan].map((f) => (
                   <li key={f} className="flex items-start gap-2">
                     <span
@@ -158,21 +214,33 @@ export default async function BillingPage() {
               </ul>
             </div>
 
-            {isUpgradable && (
-              <UpgradeClickTracker source="billing_current_plan">
-                <Link
-                  href="/pricing"
-                  className="shrink-0 rounded-full bg-[#2EE6A6] px-5 py-2 text-[12px] font-bold text-black transition-opacity hover:opacity-90"
-                >
-                  Upgrade
-                </Link>
-              </UpgradeClickTracker>
-            )}
+            <div className="flex shrink-0 flex-col gap-2">
+              {isUpgradable && !hasActiveSub && (
+                <UpgradeClickTracker source="billing_current_plan">
+                  <CheckoutButton
+                    plan="pro"
+                    className="rounded-full bg-[#2EE6A6] px-5 py-2 text-[12px] font-bold text-black transition-opacity hover:opacity-90"
+                  >
+                    Upgrade
+                  </CheckoutButton>
+                </UpgradeClickTracker>
+              )}
+              {canManageBilling && (
+                <form action="/api/stripe/portal" method="POST">
+                  <button
+                    type="submit"
+                    className="rounded-full border border-[#1a3020] px-5 py-2 text-[12px] font-medium text-slate-400 transition-colors hover:border-[#2a4a30] hover:text-slate-200"
+                  >
+                    Manage billing →
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
         </section>
 
         {/* ── Upgrade card (Analyst → Pro) ───────────────────────────── */}
-        {isUpgradable && (
+        {isUpgradable && !hasActiveSub && (
           <section
             className="relative mb-4 overflow-hidden rounded-[16px] border border-[#2EE6A6]/18 bg-[#030c03] p-6"
             style={{ boxShadow: "0 0 30px rgba(46,230,166,0.03)" }}
@@ -203,12 +271,12 @@ export default async function BillingPage() {
             </ul>
 
             <UpgradeClickTracker source="billing_upgrade_card">
-              <Link
-                href="/pricing"
-                className="block rounded-full bg-[#2EE6A6] py-2.5 text-center text-[13px] font-bold text-black transition-opacity hover:opacity-90"
+              <CheckoutButton
+                plan="pro"
+                className="block w-full rounded-full bg-[#2EE6A6] py-2.5 text-center text-[13px] font-bold text-black transition-opacity hover:opacity-90"
               >
                 Upgrade →
-              </Link>
+              </CheckoutButton>
             </UpgradeClickTracker>
           </section>
         )}
@@ -219,7 +287,7 @@ export default async function BillingPage() {
             Billing inquiries
           </div>
           <p className="text-[13px] text-slate-500">
-            For subscription changes, invoices, or billing questions, contact{" "}
+            For invoices or billing questions, contact{" "}
             <a href="mailto:billing@metrivant.com" className="text-[#2EE6A6] transition-opacity hover:opacity-80">
               billing@metrivant.com
             </a>

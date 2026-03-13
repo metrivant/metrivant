@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { motion } from "framer-motion";
+import CheckoutButton from "./CheckoutButton";
 
 // SVG graphic for Analyst plan card
 function RadarGraphic() {
@@ -61,7 +61,16 @@ function MapGraphic() {
   );
 }
 
-const PLANS = [
+const PLANS: {
+  name: string;
+  price: string;
+  period: string;
+  features: string[];
+  cta: string;
+  plan: "analyst" | "pro";
+  highlight: boolean;
+  graphic: React.ReactNode;
+}[] = [
   {
     name: "Analyst",
     price: "$9",
@@ -72,10 +81,10 @@ const PLANS = [
       "Radar dashboard",
       "30-day signal history",
     ],
-    cta: "Start with Analyst",
-    href: "/signup?plan=analyst",
+    cta:       "Start with Analyst",
+    plan:      "analyst",
     highlight: false,
-    graphic: <RadarGraphic />,
+    graphic:   <RadarGraphic />,
   },
   {
     name: "Pro",
@@ -88,10 +97,10 @@ const PLANS = [
       "90-day signal history",
       "Strategic movement analysis",
     ],
-    cta: "Upgrade to Pro",
-    href: "/signup?plan=pro",
+    cta:       "Upgrade to Pro",
+    plan:      "pro",
     highlight: true,
-    graphic: <MapGraphic />,
+    graphic:   <MapGraphic />,
   },
 ];
 
@@ -264,16 +273,16 @@ export default function TrialLockScreen() {
               </ul>
 
               {/* CTA */}
-              <Link
-                href={plan.href}
-                className={`block rounded-full py-2.5 text-center text-[13px] font-bold transition-opacity hover:opacity-90 ${
+              <CheckoutButton
+                plan={plan.plan}
+                className={`block w-full rounded-full py-2.5 text-center text-[13px] font-bold transition-opacity hover:opacity-90 ${
                   plan.highlight
                     ? "bg-[#2EE6A6] text-black"
                     : "border border-[#1a3a20] text-slate-300 hover:border-[#2EE6A6]/30 hover:text-white"
                 }`}
               >
                 {plan.cta}
-              </Link>
+              </CheckoutButton>
             </div>
           ))}
         </div>
