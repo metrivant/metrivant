@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "../../lib/supabase/server";
 import PostHogIdentify from "../../components/PostHogIdentify";
+import KeybindingHint from "../../components/KeybindingHint";
 
 export default async function AppLayout({
   children,
@@ -19,6 +20,7 @@ export default async function AppLayout({
   return (
     <>
       <PostHogIdentify userId={user.id} email={user.email ?? null} />
+      <KeybindingHint />
       {children}
     </>
   );
