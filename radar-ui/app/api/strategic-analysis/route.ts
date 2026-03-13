@@ -57,7 +57,7 @@ async function handler(request: Request): Promise<NextResponse> {
 
   const { data: orgs } = await service
     .from("organizations")
-    .select("id, owner_id");
+    .select("id, owner_id, sector");
 
   if (!orgs || orgs.length === 0) {
     return NextResponse.json({ ok: true, message: "No orgs to process", insights: 0 });
@@ -101,7 +101,8 @@ async function handler(request: Request): Promise<NextResponse> {
         OPENAI_API_KEY,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         feed as any,
-        analysisDate
+        analysisDate,
+        (org.sector as string | null) ?? undefined
       );
 
       if (result.insights.length === 0) continue;

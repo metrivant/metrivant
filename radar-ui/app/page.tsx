@@ -101,6 +101,33 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── Differentiation row ──────────────────────────────────────── */}
+      <section className="relative border-t border-[#0d2010] px-6 py-12">
+        <div className="mx-auto grid max-w-2xl gap-6 sm:grid-cols-3">
+          {[
+            {
+              label: "Evidence-backed",
+              body:  "Every signal is grounded in real page changes — not AI guesswork.",
+            },
+            {
+              label: "Sector-aware",
+              body:  "Terminology and pattern detection tuned to your market vertical.",
+            },
+            {
+              label: "Early signal",
+              body:  "Detects competitor intent before it surfaces in press or public filings.",
+            },
+          ].map(({ label, body }) => (
+            <div key={label} className="flex flex-col gap-2">
+              <div className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: "rgba(46,230,166,0.55)" }}>
+                {label}
+              </div>
+              <p className="text-[12px] leading-relaxed text-slate-600">{body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* ── Pricing snapshot ─────────────────────────────────────────── */}
       <section className="relative border-t border-[#0d2010] px-6 pb-24">
         <div className="mx-auto max-w-3xl">

@@ -92,9 +92,10 @@ export default async function StrategyPage({
   }
 
   // Section groupings (display-only — same underlying data)
-  const majorSignals  = insights.filter((i) => i.is_major);
-  const allPatterns   = insights;
-  const hasInsights   = insights.length > 0;
+  const majorSignals   = insights.filter((i) => i.is_major);
+  const otherPatterns  = insights.filter((i) => !i.is_major);
+  const allPatterns    = insights;
+  const hasInsights    = insights.length > 0;
 
   return (
     <div className="min-h-screen bg-[#000200] text-white">
@@ -262,20 +263,32 @@ export default async function StrategyPage({
 
             {/* ══════════════════════════════════════════════════════════
                 SECTION 2 — Market Patterns
-                All detected cross-competitor patterns with full context
+                Non-major patterns with supporting context
             ═══════════════════════════════════════════════════════════ */}
             <section>
               <SectionHeader
                 index="02"
                 title="Market Patterns"
-                subtitle={`${allPatterns.length} pattern${allPatterns.length !== 1 ? "s" : ""} identified`}
+                subtitle={
+                  otherPatterns.length > 0
+                    ? `${otherPatterns.length} supporting pattern${otherPatterns.length !== 1 ? "s" : ""} detected`
+                    : "No additional patterns this cycle"
+                }
               />
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                {allPatterns.map((insight) => (
-                  <PatternCard key={insight.id} insight={insight} />
-                ))}
-              </div>
+              {otherPatterns.length === 0 ? (
+                <div className="rounded-[14px] border border-[#0d2010] bg-[#020802] px-5 py-4">
+                  <p className="text-[13px] text-slate-600">
+                    All detected patterns this cycle are major signals — see Section 01 above.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {otherPatterns.map((insight) => (
+                    <PatternCard key={insight.id} insight={insight} />
+                  ))}
+                </div>
+              )}
             </section>
 
             {/* ══════════════════════════════════════════════════════════

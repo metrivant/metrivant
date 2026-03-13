@@ -74,7 +74,7 @@ function buildTickerText(competitors: RadarCompetitor[]): string {
   for (const c of competitors) {
     if (!c.latest_movement_type) continue;
     const label   = MOVEMENT_LABEL[c.latest_movement_type] ?? c.latest_movement_type.replace(/_/g, " ").toUpperCase();
-    const summary = c.latest_movement_summary?.slice(0, 72) ?? null;
+    const summary = c.latest_movement_summary?.slice(0, 90) ?? null;
     segments.push(
       summary
         ? `${c.competitor_name.toUpperCase()}  ${label} — ${summary}`
@@ -187,7 +187,7 @@ export default function IntelligenceStrip({
           }}
         >
           {/* Doubled for seamless loop */}
-          <span className="text-[10px] tracking-[0.04em] text-slate-700 px-2">
+          <span className="text-[10px] tracking-[0.04em] text-slate-500 px-2">
             {tickerText}
           </span>
           <span className="text-[10px] tracking-[0.04em] text-slate-700 px-2" aria-hidden="true">

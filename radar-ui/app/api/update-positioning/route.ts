@@ -53,7 +53,7 @@ async function handler(request: Request): Promise<NextResponse> {
 
   const { data: orgs } = await service
     .from("organizations")
-    .select("id, owner_id");
+    .select("id, owner_id, sector");
 
   if (!orgs || orgs.length === 0) {
     return NextResponse.json({ ok: true, message: "No orgs", updated: 0 });
@@ -92,7 +92,7 @@ async function handler(request: Request): Promise<NextResponse> {
 
       // Generate positioning scores
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await generatePositioning(OPENAI_API_KEY, feed as any, analysisDate);
+      const result = await generatePositioning(OPENAI_API_KEY, feed as any, analysisDate, (org.sector as string | null) ?? undefined);
 
       if (result.positioning.length === 0) continue;
 

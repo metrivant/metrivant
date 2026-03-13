@@ -89,12 +89,13 @@ HARD RULES:
 - Every entry must use the exact competitor_id and competitor_name from the input
 - rationale must cite specific signals — never say "appears to be" or "likely"
 - confidence 0.5 = minimal signal, 0.9 = strong clear signal
-- Do NOT invent information not present in the input
+- Base all scoring strictly on the provided signal data — do not apply general knowledge about these companies' histories, backgrounds, or prior market positions
 - Return a score for every competitor in the input, even if confidence is low`;
 
 export function buildPositioningPrompt(
   competitors: RadarCompetitor[],
-  analysisDate: string
+  analysisDate: string,
+  sector?: string
 ): string {
   const active = competitors.filter(
     (c) => c.latest_movement_type || Number(c.signals_7d) > 0 || Number(c.momentum_score) > 0
@@ -107,6 +108,7 @@ export function buildPositioningPrompt(
 
   const lines: string[] = [
     `Market positioning analysis — ${analysisDate}`,
+    ...(sector ? [`Sector context: ${sector}`] : []),
     `${sorted.length} competitors to score`,
     "",
     "COMPETITOR SIGNAL DATA",
@@ -140,11 +142,12 @@ export function buildPositioningPrompt(
 export async function generatePositioning(
   apiKey: string,
   competitors: RadarCompetitor[],
-  analysisDate: string
+  analysisDate: string,
+  sector?: string
 ): Promise<PositioningResult> {
   if (competitors.length === 0) return { positioning: [] };
 
-  const userPrompt = buildPositioningPrompt(competitors, analysisDate);
+  const userPrompt = buildPositioningPrompt(competitors, analysisDate, sector);
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",

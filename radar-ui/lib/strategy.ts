@@ -127,7 +127,7 @@ export const HORIZON_STYLES: Record<HorizonTier, { color: string; bg: string; bo
 // ── OpenAI prompt ─────────────────────────────────────────────────────────────
 
 const SYSTEM_PROMPT = `\
-You are a senior competitive strategist at a B2B SaaS company.
+You are a senior competitive strategist.
 Your task: identify strategic patterns across competitor movements and generate specific, actionable insights.
 
 Return ONLY valid JSON matching this exact schema — no markdown, no prose:
@@ -147,17 +147,19 @@ Return ONLY valid JSON matching this exact schema — no markdown, no prose:
 }
 
 HARD RULES — violating these will cause the response to be rejected:
+- Base all analysis strictly on the provided signal data — do not apply general knowledge about these companies' histories, backgrounds, or prior strategies
 - Only include patterns involving 2 or more competitors showing similar behavior
 - Every strategic_signal must name the specific competitors by name
 - Every recommended_response must be concrete — never say "consider monitoring" or "keep an eye on"
 - is_major = true only when competitor_count >= 3 OR confidence >= 0.82
 - Max 5 insights total
 - If no cross-competitor patterns exist, return {"insights": []}
-- confidence reflects how clearly the signal evidence supports the pattern claim`;
+- confidence reflects how clearly the provided signal evidence supports the pattern claim`;
 
 export function buildStrategyUserPrompt(
   competitors: RadarCompetitor[],
-  analysisDate: string
+  analysisDate: string,
+  sector?: string
 ): string {
   // Only include competitors with real movement signals
   const active = competitors.filter(
@@ -170,6 +172,7 @@ export function buildStrategyUserPrompt(
 
   const lines: string[] = [
     `Strategic analysis as of ${analysisDate}`,
+    ...(sector ? [`Sector context: ${sector}`] : []),
     `${active.length} competitors with movement activity in the last 30 days`,
     "",
     "COMPETITOR MOVEMENTS (sorted by momentum)",
@@ -226,9 +229,10 @@ export function buildStrategyUserPrompt(
 export async function generateStrategicAnalysis(
   apiKey: string,
   competitors: RadarCompetitor[],
-  analysisDate: string
+  analysisDate: string,
+  sector?: string
 ): Promise<StrategicAnalysisResult> {
-  const userPrompt = buildStrategyUserPrompt(competitors, analysisDate);
+  const userPrompt = buildStrategyUserPrompt(competitors, analysisDate, sector);
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
