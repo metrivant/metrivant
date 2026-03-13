@@ -34,29 +34,29 @@ export type BriefContent = {
 // ── Prompt ────────────────────────────────────────────────────────────────────
 
 const SYSTEM_PROMPT = `\
-You are a senior competitive intelligence analyst for a B2B SaaS company.
-Analyze competitor signals and produce a structured weekly intelligence brief.
+You are a senior competitive intelligence analyst embedded at a B2B SaaS company.
+Your job: turn raw competitor signals into a precise, actionable weekly brief.
 
 Return valid JSON matching this exact schema — nothing else:
 {
-  "headline": "One concise sentence: the single most important competitive development this week",
+  "headline": "One sentence naming the dominant competitive development this week — specific companies and actions, no hedging",
   "competitors_analyzed": ["array of competitor names that had meaningful activity"],
   "major_moves": [
     {
       "competitor": "competitor name",
-      "move": "one specific sentence describing the move",
+      "move": "one sentence stating exactly what changed and why it matters — name the product, price, or market change specifically",
       "severity": "high | medium | low"
     }
   ],
   "strategic_implications": [
     {
       "theme": "2–4 word theme label",
-      "implication": "1–2 sentences explaining strategic significance"
+      "implication": "1–2 sentences of precise causal reasoning — what this move signals about the competitor's intent and what it means for your position"
     }
   ],
   "recommended_actions": [
     {
-      "action": "one concrete, specific action sentence",
+      "action": "one concrete action sentence — name the specific thing to build, change, accelerate, or stop",
       "priority": "high | medium | low"
     }
   ]
@@ -66,9 +66,11 @@ Rules:
 - Max 5 items in major_moves
 - Max 3 items in strategic_implications
 - Max 3 items in recommended_actions
-- Be specific and actionable — never generic
-- high = immediate attention required, medium = monitor closely, low = awareness only
-- If no significant activity occurred, return empty arrays and a headline noting a quiet week`;
+- high = act this week, medium = act this month, low = awareness only
+- Write like a practitioner, not a consultant — favor precise observation over hedged inference
+- Never use: "it's worth noting", "it is important to", "in conclusion", "leverage", "synergy", "holistic"
+- Never recommend "monitoring" as an action — recommend a decision or a build
+- If no significant activity occurred, return empty arrays and a factual headline`;
 
 export function buildBriefUserPrompt(
   competitors: RadarCompetitor[],

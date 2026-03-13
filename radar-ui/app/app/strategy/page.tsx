@@ -373,24 +373,26 @@ function SectionHeader({
   subtitle: string;
 }) {
   return (
-    <div className="mb-5 flex items-end gap-4">
-      <div>
-        <div
-          className="mb-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.22em]"
-          style={{ color: "rgba(46,230,166,0.35)" }}
-        >
-          {index}
+    <div className="mb-6">
+      <div className="flex items-end gap-4">
+        <div className="flex items-baseline gap-3">
+          <span
+            className="font-mono text-[11px] font-bold"
+            style={{ color: "rgba(46,230,166,0.40)" }}
+          >
+            {index}
+          </span>
+          <h2 className="text-[18px] font-semibold tracking-tight text-white">{title}</h2>
         </div>
-        <h2 className="text-[18px] font-semibold tracking-tight text-white">{title}</h2>
-        <p className="mt-0.5 text-[12px] text-slate-600">{subtitle}</p>
+        <div
+          className="mb-1 h-px flex-1"
+          style={{
+            background:
+              "linear-gradient(90deg, rgba(46,230,166,0.18) 0%, transparent 100%)",
+          }}
+        />
       </div>
-      <div
-        className="mb-1.5 h-px flex-1"
-        style={{
-          background:
-            "linear-gradient(90deg, rgba(46,230,166,0.12) 0%, transparent 100%)",
-        }}
-      />
+      <p className="mt-1 text-[12px] text-slate-600">{subtitle}</p>
     </div>
   );
 }
@@ -427,6 +429,62 @@ function ConfidencePip({ confidence }: { confidence: number }) {
   );
 }
 
+// Signal integrity bar — confidence + coverage side by side
+function ConfidenceBar({
+  confidence,
+  competitorCount,
+}: {
+  confidence: number;
+  competitorCount: number;
+}) {
+  const color = confidenceColor(confidence);
+  const pct = Math.round(confidence * 100);
+  // Coverage: competitor_count out of typical max of 5
+  const coveragePct = Math.min(100, Math.round((competitorCount / 5) * 100));
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {/* Confidence */}
+      <div className="flex items-center gap-2">
+        <span className="w-[68px] text-[10px] text-slate-600">Confidence</span>
+        <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-[#0d1f0d]">
+          <div
+            className="h-full rounded-full"
+            style={{
+              width: `${pct}%`,
+              backgroundColor: color,
+              boxShadow: `0 0 4px ${color}55`,
+            }}
+          />
+        </div>
+        <span
+          className="w-[28px] text-right font-mono text-[10px] tabular-nums"
+          style={{ color }}
+        >
+          {pct}%
+        </span>
+      </div>
+
+      {/* Coverage */}
+      <div className="flex items-center gap-2">
+        <span className="w-[68px] text-[10px] text-slate-600">Coverage</span>
+        <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-[#0d1f0d]">
+          <div
+            className="h-full rounded-full"
+            style={{
+              width: `${coveragePct}%`,
+              backgroundColor: "rgba(46,230,166,0.55)",
+            }}
+          />
+        </div>
+        <span className="w-[28px] text-right font-mono text-[10px] tabular-nums text-slate-600">
+          {competitorCount}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // Major signal — banner card with large type and strong accent
 function MajorSignalCard({ insight }: { insight: InsightRow }) {
   const cfg = getPatternConfig(insight.pattern_type);
@@ -444,35 +502,43 @@ function MajorSignalCard({ insight }: { insight: InsightRow }) {
         style={{ backgroundColor: cfg.color }}
       />
 
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          {/* Pattern type badge */}
+      <div className="min-w-0">
+        {/* Pattern type badge + competitor count */}
+        <div className="mb-3 flex items-center gap-2">
           <span
-            className="mb-3 inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
+            className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
             style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}
           >
             {cfg.label}
           </span>
-
-          {/* Signal headline */}
-          <h3 className="text-[16px] font-semibold leading-snug text-white">
-            {insight.strategic_signal}
-          </h3>
-
-          {/* Description */}
-          <p className="mt-2 text-[13px] leading-relaxed text-slate-400">
-            {insight.description}
-          </p>
-
-          {/* Competitors */}
-          {insight.competitors_involved.length > 0 && (
-            <CompetitorPills names={insight.competitors_involved} />
+          {insight.competitor_count >= 3 && (
+            <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-red-400">
+              {insight.competitor_count} rivals
+            </span>
           )}
         </div>
 
-        {/* Confidence */}
-        <div className="shrink-0 pt-0.5">
-          <ConfidencePip confidence={insight.confidence} />
+        {/* Signal headline */}
+        <h3 className="text-[16px] font-semibold leading-snug text-white">
+          {insight.strategic_signal}
+        </h3>
+
+        {/* Description */}
+        <p className="mt-2 text-[13px] leading-relaxed text-slate-400">
+          {insight.description}
+        </p>
+
+        {/* Competitors */}
+        {insight.competitors_involved.length > 0 && (
+          <CompetitorPills names={insight.competitors_involved} />
+        )}
+
+        {/* Signal integrity bars */}
+        <div className="mt-4 border-t border-[#0d2010] pt-4">
+          <ConfidenceBar
+            confidence={insight.confidence}
+            competitorCount={insight.competitor_count}
+          />
         </div>
       </div>
     </div>
@@ -521,9 +587,12 @@ function PatternCard({ insight }: { insight: InsightRow }) {
         <CompetitorPills names={insight.competitors_involved} />
       )}
 
-      {/* Footer */}
+      {/* Signal integrity footer */}
       <div className="mt-3 border-t border-[#0d1f0d] pt-3">
-        <ConfidencePip confidence={insight.confidence} />
+        <ConfidenceBar
+          confidence={insight.confidence}
+          competitorCount={insight.competitor_count}
+        />
       </div>
     </div>
   );
