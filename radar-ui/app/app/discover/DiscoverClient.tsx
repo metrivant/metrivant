@@ -211,14 +211,21 @@ export default function DiscoverClient({
     }
   }
 
-  // All categories for this sector
-  const sectorConfig = getSectorConfig(sector);
+  // For catalog browsing, only saas/defense/energy have entries in COMPETITOR_CATALOG.
+  // Extended sectors (cybersecurity, fintech, devtools, etc.) fall back to the saas
+  // catalog so Discover remains browseable — their default competitors are seeded into
+  // tracked_competitors by /api/initialize-sector independently of catalog browsing.
+  const CATALOG_SECTORS = new Set(["saas", "defense", "energy"]);
+  const catalogSector = CATALOG_SECTORS.has(sector) ? sector : "saas";
+
+  // All categories for this catalog sector
+  const sectorConfig = getSectorConfig(catalogSector);
   const sectorCategories = sectorConfig.catalogCategories as CatalogCategory[];
 
-  // Sector-filtered base catalog
+  // Sector-filtered base catalog (falls back to saas for extended sectors)
   const sectorCatalog = useMemo(
-    () => COMPETITOR_CATALOG.filter((e) => CATEGORY_SECTOR[e.category] === sector),
-    [sector]
+    () => COMPETITOR_CATALOG.filter((e) => CATEGORY_SECTOR[e.category] === catalogSector),
+    [catalogSector]
   );
 
   // Detect domain input (e.g. "notion.so") vs. text search
