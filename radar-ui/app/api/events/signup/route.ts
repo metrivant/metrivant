@@ -21,7 +21,7 @@ export async function POST(request: Request) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           api_key:     posthogKey,
-          event:       "signup",
+          event:       "signup_completed",
           distinct_id: email,
           properties:  { plan, source: "web" },
         }),
