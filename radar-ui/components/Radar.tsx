@@ -1004,6 +1004,11 @@ export default function Radar({
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState(false);
 
+  // Remove-competitor flow
+  const [removeConfirming, setRemoveConfirming] = useState(false);
+  const [removeLoading, setRemoveLoading] = useState(false);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+
   // Primary signal — highest urgency first, recency as tiebreak.
   // Drives Assessment, Recommended action, header badges, and confidence bar.
   const primarySignal = useMemo(() => {
@@ -1033,6 +1038,11 @@ export default function Radar({
   }, [detailLoading, primarySignal, selected]);
 
   useEffect(() => {
+    // Reset remove state on selection change
+    setRemoveConfirming(false);
+    setRemoveLoading(false);
+    setRemoveError(null);
+
     if (!selectedId) {
       setDetail(null);
       setDetailLoading(false);
@@ -1058,6 +1068,28 @@ export default function Radar({
       .catch(() => setDetailError(true))
       .finally(() => setDetailLoading(false));
   }, [selectedId]);
+
+  async function handleRemoveConfirmed(websiteUrl: string) {
+    setRemoveLoading(true);
+    setRemoveError(null);
+    try {
+      const res = await fetch("/api/discover/untrack", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: websiteUrl }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error((json as { error?: string }).error ?? "Removal failed");
+      }
+      setSelectedId(null);
+      router.refresh();
+    } catch (err) {
+      setRemoveError(err instanceof Error ? err.message : "Failed to remove competitor");
+      setRemoveLoading(false);
+      setRemoveConfirming(false);
+    }
+  }
 
   return (
     <div className="grid h-full gap-3 grid-cols-[1fr_360px] xl:grid-cols-[1fr_420px]">
@@ -2174,6 +2206,41 @@ export default function Radar({
                       {selected.website_url.replace(/^https?:\/\//, "")} ↗
                     </a>
                   )}
+
+                  {/* ── Remove competitor action ──────────────────── */}
+                  {!removeConfirming && !removeLoading && (
+                    <button
+                      onClick={() => { setRemoveConfirming(true); setRemoveError(null); }}
+                      className="mt-2 text-[11px] text-slate-600 transition-colors hover:text-red-400"
+                    >
+                      Stop tracking
+                    </button>
+                  )}
+                  {removeConfirming && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-[11px] text-slate-400">Stop tracking?</span>
+                      <button
+                        onClick={() => selected.website_url && handleRemoveConfirmed(selected.website_url)}
+                        disabled={!selected.website_url}
+                        className="rounded px-2 py-0.5 text-[11px] font-semibold text-red-400 transition-colors hover:text-red-300"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        onClick={() => { setRemoveConfirming(false); setRemoveError(null); }}
+                        className="text-[11px] text-slate-600 transition-colors hover:text-slate-400"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                  {removeLoading && (
+                    <span className="mt-2 block text-[11px] text-slate-600">Removing…</span>
+                  )}
+                  {removeError && (
+                    <span className="mt-2 block text-[11px] text-red-400">{removeError}</span>
+                  )}
+
                   <div className="mt-2.5 flex flex-wrap items-center gap-2">
                     {/* Movement type pill */}
                     <span
