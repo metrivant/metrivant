@@ -148,6 +148,11 @@ async function handler(req: ApiReq, res: ApiRes) {
             });
 
           if (insertError) {
+            // Unique constraint violation (23505) = concurrent run inserted same hash first — treat as duplicate skip
+            if ((insertError as { code?: string }).code === "23505") {
+              rowsSkippedDuplicates += 1;
+              continue;
+            }
             throw insertError;
           }
 
@@ -157,7 +162,15 @@ async function handler(req: ApiReq, res: ApiRes) {
         rowsSucceeded += 1;
       } catch (error) {
         rowsFailed += 1;
-        Sentry.captureException(error);
+        // 404s and timeouts are expected pipeline outcomes — don't pollute Sentry
+        const msg = error instanceof Error ? error.message : String(error);
+        const isExpectedFailure =
+          msg.includes("404") ||
+          msg.includes("AbortError") ||
+          msg.includes("This operation was aborted");
+        if (!isExpectedFailure) {
+          Sentry.captureException(error);
+        }
       }
     }
 
