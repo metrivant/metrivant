@@ -51,11 +51,11 @@ async function fetchSectorNews(sector: string): Promise<string[]> {
 export default async function Page() {
   const competitorsRaw = await getRadarFeed(50);
   // Deduplicate by name (keep highest-momentum entry per name — feed is already sorted desc)
-  const _seenNames = new Set<string>();
+  const seenNames = new Set<string>();
   const competitors = competitorsRaw.filter((c) => {
     const key = c.competitor_name.toLowerCase().trim();
-    if (_seenNames.has(key)) return false;
-    _seenNames.add(key);
+    if (seenNames.has(key)) return false;
+    seenNames.add(key);
     return true;
   });
 

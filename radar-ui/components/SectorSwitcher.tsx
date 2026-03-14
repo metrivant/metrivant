@@ -94,7 +94,7 @@ export default function SectorSwitcher({ sector }: { sector: string }) {
           fill="none"
           aria-hidden="true"
           className="ml-0.5 opacity-50"
-          style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
+          style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
         >
           <path d="M1.5 3L4.5 6.5L7.5 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
         </svg>

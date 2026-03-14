@@ -148,17 +148,6 @@ export default function SidebarNav({
         ))}
 
         <div className="my-2 h-px bg-[#0e2210]" />
-
-        {/* Lemonade Mode — hidden, reserved for future use */}
-        {/* <Link
-          href="/app/lemonade"
-          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-medium transition-colors hover:bg-[#0a1a0a] hover:text-slate-300"
-          style={{ color: "#64748b" }}
-          title="Lemonade Mode"
-        >
-          <span className="text-base leading-none">🍋</span>
-          Lemonade Mode
-        </Link> */}
       </div>
 
       {/* Keybind legend */}

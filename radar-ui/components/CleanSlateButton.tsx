@@ -54,7 +54,7 @@ export default function CleanSlateButton({ competitorCount }: CleanSlateButtonPr
   return (
     <button
       onClick={() => setConfirming(true)}
-      className="flex items-center gap-1.5 rounded-full border border-[#1a1a1a] bg-transparent px-3 py-1.5 text-[11px] font-medium text-slate-600 transition-colors hover:border-red-900/50 hover:text-red-500/80"
+      className="flex items-center gap-1.5 rounded-full border border-[#1a2a1a] bg-transparent px-3 py-1.5 text-[11px] font-medium text-slate-600 transition-colors hover:border-red-900/50 hover:text-red-500/80"
       title="Remove all competitors and reset to Custom sector"
     >
       <svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden="true" className="opacity-70">

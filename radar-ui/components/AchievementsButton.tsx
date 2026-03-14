@@ -404,6 +404,8 @@ export default function AchievementsButton({
 
   // Tracks which IDs we've already attempted to unlock this session (prevents double-fire)
   const attemptedRef = useRef(new Set<string>());
+  const openRef      = useRef(open);
+  useEffect(() => { openRef.current = open; }, [open]);
 
   const intelScore = computeIntelScore(unlockedIds, completedActionIds);
 
@@ -469,9 +471,9 @@ export default function AchievementsButton({
       { key: `${id}-${Date.now()}`, name: def.name, points: def.points },
       ...prev.slice(0, 3),
     ]);
-    setHasNew((prev) => prev || !open); // only mark "new" if panel is closed
+    setHasNew((prev) => prev || !openRef.current); // only mark "new" if panel is closed
     getAudioManager().play("achieve");
-  }, [userId, open]);
+  }, [userId]);
 
   // ── Complete strategy action ──────────────────────────────────────────────────
   const completeAction = useCallback(async (id: StrategyActionId) => {

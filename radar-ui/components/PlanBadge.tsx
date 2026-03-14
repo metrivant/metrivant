@@ -37,7 +37,7 @@ export default function PlanBadge({ plan, trialDaysRemaining }: Props) {
         href="/app/billing"
         onClick={() => capture("billing_opened", { source: "plan_badge" })}
         className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-opacity hover:opacity-75"
-        style={{ backgroundColor: cfg.bg, borderColor: isTrial ? "rgba(251,191,36,0.28)" : cfg.border, color: isTrial ? "#f59e0b" : cfg.color }}
+        style={{ backgroundColor: cfg.bg, borderColor: isTrial ? "rgba(245,158,11,0.28)" : cfg.border, color: isTrial ? "#f59e0b" : cfg.color }}
       >
         <span
           className="h-1.5 w-1.5 rounded-full"
