@@ -59,7 +59,35 @@ body {
   100% { transform: translateX(-50%); }
 }
 
-/* Premium scrollbar — visible but restrained */
+/* ── Page entry animation ────────────────────────────────────────────────── */
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-enter {
+  animation: page-enter 0.22s ease-out both;
+}
+
+/* ── Skeleton shimmer ────────────────────────────────────────────────────── */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.35; }
+  50%       { opacity: 0.65; }
+}
+.skeleton-shimmer {
+  background: rgba(46, 230, 166, 0.06);
+  animation: skeleton-pulse 1.8s ease-in-out infinite;
+}
+
+/* ── Overlay/panel content fade-in ──────────────────────────────────────── */
+@keyframes content-reveal {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.content-reveal {
+  animation: content-reveal 0.18s ease-out both;
+}
+
+/* ── Premium scrollbar — visible but restrained */
 ::-webkit-scrollbar {
   width: 4px;
 }

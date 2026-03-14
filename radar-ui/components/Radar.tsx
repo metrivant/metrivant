@@ -1492,7 +1492,7 @@ export default function Radar({
                   }}
                 >
                   <button
-                    onClick={() => { if (gravityMode) { setGravityMode(false); getAudioManager().play("swoosh"); } }}
+                    onClick={() => { if (gravityMode) { setGravityMode(false); getAudioManager().play("gravity-exit"); } }}
                     className="rounded-[6px] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all duration-200"
                     style={{
                       background: !gravityMode ? "rgba(46,230,166,0.09)" : "transparent",
@@ -1504,7 +1504,7 @@ export default function Radar({
                     Standard
                   </button>
                   <button
-                    onClick={() => { if (!gravityMode) { setGravityMode(true); getAudioManager().play("swoosh"); } }}
+                    onClick={() => { if (!gravityMode) { setGravityMode(true); getAudioManager().play("gravity-enter"); } }}
                     className="rounded-[6px] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all duration-200"
                     style={{
                       background: gravityMode ? "rgba(129,140,248,0.12)" : "transparent",

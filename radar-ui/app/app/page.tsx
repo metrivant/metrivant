@@ -133,7 +133,7 @@ export default async function Page() {
   const newsItems = await fetchSectorNews(sector);
 
   return (
-    <main className="flex h-screen w-full flex-col overflow-hidden bg-black text-white">
+    <main className="page-enter flex h-screen w-full flex-col overflow-hidden bg-black text-white">
 
       {/* ── Atmospheric depth layers ─────────────────────────────────────── */}
       <div

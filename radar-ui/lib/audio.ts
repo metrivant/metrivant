@@ -13,7 +13,7 @@
 
 const STORAGE_KEY = "mv_sound_enabled";
 
-export type SoundName = "blip" | "echo" | "swoosh" | "alert" | "success" | "achieve";
+export type SoundName = "blip" | "echo" | "swoosh" | "alert" | "success" | "achieve" | "gravity-enter" | "gravity-exit";
 
 class AudioManager {
   private ctx: AudioContext | null = null;
@@ -73,12 +73,14 @@ class AudioManager {
     if (!ctx) return;
     try {
       switch (name) {
-        case "blip":    this._blip(ctx, 0);    break;
-        case "echo":    this._echo(ctx);       break;
-        case "swoosh":  this._swoosh(ctx);     break;
-        case "alert":   this._alert(ctx);      break;
-        case "success": this._success(ctx);    break;
-        case "achieve": this._achieve(ctx);    break;
+        case "blip":          this._blip(ctx, 0);        break;
+        case "echo":          this._echo(ctx);           break;
+        case "swoosh":        this._swoosh(ctx);         break;
+        case "alert":         this._alert(ctx);          break;
+        case "success":       this._success(ctx);        break;
+        case "achieve":       this._achieve(ctx);        break;
+        case "gravity-enter": this._gravityEnter(ctx);   break;
+        case "gravity-exit":  this._gravityExit(ctx);    break;
       }
     } catch {
       // Audio errors are never surfaced to the user
@@ -317,6 +319,88 @@ class AudioManager {
       osc.start(at);
       osc.stop(at + 0.15);
     });
+  }
+
+  /**
+   * GRAVITY-ENTER — activate gravity field mode.
+   * Deep descending sine with a slow LFO wobble — implies mass and pull.
+   * Two layers: low fundamental + subtle harmonic overtone.
+   */
+  private _gravityEnter(ctx: AudioContext): void {
+    const t = ctx.currentTime;
+
+    // Low fundamental — deep gravitational pull
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(110, t);
+    osc1.frequency.exponentialRampToValueAtTime(68, t + 0.35);
+    gain1.gain.setValueAtTime(0, t);
+    gain1.gain.linearRampToValueAtTime(0.12, t + 0.04);
+    gain1.gain.exponentialRampToValueAtTime(0.0001, t + 0.38);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(t);
+    osc1.stop(t + 0.4);
+
+    // Harmonic layer — softer overtone for richness
+    const osc2 = ctx.createOscillator();
+    const filt2 = ctx.createBiquadFilter();
+    const gain2 = ctx.createGain();
+    osc2.type = "triangle";
+    osc2.frequency.setValueAtTime(220, t + 0.02);
+    osc2.frequency.exponentialRampToValueAtTime(136, t + 0.32);
+    filt2.type = "lowpass";
+    filt2.frequency.value = 600;
+    gain2.gain.setValueAtTime(0, t + 0.02);
+    gain2.gain.linearRampToValueAtTime(0.055, t + 0.06);
+    gain2.gain.exponentialRampToValueAtTime(0.0001, t + 0.36);
+    osc2.connect(filt2);
+    filt2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(t + 0.02);
+    osc2.stop(t + 0.42);
+  }
+
+  /**
+   * GRAVITY-EXIT — return to standard mode.
+   * Light ascending ping — nodes dispersing back to their orbits.
+   * Higher and airier than gravity-enter; implies release/expansion.
+   */
+  private _gravityExit(ctx: AudioContext): void {
+    const t = ctx.currentTime;
+
+    // Primary ping — ascending chime
+    const osc = ctx.createOscillator();
+    const filt = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(320, t);
+    osc.frequency.exponentialRampToValueAtTime(520, t + 0.18);
+    filt.type = "highpass";
+    filt.frequency.value = 200;
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.09, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+    osc.connect(filt);
+    filt.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.30);
+
+    // Trailing shimmer — very soft high partial
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = "sine";
+    osc2.frequency.setValueAtTime(1040, t + 0.08);
+    osc2.frequency.exponentialRampToValueAtTime(820, t + 0.30);
+    gain2.gain.setValueAtTime(0, t + 0.08);
+    gain2.gain.linearRampToValueAtTime(0.025, t + 0.10);
+    gain2.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(t + 0.08);
+    osc2.stop(t + 0.35);
   }
 }
 
