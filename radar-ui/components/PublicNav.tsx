@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import AboutOverlay from "./AboutOverlay";
 
 export default function PublicNav() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   return (
     <>
@@ -26,15 +28,12 @@ export default function PublicNav() {
 
         {/* Desktop nav — hidden on mobile */}
         <div className="hidden items-center gap-6 md:flex">
-          <Link
-            href="/about"
-            className={`text-[13px] font-medium transition-colors ${
-              pathname === "/about" ? "text-[#2EE6A6]" : "text-[#2EE6A6]/70 hover:text-[#2EE6A6]"
-            }`}
-            style={{ textShadow: pathname === "/about" ? "0 0 12px rgba(46,230,166,0.4)" : undefined }}
+          <button
+            onClick={() => setAboutOpen(true)}
+            className="text-[13px] font-medium text-[#2EE6A6]/70 transition-colors hover:text-[#2EE6A6]"
           >
             About
-          </Link>
+          </button>
           <Link
             href="/pricing"
             className={`text-[13px] font-medium transition-colors ${
@@ -90,6 +89,8 @@ export default function PublicNav() {
         </div>
       </nav>
 
+      <AboutOverlay open={aboutOpen} onClose={() => setAboutOpen(false)} />
+
       {/* Mobile dropdown menu */}
       {menuOpen && (
         <div
@@ -97,15 +98,12 @@ export default function PublicNav() {
           style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.7)" }}
         >
           <div className="flex flex-col gap-1">
-            <Link
-              href="/about"
-              onClick={() => setMenuOpen(false)}
-              className={`rounded-lg px-3 py-3 text-[14px] font-medium transition-colors ${
-                pathname === "/about" ? "text-[#2EE6A6]" : "text-slate-300"
-              }`}
+            <button
+              onClick={() => { setMenuOpen(false); setAboutOpen(true); }}
+              className="rounded-lg px-3 py-3 text-left text-[14px] font-medium text-slate-300 transition-colors"
             >
               About
-            </Link>
+            </button>
             <Link
               href="/pricing"
               onClick={() => setMenuOpen(false)}

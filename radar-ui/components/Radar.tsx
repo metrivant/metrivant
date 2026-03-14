@@ -18,6 +18,7 @@ import {
 } from "../lib/criticalAlert";
 import { getAudioManager } from "../lib/audio";
 import { deriveActivityEchoes, isWeakSignal as getIsWeakSignal, detectHiringSurge } from "../lib/activityEcho";
+import { confidenceLanguage, signalAgeColor } from "../lib/confidence";
 import { computeTensionLinks, getTensionDescription, type TensionLink } from "../lib/tension";
 import { computePressureIndex } from "../lib/pressure";
 import { generateMicroInsights } from "../lib/microInsights";
@@ -394,6 +395,8 @@ type BlipNodeProps = {
   timeDimmed?: boolean;
   /** Signal age glow intensity 0–1: 1.0=fresh<6h, 0.60=recent<24h, 0.22=old */
   signalAgeGlow?: number;
+  /** Signal age color: amber=new(<6h), slate=recent(<24h), blue-grey=stale(≥24h) */
+  signalAgeColor?: string;
   /** True when this competitor has signals but has not been opened this session */
   isUnvisited?: boolean;
   /** Competitor has recent activity (last 24h) below strategic-signal threshold */
@@ -423,6 +426,7 @@ const BlipNode = memo(function BlipNode({
   gravityMode,
   timeDimmed,
   signalAgeGlow = 0.22,
+  signalAgeColor: ageColor = "rgba(100,116,139,0.45)",
   isUnvisited = false,
   hasActivityEcho = false,
   echoAgeHours = 24,
@@ -464,7 +468,7 @@ const BlipNode = memo(function BlipNode({
       style={{ cursor: "pointer", transformOrigin: `${x}px ${y}px` }}
       initial={{ opacity: 0, scale: 0.85 }}
       animate={{ opacity: groupOpacity, scale: 1 }}
-      whileHover={{ scale: 1.2 }}
+      whileHover={{ scale: 1.12 }}
       transition={{
         default: { duration: 0.18, ease: "easeOut" },
         opacity: { duration: 0.22, ease: "easeOut", delay: index * 0.012 },
@@ -498,14 +502,14 @@ const BlipNode = memo(function BlipNode({
         />
       )}
 
-      {/* "Movement building" — amber slow-pulse ring for rising competitors with recent signal */}
+      {/* "Movement building" — signal-age-colored slow-pulse ring for rising competitors */}
       {isBuilding && !isDimmed && !isSelected && !isAlerted && (
         <motion.circle
           cx={x}
           cy={y}
           r={nodeSize + 18}
           fill="none"
-          stroke="#f59e0b"
+          stroke={ageColor}
           strokeWidth="0.6"
           animate={{ opacity: [0.0, 0.22, 0.0] }}
           transition={{ duration: 4.0, repeat: Infinity, ease: "easeInOut", delay: 0.8 }}
@@ -2196,6 +2200,7 @@ export default function Radar({
                     !(alertActive && competitor.competitor_id === criticalAlert?.competitor_id)
                   }
                   signalAgeGlow={getSignalAgeGlow(competitor.last_signal_at)}
+                  signalAgeColor={signalAgeColor(competitor.last_signal_at)}
                   isUnvisited={
                     !visitedIds.has(competitor.competitor_id) &&
                     (competitor.signals_7d ?? 0) > 0
@@ -2995,12 +3000,10 @@ export default function Radar({
                   </p>
                 ) : primarySignal?.strategic_implication ? (
                   <p className="text-sm leading-relaxed text-slate-300">
-                    {interpretationConf !== null && interpretationConf < 0.5 && (
-                      <span className="text-slate-500">Possible indicator — </span>
-                    )}
-                    {interpretationConf !== null && interpretationConf >= 0.5 && interpretationConf < 0.65 && (
-                      <span className="text-slate-400">Likely: </span>
-                    )}
+                    {(() => {
+                      const cl = confidenceLanguage(interpretationConf);
+                      return cl.prefix ? <span style={{ color: cl.color }}>{cl.prefix}</span> : null;
+                    })()}
                     {primarySignal.strategic_implication}
                   </p>
                 ) : primarySignal?.summary ? (

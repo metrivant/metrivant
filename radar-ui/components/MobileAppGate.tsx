@@ -15,7 +15,7 @@ export default function MobileAppGate({ children }: { children: React.ReactNode 
   const pathname = usePathname();
 
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)");
+    const mq = window.matchMedia("(max-width: 767px) and (pointer: coarse)");
     setIsMobile(mq.matches);
     setReady(true);
     const h = (e: MediaQueryListEvent) => setIsMobile(e.matches);

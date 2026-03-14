@@ -4,18 +4,36 @@ import LandingLogo from "../components/LandingLogo";
 
 const LABEL_COLOR_STYLE = { color: "rgba(46,230,166,0.55)" } as const;
 
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  name: "Metrivant",
-  applicationCategory: "BusinessApplication",
-  operatingSystem: "Web",
-  url: "https://www.metrivant.com",
-  logo: "https://www.metrivant.com/icon-512.png",
-  description:
-    "Competitive intelligence radar detecting pricing, product, and strategy signals across competitors.",
-  offers: { "@type": "Offer", price: "9", priceCurrency: "USD" },
-};
+const jsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "Metrivant",
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    url: "https://www.metrivant.com",
+    logo: "https://www.metrivant.com/icon-512.png",
+    description:
+      "Competitive intelligence radar detecting pricing, product, and strategy signals across competitors.",
+    offers: { "@type": "Offer", price: "9", priceCurrency: "USD" },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Metrivant",
+    url: "https://www.metrivant.com",
+    logo: "https://www.metrivant.com/icon-512.png",
+    description: "Competitive intelligence radar for B2B SaaS, Defense, Energy, and other sectors.",
+    contactPoint: { "@type": "ContactPoint", email: "hello@metrivant.com", contactType: "customer support" },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Metrivant",
+    url: "https://www.metrivant.com",
+    description: "Detect competitor moves before they matter. Real-time radar intelligence for competitive strategy.",
+  },
+];
 
 export default function LandingPage() {
   return (

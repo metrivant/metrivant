@@ -53,12 +53,36 @@ export async function POST(request: Request): Promise<NextResponse> {
   const orgId           = org?.id as string | null;
   const existingCustomer = (org?.stripe_customer_id as string | null) ?? null;
 
+  // ── Stripe config validation ─────────────────────────────────────────────
+  // Validate billing configuration before attempting any Stripe API call.
+  // Captures structured context to Sentry so misconfiguration is immediately visible.
+  const stripeKeyPresent     = !!(process.env.STRIPE_SECRET_KEY ?? "").trim();
+  const stripeWebhookPresent = !!(process.env.STRIPE_WEBHOOK_SECRET ?? "").trim();
+  const siteUrlPresent       = !!(process.env.NEXT_PUBLIC_SITE_URL ?? "").trim();
+
+  if (!stripeKeyPresent || !siteUrlPresent) {
+    captureException(new Error("billing_config_invalid"), {
+      route:                  "stripe/checkout",
+      plan:                   validPlan,
+      stripe_key_present:     stripeKeyPresent,
+      webhook_secret_present: stripeWebhookPresent,
+      site_url_present:       siteUrlPresent,
+    });
+    return NextResponse.json({ error: "Billing configuration error" }, { status: 500 });
+  }
+
   // ── Stripe price ──────────────────────────────────────────────────────────
   let priceId: string;
   try {
     priceId = getPriceId(validPlan);
   } catch (err) {
-    captureException(err, { route: "stripe/checkout", plan: validPlan });
+    captureException(err instanceof Error ? err : new Error(String(err)), {
+      route:                  "stripe/checkout",
+      plan:                   validPlan,
+      stripe_key_present:     stripeKeyPresent,
+      webhook_secret_present: stripeWebhookPresent,
+      site_url_present:       siteUrlPresent,
+    });
     return NextResponse.json({ error: "Billing configuration error" }, { status: 500 });
   }
 

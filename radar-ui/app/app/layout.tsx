@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "../../lib/supabase/server";
 import PostHogIdentify from "../../components/PostHogIdentify";
 import KeybindingHint from "../../components/KeybindingHint";
-import MobileAppGate from "../../components/MobileAppGate";
 
 export default async function AppLayout({
   children,
@@ -39,7 +38,7 @@ export default async function AppLayout({
     <>
       <PostHogIdentify userId={user.id} email={user.email ?? null} plan={plan} sector={sector} />
       <KeybindingHint />
-      <MobileAppGate>{children}</MobileAppGate>
+      {children}
     </>
   );
 }
