@@ -9,6 +9,11 @@ type CandidatePage = {
   page_type: string;
 };
 
+type ExtractionRule = {
+  section_type: string;
+  selector: string;
+};
+
 interface InsertedPage {
   id: string;
   page_type: string;
@@ -21,31 +26,61 @@ function normalizeUrl(input: string): string {
 
 function candidatePages(baseUrl: string): CandidatePage[] {
   return [
-    { url: baseUrl, page_type: "homepage" },
-    { url: baseUrl + "/pricing", page_type: "pricing" },
-    { url: baseUrl + "/changelog", page_type: "changelog" },
-    { url: baseUrl + "/blog", page_type: "blog" }
+    { url: baseUrl,                  page_type: "homepage"  },
+    { url: baseUrl + "/pricing",     page_type: "pricing"   },
+    { url: baseUrl + "/changelog",   page_type: "changelog" },
+    { url: baseUrl + "/blog",        page_type: "blog"      },
+    { url: baseUrl + "/features",    page_type: "features"  },
+    { url: baseUrl + "/newsroom",    page_type: "newsroom"  },
   ];
 }
 
-function rulesForPage(pageType: string) {
-  if (pageType === "homepage") {
-    return [{ section_type: "hero", selector: "h1" }];
-  }
+function rulesForPage(pageType: string): ExtractionRule[] {
+  switch (pageType) {
+    case "homepage":
+      return [
+        // h1 hero headline — primary positioning signal
+        { section_type: "hero",             selector: "h1"   },
+        // h2 subheadlines — messaging shifts often appear here first
+        { section_type: "headline",         selector: "h2"   },
+        // full main content — catches product rotation, feature highlights
+        { section_type: "product_mentions", selector: "main" },
+      ];
 
-  if (pageType === "pricing") {
-    return [{ section_type: "pricing_plans", selector: "main" }];
-  }
+    case "pricing":
+      return [
+        // Full pricing page — captures plan names, prices, feature gates
+        { section_type: "pricing_plans",      selector: "main" },
+        // Standalone pricing reference blocks when pricing is inline
+        { section_type: "pricing_references", selector: "main" },
+      ];
 
-  if (pageType === "changelog") {
-    return [{ section_type: "release_feed", selector: "main" }];
-  }
+    case "changelog":
+    case "blog":
+      return [
+        // Full feed — new posts appear as additions to this text block
+        { section_type: "release_feed", selector: "main" },
+        // Page headline — changes when a new post becomes the featured one
+        { section_type: "headline",     selector: "h1"   },
+      ];
 
-  if (pageType === "blog") {
-    return [{ section_type: "release_feed", selector: "main" }];
-  }
+    case "features":
+      return [
+        // Full features page — product expansion signals
+        { section_type: "features_overview", selector: "main" },
+        { section_type: "headline",          selector: "h1"   },
+      ];
 
-  return [];
+    case "newsroom":
+      return [
+        // Newsroom announcements — high-value strategic activity
+        { section_type: "announcements", selector: "main" },
+        { section_type: "headline",      selector: "h1"   },
+      ];
+
+    default:
+      return [];
+  }
 }
 
 async function handler(req: ApiReq, res: ApiRes) {
@@ -60,7 +95,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   try {
     const body = (req.body ?? {}) as Record<string, unknown>;
-    const name = typeof body.name === "string" ? body.name : undefined;
+    const name        = typeof body.name        === "string" ? body.name        : undefined;
     const website_url = typeof body.website_url === "string" ? body.website_url : undefined;
 
     if (!name || !website_url) {
@@ -135,7 +170,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     }
 
     /*
-      3. Ensure extraction rules exist
+      3. Ensure extraction rules exist for each page
     */
 
     for (const page of createdPages) {
@@ -147,10 +182,10 @@ async function handler(req: ApiReq, res: ApiRes) {
           .upsert(
             {
               monitored_page_id: page.id,
-              section_type: rule.section_type,
-              selector: rule.selector,
-              extract_method: "css",
-              active: true
+              section_type:      rule.section_type,
+              selector:          rule.selector,
+              extract_method:    "css",
+              active:            true
             },
             { onConflict: "monitored_page_id,section_type" }
           );
@@ -164,7 +199,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     Sentry.setContext("onboarding", {
       competitor_id: competitorId,
       pages_created: createdPages.length,
-      runtimeDurationMs: runtimeDurationMs
+      runtimeDurationMs
     });
 
     Sentry.captureCheckIn({
@@ -178,7 +213,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       ok: true,
       competitor_id: competitorId,
       pages_created: createdPages.length,
-      runtimeDurationMs: runtimeDurationMs
+      runtimeDurationMs
     });
 
   } catch (error) {

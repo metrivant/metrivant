@@ -15,47 +15,42 @@ function classifySignal(
   previousText: string,
   currentText: string
 ) {
-  if (sectionType === "pricing_plans") {
-    return {
-      signal_type: "price_point_change",
-      severity: "high",
-      signal_data: {
-        previous_excerpt: previousText.slice(0, 200),
-        current_excerpt: currentText.slice(0, 200),
-      },
-    };
-  }
-
-  if (sectionType === "hero") {
-    return {
-      signal_type: "positioning_shift",
-      severity: "medium",
-      signal_data: {
-        previous_excerpt: previousText.slice(0, 200),
-        current_excerpt: currentText.slice(0, 200),
-      },
-    };
-  }
-
-  if (sectionType === "release_feed") {
-    return {
-      signal_type: "feature_launch",
-      severity: "medium",
-      signal_data: {
-        previous_excerpt: previousText.slice(0, 200),
-        current_excerpt: currentText.slice(0, 200),
-      },
-    };
-  }
-
-  return {
-    signal_type: "content_change",
-    severity: "low",
-    signal_data: {
-      previous_excerpt: previousText.slice(0, 200),
-      current_excerpt: currentText.slice(0, 200),
-    },
+  const excerpts = {
+    previous_excerpt: previousText.slice(0, 200),
+    current_excerpt:  currentText.slice(0, 200),
   };
+
+  switch (sectionType) {
+    // ── Pricing signals ─────────────────────────────────────────────────────
+    case "pricing_plans":
+    case "pricing_references":
+      return { signal_type: "price_point_change", severity: "high",   signal_data: excerpts };
+
+    // ── Positioning signals ──────────────────────────────────────────────────
+    // hero h1 + h2 subheadlines + nav links indicate messaging/positioning shifts
+    case "hero":
+    case "headline":
+    case "nav_links":
+    case "cta_blocks":
+      return { signal_type: "positioning_shift",  severity: "medium", signal_data: excerpts };
+
+    // ── Product / launch signals ─────────────────────────────────────────────
+    // Changelogs, blogs, newsrooms, features pages, product listings, announcements
+    case "release_feed":
+    case "announcements":
+    case "features_overview":
+    case "press_feed":
+    case "product_mentions":
+      return { signal_type: "feature_launch",     severity: "medium", signal_data: excerpts };
+
+    // ── Hiring signals ───────────────────────────────────────────────────────
+    case "careers_feed":
+      return { signal_type: "hiring_surge",       severity: "low",    signal_data: excerpts };
+
+    // ── Unclassified fallback ────────────────────────────────────────────────
+    default:
+      return { signal_type: "content_change",     severity: "low",    signal_data: excerpts };
+  }
 }
 
 async function handler(req: ApiReq, res: ApiRes) {

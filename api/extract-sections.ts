@@ -123,7 +123,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   });
 
   try {
-    const batchSize = 20;
+    const batchSize = 50;
 
     const { data: snapshots, error: snapshotsError } = await supabase
       .from("snapshots")

@@ -32,12 +32,19 @@ function inferMovementTypes(signalTypes: string[]): string[] {
     movements.push("pricing_strategy_shift");
   }
 
-  if (set.has("feature_launch")) {
+  if (set.has("feature_launch") || set.has("hiring_surge")) {
     movements.push("product_expansion");
   }
 
   if (set.has("positioning_shift")) {
     movements.push("market_reposition");
+  }
+
+  // content_change is the fallback for unclassified section types.
+  // Map to ecosystem_expansion only when no specific movement was inferred —
+  // avoids inflating product_expansion with low-signal generic changes.
+  if (set.has("content_change") && movements.length === 0) {
+    movements.push("ecosystem_expansion");
   }
 
   return movements;

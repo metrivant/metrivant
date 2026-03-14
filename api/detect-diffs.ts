@@ -191,7 +191,10 @@ async function handler(req: ApiReq, res: ApiRes) {
         if (shouldUpdateExisting && existingDiff) {
           const previousCount = existingDiff.observation_count ?? 1;
           const nextCount = Math.min(previousCount + 1, MAX_OBSERVATION_COUNT);
-          const confirmed = nextCount >= 2;
+          // Confirm on first observation — AI interpretation is the quality gate,
+          // not the observation count. Requiring >= 2 observations at 4h cron
+          // cadence delayed first signals by 8h+ unnecessarily.
+          const confirmed = nextCount >= 1;
 
           const { error: updateDiffError } = await supabase
             .from("section_diffs")
@@ -246,14 +249,15 @@ async function handler(req: ApiReq, res: ApiRes) {
               last_error: null,
               is_noise: false,
               noise_reason: null,
-              status: "unconfirmed",
+              // Confirmed on first observation — AI interpretation is the quality gate.
+              status: "confirmed",
               structured_diff: {
                 previous_hash: baseline.section_hash,
                 current_hash: section.section_hash,
               },
               confirmation_count: 1,
               observation_count: 1,
-              confirmed: false,
+              confirmed: true,
               first_seen_at: section.created_at,
               last_seen_at: section.created_at,
             },
