@@ -63,6 +63,7 @@ interface DiffCountRow {
   count: string;
 }
 
+
 interface SignalCountRow {
   monitored_page_id: string;
   count: string;
@@ -189,6 +190,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       latestSnapshotsResult,
       sectionCountsResult,
       diffCountsResult,
+      noiseDiffCountsResult,
       signalCountsResult,
       baselineCountsResult,
       ruleCountsResult,
@@ -211,6 +213,15 @@ async function handler(req: ApiReq, res: ApiRes) {
         .from("section_diffs")
         .select("monitored_page_id, id")
         .in("monitored_page_id", pageIds),
+
+      // Noise diff counts per monitored_page — suppression clustering indicator.
+      // A sudden spike in noiseDiffCount for one competitor signals extraction drift
+      // (site redesign, CDN changes, selector instability).
+      supabase
+        .from("section_diffs")
+        .select("monitored_page_id, id")
+        .in("monitored_page_id", pageIds)
+        .eq("is_noise", true),
 
       // Signal counts per monitored_page
       supabase
@@ -253,6 +264,12 @@ async function handler(req: ApiReq, res: ApiRes) {
       diffsByPage.set(mp, (diffsByPage.get(mp) ?? 0) + 1);
     }
 
+    const noiseDiffsByPage = new Map<string, number>();
+    for (const r of (noiseDiffCountsResult.data ?? [])) {
+      const mp = (r as { monitored_page_id: string }).monitored_page_id;
+      noiseDiffsByPage.set(mp, (noiseDiffsByPage.get(mp) ?? 0) + 1);
+    }
+
     const signalsByPage = new Map<string, number>();
     for (const r of (signalCountsResult.data ?? [])) {
       const mp = (r as { monitored_page_id: string }).monitored_page_id;
@@ -286,6 +303,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       let lastSnapshotAt: string | null = null;
       let sectionCount = 0;
       let diffCount = 0;
+      let noiseDiffCount = 0;
       let signalCount = 0;
       let baselineCount = 0;
       let pagesWithNoSections = 0;
@@ -298,10 +316,11 @@ async function handler(req: ApiReq, res: ApiRes) {
         }
 
         const sec = sectionsByPage.get(page.id) ?? 0;
-        sectionCount  += sec;
-        diffCount     += diffsByPage.get(page.id)    ?? 0;
-        signalCount   += signalsByPage.get(page.id)  ?? 0;
-        baselineCount += baselinesByPage.get(page.id) ?? 0;
+        sectionCount   += sec;
+        diffCount      += diffsByPage.get(page.id)      ?? 0;
+        noiseDiffCount += noiseDiffsByPage.get(page.id) ?? 0;
+        signalCount    += signalsByPage.get(page.id)    ?? 0;
+        baselineCount  += baselinesByPage.get(page.id)  ?? 0;
 
         if (sec === 0) pagesWithNoSections += 1;
         if ((rulesByPage.get(page.id) ?? 0) === 0) pagesWithNoRules += 1;
@@ -316,6 +335,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         pressureIndex:      c.pressure_index ?? 0,
         sectionCount,
         diffCount,
+        noiseDiffCount,
         signalCount,
         baselineCount,
         pagesWithNoSections,

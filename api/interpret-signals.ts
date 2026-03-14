@@ -286,6 +286,8 @@ async function handler(req: ApiReq, res: ApiRes) {
 
           if (upsertError) throw upsertError;
 
+          // Guard with status = 'in_progress' so a late response from a prior
+          // worker (after the 30-minute stuck reset) cannot overwrite a fresher state.
           const { error: updateError } = await supabase
             .from("signals")
             .update({
@@ -294,7 +296,8 @@ async function handler(req: ApiReq, res: ApiRes) {
               status: "interpreted",
               last_error: null,
             })
-            .eq("id", signal.id);
+            .eq("id", signal.id)
+            .eq("status", "in_progress");
 
           if (updateError) throw updateError;
 
@@ -302,6 +305,8 @@ async function handler(req: ApiReq, res: ApiRes) {
         } catch (error: unknown) {
           rowsFailed += 1;
 
+          // Status guard: only reset to pending if we still own the in_progress slot.
+          // Prevents a failed late response from overwriting a state set by a fresher worker.
           const { error: retryError } = await supabase
             .from("signals")
             .update({
@@ -309,7 +314,8 @@ async function handler(req: ApiReq, res: ApiRes) {
               retry_count: (signal.retry_count ?? 0) + 1,
               last_error: error instanceof Error ? error.message : String(error),
             })
-            .eq("id", signal.id);
+            .eq("id", signal.id)
+            .eq("status", "in_progress");
 
           if (retryError) Sentry.captureException(retryError);
 
