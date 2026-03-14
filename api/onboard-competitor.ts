@@ -98,12 +98,9 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   const startedAt = Date.now();
 
-  Sentry.captureCheckIn({
-    monitorSlug: "onboard-competitor",
-    status: "in_progress"
-  });
-
   try {
+    // captureCheckIn inside try — if Sentry is uninitialized it must not crash the handler
+    try { Sentry.captureCheckIn({ monitorSlug: "onboard-competitor", status: "in_progress" }); } catch { /* non-fatal */ }
     const body = (req.body ?? {}) as Record<string, unknown>;
     const name        = typeof body.name        === "string" ? body.name        : undefined;
     const website_url = typeof body.website_url === "string" ? body.website_url : undefined;

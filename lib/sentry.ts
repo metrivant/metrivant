@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/node";
 
-const dsn = process.env.SENTRY_DSN;
+// Accept both SENTRY_DSN (standard) and SENTRY_DNS (legacy typo in this project's env)
+const dsn = process.env.SENTRY_DSN ?? process.env.SENTRY_DNS;
 
 if (dsn && !Sentry.getClient()) {
   Sentry.init({
