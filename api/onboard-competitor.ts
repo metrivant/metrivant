@@ -26,18 +26,43 @@ function normalizeUrl(input: string): string {
   return u.protocol + "//" + u.hostname;
 }
 
-function candidatePages(baseUrl: string): CandidatePage[] {
-  return [
-    { url: baseUrl,                  page_type: "homepage",  page_class: "standard"   },
-    { url: baseUrl + "/pricing",     page_type: "pricing",   page_class: "high_value" },
-    { url: baseUrl + "/changelog",   page_type: "changelog", page_class: "high_value" },
-    { url: baseUrl + "/blog",        page_type: "blog",      page_class: "ambient"    },
-    { url: baseUrl + "/features",    page_type: "features",  page_class: "standard"   },
-    { url: baseUrl + "/newsroom",    page_type: "newsroom",  page_class: "high_value" },
-    // Careers page: ambient — feeds hiring_activity events and hiring_surge signals.
-    // Hiring acceleration is an early indicator of product expansion or market push.
-    { url: baseUrl + "/careers",     page_type: "careers",   page_class: "ambient"    },
+// ── Sector-aware page set ──────────────────────────────────────────────────────
+//
+// SaaS-style companies publish pricing pages, changelogs, and feature pages at
+// standard paths — all 7 page types apply.
+//
+// Enterprise-heavy sectors (Defense, Aerospace, Energy, Healthcare) typically do
+// NOT have /pricing (enterprise contracts) or /changelog (not a convention).
+// They DO have newsrooms and careers pages. Registering non-existent paths causes
+// fetch-snapshots to accumulate consecutive_fetch_failures silently.
+//
+// custom sector: include all 7 — user controls which competitors they add.
+
+const ENTERPRISE_SECTORS = new Set([
+  "defense", "energy", "healthcare",
+]);
+
+function candidatePages(baseUrl: string, sector: string): CandidatePage[] {
+  const isEnterprise = ENTERPRISE_SECTORS.has(sector);
+
+  // All sectors share these pages
+  const pages: CandidatePage[] = [
+    { url: baseUrl,                page_type: "homepage", page_class: "standard" },
+    { url: baseUrl + "/blog",      page_type: "blog",     page_class: "ambient"  },
+    { url: baseUrl + "/features",  page_type: "features", page_class: "standard" },
+    { url: baseUrl + "/newsroom",  page_type: "newsroom", page_class: "high_value" },
+    { url: baseUrl + "/careers",   page_type: "careers",  page_class: "ambient"  },
   ];
+
+  // SaaS-style sectors: also monitor pricing and changelog
+  if (!isEnterprise) {
+    pages.splice(1, 0,
+      { url: baseUrl + "/pricing",   page_type: "pricing",   page_class: "high_value" },
+      { url: baseUrl + "/changelog", page_type: "changelog", page_class: "high_value" },
+    );
+  }
+
+  return pages;
 }
 
 function rulesForPage(pageType: string): ExtractionRule[] {
@@ -110,6 +135,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     const body = (req.body ?? {}) as Record<string, unknown>;
     const name        = typeof body.name        === "string" ? body.name        : undefined;
     const website_url = typeof body.website_url === "string" ? body.website_url : undefined;
+    const sector      = typeof body.sector      === "string" ? body.sector      : "saas";
 
     if (!name || !website_url) {
       return res.status(400).json({
@@ -159,7 +185,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       2. Ensure monitored pages exist
     */
 
-    const pages = candidatePages(baseUrl);
+    const pages = candidatePages(baseUrl, sector);
     const createdPages: InsertedPage[] = [];
 
     for (const page of pages) {
@@ -212,6 +238,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     Sentry.setContext("onboarding", {
       competitor_id: competitorId,
+      sector,
       pages_created: createdPages.length,
       runtimeDurationMs
     });

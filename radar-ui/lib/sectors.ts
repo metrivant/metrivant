@@ -70,7 +70,7 @@ const SAAS_CONFIG: SectorConfig = {
 
 const DEFENSE_CONFIG: SectorConfig = {
   id: "defense",
-  label: "Defense & Aerospace",
+  label: "Defense",
   description: "Track defense contractors, aerospace firms, and government suppliers",
   catalogCategories: [
     "defense-primes",
@@ -108,7 +108,7 @@ const DEFENSE_CONFIG: SectorConfig = {
 
 const ENERGY_CONFIG: SectorConfig = {
   id: "energy",
-  label: "Energy & Resources",
+  label: "Energy",
   description: "Track oil, gas, renewables, and energy sector competitors",
   catalogCategories: [
     "oil-gas",
@@ -186,8 +186,8 @@ export function translateSignalType(
 // Label map for all sectors including those without a full SectorConfig.
 const SECTOR_LABELS: Record<string, string> = {
   saas:               "Software",
-  defense:            "Defense & Aerospace",
-  energy:             "Energy & Resources",
+  defense:            "Defense",
+  energy:             "Energy",
   cybersecurity:      "Cybersecurity",
   fintech:            "Fintech",
   "ai-infrastructure": "AI Infrastructure",

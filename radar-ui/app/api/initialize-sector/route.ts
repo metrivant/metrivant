@@ -195,7 +195,7 @@ export async function POST(request: Request) {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${cronSecret}`,
           },
-          body: JSON.stringify({ name: comp.name, website_url: comp.website_url }),
+          body: JSON.stringify({ name: comp.name, website_url: comp.website_url, sector }),
         }).catch(() => null)
       )
     );
