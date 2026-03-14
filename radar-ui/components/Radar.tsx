@@ -406,6 +406,8 @@ type BlipNodeProps = {
   tensionDescription?: string | null;
   /** Hiring-related language detected in movement summary within last 48h */
   isHiringSurge?: boolean;
+  /** True on touch/mobile — enlarges label and increases contrast */
+  isMobile?: boolean;
 };
 
 const BlipNode = memo(function BlipNode({
@@ -427,6 +429,7 @@ const BlipNode = memo(function BlipNode({
   isWeakSignal = false,
   tensionDescription = null,
   isHiringSurge = false,
+  isMobile = false,
 }: BlipNodeProps) {
   const [hovered, setHovered] = useState(false);
   const momentum = Number(competitor.momentum_score ?? 0);
@@ -754,10 +757,10 @@ const BlipNode = memo(function BlipNode({
             ? "#f0fff4"
             : hovered
             ? "#d0ead0"
-            : "#b8d0b8"
+            : isMobile ? "#c8dfc8" : "#b8d0b8"
         }
-        fontSize="13"
-        fontWeight={isSelected ? "600" : hovered ? "500" : "400"}
+        fontSize={isMobile ? "15" : "13"}
+        fontWeight={isSelected ? "600" : hovered ? "500" : isMobile ? "500" : "400"}
         fontFamily="Inter, system-ui, sans-serif"
         letterSpacing="0.02em"
         style={{
@@ -823,6 +826,17 @@ export default function Radar({
 }) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // ── Mobile detection ─────────────────────────────────────────────────────
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    setIsMobile(mq.matches);
+    const h = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", h);
+    return () => mq.removeEventListener("change", h);
+  }, []);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   // ── Cinematic entry sequence ─────────────────────────────────────────────
   // Phase 0: black → Phase 1 (150ms): grid/rings → Phase 2 (350ms): nodes → Phase 3 (600ms): panel
@@ -1206,6 +1220,61 @@ export default function Radar({
     });
   }, []);
 
+  // ── Bottom sheet state (mobile) ─────────────────────────────────────────
+  // peek = competitor name only, half = evidence + assessment, full = all
+  const [sheetState, setSheetState] = useState<"peek" | "half" | "full">("half");
+  const sheetTouchStartY = useRef(0);
+  useEffect(() => { if (selectedId) setSheetState("half"); }, [selectedId]);
+
+  const handleSheetTouchStart = useCallback((e: React.TouchEvent) => {
+    sheetTouchStartY.current = e.touches[0].clientY;
+  }, []);
+
+  const handleSheetTouchEnd = useCallback((e: React.TouchEvent) => {
+    const dy = e.changedTouches[0].clientY - sheetTouchStartY.current;
+    if (Math.abs(dy) < 24) return;
+    if (dy > 48) {
+      if (sheetState === "full") setSheetState("half");
+      else if (sheetState === "half") setSheetState("peek");
+      else setSelectedId(null);
+    } else if (dy < -48) {
+      if (sheetState === "peek") setSheetState("half");
+      else if (sheetState === "half") setSheetState("full");
+    }
+  }, [sheetState]);
+
+  // ── Magnetic node selection (mobile) ────────────────────────────────────
+  // Maps a screen touch to the nearest node within a 60px snap radius.
+  // Uses SVG coordinate transform so zoom/pan are accounted for automatically.
+  const handleSvgTouchEnd = useCallback((e: React.TouchEvent<SVGSVGElement>) => {
+    if (!isMobile || e.changedTouches.length !== 1) return;
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+    const touch = e.changedTouches[0];
+    const ctm = svgEl.getScreenCTM();
+    if (!ctm) return;
+    const pt = svgEl.createSVGPoint();
+    pt.x = touch.clientX;
+    pt.y = touch.clientY;
+    const svgPt = pt.matrixTransform(ctm.inverse());
+    // 60 screen-px snap radius → SVG coordinate space
+    const snapRadius = 60 / ctm.a;
+    let nearest: string | null = null;
+    let nearestDist = Infinity;
+    const positions = gravityMode ? gravityPositions : standardPositions;
+    for (const [id, pos] of positions) {
+      const dist = Math.sqrt((svgPt.x - pos.x) ** 2 + (svgPt.y - pos.y) ** 2);
+      if (dist < snapRadius && dist < nearestDist) {
+        nearest = id;
+        nearestDist = dist;
+      }
+    }
+    if (nearest) {
+      e.preventDefault();
+      handleBlipClick(nearest);
+    }
+  }, [isMobile, gravityMode, gravityPositions, standardPositions, handleBlipClick]);
+
   const [detail, setDetail] = useState<CompetitorDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState(false);
@@ -1456,6 +1525,7 @@ export default function Radar({
               onTouchEnd={handlePanEnd}
             >
             <svg
+              ref={svgRef}
               width="100%"
               height="100%"
               viewBox="0 0 1000 1000"
@@ -1463,6 +1533,7 @@ export default function Radar({
               className="block"
               role="img"
               aria-label="Competitor radar"
+              onTouchEnd={handleSvgTouchEnd}
             >
               <defs>
                 {/* Central atmospheric glow */}
@@ -1618,8 +1689,8 @@ export default function Radar({
                     fill="none"
                     stroke={gravityMode ? G.ring : "#0f3d20"}
                     strokeWidth="1.5"
-                    opacity="0.9"
-                    style={{ transition: "stroke 0.8s ease" }}
+                    opacity={factor <= 0.3 ? 0.88 : factor <= 0.6 ? 0.70 : factor <= 0.9 ? 0.50 : 0.35}
+                    style={{ transition: "stroke 0.8s ease, opacity 0.8s ease" }}
                   />
                 ))}
 
@@ -2066,6 +2137,7 @@ export default function Radar({
                   isDimmed={selectedId !== null && competitor.competitor_id !== selectedId}
                   isAlerted={alertActive && competitor.competitor_id === criticalAlert?.competitor_id}
                   onSelect={handleBlipClick}
+                  isMobile={isMobile}
                   gravityPos={gravityMode ? gravityPositions.get(competitor.competitor_id) : undefined}
                   gravityMode={gravityMode}
                   timeDimmed={
@@ -2189,6 +2261,54 @@ export default function Radar({
               ))}
             </svg>
             </div>{/* end zoom canvas */}
+
+            {/* ── Floating controls — mobile only ─────────────────────────── */}
+            {/* Gravity toggle + zoom reset, positioned top-right of radar canvas */}
+            <div className="pointer-events-auto absolute right-3 top-3 z-20 flex flex-col gap-2 md:hidden">
+              <button
+                onClick={() => { setGravityMode((g) => !g); getAudioManager().play("swoosh"); }}
+                className="flex h-11 w-11 items-center justify-center rounded-[12px] transition-all active:scale-90"
+                style={{
+                  background: gravityMode ? "rgba(129,140,248,0.14)" : "rgba(46,230,166,0.08)",
+                  border: `1px solid ${gravityMode ? "rgba(129,140,248,0.28)" : "rgba(46,230,166,0.14)"}`,
+                  backdropFilter: "blur(8px)",
+                  WebkitBackdropFilter: "blur(8px)",
+                }}
+                aria-label={gravityMode ? "Switch to Standard mode" : "Switch to Gravity Field mode"}
+              >
+                {gravityMode ? (
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                    <circle cx="9" cy="9" r="3.5" fill="#818cf8" fillOpacity="0.85" />
+                    <circle cx="9" cy="9" r="7" stroke="#818cf8" strokeWidth="1" strokeOpacity="0.45" />
+                    <circle cx="9" cy="9" r="5" stroke="#818cf8" strokeWidth="0.7" strokeOpacity="0.25" />
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                    <circle cx="9" cy="9" r="7" stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.55" />
+                    <circle cx="9" cy="9" r="4.5" stroke="#2EE6A6" strokeWidth="0.75" strokeOpacity="0.30" />
+                    <circle cx="9" cy="9" r="1.5" fill="#2EE6A6" fillOpacity="0.75" />
+                  </svg>
+                )}
+              </button>
+              {zoom !== 1 && (
+                <button
+                  onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
+                  className="flex h-11 w-11 items-center justify-center rounded-[12px] transition-all active:scale-90"
+                  style={{
+                    background: "rgba(46,230,166,0.08)",
+                    border: "1px solid rgba(46,230,166,0.14)",
+                    backdropFilter: "blur(8px)",
+                    WebkitBackdropFilter: "blur(8px)",
+                  }}
+                  aria-label="Reset zoom"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <circle cx="8" cy="8" r="3" stroke="#2EE6A6" strokeWidth="1.2" strokeOpacity="0.7" />
+                    <path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3" stroke="#2EE6A6" strokeWidth="1.3" strokeLinecap="round" strokeOpacity="0.65" />
+                  </svg>
+                </button>
+              )}
+            </div>
 
             {/* ── Micro Insight overlay — rotating deterministic observation ── */}
             {/* Shown only when no node is selected and no alert is active.       */}
@@ -2603,11 +2723,17 @@ export default function Radar({
       {/* Mobile: hidden when nothing selected; bottom-sheet when selected.  */}
       {/* Desktop (md+): always-visible second grid column.                  */}
       <aside
-        className={`border bg-[#000000] p-6 transition-colors duration-500${
+        className={`border bg-[#000000] p-6 md:static md:block md:inset-auto md:z-auto md:min-h-0 md:max-h-none md:overflow-y-auto md:rounded-[20px]${
           selected
-            ? " fixed inset-x-0 bottom-0 z-40 max-h-[75vh] overflow-y-auto rounded-t-[20px]"
+            ? sheetState === "full"
+              ? " fixed inset-x-0 bottom-0 z-40 h-[100svh] overflow-y-auto rounded-t-[20px]"
+              : sheetState === "peek"
+              ? " fixed inset-x-0 bottom-0 z-40 h-[28vh] overflow-hidden rounded-t-[20px]"
+              : " fixed inset-x-0 bottom-0 z-40 max-h-[65vh] overflow-y-auto rounded-t-[20px]"
             : " hidden"
-        } md:static md:block md:inset-auto md:z-auto md:min-h-0 md:max-h-none md:overflow-y-auto md:rounded-[20px]`}
+        }`}
+        onTouchStart={handleSheetTouchStart}
+        onTouchEnd={handleSheetTouchEnd}
         style={{
           borderColor: selected
             ? `${getMovementColor(selected.latest_movement_type)}38`
@@ -2619,6 +2745,29 @@ export default function Radar({
           transition: "opacity 0.4s ease, border-color 0.5s ease, box-shadow 0.5s ease",
         }}
       >
+        {/* ── Mobile swipe handle + sheet state indicator ── */}
+        <div className="mb-4 flex flex-col items-center gap-2 md:hidden">
+          <div className="h-[4px] w-10 rounded-full bg-[#1c3a1c]" />
+          {selected && (
+            <div className="flex items-center gap-1.5" role="group" aria-label="Sheet position">
+              {(["peek", "half", "full"] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setSheetState(s)}
+                  className="rounded-full transition-all duration-200"
+                  style={{
+                    width: sheetState === s ? "20px" : "6px",
+                    height: "4px",
+                    background: sheetState === s ? "#2EE6A6" : "#1c3a1c",
+                  }}
+                  aria-label={`${s} view`}
+                  aria-pressed={sheetState === s}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
         <AnimatePresence mode="wait">
           {selected ? (
             /* ── Intelligence drawer ──────────────────────────── */

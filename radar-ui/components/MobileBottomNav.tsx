@@ -27,16 +27,14 @@ const NAV_ITEMS = [
     ),
   },
   {
-    href: "/app/strategy",
-    label: "Strategy",
+    href: "/app/briefs",
+    label: "Briefs",
     icon: (active: boolean) => (
       <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-        <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="1.2" strokeOpacity={active ? 1 : 0.45} />
-        <circle cx="11" cy="11" r="3.5" stroke="currentColor" strokeWidth="1.1" strokeOpacity={active ? 0.8 : 0.35} />
-        <line x1="11" y1="3" x2="11" y2="5.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeOpacity={active ? 1 : 0.45} />
-        <line x1="11" y1="16.5" x2="11" y2="19" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeOpacity={active ? 1 : 0.45} />
-        <line x1="3" y1="11" x2="5.5" y2="11" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeOpacity={active ? 1 : 0.45} />
-        <line x1="16.5" y1="11" x2="19" y2="11" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeOpacity={active ? 1 : 0.45} />
+        <rect x="5" y="3" width="12" height="16" rx="1.5" stroke="currentColor" strokeWidth="1.2" strokeOpacity={active ? 1 : 0.45} />
+        <line x1="8" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeOpacity={active ? 0.8 : 0.35} />
+        <line x1="8" y1="11" x2="14" y2="11" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeOpacity={active ? 0.8 : 0.35} />
+        <line x1="8" y1="14" x2="11" y2="14" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeOpacity={active ? 0.8 : 0.35} />
       </svg>
     ),
   },
@@ -52,12 +50,16 @@ const NAV_ITEMS = [
     ),
   },
   {
-    href: "/app/billing",
-    label: "Billing",
+    href: "/app/strategy",
+    label: "Strategy",
     icon: (active: boolean) => (
       <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-        <rect x="3" y="6" width="16" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.2" strokeOpacity={active ? 1 : 0.45} />
-        <path d="M6.5 6V5a4.5 4.5 0 0 1 9 0v1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeOpacity={active ? 1 : 0.45} />
+        <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="1.2" strokeOpacity={active ? 1 : 0.45} />
+        <circle cx="11" cy="11" r="3.5" stroke="currentColor" strokeWidth="1.1" strokeOpacity={active ? 0.8 : 0.35} />
+        <line x1="11" y1="3" x2="11" y2="5.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeOpacity={active ? 1 : 0.45} />
+        <line x1="11" y1="16.5" x2="11" y2="19" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeOpacity={active ? 1 : 0.45} />
+        <line x1="3" y1="11" x2="5.5" y2="11" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeOpacity={active ? 1 : 0.45} />
+        <line x1="16.5" y1="11" x2="19" y2="11" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeOpacity={active ? 1 : 0.45} />
       </svg>
     ),
   },
