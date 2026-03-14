@@ -33,22 +33,37 @@ competitors
 Key schema additions (migrations 008–012):
 - monitored_pages.page_class        'high_value' | 'standard' | 'ambient'
 - signals.confidence_score          float 0.0–1.0
-- signals.signal_hash               sha256 dedup key (one per competitor+type per day)
+- signals.signal_hash               sha256 dedup key (one per competitor+section_type+signal_type per day)
 - competitors.pressure_index        urgency scalar 0.0–10.0
 - competitors.last_signal_at        denormalized, kept by trigger
 - activity_events                   ambient intelligence table (30-day retention)
 
-Confidence thresholds:
+Confidence model (v4.0):
+  base             = SECTION_WEIGHTS[section_type]   (0.25–0.85)
+  recency_bonus    = 0.05 / 0.10 / 0.15
+  obs_bonus        = min(0.15, (observations-1) × 0.05)
+  page_class_bonus = +0.08 if page_class='high_value'
+  score            = min(1.0, base + recency_bonus + obs_bonus + page_class_bonus)
+
+Confidence gates:
 - < 0.35    suppressed — no signal created
 - 0.35–0.64 pending_review — held until pressure_index >= 5.0 promotes it
 - >= 0.65   pending — sent to OpenAI
+
+Noise gates (detect-signals, before signal creation):
+- whitespace_only:        texts equal when whitespace stripped → is_noise=true
+- dynamic_content_only:   texts equal after stripping ISO timestamps + UTM params → is_noise=true
+
+Monitored pages per competitor (onboard-competitor):
+  homepage (standard), pricing (high_value), changelog (high_value),
+  blog (ambient), features (standard), newsroom (high_value), careers (ambient)
 
 Production URLs:
 - Runtime API:  https://metrivant-runtime.vercel.app
 - UI:           https://metrivant.com
 
 Manual pipeline trigger:
-  See docs/METRIVANT_MASTER_REFERENCE.md section 18.
+  See docs/METRIVANT_MASTER_REFERENCE.md section 19.
 
 Full system reference:
   docs/METRIVANT_MASTER_REFERENCE.md — single authoritative doc (replaces all individual docs)

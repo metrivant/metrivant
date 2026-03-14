@@ -1,5 +1,5 @@
 METRIVANT — MASTER SYSTEM REFERENCE
-Version: v3.0 (sector randomization + pipeline bridge + clean slate)
+Version: v4.0 (pipeline precision refinement — 14-phase audit)
 Last updated: 2026-03-14
 
 This document is the single authoritative reference for the Metrivant system.
@@ -102,6 +102,7 @@ Weekly:
 high_value   pricing, changelog, newsroom
              → fetched every 60 min
              → full signal pipeline
+             → +0.08 page_class_bonus on confidence score
 
 standard     homepage, features
              → fetched every 3 hours
@@ -109,8 +110,9 @@ standard     homepage, features
 
 ambient      blog, careers
              → fetched every 30 min
-             → creates activity_events ONLY (no signals)
+             → creates activity_events ONLY (no signals, no OpenAI)
              → feeds pressure_index and UI ticker
+             → 30-day retention (pruned each run)
 
 ================================================
 6. PIPELINE STAGE DETAILS
@@ -133,7 +135,11 @@ cleanText() pipeline:
 extractSectionText() — strips noise before text extraction (broad selectors only):
   Noise selectors: nav, footer, aside, script, style, noscript,
     [aria-hidden], [role=banner/navigation/complementary],
-    .cookie-banner, .consent-banner, .chat-widget
+    .cookie-banner, .consent-banner, .gdpr-banner, .cc-banner,
+    .chat-widget, #intercom-container, .intercom-lightweight-app,
+    #hubspot-messages-iframe-container, .drift-widget, #drift-widget, #crisp-chatbox,
+    .announcement-bar, .promo-bar, .notification-bar, .alert-bar,
+    [data-nosnippet]
   Broad selectors where noise stripping is applied: main, body, article, #content, .content
   Narrow selectors (h1, h2) are untouched.
 
@@ -163,15 +169,25 @@ Confirmed on first observation (observation_count >= 1).
 Input: section_diffs WHERE confirmed=true AND signal_detected=false
        AND is_noise=false AND monitored_pages.page_class != 'ambient'
 
-Whitespace identity check (before signal creation):
-  prev.replace(/\s+/g,"") === curr.replace(/\s+/g,"")
-  → is_noise=true, noise_reason='whitespace_only', no signal created
+Batch architecture (eliminates N+1):
+  Pre-loads all previous_section_id + current_section_id for the entire batch
+  in a single .in() query before the loop. Zero per-row queries.
+
+Noise gates (applied in order before signal creation):
+  1. Whitespace-only:
+     prev.replace(/\s+/g,"") === curr.replace(/\s+/g,"")
+     → is_noise=true, noise_reason='whitespace_only'
+  2. Dynamic-content-only (normalizeForComparison):
+     Strips ISO 8601 timestamps + UTM/tracking params from both sides.
+     If normalized texts are equal:
+     → is_noise=true, noise_reason='dynamic_content_only'
 
 Confidence model:
-  base          = SECTION_WEIGHTS[section_type]  (0.25–0.85)
-  recency_bonus = 0.05 / 0.10 / 0.15
-  obs_bonus     = min(0.15, (observations-1) * 0.05)
-  score         = min(1.0, base + recency_bonus + obs_bonus)
+  base             = SECTION_WEIGHTS[section_type]  (0.25–0.85)
+  recency_bonus    = 0.05 / 0.10 / 0.15
+  obs_bonus        = min(0.15, (observations-1) * 0.05)
+  page_class_bonus = 0.08 if page_class='high_value', else 0
+  score            = min(1.0, base + recency_bonus + obs_bonus + page_class_bonus)
 
 Confidence gates:
   < 0.35        → suppressed — no signal, diff marked processed
@@ -179,8 +195,9 @@ Confidence gates:
   >= 0.65       → status = 'pending' (sent to OpenAI)
 
 Deduplication:
-  signal_hash = sha256(competitor_id:signal_type:YYYY-MM-DD)[:32]
-  One signal per (competitor, type) per UTC calendar day.
+  signal_hash = sha256(competitor_id:signal_type:section_type:YYYY-MM-DD)[:32]
+  One signal per (competitor, section_type, signal_type) per UTC calendar day.
+  Allows same signal_type from different page sections to fire independently.
 
 Smart excerpts (buildExcerpts):
   Finds first divergence point, backs up to word boundary,
@@ -304,7 +321,38 @@ Custom sector:
   - Clean Slate button resets any sector back to Custom
 
 ================================================
-10. COMPETITOR ONBOARDING FLOW
+10. PIPELINE OBSERVABILITY
+================================================
+
+GET /api/pipeline-status (Authorization: Bearer CRON_SECRET)
+
+Global summary:
+  lastSnapshotAt           — most recent snapshot timestamp
+  pendingSnapshotBacklog   — snapshots awaiting extraction
+  unconfirmedDiffBacklog   — diffs not yet confirmed
+  confirmedDiffBacklog     — confirmed diffs awaiting signal detection
+  pendingSignalBacklog     — signals awaiting interpretation
+  failedSignals            — signals that exhausted retries
+
+Per-competitor diagnostics:
+  id, name
+  monitoredPageCount       — number of active monitored pages
+  lastSnapshotAt           — most recent snapshot for this competitor
+  lastSignalAt             — most recent signal (denormalized from competitors table)
+  pressureIndex            — current pressure_index scalar (0.0–10.0)
+  sectionCount             — total page_sections across all pages
+  diffCount                — total section_diffs across all pages
+  signalCount              — total signals across all pages
+  baselineCount            — total section_baselines across all pages
+  pagesWithNoSections      — pages where sectionCount = 0 (extraction gap)
+  pagesWithNoRules         — pages where no active extraction_rules exist
+
+Derive baseline_building state:
+  any page where sectionCount > 0 AND baselineCount = 0
+  → baselines not yet established, pipeline will start diffing on next build-baselines run
+
+================================================
+11. COMPETITOR ONBOARDING FLOW
 ================================================
 
 User flow:
@@ -316,7 +364,7 @@ User flow:
      d. Fire-and-forget: call runtime /api/onboard-competitor for each competitor
   3. runtime/onboard-competitor:
      a. Creates competitor record (idempotent)
-     b. Creates monitored_pages (homepage, pricing, changelog, blog, features, newsroom)
+     b. Creates monitored_pages (homepage, pricing, changelog, blog, features, newsroom, careers)
      c. Creates extraction_rules for each page type
   4. Pipeline runs → first signals appear
 
@@ -325,7 +373,7 @@ Manual competitor addition:
   Also requires runtime onboard-competitor call to enter pipeline.
 
 ================================================
-11. CLEAN SLATE
+12. CLEAN SLATE
 ================================================
 
 Route: POST /api/clean-slate
@@ -340,7 +388,7 @@ UI: CleanSlateButton in radar header (hidden on mobile)
   - On confirm: POST /api/clean-slate → router.refresh()
 
 ================================================
-12. MOMENTUM MODEL
+13. MOMENTUM MODEL
 ================================================
 
 States:
@@ -360,7 +408,7 @@ At most ONE critical alert fires per radar load (highest-momentum qualifier).
 Session dedup key: ${competitor_id}__${latest_movement_last_seen_at}
 
 ================================================
-13. RADAR INTERFACE
+14. RADAR INTERFACE
 ================================================
 
 Geometry:
@@ -391,7 +439,7 @@ Information hierarchy:
 Empty state: "INITIALIZING RADAR" — auto-refresh every 30s via router.refresh()
 
 ================================================
-14. STRATEGIC ANALYSIS MODEL
+15. STRATEGIC ANALYSIS MODEL
 ================================================
 
 Pattern types: feature_convergence, pricing_competition, category_expansion,
@@ -408,7 +456,7 @@ Positioning map (lib/positioning.ts):
   Significant shift threshold: > 15 points on either axis
 
 ================================================
-15. USER PLAN STRUCTURE
+16. USER PLAN STRUCTURE
 ================================================
 
 | Plan    | Competitors | Signal history | Alerts         |
@@ -421,7 +469,7 @@ Plan enforcement: defined in product, not yet enforced at DB/API level.
 Billing: informational only — no Stripe integration.
 
 ================================================
-16. EMAIL SYSTEM
+17. EMAIL SYSTEM
 ================================================
 
 Provider: Resend
@@ -432,7 +480,7 @@ Types: welcome, tracking confirmation, first signal, momentum alert,
        weekly brief, strategy alert
 
 ================================================
-17. ENVIRONMENT VARIABLES
+18. ENVIRONMENT VARIABLES
 ================================================
 
 Runtime (metrivant-runtime):
@@ -454,7 +502,7 @@ UI (radar-ui):
   RESEND_API_KEY
 
 ================================================
-18. MANUAL PIPELINE TRIGGER
+19. MANUAL PIPELINE TRIGGER
 ================================================
 
 SECRET = CRON_SECRET from .env.local
@@ -482,7 +530,7 @@ Onboard a specific competitor manually:
     -d '{"name":"Acme Corp","website_url":"https://acme.com"}'
 
 ================================================
-19. OPERATIONS — HEALTH CHECKS
+20. OPERATIONS — HEALTH CHECKS
 ================================================
 
 Extraction blackout (pages with no valid sections in 48h):
@@ -520,7 +568,7 @@ Signal confidence distribution:
   GROUP BY signal_type ORDER BY COUNT(*) DESC;
 
 ================================================
-20. OPERATIONS — MANUAL RECOVERY
+21. OPERATIONS — MANUAL RECOVERY
 ================================================
 
 Reset stuck signal:
@@ -539,7 +587,7 @@ Database size:
   SELECT pg_size_pretty(pg_database_size(current_database()));
 
 ================================================
-21. DEBUGGING ENTRY POINT
+22. DEBUGGING ENTRY POINT
 ================================================
 
 If the pipeline has no output, inspect tables in this order:
@@ -556,7 +604,7 @@ If the pipeline has no output, inspect tables in this order:
 The first stage missing expected rows indicates the failure point.
 
 ================================================
-22. DEVELOPMENT WORKFLOW (REQUIRED FOR EVERY TASK)
+23. DEVELOPMENT WORKFLOW (REQUIRED FOR EVERY TASK)
 ================================================
 
 Phase 1 — Understand
@@ -592,7 +640,7 @@ Phase 5 — Report
   - Optional next step
 
 ================================================
-23. NEVER DO THESE
+24. NEVER DO THESE
 ================================================
 
 Without explicit approval:
@@ -609,7 +657,7 @@ Without explicit approval:
 - any change to authentication or authorization logic
 
 ================================================
-24. ENGINEERING PRINCIPLES
+25. ENGINEERING PRINCIPLES
 ================================================
 
 - Simplicity over cleverness
