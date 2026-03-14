@@ -18,11 +18,13 @@ export async function POST(request: Request): Promise<NextResponse> {
     ? (rawIds as unknown[]).slice(0, 100).filter((x): x is string => typeof x === "string")
     : undefined;
 
-  const { data: org } = await supabase
+  const { data: orgRows } = await supabase
     .from("organizations")
     .select("id")
     .eq("owner_id", user.id)
-    .single();
+    .order("created_at", { ascending: true })
+    .limit(1);
+  const org = orgRows?.[0] ?? null;
 
   if (!org) {
     return NextResponse.json({ ok: true, updated: 0 });

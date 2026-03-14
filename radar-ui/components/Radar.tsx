@@ -857,9 +857,11 @@ const BlipNode = memo(function BlipNode({
 export default function Radar({
   competitors,
   sector,
+  orgId,
 }: {
   competitors: RadarCompetitor[];
   sector?: string;
+  orgId?: string;
 }) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -898,7 +900,7 @@ export default function Radar({
 
   // ── Critical acceleration alert ──────────────────────────────────────────
   const criticalAlert: CriticalAlert | null = useMemo(
-    () => detectCriticalAlert(competitors),
+    () => detectCriticalAlert(competitors, orgId),
     [competitors]
   );
 

@@ -61,6 +61,7 @@ export default async function Page() {
 
   // Read org sector + subscription state — best-effort, both default to safe values
   let sector             = "saas";
+  let orgId: string | undefined;
   let plan               = "analyst";
   let trialExpired       = false;
   let trialDaysRemaining: number | null = null;
@@ -77,6 +78,7 @@ export default async function Page() {
         .limit(1);
 
       const org = orgRows?.[0] ?? null;
+      if (org?.id) orgId = org.id as string;
       if (org?.sector) sector = org.sector as string;
 
       // Subscription state — authoritative source for plan + trial gate
@@ -288,7 +290,7 @@ export default async function Page() {
         {/* Mobile:  p-3 pb-[76px] — extra bottom padding clears mobile nav   */}
         <div className="relative z-10 flex flex-1 flex-col overflow-hidden p-3 pb-[76px] md:pb-3">
           <RadarViewedTracker />
-          <Radar competitors={competitors} sector={sector} />
+          <Radar competitors={competitors} sector={sector} orgId={orgId} />
         </div>
 
       </div>

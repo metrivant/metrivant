@@ -14,11 +14,13 @@ export async function GET(): Promise<NextResponse> {
   }
 
   // Get the user's org
-  const { data: org } = await supabase
+  const { data: orgRows } = await supabase
     .from("organizations")
     .select("id")
     .eq("owner_id", user.id)
-    .single();
+    .order("created_at", { ascending: true })
+    .limit(1);
+  const org = orgRows?.[0] ?? null;
 
   if (!org) {
     return NextResponse.json({ alerts: [], unreadCount: 0 });

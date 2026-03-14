@@ -42,7 +42,8 @@ export type CriticalAlert = {
 // ── Trigger ────────────────────────────────────────────────────────────────────
 
 export function detectCriticalAlert(
-  competitors: RadarCompetitor[]
+  competitors: RadarCompetitor[],
+  orgId?: string
 ): CriticalAlert | null {
   const now = Date.now();
 
@@ -79,7 +80,7 @@ export function detectCriticalAlert(
     momentum_score:   Number(top.momentum_score),
     last_seen_at:     top.latest_movement_last_seen_at!,
     movement_summary: top.latest_movement_summary,
-    alertKey:         `${top.competitor_id}__${top.latest_movement_last_seen_at}`,
+    alertKey:         `${orgId ? orgId + "__" : ""}${top.competitor_id}__${top.latest_movement_last_seen_at}`,
   };
 }
 
