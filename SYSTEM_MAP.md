@@ -45,7 +45,7 @@ Downstream layers (derived, not pipeline stages):
 | Monitoring | Sentry (`@sentry/nextjs`) |
 | Analytics | PostHog (manual events only) |
 | Email | Resend |
-| Payments | Stripe (checkout, webhooks, portal — integrated) |
+| Payments | Stripe (checkout session, billing portal, webhook sync — integrated) |
 | Version control | GitHub |
 
 ---
@@ -112,7 +112,9 @@ The pipeline is sector-agnostic. Sector controls display language, catalog curat
 | OpenAI org cap | `OPENAI_MAX_ORGS_PER_RUN` env var (default 100) — caps GPT-4o calls per run in `strategic-analysis` and `update-positioning` |
 | History pruning | `momentum_history` and `positioning_history` pruned to 90 days on each cron run |
 | Idempotency guard | `strategic-analysis` and `update-positioning` skip re-generation if an org was already processed in the last hour |
-| Plan enforcement | `/api/discover/track` enforces competitor limits (analyst=5, pro=25) server-side |
+| Plan enforcement | `/api/discover/track` enforces competitor limits (analyst=10, pro=25) server-side |
+| Org isolation | All org SELECT queries use `.limit(1)` (not `.single()`) — safe against schema cache misses |
+| Alert state isolation | Critical alert sessionStorage dedup key is org-scoped to prevent cross-account bleed |
 
 Migration required: `migrations/016_cron_heartbeats.sql` (creates `cron_heartbeats` table and pruning indexes).
 

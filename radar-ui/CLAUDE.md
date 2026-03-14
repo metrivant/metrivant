@@ -476,6 +476,12 @@ When a critical alert is active:
 - An alert banner overlays the radar (bottom of container) via AnimatePresence
 - The radar SVG rings pulse in the alert movement color instead of the default green
 
+### Auto-refresh
+
+Radar polls `router.refresh()` on a timer:
+- Empty radar (no competitors): every 30s — waits for first pipeline output
+- Active radar (competitors present): every 60s — surfaces new signals without manual reload
+
 ### Pipeline heartbeat
 
 `latestSignalAt` is a useMemo computed from `sorted` (the `RadarCompetitor[]` array). It finds the most recent `last_signal_at` across all competitors. Displayed in the intelligence panel header as "Updated X ago" with color-coded freshness:
@@ -538,7 +544,7 @@ When radar has no competitors (new user): display "INITIALIZING RADAR" state wit
 
 Legacy note: Early signups have `user_metadata.plan = "starter"`. This is treated identically to `"analyst"` in all UI components. No migration is needed — both keys are recognized.
 
-No Stripe integration currently exists in radar-ui. Upgrade surfaces link to `/pricing` or `mailto:billing@metrivant.com`.
+Stripe is integrated. Checkout sessions and billing portal are live via `lib/stripe.ts`. STRIPE_SECRET_KEY must be trimmed of whitespace (`.trim()` applied). Webhook at `/api/stripe/webhook` syncs subscription state. Plan is written to `user_metadata.plan` on successful payment.
 
 ---
 
@@ -583,7 +589,7 @@ Structured data (landing page, `app/page.tsx`): `SoftwareApplication` JSON-LD wi
 
 **Settings** (`app/app/settings`) — User and org settings. Sector configuration.
 
-**Billing** (`app/app/billing`) — Current plan display with features list. Starter users see Pro upgrade card. Pro users see Enterprise contact CTA. No payment processing UI (Stripe not integrated).
+**Billing** (`app/app/billing`) — Current plan display with features list. Analyst users see Pro upgrade card with Stripe checkout. Pro users see billing portal link. Stripe checkout and portal are fully integrated.
 
 **Onboarding** (`app/app/onboarding`) — First-time sector selection flow. Auto-populates default competitors from sector catalog.
 
@@ -654,9 +660,9 @@ All emails are sent via Resend. HTML templates are dark-themed, consistent with 
 
 **Catalog maintenance.** The static catalog (283 competitors) does not self-update. New entrants in a sector require manual catalog additions.
 
-**Plan enforcement.** Plan limits (5 competitors for Starter, 25 for Pro) are defined in product but are not currently enforced at the database or API level. This is a known gap.
+**Plan enforcement.** Plan limits (10 competitors for Analyst, 25 for Pro) are enforced server-side in `/api/discover/track`. Returns HTTP 403 when limit reached.
 
-**Stripe not integrated.** Billing is informational only. Upgrade flows link to the pricing page or `billing@metrivant.com`. No payment processing, subscription management, or plan upgrade automation exists in radar-ui.
+**Stripe integrated.** Checkout session creation and billing portal are live. `STRIPE_SECRET_KEY` env var must not have trailing whitespace. Webhook syncs subscription state to `subscriptions` table per org.
 
 ---
 
