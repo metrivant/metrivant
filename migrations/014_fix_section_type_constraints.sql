@@ -12,6 +12,10 @@
 -- All three changes are idempotent (DROP IF EXISTS before ADD).
 
 -- ── 1. Fix page_sections section_type check constraint ────────────────────────
+--
+-- NOT VALID: adds constraint for future inserts without scanning existing rows.
+-- Avoids spurious 23514 from concurrent pipeline activity during the scan.
+-- VALIDATE CONSTRAINT runs as a separate step after NOT VALID succeeds.
 
 ALTER TABLE page_sections
   DROP CONSTRAINT IF EXISTS chk_section_type_page_sections;
@@ -23,7 +27,10 @@ ALTER TABLE page_sections
     'pricing_plans', 'pricing_references',
     'release_feed', 'features_overview',
     'announcements', 'careers_feed'
-  ));
+  )) NOT VALID;
+
+ALTER TABLE page_sections
+  VALIDATE CONSTRAINT chk_section_type_page_sections;
 
 -- ── 2. Fix extraction_rules section_type check constraint ─────────────────────
 
@@ -37,7 +44,10 @@ ALTER TABLE extraction_rules
     'pricing_plans', 'pricing_references',
     'release_feed', 'features_overview',
     'announcements', 'careers_feed'
-  ));
+  )) NOT VALID;
+
+ALTER TABLE extraction_rules
+  VALIDATE CONSTRAINT chk_section_type;
 
 -- ── 3. Ensure section_diffs dedup unique constraint exists ────────────────────
 --
