@@ -151,10 +151,21 @@ async function runCheck(): Promise<NextResponse> {
   // 6 — Send emails to org owners who have new alerts
   const emailsSent: string[] = [];
 
-  let users: Awaited<ReturnType<typeof supabase.auth.admin.listUsers>>["data"]["users"];
+  type AuthUser = Awaited<ReturnType<typeof supabase.auth.admin.listUsers>>["data"]["users"][number];
+  let users: AuthUser[];
   try {
-    const result = await supabase.auth.admin.listUsers({ perPage: 500 });
-    users = result.data.users;
+    // Paginate to avoid silently missing users beyond the first page.
+    // perPage: 200 is a safe page size well within Supabase's Admin API limits.
+    const collected: AuthUser[] = [];
+    let page = 1;
+    while (true) {
+      const result = await supabase.auth.admin.listUsers({ perPage: 200, page });
+      const batch = result.data.users as AuthUser[];
+      collected.push(...batch);
+      if (batch.length < 200) break;
+      page += 1;
+    }
+    users = collected;
   } catch (err) {
     captureException(err instanceof Error ? err : new Error(String(err)), {
       route: "check-signals", step: "list_users",

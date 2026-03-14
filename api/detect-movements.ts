@@ -72,11 +72,22 @@ async function handler(req: ApiReq, res: ApiRes) {
       .gte("detected_at", since)
       .eq("interpreted", true)
       .or("confidence_score.is.null,confidence_score.gte.0.40")
-      .order("detected_at", { ascending: true });
+      .order("detected_at", { ascending: true })
+      .limit(1000);
 
     if (signalsError) throw signalsError;
 
     const signalRows = (signals ?? []) as SignalRow[];
+
+    // Log when the safety cap is reached — silent truncation would make movement
+    // detection non-deterministic without any visibility into the truncation.
+    if (signalRows.length >= 1000) {
+      Sentry.addBreadcrumb({
+        message: "detect-movements: signal query hit limit(1000) — some signals may be excluded",
+        level: "warning",
+        data: { count: signalRows.length },
+      });
+    }
     const monitoredPageIds = [...new Set(signalRows.map((s) => s.monitored_page_id))];
 
     const { data: pages, error: pagesError } = await supabase

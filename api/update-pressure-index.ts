@@ -56,8 +56,24 @@ interface SignalRow {
   detected_at: string;
 }
 
+// Ambient event type weights for pressure contribution.
+// Strategic signals (press, announcements, hiring) carry more pressure weight
+// than generic content churn (blog posts, page edits).
+const AMBIENT_EVENT_WEIGHTS: Record<string, number> = {
+  press_mention:    0.30,
+  announcement:     0.25,
+  hiring_activity:  0.20,
+  messaging_update: 0.12,
+  product_update:   0.15,
+  content_update:   0.10,
+  blog_post:        0.08,
+  page_change:      0.08,
+};
+const DEFAULT_AMBIENT_WEIGHT = 0.10;
+
 interface ActivityEventRow {
   competitor_id: string;
+  event_type: string;
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -138,7 +154,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     const { data: events, error: eventsError } = await supabase
       .from("activity_events")
-      .select("competitor_id")
+      .select("competitor_id, event_type")
       .in("competitor_id", competitorIds)
       .gte("detected_at", activitySince);
 
@@ -162,12 +178,15 @@ async function handler(req: ApiReq, res: ApiRes) {
       signalWeightByCompetitor.set(cid, prev + severityW * confidence * decay);
     }
 
-    // ambient event count per competitor
-    const activityCountByCompetitor = new Map<string, number>();
+    // Weighted ambient pressure per competitor.
+    // Strategic events (press, announcements, hiring) carry more pressure than
+    // routine content churn (blog posts, generic page edits).
+    const activityWeightByCompetitor = new Map<string, number>();
     for (const ev of (events ?? []) as ActivityEventRow[]) {
-      activityCountByCompetitor.set(
+      const w = AMBIENT_EVENT_WEIGHTS[ev.event_type] ?? DEFAULT_AMBIENT_WEIGHT;
+      activityWeightByCompetitor.set(
         ev.competitor_id,
-        (activityCountByCompetitor.get(ev.competitor_id) ?? 0) + 1
+        (activityWeightByCompetitor.get(ev.competitor_id) ?? 0) + w
       );
     }
 
@@ -177,9 +196,9 @@ async function handler(req: ApiReq, res: ApiRes) {
     let signalsPromoted     = 0;
 
     for (const { id: cid } of allCompetitors) {
-      const signalW  = signalWeightByCompetitor.get(cid) ?? 0;
-      const actCount = activityCountByCompetitor.get(cid) ?? 0;
-      const pressure = Math.min(10.0, signalW + actCount * 0.15);
+      const signalW    = signalWeightByCompetitor.get(cid) ?? 0;
+      const activityW  = activityWeightByCompetitor.get(cid) ?? 0;
+      const pressure   = Math.min(10.0, signalW + activityW);
 
       const { error: updateError } = await supabase
         .from("competitors")

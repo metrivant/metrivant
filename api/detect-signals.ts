@@ -86,16 +86,15 @@ function computeSignalHash(
   competitorId: string,
   signalType: string,
   sectionType: string,
-  lastSeenAt: string | null
+  diffId: string
 ): string {
-  // Bucket by UTC calendar day — one signal per (competitor, section_type, signal_type) per day.
-  // Including section_type allows independent signals when the same signal_type fires
-  // from different page sections (e.g., pricing_plans vs pricing_references).
-  const dateBucket = (lastSeenAt ? new Date(lastSeenAt) : new Date())
-    .toISOString()
-    .slice(0, 10); // "YYYY-MM-DD"
+  // One signal per (competitor, signal_type, section_type, diff) — anchored to the
+  // specific diff rather than a calendar-day bucket. This preserves deduplication
+  // (the same diff can never create two signals) while allowing multiple real events
+  // on the same competitor+section+type within a single day — e.g., a morning pricing
+  // change and an evening rollback are both recorded as distinct intelligence signals.
   return createHash("sha256")
-    .update(`${competitorId}:${signalType}:${sectionType}:${dateBucket}`)
+    .update(`${competitorId}:${signalType}:${sectionType}:${diffId}`)
     .digest("hex")
     .slice(0, 32);
 }
@@ -180,14 +179,16 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   const startedAt = Date.now();
 
-  let rowsClaimed        = 0;
-  let rowsProcessed      = 0;
-  let rowsSucceeded      = 0;
-  let rowsFailed         = 0;
-  let signalsCreated     = 0;
-  let signalsSuppressed  = 0; // confidence < CONFIDENCE_SUPPRESS
-  let signalsDeduplicated = 0; // same hash already exists today
-  let signalsPendingReview = 0; // CONFIDENCE_SUPPRESS ≤ confidence < CONFIDENCE_INTERPRET
+  let rowsClaimed               = 0;
+  let rowsProcessed             = 0;
+  let rowsSucceeded             = 0;
+  let rowsFailed                = 0;
+  let signalsCreated            = 0;
+  let signalsSuppressed         = 0; // total suppressed (noise + low confidence)
+  let suppressedByNoise         = 0; // whitespace_only or dynamic_content_only
+  let suppressedByLowConfidence = 0; // confidence < CONFIDENCE_SUPPRESS
+  let signalsDeduplicated       = 0; // same hash already exists (reprocessed diff)
+  let signalsPendingReview      = 0; // CONFIDENCE_SUPPRESS ≤ confidence < CONFIDENCE_INTERPRET
 
   Sentry.captureCheckIn({
     monitorSlug: "detect-signals",
@@ -277,6 +278,7 @@ async function handler(req: ApiReq, res: ApiRes) {
             .from("section_diffs")
             .update({ signal_detected: true, is_noise: true, noise_reason: "whitespace_only" })
             .eq("id", diff.id);
+          suppressedByNoise += 1;
           signalsSuppressed += 1;
           rowsSucceeded += 1;
           continue;
@@ -291,6 +293,7 @@ async function handler(req: ApiReq, res: ApiRes) {
             .from("section_diffs")
             .update({ signal_detected: true, is_noise: true, noise_reason: "dynamic_content_only" })
             .eq("id", diff.id);
+          suppressedByNoise += 1;
           signalsSuppressed += 1;
           rowsSucceeded += 1;
           continue;
@@ -316,18 +319,19 @@ async function handler(req: ApiReq, res: ApiRes) {
             .from("section_diffs")
             .update({ signal_detected: true })
             .eq("id", diff.id);
+          suppressedByLowConfidence += 1;
           signalsSuppressed += 1;
           rowsSucceeded += 1;
           continue;
         }
 
         // ── Signal-hash deduplication ─────────────────────────────────────────
-        // One signal per (competitor, section_type, signal_type) per calendar day.
+        // One signal per diff — anchored to diff.id, not a calendar day.
         const signalHash = computeSignalHash(
           competitorId,
           signal.signal_type,
           diff.section_type,
-          diff.last_seen_at
+          diff.id
         );
 
         const { data: hashCheck } = await supabase
@@ -407,6 +411,8 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsFailed,
       signalsCreated,
       signalsSuppressed,
+      suppressedByNoise,
+      suppressedByLowConfidence,
       signalsDeduplicated,
       signalsPendingReview,
       runtimeDurationMs,
@@ -428,6 +434,8 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsFailed,
       signalsCreated,
       signalsSuppressed,
+      suppressedByNoise,
+      suppressedByLowConfidence,
       signalsDeduplicated,
       signalsPendingReview,
       runtimeDurationMs,

@@ -17,7 +17,22 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     const { data, error } = await supabase
       .from("radar_feed")
-      .select("*")
+      .select([
+        "competitor_id",
+        "competitor_name",
+        "website_url",
+        "signals_7d",
+        "weighted_velocity_7d",
+        "last_signal_at",
+        "latest_movement_type",
+        "latest_movement_confidence",
+        "latest_movement_signal_count",
+        "latest_movement_velocity",
+        "latest_movement_first_seen_at",
+        "latest_movement_last_seen_at",
+        "latest_movement_summary",
+        "momentum_score",
+      ].join(","))
       .order("momentum_score", { ascending: false })
       .order("weighted_velocity_7d", { ascending: false })
       .limit(limit);

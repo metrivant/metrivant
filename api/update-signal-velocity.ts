@@ -15,11 +15,21 @@ async function handler(req: ApiReq, res: ApiRes) {
   });
 
   try {
+    Sentry.addBreadcrumb({ message: "cluster_recent_signals: start", level: "info" });
     const { error: clusterError } = await supabase.rpc("cluster_recent_signals");
-    if (clusterError) throw clusterError;
+    if (clusterError) {
+      Sentry.addBreadcrumb({ message: "cluster_recent_signals: failed", level: "error", data: { message: clusterError.message } });
+      throw clusterError;
+    }
+    Sentry.addBreadcrumb({ message: "cluster_recent_signals: ok", level: "info" });
 
+    Sentry.addBreadcrumb({ message: "calculate_signal_velocity: start", level: "info" });
     const { error: velocityError } = await supabase.rpc("calculate_signal_velocity");
-    if (velocityError) throw velocityError;
+    if (velocityError) {
+      Sentry.addBreadcrumb({ message: "calculate_signal_velocity: failed", level: "error", data: { message: velocityError.message } });
+      throw velocityError;
+    }
+    Sentry.addBreadcrumb({ message: "calculate_signal_velocity: ok", level: "info" });
 
     const runtimeDurationMs = Date.now() - startedAt;
 

@@ -56,7 +56,7 @@ export default async function handler(req: ApiReq, res: ApiRes) {
       supabase
         .from("signals")
         .select("*", { count: "exact", head: true })
-        .eq("status", "interpreting")
+        .eq("status", "in_progress")
         .lt("updated_at", stuckBefore),
 
       supabase

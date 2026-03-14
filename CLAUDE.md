@@ -33,7 +33,7 @@ competitors
 Key schema additions (migrations 008–012):
 - monitored_pages.page_class        'high_value' | 'standard' | 'ambient'
 - signals.confidence_score          float 0.0–1.0
-- signals.signal_hash               sha256 dedup key (one per competitor+section_type+signal_type per day)
+- signals.signal_hash               sha256 dedup key (one per competitor+section_type+signal_type per diff)
 - competitors.pressure_index        urgency scalar 0.0–10.0
 - competitors.last_signal_at        denormalized, kept by trigger
 - activity_events                   ambient intelligence table (30-day retention)
@@ -53,6 +53,23 @@ Confidence gates:
 Noise gates (detect-signals, before signal creation):
 - whitespace_only:        texts equal when whitespace stripped → is_noise=true
 - dynamic_content_only:   texts equal after stripping ISO timestamps + UTM params → is_noise=true
+
+Signal hash (v4.1):
+  sha256(competitor_id:signal_type:section_type:diff_id)[:32]
+  Anchored to the specific diff — not a daily bucket.
+  Same-day distinct events (e.g., morning price change + evening rollback) each produce independent signals.
+
+Suppression observability (detect-signals response):
+- suppressedByNoise          = whitespace_only + dynamic_content_only
+- suppressedByLowConfidence  = confidence < 0.35 gate
+
+Pressure index (update-pressure-index, v4.1):
+  pressure = Σ(severity_weight × confidence × exp(-age_days × 0.2)) + Σ(ambient_event_weight)
+  Ambient event weights (type-differentiated, 48h window):
+    press_mention=0.30  announcement=0.25  hiring_activity=0.20
+    product_update=0.15 messaging_update=0.12  content_update=0.10
+    blog_post=0.08  page_change=0.08  (default=0.10)
+  Capped at 10.0
 
 Monitored pages per competitor (onboard-competitor):
   homepage (standard), pricing (high_value), changelog (high_value),
