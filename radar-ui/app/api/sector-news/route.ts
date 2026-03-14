@@ -1,3 +1,5 @@
+import { captureException } from "../../../lib/sentry";
+
 export const dynamic = "force-dynamic";
 
 const SECTOR_QUERIES: Record<string, string> = {
@@ -20,12 +22,18 @@ export async function GET(request: Request) {
 
   try {
     const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) return Response.json({ items: [] });
+    if (!res.ok) {
+      captureException(new Error(`sector-news: RSS fetch failed (${res.status})`), {
+        route: "sector-news", sector, status: res.status,
+      });
+      return Response.json({ items: [] });
+    }
     const xml = await res.text();
     const matches = [...xml.matchAll(/<title><!\[CDATA\[([^\]]+)\]\]><\/title>/g)];
     const items = matches.slice(1, 7).map((m) => m[1]);
     return Response.json({ items });
-  } catch {
+  } catch (err) {
+    captureException(err, { route: "sector-news", sector });
     return Response.json({ items: [] });
   }
 }

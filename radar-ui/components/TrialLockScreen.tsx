@@ -76,7 +76,7 @@ const PLANS: {
     price: "$9",
     period: "/mo",
     features: [
-      "5 competitors monitored",
+      "10 competitors monitored",
       "Weekly signal digest",
       "Radar dashboard",
       "30-day signal history",

@@ -20,7 +20,9 @@ const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? "";
 // Do NOT parse body as JSON before calling constructEvent.
 export async function POST(request: Request): Promise<NextResponse> {
   if (!WEBHOOK_SECRET) {
-    console.error("STRIPE_WEBHOOK_SECRET is not set");
+    captureException(new Error("STRIPE_WEBHOOK_SECRET is not set"), {
+      route: "stripe/webhook",
+    });
     return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
   }
 

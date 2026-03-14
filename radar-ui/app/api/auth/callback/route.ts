@@ -1,4 +1,5 @@
 import { createClient } from "../../../../lib/supabase/server";
+import { captureException } from "../../../../lib/sentry";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -15,6 +16,11 @@ export async function GET(request: Request) {
     if (!error) {
       return NextResponse.redirect(`${origin}${next}`);
     }
+    captureException(new Error("Auth callback: code exchange failed"), {
+      route: "auth/callback",
+      error_message: error.message,
+      error_code: error.status ?? null,
+    });
   }
 
   return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`);

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import PublicNav from "../components/PublicNav";
+import LandingLogo from "../components/LandingLogo";
 
-const BADGE_STYLE       = { background: "rgba(46,230,166,0.02)" } as const;
 const LABEL_COLOR_STYLE = { color: "rgba(46,230,166,0.55)" } as const;
 
 const jsonLd = {
@@ -45,15 +45,8 @@ export default function LandingPage() {
 
       {/* ── Hero ────────────────────────────────────────────────────── */}
       <section className="relative flex flex-1 flex-col items-center justify-center px-6 pb-24 pt-32 text-center">
-        {/* Logo */}
-        <svg width="52" height="52" viewBox="0 0 46 46" fill="none" aria-hidden="true" className="mb-5">
-          <circle cx="23" cy="23" r="21.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.50" />
-          <circle cx="23" cy="23" r="13"   stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.28" />
-          <circle cx="23" cy="23" r="5.5"  stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.42" />
-          <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#2EE6A6" fillOpacity="0.10" />
-          <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.80" />
-          <circle cx="23" cy="23" r="2.5" fill="#2EE6A6" />
-        </svg>
+        {/* Animated radar logo */}
+        <LandingLogo />
 
         <h1
           className="mt-1 text-[34px] font-bold leading-none text-white"
@@ -75,7 +68,7 @@ export default function LandingPage() {
         <div className="mt-8 flex items-center gap-3">
           <Link
             href="/signup"
-            className="rounded-full bg-[#2EE6A6] px-8 py-2.5 text-[14px] font-semibold text-black transition-opacity hover:opacity-90"
+            className="cta-pulse rounded-full bg-[#2EE6A6] px-8 py-2.5 text-[14px] font-semibold text-black transition-opacity hover:opacity-90"
           >
             Start free trial
           </Link>
@@ -85,26 +78,6 @@ export default function LandingPage() {
           >
             Sign in
           </Link>
-        </div>
-
-        {/* Signal type proof points */}
-        <div className="mt-8 flex flex-wrap justify-center gap-2">
-          {[
-            "Pricing changes",
-            "Feature launches",
-            "Positioning shifts",
-            "Enterprise moves",
-            "Market expansion",
-            "Product pivots",
-          ].map((label) => (
-            <span
-              key={label}
-              className="rounded-full border border-[#0d2010] px-3 py-1 text-[11px] text-slate-600"
-              style={BADGE_STYLE}
-            >
-              {label}
-            </span>
-          ))}
         </div>
 
         {/* Pricing teaser */}
@@ -156,7 +129,7 @@ export default function LandingPage() {
               Pricing
             </div>
             <h2 className="mt-1.5 text-[20px] font-semibold text-white">
-              Simple, transparent plans
+              Start watching. Stop guessing.
             </h2>
           </div>
 
@@ -167,7 +140,14 @@ export default function LandingPage() {
               <div className="mt-2 text-[26px] font-bold text-white leading-none">
                 $9<span className="text-[13px] font-normal text-slate-500">/mo</span>
               </div>
-              <p className="mt-2 text-[12px] text-slate-600">5 competitors · weekly signals</p>
+              <ul className="mt-3 space-y-1.5">
+                {["10 competitors monitored", "Weekly intelligence digest", "Live radar dashboard"].map((f) => (
+                  <li key={f} className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "rgba(46,230,166,0.55)" }} />
+                    <span className="text-[11px] text-slate-500">{f}</span>
+                  </li>
+                ))}
+              </ul>
               <Link
                 href="/signup?plan=analyst"
                 className="mt-4 block rounded-full border border-[#1a3020] py-2 text-center text-[12px] font-medium text-slate-400 transition-colors hover:border-[#2EE6A6]/25 hover:text-white"
@@ -194,7 +174,21 @@ export default function LandingPage() {
               <div className="mt-2 text-[26px] font-bold text-white leading-none">
                 $19<span className="text-[13px] font-normal text-slate-500">/mo</span>
               </div>
-              <p className="mt-2 text-[12px] text-slate-600">25 competitors · real-time alerts</p>
+              <ul className="mt-3 space-y-1.5">
+                {[
+                  "25 competitors monitored",
+                  "Real-time signal alerts",
+                  "Full intelligence drawer",
+                  "90-day signal history",
+                  "Strategic movement analysis",
+                  "Market positioning map",
+                ].map((f) => (
+                  <li key={f} className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "#2EE6A6", opacity: 0.85 }} />
+                    <span className="text-[11px] text-slate-400">{f}</span>
+                  </li>
+                ))}
+              </ul>
               <Link
                 href="/signup?plan=pro"
                 className="mt-4 block rounded-full bg-[#2EE6A6] py-2 text-center text-[12px] font-semibold text-black transition-opacity hover:opacity-90"

@@ -5,6 +5,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "../../../../lib/supabase/server";
+import { captureException } from "../../../../lib/sentry";
 
 export async function GET(request: Request): Promise<NextResponse> {
   const { searchParams } = new URL(request.url);
@@ -32,13 +33,22 @@ export async function GET(request: Request): Promise<NextResponse> {
     return NextResponse.json({ points: [] });
   }
 
-  const { data: history } = await supabase
+  const { data: history, error: historyError } = await supabase
     .from("momentum_history")
     .select("momentum_score, momentum_state, recorded_at")
     .eq("org_id", org.id)
     .eq("competitor_id", competitorId)
     .order("recorded_at", { ascending: true })
     .limit(60);
+
+  if (historyError) {
+    captureException(new Error("momentum/history: DB query failed"), {
+      route: "momentum/history",
+      competitor_id: competitorId,
+      error_message: historyError.message,
+    });
+    return NextResponse.json({ points: [] });
+  }
 
   const points = (history ?? []).map((row) => ({
     score:      Number(row.momentum_score),

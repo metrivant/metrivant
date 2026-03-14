@@ -66,6 +66,17 @@ const NAV_ITEMS: { href: string; label: string; icon: ReactNode; overlayKey?: st
       </svg>
     ),
   },
+  {
+    href: "/about",
+    label: "About",
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 11 11" fill="none" aria-hidden="true">
+        <circle cx="5.5" cy="5.5" r="4.2" stroke="currentColor" strokeWidth="1.2" />
+        <line x1="5.5" y1="5" x2="5.5" y2="8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+        <circle cx="5.5" cy="3.2" r="0.7" fill="currentColor" />
+      </svg>
+    ),
+  },
 ];
 
 const ACTIVE_STYLE: React.CSSProperties = {

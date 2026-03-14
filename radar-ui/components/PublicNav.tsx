@@ -29,8 +29,9 @@ export default function PublicNav() {
           <Link
             href="/about"
             className={`text-[13px] font-medium transition-colors ${
-              pathname === "/about" ? "text-[#2EE6A6]" : "text-slate-400 hover:text-slate-200"
+              pathname === "/about" ? "text-[#2EE6A6]" : "text-[#2EE6A6]/70 hover:text-[#2EE6A6]"
             }`}
+            style={{ textShadow: pathname === "/about" ? "0 0 12px rgba(46,230,166,0.4)" : undefined }}
           >
             About
           </Link>

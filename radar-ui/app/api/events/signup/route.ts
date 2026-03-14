@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sendEmail, buildWelcomeEmailHtml } from "../../../../lib/email";
 import { createServiceClient } from "../../../../lib/supabase/service";
+import { captureException } from "../../../../lib/sentry";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({})) as { email?: string; plan?: string };
@@ -33,8 +34,9 @@ export async function POST(request: Request) {
       // Silently succeed — don't reveal whether the email exists.
       return NextResponse.json({ ok: true });
     }
-  } catch {
+  } catch (err) {
     // Non-fatal: allow through on service errors so onboarding never breaks.
+    captureException(err, { route: "events/signup", step: "recent_signup_check" });
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
