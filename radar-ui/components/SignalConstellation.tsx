@@ -93,7 +93,7 @@ export default function SignalConstellation({
     return (
       <div className="px-3 py-3">
         <div
-          className="mb-2 text-[9px] uppercase tracking-[0.28em]"
+          className="mb-2 text-center text-[9px] uppercase tracking-[0.28em]"
           style={{ color: "rgba(46,230,166,0.35)" }}
         >
           Signal Constellation
@@ -161,7 +161,7 @@ export default function SignalConstellation({
     <div className="px-3 py-3">
       {/* Section label */}
       <div
-        className="mb-2 text-[9px] uppercase tracking-[0.28em]"
+        className="mb-2 text-center text-[9px] uppercase tracking-[0.28em]"
         style={{ color: "rgba(46,230,166,0.35)" }}
       >
         Signal Constellation

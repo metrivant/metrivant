@@ -201,13 +201,13 @@ export default async function Page() {
               hasMovement={competitors.some((c) => c.latest_movement_type != null)}
               hasCriticalAlert={hasCriticalAlert}
             />
-            <PlanBadge plan={plan} trialDaysRemaining={trialDaysRemaining} />
             {/* SectorSwitcher + Clean Slate: accessible via Settings on mobile */}
             <div className="hidden md:flex items-center gap-2">
               <CleanSlateButton competitorCount={competitors.length} />
               <SectorSwitcher sector={sector} />
             </div>
             <SoundToggle />
+            <PlanBadge plan={plan} trialDaysRemaining={trialDaysRemaining} />
             <NotificationBell />
 
             {/* Stats — hidden on mobile, shown on desktop */}

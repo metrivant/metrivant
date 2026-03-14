@@ -178,30 +178,27 @@ export async function POST(request: Request) {
 
   // ── Step 4: Bridge to pipeline runtime ────────────────────────────────────
   //
-  // Fire-and-forget: onboard each competitor into the pipeline so that
-  // monitored_pages and extraction_rules are created immediately.
-  // Does not block the response — failure is non-fatal (pipeline will catch up).
+  // Onboard each competitor into the pipeline so that monitored_pages and
+  // extraction_rules are created immediately. Runs in parallel and awaited
+  // before returning — Vercel terminates the function on response so a
+  // fire-and-forget IIFE would never complete.
 
   const runtimeUrl = process.env.RUNTIME_URL ?? "https://metrivant-runtime.vercel.app";
   const cronSecret = process.env.CRON_SECRET;
 
   if (cronSecret && defaults.length > 0) {
-    void (async () => {
-      for (const comp of defaults) {
-        try {
-          await fetch(`${runtimeUrl}/api/onboard-competitor`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${cronSecret}`,
-            },
-            body: JSON.stringify({ name: comp.name, website_url: comp.website_url }),
-          });
-        } catch {
-          // Non-fatal — pipeline will pick up on next scheduled run
-        }
-      }
-    })();
+    await Promise.allSettled(
+      defaults.map((comp) =>
+        fetch(`${runtimeUrl}/api/onboard-competitor`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${cronSecret}`,
+          },
+          body: JSON.stringify({ name: comp.name, website_url: comp.website_url }),
+        }).catch(() => null)
+      )
+    );
   }
 
   return NextResponse.json({ ok: true, seeded });
