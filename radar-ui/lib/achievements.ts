@@ -9,7 +9,10 @@ export type AchievementId =
   | "movement_detected"
   | "critical_alert"
   | "signals_10"
-  | "strategy_reviewed";
+  | "strategy_reviewed"
+  | "rivals_5"
+  | "map_viewed"
+  | "pressure_detected";
 
 export type StrategyActionId =
   | "pricing_monitor"
@@ -34,46 +37,64 @@ export type StrategyAction = {
 
 export const ACHIEVEMENTS: Achievement[] = [
   {
-    id: "signal_first",
-    name: "First Signal",
-    description: "Your intelligence pipeline detected its first competitive signal.",
-    points: 10,
-  },
-  {
     id: "rival_tracked",
-    name: "First Rival Tracked",
+    name: "Target Acquired",
     description: "Your first competitor is live on the radar.",
     points: 10,
   },
   {
+    id: "signal_first",
+    name: "First Contact",
+    description: "Your intelligence pipeline detected its first competitive signal.",
+    points: 10,
+  },
+  {
+    id: "rivals_5",
+    name: "Five Eyes",
+    description: "Five or more rivals under simultaneous active surveillance.",
+    points: 25,
+  },
+  {
     id: "brief_viewed",
-    name: "Intelligence Reviewed",
-    description: "You reviewed your first weekly intelligence brief.",
+    name: "Intel Reviewed",
+    description: "You read your first weekly intelligence brief.",
     points: 15,
   },
   {
-    id: "movement_detected",
-    name: "Movement Confirmed",
-    description: "A strategic movement has been identified and confirmed.",
-    points: 75,
+    id: "strategy_reviewed",
+    name: "Pattern Analyst",
+    description: "Cross-competitor strategic patterns examined.",
+    points: 20,
   },
   {
-    id: "critical_alert",
-    name: "Critical Acceleration",
-    description: "You detected a competitor in critical strategic acceleration.",
-    points: 100,
+    id: "map_viewed",
+    name: "Terrain Mapped",
+    description: "Competitive landscape plotted on the positioning map.",
+    points: 20,
   },
   {
     id: "signals_10",
     name: "Signal Density",
-    description: "10 or more competitive signals observed in your feed.",
+    description: "10 or more competitive signals detected in 7 days.",
     points: 50,
   },
   {
-    id: "strategy_reviewed",
-    name: "Strategy Reviewed",
-    description: "You analyzed cross-competitor strategic patterns.",
-    points: 20,
+    id: "pressure_detected",
+    name: "Pressure Wave",
+    description: "A rival reached accelerating momentum — market pressure confirmed.",
+    points: 30,
+  },
+  {
+    id: "movement_detected",
+    name: "Movement Confirmed",
+    description: "A strategic movement identified, confirmed, and recorded.",
+    points: 75,
+  },
+  {
+    id: "critical_alert",
+    name: "Red Zone",
+    description: "A competitor entered critical acceleration. Act now.",
+    points: 100,
   },
 ];
 

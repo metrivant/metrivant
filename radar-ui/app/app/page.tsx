@@ -14,7 +14,7 @@ import TrialLockScreen from "../../components/TrialLockScreen";
 import DailyBriefOverlay from "../../components/DailyBriefOverlay";
 import MobileNav from "../../components/MobileNav";
 import AchievementsButton from "../../components/AchievementsButton";
-import CleanSlateButton from "../../components/CleanSlateButton";
+import SoundToggleButton from "../../components/SoundToggleButton";
 import { getRadarFeed } from "../../lib/api";
 import { createClient } from "../../lib/supabase/server";
 import { getSubscriptionState } from "../../lib/subscription";
@@ -109,6 +109,10 @@ export default async function Page() {
     (c) => Number(c.momentum_score ?? 0) > 0
   ).length;
 
+  const hasAccelerating = competitors.some(
+    (c) => Number(c.momentum_score ?? 0) >= 5
+  );
+
   const hasCriticalAlert = competitors.some(
     (c) =>
       Number(c.momentum_score ?? 0) >= 7 &&
@@ -201,13 +205,14 @@ export default async function Page() {
               competitorCount={competitors.length}
               hasMovement={competitors.some((c) => c.latest_movement_type != null)}
               hasCriticalAlert={hasCriticalAlert}
+              hasAccelerating={hasAccelerating}
             />
-            {/* SectorSwitcher + Clean Slate: accessible via Settings on mobile */}
+            {/* SectorSwitcher (with built-in clean slate X) — desktop only */}
             <div className="hidden md:flex items-center gap-2">
-              <CleanSlateButton competitorCount={competitors.length} />
-              <SectorSwitcher sector={sector} />
+              <SectorSwitcher sector={sector} competitorCount={competitors.length} />
             </div>
             <PlanBadge plan={plan} trialDaysRemaining={trialDaysRemaining} />
+            <SoundToggleButton />
             <NotificationBell />
 
             {/* Stats — hidden on mobile, shown on desktop */}

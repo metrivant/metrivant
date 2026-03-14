@@ -184,6 +184,9 @@ function MapOverlay({
         });
 
         setMapData(mapped);
+        if (mapped.length > 0) {
+          window.dispatchEvent(new CustomEvent("mv:achieve", { detail: "map_viewed" }));
+        }
       } catch {
         if (!cancelled) setError(true);
       } finally {

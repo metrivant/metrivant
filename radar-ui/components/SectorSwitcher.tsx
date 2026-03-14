@@ -17,15 +17,24 @@ const SECTOR_OPTIONS = [
   { value: "custom",             label: "Custom" },
 ] as const;
 
-export default function SectorSwitcher({ sector }: { sector: string }) {
+export default function SectorSwitcher({
+  sector,
+  competitorCount = 0,
+}: {
+  sector: string;
+  competitorCount?: number;
+}) {
   const router = useRouter();
-  const [open, setOpen]                     = useState(false);
-  const [switching, setSwitching]           = useState(false);
-  const [activeSector, setActiveSector]     = useState(sector);
-  const [toast, setToast]                   = useState<"ok" | "error" | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
+  const [open, setOpen]                 = useState(false);
+  const [switching, setSwitching]       = useState(false);
+  const [activeSector, setActiveSector] = useState(sector);
+  const [toast, setToast]               = useState<"ok" | "error" | null>(null);
+  const [slateHover, setSlateHover]     = useState(false);
+  const [slateConfirm, setSlateConfirm] = useState(false);
+  const [slateLoading, setSlateLoading] = useState(false);
+  const ref      = useRef<HTMLDivElement>(null);
+  const slateRef = useRef<HTMLDivElement>(null);
 
-  // Sync if server re-renders with a different sector
   useEffect(() => { setActiveSector(sector); }, [sector]);
 
   // Close dropdown on outside click
@@ -33,6 +42,8 @@ export default function SectorSwitcher({ sector }: { sector: string }) {
     function onPointerDown(e: PointerEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
+        setSlateConfirm(false);
+        setSlateHover(false);
       }
     }
     document.addEventListener("pointerdown", onPointerDown);
@@ -42,7 +53,7 @@ export default function SectorSwitcher({ sector }: { sector: string }) {
   async function handleSelect(value: string) {
     if (value === activeSector) { setOpen(false); return; }
     const prev = activeSector;
-    setActiveSector(value); // optimistic
+    setActiveSector(value);
     setOpen(false);
     setSwitching(true);
     setToast(null);
@@ -68,12 +79,30 @@ export default function SectorSwitcher({ sector }: { sector: string }) {
     }
   }
 
+  async function handleCleanSlate() {
+    setSlateLoading(true);
+    try {
+      const res = await fetch("/api/clean-slate", { method: "POST" });
+      if (res.ok) {
+        setSlateConfirm(false);
+        setSlateHover(false);
+        router.refresh();
+      }
+    } catch {
+      // Silently reset
+    } finally {
+      setSlateLoading(false);
+    }
+  }
+
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative flex items-center">
+
+      {/* ── Sector pill ─────────────────────────────────────────────────── */}
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => { setOpen((v) => !v); setSlateConfirm(false); }}
         disabled={switching}
-        className="flex items-center gap-1.5 rounded-full border border-[#1a3020] bg-[#070d07] px-3 py-1.5 text-[11px] font-medium transition-colors hover:border-[#2a4a30] hover:bg-[#0a1a0a] disabled:opacity-50"
+        className="flex items-center gap-1.5 rounded-l-full border-y border-l border-[#1a3020] bg-[#070d07] px-3 py-1.5 text-[11px] font-medium transition-colors hover:border-[#2a4a30] hover:bg-[#0a1a0a] disabled:opacity-50"
         style={{ color: toast === "error" ? "#ef4444" : "rgba(46,230,166,0.75)" }}
       >
         <span className="uppercase tracking-[0.18em] text-slate-500">Sector</span>
@@ -88,11 +117,7 @@ export default function SectorSwitcher({ sector }: { sector: string }) {
             : getSectorLabel(activeSector)}
         </span>
         <svg
-          width="9"
-          height="9"
-          viewBox="0 0 9 9"
-          fill="none"
-          aria-hidden="true"
+          width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden="true"
           className="ml-0.5 opacity-50"
           style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
         >
@@ -100,6 +125,54 @@ export default function SectorSwitcher({ sector }: { sector: string }) {
         </svg>
       </button>
 
+      {/* ── Clean slate X ───────────────────────────────────────────────── */}
+      <div ref={slateRef} className="relative">
+        <button
+          onMouseEnter={() => setSlateHover(true)}
+          onMouseLeave={() => { if (!slateConfirm) setSlateHover(false); }}
+          onClick={() => setSlateConfirm((v) => !v)}
+          className="flex h-full items-center justify-center rounded-r-full border border-[#1a2a1a] bg-[#070d07] px-2.5 py-1.5 transition-colors hover:border-red-900/50 hover:bg-[#0d0505]"
+          style={{ color: slateHover || slateConfirm ? "rgba(239,68,68,0.65)" : "rgba(100,116,139,0.35)" }}
+          aria-label="Clean slate — remove all rivals"
+          title="Clean slate"
+        >
+          <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
+            <path d="M1 1l6 6M7 1L1 7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          </svg>
+        </button>
+
+        {/* Hover / confirm popup */}
+        {(slateHover || slateConfirm) && (
+          <div
+            className="absolute right-0 top-full z-50 mt-1.5 min-w-[180px] overflow-hidden rounded-[10px] border border-[#1a2a1a] bg-[#060906] px-3.5 py-3"
+            style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85)" }}
+            onMouseEnter={() => setSlateHover(true)}
+            onMouseLeave={() => { setSlateHover(false); if (!slateConfirm) setSlateConfirm(false); }}
+          >
+            <div className="mb-2 text-[10px] font-semibold text-slate-500">
+              Remove {competitorCount > 0 ? `${competitorCount} rival${competitorCount !== 1 ? "s" : ""}` : "all rivals"}?
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleCleanSlate}
+                disabled={slateLoading}
+                className="flex-1 rounded-full border border-red-900/60 bg-[#0d0505] py-1 text-[10px] font-medium text-red-500 transition-colors hover:border-red-800 hover:bg-[#150808] disabled:opacity-50"
+              >
+                {slateLoading ? "Clearing…" : "Confirm"}
+              </button>
+              <button
+                onClick={() => { setSlateConfirm(false); setSlateHover(false); }}
+                disabled={slateLoading}
+                className="flex-1 rounded-full border border-[#1a2a1a] py-1 text-[10px] text-slate-600 transition-colors hover:text-slate-400 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Sector dropdown ─────────────────────────────────────────────── */}
       {open && (
         <div
           className="absolute right-0 top-full z-50 mt-1.5 w-48 overflow-hidden rounded-[12px] border border-[#1a3020] bg-[#060d06] py-1"
@@ -107,7 +180,6 @@ export default function SectorSwitcher({ sector }: { sector: string }) {
         >
           {SECTOR_OPTIONS.map((opt) => (
             <div key={opt.value}>
-              {/* Separator before Custom */}
               {opt.value === "custom" && (
                 <div className="mx-3 my-1 h-px bg-[#1a3020]" />
               )}

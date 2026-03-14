@@ -27,6 +27,7 @@ type Props = {
   competitorCount: number;
   hasMovement: boolean;
   hasCriticalAlert: boolean;
+  hasAccelerating: boolean;
 };
 
 // ── Achievement icons ──────────────────────────────────────────────────────────
@@ -92,6 +93,43 @@ function AchievIcon({ id, color }: { id: string; color: string }) {
           <rect x="11" y="2"  width="7" height="7" rx="1.2" stroke={color} strokeWidth="1.2" strokeOpacity="0.72" />
           <rect x="2"  y="11" width="7" height="7" rx="1.2" stroke={color} strokeWidth="1.2" strokeOpacity="0.72" />
           <rect x="11" y="11" width="7" height="7" rx="1.2" stroke={color} strokeWidth="1.2" strokeOpacity="0.48" />
+        </svg>
+      );
+    case "rivals_5":
+      return (
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          {/* Five nodes arranged like a pentagon — "five eyes" */}
+          <circle cx="10" cy="3.5" r="1.6" fill={color} fillOpacity="0.85" />
+          <circle cx="17" cy="8"   r="1.4" fill={color} fillOpacity="0.65" />
+          <circle cx="14" cy="16"  r="1.4" fill={color} fillOpacity="0.65" />
+          <circle cx="6"  cy="16"  r="1.4" fill={color} fillOpacity="0.65" />
+          <circle cx="3"  cy="8"   r="1.4" fill={color} fillOpacity="0.65" />
+          <path d="M10 3.5L17 8L14 16L6 16L3 8Z" stroke={color} strokeWidth="0.7" strokeOpacity="0.28" />
+          <circle cx="10" cy="10"  r="1"   fill={color} fillOpacity="0.40" />
+        </svg>
+      );
+    case "map_viewed":
+      return (
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <rect x="2" y="2" width="16" height="16" rx="1.5" stroke={color} strokeWidth="0.9" strokeOpacity="0.30" />
+          <line x1="10" y1="2"  x2="10" y2="18" stroke={color} strokeWidth="0.6" strokeDasharray="1.5 2" strokeOpacity="0.25" />
+          <line x1="2"  y1="10" x2="18" y2="10" stroke={color} strokeWidth="0.6" strokeDasharray="1.5 2" strokeOpacity="0.25" />
+          <circle cx="6"  cy="6"  r="2"   fill={color} fillOpacity="0.30" />
+          <circle cx="15" cy="6"  r="1.6" fill={color} fillOpacity="0.55" />
+          <circle cx="5"  cy="14" r="1.4" fill={color} fillOpacity="0.25" />
+          <circle cx="14" cy="14" r="2.4" fill={color} fillOpacity="0.70" />
+          <circle cx="10" cy="9"  r="1.5" fill={color} fillOpacity="0.42" />
+        </svg>
+      );
+    case "pressure_detected":
+      return (
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <circle cx="10" cy="10" r="8.5" stroke={color} strokeWidth="0.8" strokeOpacity="0.22" />
+          <circle cx="10" cy="10" r="5.5" stroke={color} strokeWidth="0.8" strokeOpacity="0.38" strokeDasharray="2 2" />
+          <circle cx="10" cy="10" r="2.8" fill={color} fillOpacity="0.55" />
+          <circle cx="10" cy="10" r="1.4" fill={color} fillOpacity="0.90" />
+          {/* Pressure wave indicator */}
+          <path d="M10 1.5L10.8 4.5L13.5 3L11.5 5.5L14.5 6.5L11.5 7L13 9.5" stroke={color} strokeWidth="0.8" strokeOpacity="0.45" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       );
     default:
@@ -393,6 +431,7 @@ export default function AchievementsButton({
   competitorCount,
   hasMovement,
   hasCriticalAlert,
+  hasAccelerating,
 }: Props) {
   const [open, setOpen]                         = useState(false);
   const [userId, setUserId]                     = useState<string | null>(null);
@@ -511,10 +550,12 @@ export default function AchievementsButton({
 
     if (totalSignals7d > 0)     void unlock("signal_first");
     if (competitorCount > 0)    void unlock("rival_tracked");
+    if (competitorCount >= 5)   void unlock("rivals_5");
     if (hasMovement)            void unlock("movement_detected");
+    if (hasAccelerating)        void unlock("pressure_detected");
     if (hasCriticalAlert)       void unlock("critical_alert");
     if (totalSignals7d >= 10)   void unlock("signals_10");
-  }, [loaded, userId, totalSignals7d, competitorCount, hasMovement, hasCriticalAlert, unlock]);
+  }, [loaded, userId, totalSignals7d, competitorCount, hasMovement, hasCriticalAlert, hasAccelerating, unlock]);
 
   // ── Listen for overlay-based unlock events ────────────────────────────────────
   useEffect(() => {

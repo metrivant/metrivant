@@ -1541,7 +1541,7 @@ export default function Radar({
                   ) : (
                     <div className="hidden text-right md:block">
                       <div className="text-[10px] uppercase tracking-[0.26em] text-slate-600">Status</div>
-                      <div className="mt-0.5 text-[12px] text-slate-500">Initializing radar…</div>
+                      <div className="mt-0.5 text-[12px] text-slate-500">Scanning…</div>
                     </div>
                   );
                 })()}
@@ -2227,7 +2227,7 @@ export default function Radar({
                     fontFamily="Inter, system-ui, sans-serif"
                     letterSpacing="0.06em"
                   >
-                    INITIALIZING RADAR
+                    SCANNING
                   </text>
                   <text
                     x={CENTER}
