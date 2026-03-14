@@ -1,5 +1,5 @@
 METRIVANT — MASTER SYSTEM REFERENCE
-Version: v4.0 (pipeline precision refinement — 14-phase audit)
+Version: v4.1 (reliability hardening pass — operational observability)
 Last updated: 2026-03-14
 
 This document is the single authoritative reference for the Metrivant system.
@@ -40,8 +40,8 @@ A competitor at the origin is quiet.
 | Language          | TypeScript (strict mode)                |
 | Styling           | Tailwind CSS v4                         |
 | Animation         | Framer Motion 12.35.2                   |
-| UI deployment     | Vercel — metrivant-ui (radar-ui/)       |
-| Pipeline runtime  | Vercel — metrivant-runtime (api/)       |
+| UI deployment     | Vercel — metrivant-ui (radar-ui/) — git-connected to metrivant/metrivant |
+| Pipeline runtime  | Vercel — metrivant-runtime (api/) — git-connected to metrivant/metrivant |
 | Database + Auth   | Supabase (Postgres + Auth)              |
 | AI interpretation | OpenAI GPT-4o-mini                      |
 | Error monitoring  | Sentry (@sentry/nextjs)                 |
@@ -532,6 +532,41 @@ Onboard a specific competitor manually:
 ================================================
 20. OPERATIONS — HEALTH CHECKS
 ================================================
+
+/api/health response fields (v4.1):
+  ok                                      = endpoint executed without throwing
+  healthy                                 = system operating within SLA thresholds
+                                            (fetch fresh + no stuck signals + no backlog warnings)
+  latestFetchAt                           = timestamp of most recent snapshot
+  snapshotBacklog                         = snapshots with sections_extracted=false
+  diffBacklog                             = confirmed diffs with signal_detected=false
+  signalBacklog                           = signals with status='pending'
+  stuckSignals                            = signals in_progress older than 30 min
+  failedSignals                           = signals with status='failed'
+  recentSignals                           = signals detected in last 7 days
+  oldestSnapshotWaitingExtractionMinutes  = age of oldest unprocessed snapshot (SLA: 240 min)
+  oldestDiffWaitingSignalMinutes          = age of oldest unprocessed confirmed diff (SLA: 480 min)
+  oldestSignalWaitingInterpretationMinutes= age of oldest pending signal (SLA: 240 min)
+  noiseDiffRatioLast24h                   = is_noise diffs / all confirmed diffs in 24h window
+                                            (diff-level noise rate — NOT the signal-stage suppression rate)
+  noiseDiffs24h                           = count of is_noise=true confirmed diffs in last 24h
+  totalDiffs24h                           = count of all confirmed diffs in last 24h
+  pipelineBacklogWarnings[]               = active SLA breaches:
+                                            "snapshot_extraction_backlog" | "diff_signal_backlog" |
+                                            "signal_interpretation_backlog" | "high_suppression_ratio"
+
+Sentry warnings emitted by health endpoint:
+  pipeline_backlog_warning   stage + oldest_age_minutes + sla_minutes
+  suppression_ratio_warning  suppression_ratio_24h + noise_diffs_24h + total_diffs_24h
+                             (fires only when totalDiffs24h >= 10 AND noiseDiffRatioLast24h >= 0.90)
+
+Operational observability added in v4.1 (Sentry warnings per pipeline stage):
+  suppression_anomaly           detect-signals  competitor with ≥5 diffs, ≥98% suppressed
+  extraction_drift_detected     extract-sections  >60% deviation in section count vs 5-snapshot avg
+  baseline_instability_warning  build-baselines  >5 new baselines/page in last 7 days
+  diff_stability_warning        detect-diffs    diff at MAX_OBSERVATION_COUNT (5) with no signal
+  pipeline_backlog_warning      health          oldest unprocessed row per stage exceeds SLA
+  suppression_ratio_warning     health          diff-level noise rate > 90% in 24h window
 
 Extraction blackout (pages with no valid sections in 48h):
   SELECT mp.id FROM monitored_pages mp

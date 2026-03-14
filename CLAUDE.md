@@ -62,6 +62,22 @@ Signal hash (v4.1):
 Suppression observability (detect-signals response):
 - suppressedByNoise          = whitespace_only + dynamic_content_only
 - suppressedByLowConfidence  = confidence < 0.35 gate
+- suppressedByDuplicate      = signal_hash collision (dedup)
+- suppressionBreakdown[]     = per-competitor stats (only emitted when anomaly detected)
+- suppression_anomaly Sentry warning fires when ≥5 diffs and ≥98% suppressed for a competitor
+
+Operational observability (v4.1 — Sentry warnings):
+- suppression_anomaly           (detect-signals)  competitor ≥5 diffs, ≥98% suppressed
+- extraction_drift_detected     (extract-sections) section count deviates >60% from 5-snapshot avg
+- baseline_instability_warning  (build-baselines)  >5 new baselines/page in 7 days
+- diff_stability_warning        (detect-diffs)     diff at MAX_OBSERVATION_COUNT=5, no signal yet
+- pipeline_backlog_warning      (health)           oldest unprocessed row exceeds SLA per stage
+- suppression_ratio_warning     (health)           noiseDiffRatioLast24h >= 0.90 with ≥10 diffs
+
+Health endpoint fields (ok vs healthy):
+- ok      = endpoint responded and executed without throwing
+- healthy = system within SLA (fetch fresh + no stuck signals + pipelineBacklogWarnings empty)
+- noiseDiffRatioLast24h = diff-layer noise rate (NOT signal-stage suppression rate)
 
 Pressure index (update-pressure-index, v4.1):
   pressure = Σ(severity_weight × confidence × exp(-age_days × 0.2)) + Σ(ambient_event_weight)
@@ -78,6 +94,11 @@ Monitored pages per competitor (onboard-competitor):
 Production URLs:
 - Runtime API:  https://metrivant-runtime.vercel.app
 - UI:           https://metrivant.com
+
+Deployment:
+- Both Vercel projects (metrivant-runtime, metrivant-ui) are git-connected to metrivant/metrivant
+- Push to main → both auto-deploy
+- Manual deploy: vercel --prod from each workspace directory
 
 Manual pipeline trigger:
   See docs/METRIVANT_MASTER_REFERENCE.md section 19.
