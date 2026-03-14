@@ -24,8 +24,33 @@ interface ExtractionRuleRow {
 type ValidationStatus = "valid" | "suspect" | "failed";
 type SelectorStatus = "healthy" | "missing" | "empty" | "invalid_selector";
 
+// Noise elements to strip from broad selectors before text extraction.
+// These bleed into main/body/article and produce false diffs on layout changes.
+const NOISE_SELECTORS = [
+  "nav", "footer", "aside",
+  "script", "style", "noscript",
+  "[aria-hidden='true']",
+  "[role='banner']", "[role='navigation']", "[role='complementary']",
+  ".cookie-banner", ".cookie-notice", "#cookie-notice",
+  ".consent-banner", "#consent-banner",
+  ".chat-widget", "#chat-widget",
+];
+
+// Broad selectors that capture the full document or major regions:
+// noise stripping is applied only to these to avoid over-stripping narrow selectors.
+const BROAD_SELECTORS = new Set(["main", "body", "article", "#content", ".content"]);
+
 function cleanText(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
+  // Normalize combining characters (café = caf + combining e → café)
+  let t = text.normalize("NFC");
+  // Replace non-breaking and zero-width spaces with plain space
+  t = t.replace(/[\u00A0\u200B\u200C\u200D\u2009\u2060\uFEFF]/g, " ");
+  // Normalize smart quotes/apostrophes to ASCII
+  t = t.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
+  // Normalize em/en dashes to hyphen
+  t = t.replace(/[\u2013\u2014]/g, "-");
+  // Collapse whitespace
+  return t.replace(/\s+/g, " ").trim();
 }
 
 function validateText(
@@ -96,6 +121,14 @@ function extractSectionText(
         selector_status: "missing",
         section_text: "",
       };
+    }
+
+    // Strip noise elements for broad selectors to prevent nav/footer/script bleed.
+    // Narrow selectors (h1, h2, .pricing) are left untouched.
+    if (BROAD_SELECTORS.has(selector.toLowerCase().trim())) {
+      for (const noise of NOISE_SELECTORS) {
+        nodes.find(noise).remove();
+      }
     }
 
     const text = cleanText(nodes.text());

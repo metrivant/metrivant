@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   COMPETITOR_CATALOG,
   CATEGORY_LABELS,
@@ -156,6 +157,7 @@ export default function DiscoverClient({
   initialTracked: string[];
   initialSector?: string;
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<CatalogCategory | null>(null);
   const [tracked, setTracked] = useState<Set<string>>(new Set(initialTracked));
@@ -278,6 +280,8 @@ export default function DiscoverClient({
 
       if (res.ok) {
         setTracked((prev) => new Set([...prev, entry.domain]));
+      } else if (res.status === 403) {
+        router.push("/app/billing?limit=1");
       } else {
         const data = await res.json() as { error?: string };
         setTrackError(data.error ?? "Failed to track competitor");

@@ -7,6 +7,7 @@ import { verifyCronSecret } from "../lib/withCronAuth";
 type CandidatePage = {
   url: string;
   page_type: string;
+  page_class: "high_value" | "standard" | "ambient";
 };
 
 type ExtractionRule = {
@@ -26,12 +27,12 @@ function normalizeUrl(input: string): string {
 
 function candidatePages(baseUrl: string): CandidatePage[] {
   return [
-    { url: baseUrl,                  page_type: "homepage"  },
-    { url: baseUrl + "/pricing",     page_type: "pricing"   },
-    { url: baseUrl + "/changelog",   page_type: "changelog" },
-    { url: baseUrl + "/blog",        page_type: "blog"      },
-    { url: baseUrl + "/features",    page_type: "features"  },
-    { url: baseUrl + "/newsroom",    page_type: "newsroom"  },
+    { url: baseUrl,                  page_type: "homepage",  page_class: "standard"   },
+    { url: baseUrl + "/pricing",     page_type: "pricing",   page_class: "high_value" },
+    { url: baseUrl + "/changelog",   page_type: "changelog", page_class: "high_value" },
+    { url: baseUrl + "/blog",        page_type: "blog",      page_class: "ambient"    },
+    { url: baseUrl + "/features",    page_type: "features",  page_class: "standard"   },
+    { url: baseUrl + "/newsroom",    page_type: "newsroom",  page_class: "high_value" },
   ];
 }
 
@@ -157,6 +158,7 @@ async function handler(req: ApiReq, res: ApiRes) {
             competitor_id: competitorId,
             url: page.url,
             page_type: page.page_type,
+            page_class: page.page_class,
             active: true
           },
           { onConflict: "url" }

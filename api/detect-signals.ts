@@ -3,6 +3,50 @@ import { withSentry, ApiReq, ApiRes } from "../lib/withSentry";
 import { Sentry } from "../lib/sentry";
 import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
+import { createHash } from "crypto";
+
+// ── Signal weight constants ───────────────────────────────────────────────────
+// Base confidence contribution by section type.
+// pricing > positioning > product/feature > ambient.
+
+const SECTION_WEIGHTS: Record<string, number> = {
+  pricing_plans:        0.85,
+  pricing_references:   0.85,
+  hero:                 0.65,
+  headline:             0.60,
+  nav_links:            0.55,
+  cta_blocks:           0.55,
+  release_feed:         0.55,
+  announcements:        0.55,
+  features_overview:    0.50,
+  press_feed:           0.50,
+  product_mentions:     0.45,
+  careers_feed:         0.30,
+};
+
+const DEFAULT_WEIGHT = 0.25;
+
+// Confidence thresholds — gate signal interpretation cost.
+const CONFIDENCE_SUPPRESS  = 0.35; // below this: no signal created
+const CONFIDENCE_INTERPRET = 0.65; // at or above: status='pending' → sent to OpenAI
+//                                    between these: status='pending_review'
+//                                    → skipped by AI until pressure_index promotes them
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface DiffRow {
+  id: string;
+  previous_section_id: string | null;
+  current_section_id: string;
+  section_type: string;
+  monitored_page_id: string;
+  last_seen_at: string | null;
+  observation_count: number | null;
+  monitored_pages: {
+    page_class: string;
+    competitor_id: string;
+  } | null;
+}
 
 interface PageSectionRow {
   id: string;
@@ -10,32 +54,93 @@ interface PageSectionRow {
   section_hash: string;
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function computeConfidence(
+  sectionType: string,
+  observationCount: number,
+  lastSeenAt: string | null
+): number {
+  const base = SECTION_WEIGHTS[sectionType] ?? DEFAULT_WEIGHT;
+
+  // Recency bonus: fresher detections carry more weight.
+  const ageMs = lastSeenAt
+    ? Date.now() - new Date(lastSeenAt).getTime()
+    : Infinity;
+  const recencyBonus =
+    ageMs < 2  * 3600 * 1000 ? 0.15 :
+    ageMs < 24 * 3600 * 1000 ? 0.10 : 0.05;
+
+  // Observation bonus: each additional confirmation (+0.05, max 0.15).
+  const obsBonus = Math.min(0.15, Math.max(0, (observationCount - 1) * 0.05));
+
+  return Math.min(1.0, base + recencyBonus + obsBonus);
+}
+
+function computeSignalHash(
+  competitorId: string,
+  signalType: string,
+  lastSeenAt: string | null
+): string {
+  // Bucket by UTC calendar day — one signal per (competitor, type) per day.
+  const dateBucket = (lastSeenAt ? new Date(lastSeenAt) : new Date())
+    .toISOString()
+    .slice(0, 10); // "YYYY-MM-DD"
+  return createHash("sha256")
+    .update(`${competitorId}:${signalType}:${dateBucket}`)
+    .digest("hex")
+    .slice(0, 32);
+}
+
+// Extract excerpts anchored at the first divergence point rather than position 0.
+// When content is prepended (e.g., a new pricing tier added at the top), the
+// change is immediately visible in the excerpt instead of being truncated away.
+function buildExcerpts(
+  previousText: string,
+  currentText: string,
+  windowSize = 200
+): { previous_excerpt: string; current_excerpt: string } {
+  if (previousText.length <= windowSize && currentText.length <= windowSize) {
+    return { previous_excerpt: previousText, current_excerpt: currentText };
+  }
+
+  // Find the first character position where the two texts diverge.
+  let divergeAt = 0;
+  const minLen = Math.min(previousText.length, currentText.length);
+  while (divergeAt < minLen && previousText[divergeAt] === currentText[divergeAt]) {
+    divergeAt += 1;
+  }
+
+  // Back up ~40 chars before the divergence point for context, then snap to a
+  // word boundary so we don't start mid-token.
+  const contextStart = Math.max(0, divergeAt - 40);
+  const wordBoundary = previousText.lastIndexOf(" ", contextStart);
+  const start = wordBoundary > 0 ? wordBoundary + 1 : contextStart;
+
+  return {
+    previous_excerpt: previousText.slice(start, start + windowSize) || previousText.slice(0, windowSize),
+    current_excerpt:  currentText.slice(start, start + windowSize)  || currentText.slice(0, windowSize),
+  };
+}
+
 function classifySignal(
   sectionType: string,
   previousText: string,
   currentText: string
-) {
-  const excerpts = {
-    previous_excerpt: previousText.slice(0, 200),
-    current_excerpt:  currentText.slice(0, 200),
-  };
+): { signal_type: string; severity: string; signal_data: Record<string, string> } {
+  const excerpts = buildExcerpts(previousText, currentText);
 
   switch (sectionType) {
-    // ── Pricing signals ─────────────────────────────────────────────────────
     case "pricing_plans":
     case "pricing_references":
       return { signal_type: "price_point_change", severity: "high",   signal_data: excerpts };
 
-    // ── Positioning signals ──────────────────────────────────────────────────
-    // hero h1 + h2 subheadlines + nav links indicate messaging/positioning shifts
     case "hero":
     case "headline":
     case "nav_links":
     case "cta_blocks":
       return { signal_type: "positioning_shift",  severity: "medium", signal_data: excerpts };
 
-    // ── Product / launch signals ─────────────────────────────────────────────
-    // Changelogs, blogs, newsrooms, features pages, product listings, announcements
     case "release_feed":
     case "announcements":
     case "features_overview":
@@ -43,26 +148,29 @@ function classifySignal(
     case "product_mentions":
       return { signal_type: "feature_launch",     severity: "medium", signal_data: excerpts };
 
-    // ── Hiring signals ───────────────────────────────────────────────────────
     case "careers_feed":
       return { signal_type: "hiring_surge",       severity: "low",    signal_data: excerpts };
 
-    // ── Unclassified fallback ────────────────────────────────────────────────
     default:
       return { signal_type: "content_change",     severity: "low",    signal_data: excerpts };
   }
 }
+
+// ── Handler ───────────────────────────────────────────────────────────────────
 
 async function handler(req: ApiReq, res: ApiRes) {
   if (!verifyCronSecret(req, res)) return;
 
   const startedAt = Date.now();
 
-  let rowsClaimed = 0;
-  let rowsProcessed = 0;
-  let rowsSucceeded = 0;
-  let rowsFailed = 0;
-  let signalsCreated = 0;
+  let rowsClaimed        = 0;
+  let rowsProcessed      = 0;
+  let rowsSucceeded      = 0;
+  let rowsFailed         = 0;
+  let signalsCreated     = 0;
+  let signalsSuppressed  = 0; // confidence < CONFIDENCE_SUPPRESS
+  let signalsDeduplicated = 0; // same hash already exists today
+  let signalsPendingReview = 0; // CONFIDENCE_SUPPRESS ≤ confidence < CONFIDENCE_INTERPRET
 
   Sentry.captureCheckIn({
     monitorSlug: "detect-signals",
@@ -70,9 +178,20 @@ async function handler(req: ApiReq, res: ApiRes) {
   });
 
   try {
+    // Join monitored_pages to get page_class and competitor_id.
+    // Ambient pages are handled by detect-ambient-activity and are excluded here.
     const { data: diffs, error } = await supabase
       .from("section_diffs")
-      .select("id, previous_section_id, current_section_id, section_type, monitored_page_id, last_seen_at")
+      .select(`
+        id,
+        previous_section_id,
+        current_section_id,
+        section_type,
+        monitored_page_id,
+        last_seen_at,
+        observation_count,
+        monitored_pages!inner ( page_class, competitor_id )
+      `)
       .eq("confirmed", true)
       .eq("signal_detected", false)
       .eq("is_noise", false)
@@ -81,37 +200,60 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     if (error) throw error;
 
-    rowsClaimed = diffs?.length ?? 0;
+    // Exclude ambient pages — those produce activity_events via detect-ambient-activity.
+    const eligibleDiffs = ((diffs ?? []) as unknown as DiffRow[]).filter(
+      (d) => d.monitored_pages?.page_class !== "ambient"
+    );
 
-    for (const diff of diffs ?? []) {
+    rowsClaimed = eligibleDiffs.length;
+
+    for (const diff of eligibleDiffs) {
       rowsProcessed += 1;
 
       try {
+        const competitorId = diff.monitored_pages?.competitor_id;
+        if (!competitorId) {
+          throw new Error(`Diff ${diff.id} has no competitor_id via monitored_pages`);
+        }
+
         if (!diff.previous_section_id || !diff.current_section_id) {
           throw new Error(`Diff ${diff.id} missing section references`);
         }
 
-        const { data: previousSection, error: prevError } = await supabase
-          .from("page_sections")
-          .select("id, section_text, section_hash")
-          .eq("id", diff.previous_section_id)
-          .maybeSingle();
+        const [prevResult, currResult] = await Promise.all([
+          supabase
+            .from("page_sections")
+            .select("id, section_text, section_hash")
+            .eq("id", diff.previous_section_id)
+            .maybeSingle(),
+          supabase
+            .from("page_sections")
+            .select("id, section_text, section_hash")
+            .eq("id", diff.current_section_id)
+            .maybeSingle(),
+        ]);
 
-        if (prevError) throw prevError;
+        if (prevResult.error) throw prevResult.error;
+        if (currResult.error) throw currResult.error;
 
-        const { data: currentSection, error: currError } = await supabase
-          .from("page_sections")
-          .select("id, section_text, section_hash")
-          .eq("id", diff.current_section_id)
-          .maybeSingle();
-
-        if (currError) throw currError;
-
-        const previous = previousSection as PageSectionRow | null;
-        const current = currentSection as PageSectionRow | null;
+        const previous = prevResult.data as PageSectionRow | null;
+        const current  = currResult.data as PageSectionRow | null;
 
         if (!previous || !current) {
           throw new Error(`Diff ${diff.id} missing section rows`);
+        }
+
+        // Whitespace-only change: no semantic content moved — mark as noise, skip signal.
+        // This catches formatting-only deploys (indentation, line breaks) that survive
+        // the hash check but carry zero competitive intelligence.
+        if (previous.section_text.replace(/\s+/g, "") === current.section_text.replace(/\s+/g, "")) {
+          await supabase
+            .from("section_diffs")
+            .update({ signal_detected: true, is_noise: true, noise_reason: "whitespace_only" })
+            .eq("id", diff.id);
+          signalsSuppressed += 1;
+          rowsSucceeded += 1;
+          continue;
         }
 
         const signal = classifySignal(
@@ -120,20 +262,76 @@ async function handler(req: ApiReq, res: ApiRes) {
           current.section_text
         );
 
+        // ── Confidence gate ───────────────────────────────────────────────────
+        const confidenceScore = computeConfidence(
+          diff.section_type,
+          diff.observation_count ?? 1,
+          diff.last_seen_at
+        );
+
+        if (confidenceScore < CONFIDENCE_SUPPRESS) {
+          // Below suppression floor — mark diff processed, create no signal.
+          await supabase
+            .from("section_diffs")
+            .update({ signal_detected: true })
+            .eq("id", diff.id);
+          signalsSuppressed += 1;
+          rowsSucceeded += 1;
+          continue;
+        }
+
+        // ── Signal-hash deduplication ─────────────────────────────────────────
+        // One signal per (competitor, signal_type) per calendar day.
+        const signalHash = computeSignalHash(
+          competitorId,
+          signal.signal_type,
+          diff.last_seen_at
+        );
+
+        const { data: hashCheck } = await supabase
+          .from("signals")
+          .select("id")
+          .eq("signal_hash", signalHash)
+          .maybeSingle();
+
+        if (hashCheck) {
+          // Already have this signal for today — mark diff processed and skip.
+          await supabase
+            .from("section_diffs")
+            .update({ signal_detected: true })
+            .eq("id", diff.id);
+          signalsDeduplicated += 1;
+          rowsSucceeded += 1;
+          continue;
+        }
+
+        // ── Signal status based on confidence ─────────────────────────────────
+        // pending        → confidence >= CONFIDENCE_INTERPRET
+        //                → claim_pending_signals RPC picks this up → interpreted by OpenAI
+        // pending_review → CONFIDENCE_SUPPRESS ≤ confidence < CONFIDENCE_INTERPRET
+        //                → skipped by AI; update-pressure-index may promote to 'pending'
+        //                  if the competitor's pressure_index spikes
+        const signalStatus: string = confidenceScore >= CONFIDENCE_INTERPRET
+          ? "pending"
+          : "pending_review";
+
+        // ── Upsert signal ─────────────────────────────────────────────────────
         const { error: upsertError } = await supabase
           .from("signals")
           .upsert(
             {
-              section_diff_id: diff.id,
+              section_diff_id:   diff.id,
               monitored_page_id: diff.monitored_page_id,
-              signal_type: signal.signal_type,
-              signal_data: signal.signal_data,
-              severity: signal.severity,
-              detected_at: diff.last_seen_at ?? undefined,
-              interpreted: false,
-              status: "pending",
-              retry_count: 0,
-              is_duplicate: false,
+              signal_type:       signal.signal_type,
+              signal_data:       signal.signal_data,
+              severity:          signal.severity,
+              detected_at:       diff.last_seen_at ?? undefined,
+              interpreted:       false,
+              status:            signalStatus,
+              retry_count:       0,
+              is_duplicate:      false,
+              confidence_score:  confidenceScore,
+              signal_hash:       signalHash,
             },
             {
               onConflict: "section_diff_id,signal_type",
@@ -144,16 +342,14 @@ async function handler(req: ApiReq, res: ApiRes) {
 
         const { error: updateDiffError } = await supabase
           .from("section_diffs")
-          .update({
-            signal_detected: true,
-            last_error: null,
-          })
+          .update({ signal_detected: true, last_error: null })
           .eq("id", diff.id);
 
         if (updateDiffError) throw updateDiffError;
 
-        rowsSucceeded += 1;
         signalsCreated += 1;
+        if (signalStatus === "pending_review") signalsPendingReview += 1;
+        rowsSucceeded += 1;
       } catch (error) {
         rowsFailed += 1;
         Sentry.captureException(error);
@@ -168,6 +364,9 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsSucceeded,
       rowsFailed,
       signalsCreated,
+      signalsSuppressed,
+      signalsDeduplicated,
+      signalsPendingReview,
       runtimeDurationMs,
     });
 
@@ -186,6 +385,9 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsSucceeded,
       rowsFailed,
       signalsCreated,
+      signalsSuppressed,
+      signalsDeduplicated,
+      signalsPendingReview,
       runtimeDurationMs,
     });
 
@@ -198,7 +400,6 @@ async function handler(req: ApiReq, res: ApiRes) {
     });
 
     await Sentry.flush(2000);
-
     throw error;
   }
 }

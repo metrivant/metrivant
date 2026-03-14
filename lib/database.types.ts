@@ -3,9 +3,11 @@
 //
 // Schema constraints (enforced in DB, reflected here for reference):
 //   signals.dedup_hash        — UNIQUE partial index WHERE dedup_hash IS NOT NULL (migration 011)
+//   signals.signal_hash       — UNIQUE partial index WHERE signal_hash IS NOT NULL (migration 008)
 //   section_baselines         — UNIQUE(monitored_page_id, section_type)            (migration 011)
 //   strategic_movements       — UNIQUE(competitor_id, movement_type)               (migration 002)
 //   section_diffs             — UNIQUE(monitored_page_id, section_type, previous_section_id) (migration 004)
+//   activity_events           — table added in migration 008
 
 export type Json =
   | string
@@ -24,6 +26,7 @@ export type Database = {
           name: string;
           website_url: string | null;
           active: boolean;
+          pressure_index: number;
           created_at: string;
           updated_at: string;
         };
@@ -32,6 +35,7 @@ export type Database = {
           name: string;
           website_url?: string | null;
           active?: boolean;
+          pressure_index?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -40,10 +44,52 @@ export type Database = {
           name?: string;
           website_url?: string | null;
           active?: boolean;
+          pressure_index?: number;
           created_at?: string;
           updated_at?: string;
         };
         Relationships: [];
+      };
+      activity_events: {
+        Row: {
+          id: string;
+          competitor_id: string;
+          event_type: string;
+          source_headline: string | null;
+          url: string | null;
+          detected_at: string;
+          page_class: string;
+          raw_data: Json | null;
+        };
+        Insert: {
+          id?: string;
+          competitor_id: string;
+          event_type: string;
+          source_headline?: string | null;
+          url?: string | null;
+          detected_at?: string;
+          page_class?: string;
+          raw_data?: Json | null;
+        };
+        Update: {
+          id?: string;
+          competitor_id?: string;
+          event_type?: string;
+          source_headline?: string | null;
+          url?: string | null;
+          detected_at?: string;
+          page_class?: string;
+          raw_data?: Json | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "activity_events_competitor_id_fkey";
+            columns: ["competitor_id"];
+            isOneToOne: false;
+            referencedRelation: "competitors";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       monitored_pages: {
         Row: {
@@ -51,6 +97,7 @@ export type Database = {
           competitor_id: string;
           url: string;
           page_type: string;
+          page_class: string;
           active: boolean;
           created_at: string;
           updated_at: string;
@@ -60,6 +107,7 @@ export type Database = {
           competitor_id: string;
           url: string;
           page_type: string;
+          page_class?: string;
           active?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -69,6 +117,7 @@ export type Database = {
           competitor_id?: string;
           url?: string;
           page_type?: string;
+          page_class?: string;
           active?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -387,6 +436,8 @@ export type Database = {
           is_duplicate: boolean;
           related_signal_id: string | null;
           dedup_hash: string | null;
+          confidence_score: number | null;
+          signal_hash: string | null;
           updated_at: string;
           created_at: string;
         };
@@ -406,6 +457,8 @@ export type Database = {
           is_duplicate?: boolean;
           related_signal_id?: string | null;
           dedup_hash?: string | null;
+          confidence_score?: number | null;
+          signal_hash?: string | null;
           updated_at?: string;
           created_at?: string;
         };
@@ -425,6 +478,8 @@ export type Database = {
           is_duplicate?: boolean;
           related_signal_id?: string | null;
           dedup_hash?: string | null;
+          confidence_score?: number | null;
+          signal_hash?: string | null;
           updated_at?: string;
           created_at?: string;
         };

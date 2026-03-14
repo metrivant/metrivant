@@ -10,6 +10,7 @@ interface SignalRow {
   signal_type: string;
   severity: "low" | "medium" | "high";
   detected_at: string;
+  confidence_score: number | null;
 }
 
 interface PageRow {
@@ -61,13 +62,16 @@ async function handler(req: ApiReq, res: ApiRes) {
   });
 
   try {
-    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    // 14-day window: tighter than 30d to surface active movements rather than
+    // stale clusters. Noise floor: exclude signals with confidence < 0.40.
+    const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
 
     const { data: signals, error: signalsError } = await supabase
       .from("signals")
-      .select("id, monitored_page_id, signal_type, severity, detected_at")
+      .select("id, monitored_page_id, signal_type, severity, detected_at, confidence_score")
       .gte("detected_at", since)
       .eq("interpreted", true)
+      .or("confidence_score.is.null,confidence_score.gte.0.40")
       .order("detected_at", { ascending: true });
 
     if (signalsError) throw signalsError;
@@ -109,10 +113,18 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsProcessed += 1;
 
       try {
+        const signalCount = competitorSignals.length;
+
+        // Require at least 2 signals to form a movement — a single signal is
+        // not enough evidence to declare a strategic direction.
+        if (signalCount < 2) {
+          rowsSucceeded += 1;
+          continue;
+        }
+
         const signalTypes = competitorSignals.map((s) => s.signal_type);
         const movementTypes = inferMovementTypes(signalTypes);
 
-        const signalCount = competitorSignals.length;
         const velocity =
           competitorSignals.reduce(
             (sum, s) => sum + severityWeight(s.severity),
@@ -122,8 +134,16 @@ async function handler(req: ApiReq, res: ApiRes) {
         const firstSeenAt = competitorSignals[0].detected_at;
         const lastSeenAt = competitorSignals[competitorSignals.length - 1].detected_at;
 
+        // Confidence-weighted formula: rewards both signal quality (avgConf) and
+        // signal volume (count), with diminishing returns above 6 signals.
+        const confidenceScores = competitorSignals
+          .map((s) => s.confidence_score ?? 0.5);
+        const avgConf =
+          confidenceScores.reduce((a, b) => a + b, 0) / confidenceScores.length;
+        const movementConfidence = Math.min(0.95, avgConf * 0.65 + Math.min(signalCount, 6) * 0.06);
+
         for (const movementType of movementTypes) {
-          const confidence = Math.min(0.95, 0.5 + signalCount * 0.1);
+          const confidence = movementConfidence;
 
           // Upsert on (competitor_id, movement_type) to prevent unbounded duplicate rows
           // across cron cycles. first_seen_at is included on insert; on conflict it is

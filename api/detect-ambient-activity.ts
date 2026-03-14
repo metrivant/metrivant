@@ -1,0 +1,195 @@
+import "../lib/sentry";
+import { withSentry, ApiReq, ApiRes } from "../lib/withSentry";
+import { Sentry } from "../lib/sentry";
+import { supabase } from "../lib/supabase";
+import { verifyCronSecret } from "../lib/withCronAuth";
+
+/**
+ * detect-ambient-activity
+ *
+ * Processes confirmed diffs from ambient-class pages (blog, careers, feeds).
+ * Instead of creating signals (which flow to OpenAI), these create activity_events —
+ * lightweight records that feed the UI ticker, radar node micro-activity, and
+ * the pressure_index computation.
+ *
+ * Ambient activity intentionally bypasses:
+ *   - signal confidence gating
+ *   - OpenAI interpretation
+ *   - strategic_movements aggregation
+ *
+ * It can still influence AI interpretation indirectly via the pressure_index:
+ * if ambient activity pushes a competitor's pressure_index above the threshold,
+ * update-pressure-index will promote any pending_review signals to pending.
+ */
+
+// ── Activity type classification ──────────────────────────────────────────────
+
+const AMBIENT_EVENT_TYPES: Record<string, string> = {
+  release_feed:      "content_update",
+  announcements:     "announcement",
+  careers_feed:      "hiring_activity",
+  press_feed:        "press_mention",
+  product_mentions:  "product_update",
+  blog_feed:         "blog_post",
+  headline:          "messaging_update",
+  hero:              "messaging_update",
+  default:           "page_change",
+};
+
+function classifyAmbientEvent(sectionType: string): string {
+  return AMBIENT_EVENT_TYPES[sectionType] ?? AMBIENT_EVENT_TYPES.default;
+}
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface AmbientDiffRow {
+  id: string;
+  section_type: string;
+  monitored_page_id: string;
+  last_seen_at: string | null;
+  monitored_pages: {
+    page_class: string;
+    competitor_id: string;
+    url: string;
+  } | null;
+}
+
+// ── Handler ───────────────────────────────────────────────────────────────────
+
+async function handler(req: ApiReq, res: ApiRes) {
+  if (!verifyCronSecret(req, res)) return;
+
+  const startedAt = Date.now();
+
+  let rowsClaimed     = 0;
+  let rowsProcessed   = 0;
+  let rowsSucceeded   = 0;
+  let rowsFailed      = 0;
+  let eventsCreated   = 0;
+
+  Sentry.captureCheckIn({
+    monitorSlug: "detect-ambient-activity",
+    status: "in_progress",
+  });
+
+  try {
+    // Fetch confirmed diffs from all page classes — filter to ambient in TypeScript.
+    // This avoids a Supabase nested-table filter which has less predictable behaviour.
+    const { data: diffs, error } = await supabase
+      .from("section_diffs")
+      .select(`
+        id,
+        section_type,
+        monitored_page_id,
+        last_seen_at,
+        monitored_pages!inner ( page_class, competitor_id, url )
+      `)
+      .eq("confirmed", true)
+      .eq("signal_detected", false)
+      .eq("is_noise", false)
+      .order("last_seen_at", { ascending: true })
+      .limit(100);
+
+    if (error) throw error;
+
+    // Keep only ambient pages.
+    const ambientDiffs = ((diffs ?? []) as unknown as AmbientDiffRow[]).filter(
+      (d) => d.monitored_pages?.page_class === "ambient"
+    );
+
+    rowsClaimed = ambientDiffs.length;
+
+    for (const diff of ambientDiffs) {
+      rowsProcessed += 1;
+
+      try {
+        const competitorId = diff.monitored_pages?.competitor_id;
+        const url          = diff.monitored_pages?.url ?? null;
+
+        if (!competitorId) {
+          throw new Error(`Diff ${diff.id} has no competitor_id`);
+        }
+
+        const eventType = classifyAmbientEvent(diff.section_type);
+
+        const { error: insertError } = await supabase
+          .from("activity_events")
+          .insert({
+            competitor_id:   competitorId,
+            event_type:      eventType,
+            source_headline: null,
+            url,
+            detected_at:     diff.last_seen_at ?? new Date().toISOString(),
+            page_class:      "ambient",
+            raw_data:        { section_type: diff.section_type },
+          });
+
+        if (insertError) throw insertError;
+
+        // Mark diff as processed so it doesn't re-enter this loop.
+        const { error: updateError } = await supabase
+          .from("section_diffs")
+          .update({ signal_detected: true })
+          .eq("id", diff.id);
+
+        if (updateError) throw updateError;
+
+        eventsCreated += 1;
+        rowsSucceeded += 1;
+      } catch (error) {
+        rowsFailed += 1;
+        Sentry.captureException(error);
+      }
+    }
+
+    // Prune activity_events older than 30 days to prevent unbounded growth.
+    // Non-fatal: if this fails the job still reports success.
+    const pruneThreshold = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    await supabase
+      .from("activity_events")
+      .delete()
+      .lt("detected_at", pruneThreshold);
+
+    const runtimeDurationMs = Date.now() - startedAt;
+
+    Sentry.setContext("run_metrics", {
+      rowsClaimed,
+      rowsProcessed,
+      rowsSucceeded,
+      rowsFailed,
+      eventsCreated,
+      runtimeDurationMs,
+    });
+
+    Sentry.captureCheckIn({
+      monitorSlug: "detect-ambient-activity",
+      status: "ok",
+    });
+
+    await Sentry.flush(2000);
+
+    res.status(200).json({
+      ok: true,
+      job: "detect-ambient-activity",
+      rowsClaimed,
+      rowsProcessed,
+      rowsSucceeded,
+      rowsFailed,
+      eventsCreated,
+      runtimeDurationMs,
+    });
+
+  } catch (error) {
+    Sentry.captureException(error);
+
+    Sentry.captureCheckIn({
+      monitorSlug: "detect-ambient-activity",
+      status: "error",
+    });
+
+    await Sentry.flush(2000);
+    throw error;
+  }
+}
+
+export default withSentry("detect-ambient-activity", handler);

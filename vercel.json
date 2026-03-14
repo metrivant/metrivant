@@ -1,14 +1,18 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
-    { "path": "/api/fetch-snapshots",        "schedule": "0 */4 * * *"  },
-    { "path": "/api/extract-sections",       "schedule": "10 */4 * * *" },
-    { "path": "/api/build-baselines",        "schedule": "15 */4 * * *" },
-    { "path": "/api/detect-diffs",           "schedule": "20 */4 * * *" },
-    { "path": "/api/detect-signals",         "schedule": "25 */4 * * *" },
-    { "path": "/api/interpret-signals",      "schedule": "30 */4 * * *" },
-    { "path": "/api/update-signal-velocity", "schedule": "35 */4 * * *" },
-    { "path": "/api/detect-movements",       "schedule": "40 */4 * * *" },
-    { "path": "/api/generate-brief",         "schedule": "0 9 * * 1"   }
+    { "path": "/api/fetch-snapshots?page_class=ambient",    "schedule": "0,30 * * * *"  },
+    { "path": "/api/fetch-snapshots?page_class=high_value", "schedule": "2 * * * *"     },
+    { "path": "/api/fetch-snapshots?page_class=standard",   "schedule": "4 */3 * * *"   },
+    { "path": "/api/extract-sections",                       "schedule": "15,45 * * * *" },
+    { "path": "/api/build-baselines",                        "schedule": "17,47 * * * *" },
+    { "path": "/api/detect-diffs",                           "schedule": "19,49 * * * *" },
+    { "path": "/api/detect-signals",                         "schedule": "21,51 * * * *" },
+    { "path": "/api/detect-ambient-activity",                "schedule": "23,53 * * * *" },
+    { "path": "/api/update-pressure-index",                  "schedule": "25,55 * * * *" },
+    { "path": "/api/interpret-signals",                      "schedule": "28 * * * *"    },
+    { "path": "/api/update-signal-velocity",                 "schedule": "50 * * * *"    },
+    { "path": "/api/detect-movements",                       "schedule": "55 * * * *"    },
+    { "path": "/api/generate-brief",                         "schedule": "0 9 * * 1"     }
   ]
 }

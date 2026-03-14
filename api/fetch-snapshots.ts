@@ -54,16 +54,35 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   const startedAt = Date.now();
 
+  // page_class filter — passed as query param by the three cron entries:
+  //   ?page_class=ambient     → every 30 min (blog, careers, feeds)
+  //   ?page_class=high_value  → every 60 min (pricing, changelog, newsroom)
+  //   ?page_class=standard    → every 3 hours (homepage, features, solutions)
+  // When absent (manual invocation), all active pages are fetched.
+  const pageClass =
+    typeof req.query?.page_class === "string" ? req.query.page_class : null;
+
+  // Scoped monitor slug so Sentry tracks each cadence independently.
+  const monitorSlug = pageClass
+    ? `fetch-snapshots-${pageClass.replace(/_/g, "-")}`
+    : "fetch-snapshots";
+
   Sentry.captureCheckIn({
-    monitorSlug: "fetch-snapshots",
+    monitorSlug,
     status: "in_progress",
   });
 
   try {
-    const { data: monitoredPages, error: monitoredPagesError } = await supabase
+    let pageQuery = supabase
       .from("monitored_pages")
       .select("id, url")
       .eq("active", true);
+
+    if (pageClass) {
+      pageQuery = pageQuery.eq("page_class", pageClass);
+    }
+
+    const { data: monitoredPages, error: monitoredPagesError } = await pageQuery;
 
     if (monitoredPagesError) {
       throw monitoredPagesError;
@@ -145,6 +164,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     const runtimeDurationMs = Date.now() - startedAt;
 
     Sentry.setContext("run_metrics", {
+      pageClass: pageClass ?? "all",
       rowsClaimed,
       rowsProcessed,
       rowsSucceeded,
@@ -155,7 +175,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     });
 
     Sentry.captureCheckIn({
-      monitorSlug: "fetch-snapshots",
+      monitorSlug,
       status: "ok",
     });
 
@@ -164,6 +184,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     res.status(200).json({
       ok: true,
       job: "fetch-snapshots",
+      pageClass: pageClass ?? "all",
       rowsClaimed,
       rowsProcessed,
       rowsSucceeded,
@@ -176,7 +197,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     Sentry.captureException(error);
 
     Sentry.captureCheckIn({
-      monitorSlug: "fetch-snapshots",
+      monitorSlug,
       status: "error",
     });
 

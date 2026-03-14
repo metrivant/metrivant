@@ -48,21 +48,6 @@ function makeSectionKey(monitoredPageId: string, sectionType: string): string {
   return monitoredPageId + "::" + sectionType;
 }
 
-async function loadSectionHash(sectionId: string): Promise<string | null> {
-  const { data, error } = await supabase
-    .from("page_sections")
-    .select("id, section_hash")
-    .eq("id", sectionId)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  const row = data as PageSectionHashRow | null;
-  return row ? row.section_hash : null;
-}
-
 async function handler(req: ApiReq, res: ApiRes) {
   if (!verifyCronSecret(req, res)) return;
 
@@ -121,55 +106,95 @@ async function handler(req: ApiReq, res: ApiRes) {
       );
     }
 
-    const rowsClaimed = latestSections.length;
+    // ── Pre-filter: identify sections that differ from their baseline ─────────
+    // This separates counting from processing and drives both bulk fetches below.
+    let sectionsSkippedNoBaseline = 0;
+    let sectionsSkippedStable = 0;
+
+    const changedSections: SectionRow[] = [];
+
+    for (const section of latestSections) {
+      const key = makeSectionKey(section.monitored_page_id, section.section_type);
+      const baseline = baselineMap.get(key);
+
+      if (!baseline || !baseline.source_section_id) {
+        sectionsSkippedNoBaseline += 1;
+        continue;
+      }
+
+      if (
+        section.id === baseline.source_section_id ||
+        section.section_hash === baseline.section_hash
+      ) {
+        sectionsSkippedStable += 1;
+        continue;
+      }
+
+      changedSections.push(section);
+    }
+
+    const changedPageIds = [...new Set(changedSections.map((s) => s.monitored_page_id))];
+
+    // ── Batch-load existing diffs for all changed pages (eliminates N+1) ─────
+    // Keyed by "page_id::section_type::previous_section_id" → most-recent DiffRow.
+    const diffMapByKey = new Map<string, DiffRow>();
+
+    if (changedPageIds.length > 0) {
+      const { data: existingDiffs, error: existingDiffsError } = await supabase
+        .from("section_diffs")
+        .select(
+          "id, monitored_page_id, section_type, previous_section_id, current_section_id, observation_count, confirmed, first_seen_at, last_seen_at, signal_detected, status"
+        )
+        .in("monitored_page_id", changedPageIds)
+        .order("last_seen_at", { ascending: false });
+
+      if (existingDiffsError) throw existingDiffsError;
+
+      // Keep the most-recent diff per (page, type, previous_section_id).
+      for (const diff of (existingDiffs ?? []) as DiffRow[]) {
+        if (!diff.previous_section_id) continue;
+        const key = `${diff.monitored_page_id}::${diff.section_type}::${diff.previous_section_id}`;
+        if (!diffMapByKey.has(key)) diffMapByKey.set(key, diff);
+      }
+    }
+
+    // ── Batch-load section hashes referenced by existing diffs ───────────────
+    // Used to detect when the new section is a re-observation of the same change.
+    const existingCurrentIds = [
+      ...new Set([...diffMapByKey.values()].map((d) => d.current_section_id)),
+    ];
+    const sectionHashMap = new Map<string, string>(); // section_id → section_hash
+
+    if (existingCurrentIds.length > 0) {
+      const { data: sectionHashes, error: hashError } = await supabase
+        .from("page_sections")
+        .select("id, section_hash")
+        .in("id", existingCurrentIds);
+
+      if (hashError) throw hashError;
+
+      for (const row of (sectionHashes ?? []) as PageSectionHashRow[]) {
+        sectionHashMap.set(row.id, row.section_hash);
+      }
+    }
+
+    const rowsClaimed = changedSections.length;
     let rowsProcessed = 0;
     let rowsSucceeded = 0;
     let rowsFailed = 0;
     let diffsCreated = 0;
     let diffsConfirmed = 0;
-    let sectionsSkippedNoBaseline = 0;
-    let sectionsSkippedStable = 0;
     let sectionsSkippedSameCurrent = 0;
 
-    for (const section of latestSections) {
+    for (const section of changedSections) {
       rowsProcessed += 1;
 
       try {
         const key = makeSectionKey(section.monitored_page_id, section.section_type);
-        const baseline = baselineMap.get(key);
+        const baseline = baselineMap.get(key)!; // guaranteed by changedSections filter
 
-        if (!baseline || !baseline.source_section_id) {
-          sectionsSkippedNoBaseline += 1;
-          continue;
-        }
-
-        if (section.id === baseline.source_section_id) {
-          sectionsSkippedStable += 1;
-          continue;
-        }
-
-        if (section.section_hash === baseline.section_hash) {
-          sectionsSkippedStable += 1;
-          continue;
-        }
-
-        const { data: latestDiff, error: latestDiffError } = await supabase
-          .from("section_diffs")
-          .select(
-            "id, monitored_page_id, section_type, previous_section_id, current_section_id, observation_count, confirmed, first_seen_at, last_seen_at, signal_detected, status"
-          )
-          .eq("monitored_page_id", section.monitored_page_id)
-          .eq("section_type", section.section_type)
-          .eq("previous_section_id", baseline.source_section_id)
-          .order("last_seen_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (latestDiffError) {
-          throw latestDiffError;
-        }
-
-        const existingDiff = latestDiff as DiffRow | null;
+        const diffKey = `${section.monitored_page_id}::${section.section_type}::${baseline.source_section_id}`;
+        const existingDiff = diffMapByKey.get(diffKey) ?? null;
 
         if (existingDiff && existingDiff.current_section_id === section.id) {
           sectionsSkippedSameCurrent += 1;
@@ -179,10 +204,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         let shouldUpdateExisting = false;
 
         if (existingDiff) {
-          const existingCurrentHash = await loadSectionHash(
-            existingDiff.current_section_id
-          );
-
+          const existingCurrentHash = sectionHashMap.get(existingDiff.current_section_id);
           if (existingCurrentHash && existingCurrentHash === section.section_hash) {
             shouldUpdateExisting = true;
           }

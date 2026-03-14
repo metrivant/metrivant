@@ -114,7 +114,7 @@ export async function POST(request: Request) {
 
   if ((alreadyTracked ?? 0) === 0) {
     const planValue = user.user_metadata?.plan as string | undefined;
-    const limit = planValue === "pro" ? 25 : 5;
+    const limit = planValue === "pro" ? 25 : 10;
 
     const { count: currentCount } = await supabase
       .from("tracked_competitors")
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
 
     if ((currentCount ?? 0) >= limit) {
       return NextResponse.json(
-        { error: "Competitor limit reached for your plan", limit, upgrade_url: "/pricing" },
+        { error: "Competitor limit reached for your plan", limit, upgrade_url: "/app/billing?limit=1" },
         { status: 403 }
       );
     }

@@ -36,6 +36,7 @@ interface SignalDetail {
   retry_count: number;
   competitor_name: string;
   page_type: string;
+  page_url: string;
 }
 
 interface SignalWithJoins {
@@ -47,6 +48,7 @@ interface SignalWithJoins {
   retry_count: number;
   monitored_pages: {
     page_type: string;
+    url: string;
     competitors: { name: string } | null;
   } | null;
 }
@@ -67,6 +69,7 @@ function buildUserPrompt(signal: SignalDetail): string {
     `Signal type: ${signal.signal_type}`,
     `Severity: ${signal.severity}`,
     `Page type: ${signal.page_type}`,
+    `Page URL: ${signal.page_url}`,
     ``,
     `Previous content (excerpt):`,
     prev,
@@ -207,7 +210,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         .from("signals")
         .select(
           `id, signal_type, signal_data, severity, monitored_page_id, retry_count,
-           monitored_pages!inner ( page_type, competitors!inner ( name ) )`
+           monitored_pages!inner ( page_type, url, competitors!inner ( name ) )`
         )
         .in("id", signalIds);
 
@@ -224,6 +227,7 @@ async function handler(req: ApiReq, res: ApiRes) {
           retry_count: row.retry_count ?? 0,
           competitor_name: row.monitored_pages?.competitors?.name ?? "Unknown",
           page_type: row.monitored_pages?.page_type ?? "unknown",
+          page_url: row.monitored_pages?.url ?? "",
         });
       }
 
@@ -239,9 +243,23 @@ async function handler(req: ApiReq, res: ApiRes) {
           retry_count: claimed.retry_count ?? 0,
           competitor_name: "Unknown",
           page_type: "unknown",
+          page_url: "",
         };
 
         try {
+          // Identical excerpts mean the diff was noise that slipped through
+          // (formatting deploy, transient whitespace). Suppress without calling OpenAI.
+          const prev = signal.signal_data?.previous_excerpt ?? "";
+          const curr = signal.signal_data?.current_excerpt ?? "";
+          if (prev && curr && prev === curr) {
+            await supabase
+              .from("signals")
+              .update({ interpreted: true, interpreted_at: new Date().toISOString(), status: "interpreted" })
+              .eq("id", signal.id);
+            rowsSucceeded += 1;
+            continue;
+          }
+
           const userPrompt = buildUserPrompt(signal);
           const promptHash = hashPrompt(userPrompt);
           const interpretation = await callOpenAI(userPrompt);

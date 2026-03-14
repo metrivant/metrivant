@@ -13,7 +13,7 @@ type PlanKey = "analyst" | "pro";
 
 const PLAN_FEATURES: Record<PlanKey, string[]> = {
   analyst: [
-    "5 competitors monitored",
+    "10 competitors monitored",
     "Weekly signal digest",
     "Radar dashboard",
     "30-day signal history",
@@ -38,7 +38,7 @@ const PLAN_LABEL: Record<PlanKey, string> = {
 };
 
 const PRO_UPGRADE_FEATURES = [
-  "25 competitors (5× more coverage)",
+  "25 competitors (2.5× more coverage)",
   "Real-time signal alerts",
   "90-day signal history",
   "Strategic movement analysis",
@@ -53,7 +53,13 @@ function fmtDate(iso: string | null): string {
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 
-export default async function BillingPage() {
+export default async function BillingPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const limitReached = params["limit"] === "1";
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -103,6 +109,21 @@ export default async function BillingPage() {
   return (
     <div className="min-h-screen bg-[#000200] text-white">
       <BillingTracker />
+
+      {limitReached && (
+        <div
+          className="relative z-20 flex items-center gap-3 border-b border-amber-500/20 bg-amber-500/[0.07] px-6 py-3"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" className="shrink-0">
+            <path d="M7 1L13 12H1L7 1Z" stroke="#f59e0b" strokeWidth="1.2" strokeLinejoin="round" fill="none" />
+            <line x1="7" y1="5.5" x2="7" y2="8.5" stroke="#f59e0b" strokeWidth="1.2" strokeLinecap="round" />
+            <circle cx="7" cy="10.5" r="0.7" fill="#f59e0b" />
+          </svg>
+          <span className="text-[12px] text-amber-400">
+            You&apos;ve reached the 10-competitor limit on the Analyst plan. Upgrade to Pro for up to 25 competitors.
+          </span>
+        </div>
+      )}
 
       <div
         className="pointer-events-none fixed inset-0"
