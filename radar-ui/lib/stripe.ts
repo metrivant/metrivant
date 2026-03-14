@@ -16,11 +16,12 @@ export function getStripe(): Stripe {
 // Plan → Stripe price ID mapping
 export function getPriceId(plan: "analyst" | "pro"): string {
   if (plan === "pro") {
-    const id = process.env.STRIPE_PRO_PRICE_ID;
+    const id = (process.env.STRIPE_PRO_PRICE_ID ?? "").trim();
     if (!id) throw new Error("STRIPE_PRO_PRICE_ID is not set");
     return id;
   }
-  const id = process.env.STRIPE_ANALYST_PRICE_ID;
+  // STRIPE_ANALYST_PRICE_ID — also accept legacy typo'd name as fallback
+  const id = (process.env.STRIPE_ANALYST_PRICE_ID ?? process.env.STRIP_ANALYST_PRICE_ID ?? "").trim();
   if (!id) throw new Error("STRIPE_ANALYST_PRICE_ID is not set");
   return id;
 }

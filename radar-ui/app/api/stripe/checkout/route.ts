@@ -10,7 +10,7 @@ import { createClient } from "../../../../lib/supabase/server";
 import { getStripe, getPriceId, VALID_PLANS } from "../../../../lib/stripe";
 import { captureException } from "../../../../lib/sentry";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com").trim();
 
 export async function POST(request: Request): Promise<NextResponse> {
   // ── Auth ──────────────────────────────────────────────────────────────────
