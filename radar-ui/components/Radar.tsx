@@ -887,12 +887,12 @@ export default function Radar({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Auto-refresh for new users ───────────────────────────────────────────
-  // When radar is empty (sector just initialized, pipeline not yet run),
-  // refresh server data every 30s until blips appear.
+  // ── Auto-refresh ─────────────────────────────────────────────────────────
+  // Empty radar: refresh every 30s until first blips appear.
+  // Active radar: refresh every 60s so new signals surface without page reload.
   useEffect(() => {
-    if (competitors.length > 0) return;
-    const interval = setInterval(() => router.refresh(), 30_000);
+    const ms = competitors.length === 0 ? 30_000 : 60_000;
+    const interval = setInterval(() => router.refresh(), ms);
     return () => clearInterval(interval);
   }, [competitors.length, router]);
 
