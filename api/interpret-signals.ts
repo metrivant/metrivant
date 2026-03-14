@@ -327,6 +327,8 @@ async function handler(req: ApiReq, res: ApiRes) {
     const runtimeDurationMs = Date.now() - startedAt;
 
     Sentry.setContext("run_metrics", {
+      stage_name: "interpret-signals",
+      batch_size: rowsClaimed,
       rowsClaimed,
       rowsProcessed,
       rowsSucceeded,

@@ -62,6 +62,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     const runtimeDurationMs = Date.now() - startedAt;
 
     Sentry.setContext("run_metrics", {
+      stage_name: "build-baselines",
       baselinesCreated: data,
       baselineChurnWarnings,
       runtimeDurationMs,

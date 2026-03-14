@@ -4,6 +4,7 @@ import { Sentry } from "../lib/sentry";
 import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
 import { createHash } from "crypto";
+import { checkRateLimit, getClientIp, RATE_LIMITS } from "../lib/rate-limit";
 
 // ── Signal weight constants ───────────────────────────────────────────────────
 // Base confidence contribution by section type.
@@ -191,6 +192,11 @@ const SUPPRESSION_ANOMALY_MIN_DIFFS = 5; // ignore competitors with too few diff
 
 async function handler(req: ApiReq, res: ApiRes) {
   if (!verifyCronSecret(req, res)) return;
+
+  const ip = getClientIp(req as { headers: Record<string, string | string[] | undefined> });
+  if (!checkRateLimit(`ip:${ip}`, RATE_LIMITS.PER_IP)) {
+    return res.status(429).json({ error: "rate_limited" });
+  }
 
   const startedAt = Date.now();
 
@@ -466,6 +472,8 @@ async function handler(req: ApiReq, res: ApiRes) {
     }
 
     Sentry.setContext("run_metrics", {
+      stage_name: "detect-signals",
+      batch_size: rowsClaimed,
       rowsClaimed,
       rowsProcessed,
       rowsSucceeded,

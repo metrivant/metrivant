@@ -388,6 +388,8 @@ async function handler(req: ApiReq, res: ApiRes) {
     const runtimeDurationMs = Date.now() - startedAt;
 
     Sentry.setContext("run_metrics", {
+      stage_name: "extract-sections",
+      batch_size: rowsClaimed,
       rowsClaimed,
       rowsProcessed,
       rowsSucceeded,

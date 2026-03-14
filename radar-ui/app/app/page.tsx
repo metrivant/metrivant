@@ -14,7 +14,6 @@ import TrialLockScreen from "../../components/TrialLockScreen";
 import DailyBriefOverlay from "../../components/DailyBriefOverlay";
 import MobileNav from "../../components/MobileNav";
 import AchievementsButton from "../../components/AchievementsButton";
-import SoundToggle from "../../components/SoundToggle";
 import CleanSlateButton from "../../components/CleanSlateButton";
 import { getRadarFeed } from "../../lib/api";
 import { createClient } from "../../lib/supabase/server";
@@ -208,7 +207,6 @@ export default async function Page() {
               <CleanSlateButton competitorCount={competitors.length} />
               <SectorSwitcher sector={sector} />
             </div>
-            <SoundToggle />
             <PlanBadge plan={plan} trialDaysRemaining={trialDaysRemaining} />
             <NotificationBell />
 

@@ -3,6 +3,7 @@ import { withSentry, ApiReq, ApiRes } from "../lib/withSentry";
 import { Sentry } from "../lib/sentry";
 import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
+import { checkRateLimit, getClientIp, RATE_LIMITS } from "../lib/rate-limit";
 
 type CandidatePage = {
   url: string;
@@ -95,6 +96,11 @@ function rulesForPage(pageType: string): ExtractionRule[] {
 
 async function handler(req: ApiReq, res: ApiRes) {
   if (!verifyCronSecret(req, res)) return;
+
+  const ip = getClientIp(req as { headers: Record<string, string | string[] | undefined> });
+  if (!checkRateLimit(`ip:${ip}`, RATE_LIMITS.PER_IP)) {
+    return res.status(429).json({ error: "rate_limited" });
+  }
 
   const startedAt = Date.now();
 
