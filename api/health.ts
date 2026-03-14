@@ -235,8 +235,8 @@ export default async function handler(req: ApiReq, res: ApiRes) {
     const healthy = fetchIsFresh && stuckSignals === 0 && pipelineBacklogWarnings.length === 0;
 
     res.status(200).json({
-      ok: true,
-      healthy,
+      ok: true,      // endpoint responded and executed without throwing
+      healthy,       // system is operating within SLA thresholds (fetch fresh, no stuck signals, no backlog warnings)
       // Existing fields
       latestFetchAt,
       snapshotBacklog,
