@@ -14,6 +14,7 @@ import TrialLockScreen from "../../components/TrialLockScreen";
 import DailyBriefOverlay from "../../components/DailyBriefOverlay";
 import MobileNav from "../../components/MobileNav";
 import AchievementsButton from "../../components/AchievementsButton";
+import SoundToggle from "../../components/SoundToggle";
 import { getRadarFeed } from "../../lib/api";
 import { createClient } from "../../lib/supabase/server";
 import { getSubscriptionState } from "../../lib/subscription";
@@ -204,6 +205,7 @@ export default async function Page() {
             <div className="hidden md:block">
               <SectorSwitcher sector={sector} />
             </div>
+            <SoundToggle />
             <NotificationBell />
 
             {/* Stats — hidden on mobile, shown on desktop */}
