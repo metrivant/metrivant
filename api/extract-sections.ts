@@ -218,6 +218,10 @@ async function handler(req: ApiReq, res: ApiRes) {
     let rowsFailed = 0;
     let sectionsWritten = 0;
     let rowsSkippedNoRules = 0;
+    let driftWarnings = 0;
+
+    // Track sections written per page this run for drift comparison.
+    const sectionsWrittenByPage = new Map<string, number>();
 
     for (const snapshot of pendingSnapshots) {
       rowsProcessed += 1;
@@ -290,6 +294,10 @@ async function handler(req: ApiReq, res: ApiRes) {
           }
 
           sectionsWritten += 1;
+          sectionsWrittenByPage.set(
+            snapshot.monitored_page_id,
+            (sectionsWrittenByPage.get(snapshot.monitored_page_id) ?? 0) + 1
+          );
         }
 
         const { error: markError } = await supabase
@@ -311,6 +319,72 @@ async function handler(req: ApiReq, res: ApiRes) {
       }
     }
 
+    // ── Extraction drift detection ─────────────────────────────────────────────
+    // Compare sections written for each page this run against its recent history.
+    // A >60% deviation in section count indicates a site redesign, selector rot,
+    // or CDN/render change that silently degrades extraction quality.
+    if (sectionsWrittenByPage.size > 0) {
+      try {
+        const processedPageIds = [...sectionsWrittenByPage.keys()];
+        const currentBatchSnapshotIds = new Set(pendingSnapshots.map((s) => s.id));
+
+        // Fetch recent section rows across all processed pages (generous limit).
+        // Filter current batch in TypeScript to avoid PostgREST NOT IN complexity.
+        const { data: recentSectionRows } = await supabase
+          .from("page_sections")
+          .select("monitored_page_id, snapshot_id")
+          .in("monitored_page_id", processedPageIds)
+          .order("created_at", { ascending: false })
+          .limit(600);
+
+        const historicalRows = (recentSectionRows ?? []).filter(
+          (r) => !currentBatchSnapshotIds.has((r as { snapshot_id: string }).snapshot_id)
+        );
+
+        if (historicalRows.length > 0) {
+          // Group by page → snapshot → section count.
+          const snapCountsByPage = new Map<string, Map<string, number>>();
+          for (const r of historicalRows) {
+            const row = r as { monitored_page_id: string; snapshot_id: string };
+            if (!snapCountsByPage.has(row.monitored_page_id)) {
+              snapCountsByPage.set(row.monitored_page_id, new Map());
+            }
+            const smap = snapCountsByPage.get(row.monitored_page_id)!;
+            smap.set(row.snapshot_id, (smap.get(row.snapshot_id) ?? 0) + 1);
+          }
+
+          for (const [pageId, currentCount] of sectionsWrittenByPage) {
+            const pageSnaps = snapCountsByPage.get(pageId);
+            if (!pageSnaps || pageSnaps.size === 0) continue; // no history yet
+
+            // Average over up to 5 most-recent prior snapshots.
+            const historyCounts = [...pageSnaps.values()].slice(0, 5);
+            const avgCount = historyCounts.reduce((a, b) => a + b, 0) / historyCounts.length;
+
+            if (avgCount > 0) {
+              const deviation = Math.abs(currentCount - avgCount) / avgCount;
+              if (deviation > 0.6) {
+                Sentry.captureMessage("extraction_drift_detected", {
+                  level: "warning",
+                  extra: {
+                    monitored_page_id: pageId,
+                    current_section_count: currentCount,
+                    historical_avg_section_count: parseFloat(avgCount.toFixed(1)),
+                    deviation_pct: Math.round(deviation * 100),
+                    prior_snapshots_sampled: historyCounts.length,
+                  },
+                });
+                driftWarnings += 1;
+              }
+            }
+          }
+        }
+      } catch (driftError) {
+        // Non-fatal — drift detection must never block pipeline output.
+        Sentry.captureException(driftError);
+      }
+    }
+
     const runtimeDurationMs = Date.now() - startedAt;
 
     Sentry.setContext("run_metrics", {
@@ -320,6 +394,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsFailed,
       rowsSkippedNoRules,
       sectionsWritten,
+      driftWarnings,
       runtimeDurationMs,
     });
 
@@ -339,6 +414,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsFailed,
       rowsSkippedNoRules,
       sectionsWritten,
+      driftWarnings,
       runtimeDurationMs,
     });
   } catch (error) {

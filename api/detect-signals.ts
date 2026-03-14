@@ -172,6 +172,21 @@ function classifySignal(
   }
 }
 
+// ── Per-competitor suppression tracking ──────────────────────────────────────
+
+interface CompetitorRunStats {
+  candidateDiffs:            number;
+  suppressedByNoise:         number;
+  suppressedByLowConfidence: number;
+  suppressedByDuplicate:     number;
+  signalsCreated:            number;
+}
+
+// Suppression ratio threshold above which a competitor triggers an anomaly alert.
+// Represents 98% of candidate diffs being suppressed across a single run.
+const SUPPRESSION_ANOMALY_RATIO = 0.98;
+const SUPPRESSION_ANOMALY_MIN_DIFFS = 5; // ignore competitors with too few diffs
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 async function handler(req: ApiReq, res: ApiRes) {
@@ -189,6 +204,17 @@ async function handler(req: ApiReq, res: ApiRes) {
   let suppressedByLowConfidence = 0; // confidence < CONFIDENCE_SUPPRESS
   let signalsDeduplicated       = 0; // same hash already exists (reprocessed diff)
   let signalsPendingReview      = 0; // CONFIDENCE_SUPPRESS ≤ confidence < CONFIDENCE_INTERPRET
+
+  // Per-competitor breakdown — enables suppression clustering detection.
+  const perCompetitorStats = new Map<string, CompetitorRunStats>();
+  const getOrInitStats = (id: string): CompetitorRunStats => {
+    let s = perCompetitorStats.get(id);
+    if (!s) {
+      s = { candidateDiffs: 0, suppressedByNoise: 0, suppressedByLowConfidence: 0, suppressedByDuplicate: 0, signalsCreated: 0 };
+      perCompetitorStats.set(id, s);
+    }
+    return s;
+  };
 
   Sentry.captureCheckIn({
     monitorSlug: "detect-signals",
@@ -259,6 +285,10 @@ async function handler(req: ApiReq, res: ApiRes) {
           throw new Error(`Diff ${diff.id} has no competitor_id via monitored_pages`);
         }
 
+        // Count every valid diff as a candidate — denominator for suppression ratio.
+        const cStats = getOrInitStats(competitorId);
+        cStats.candidateDiffs += 1;
+
         if (!diff.previous_section_id || !diff.current_section_id) {
           throw new Error(`Diff ${diff.id} missing section references`);
         }
@@ -278,6 +308,7 @@ async function handler(req: ApiReq, res: ApiRes) {
             .from("section_diffs")
             .update({ signal_detected: true, is_noise: true, noise_reason: "whitespace_only" })
             .eq("id", diff.id);
+          cStats.suppressedByNoise += 1;
           suppressedByNoise += 1;
           signalsSuppressed += 1;
           rowsSucceeded += 1;
@@ -293,6 +324,7 @@ async function handler(req: ApiReq, res: ApiRes) {
             .from("section_diffs")
             .update({ signal_detected: true, is_noise: true, noise_reason: "dynamic_content_only" })
             .eq("id", diff.id);
+          cStats.suppressedByNoise += 1;
           suppressedByNoise += 1;
           signalsSuppressed += 1;
           rowsSucceeded += 1;
@@ -319,6 +351,7 @@ async function handler(req: ApiReq, res: ApiRes) {
             .from("section_diffs")
             .update({ signal_detected: true })
             .eq("id", diff.id);
+          cStats.suppressedByLowConfidence += 1;
           suppressedByLowConfidence += 1;
           signalsSuppressed += 1;
           rowsSucceeded += 1;
@@ -341,11 +374,12 @@ async function handler(req: ApiReq, res: ApiRes) {
           .maybeSingle();
 
         if (hashCheck) {
-          // Already have this signal for today — mark diff processed and skip.
+          // Already have a signal for this diff — mark processed and skip.
           await supabase
             .from("section_diffs")
             .update({ signal_detected: true })
             .eq("id", diff.id);
+          cStats.suppressedByDuplicate += 1;
           signalsDeduplicated += 1;
           rowsSucceeded += 1;
           continue;
@@ -393,6 +427,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
         if (updateDiffError) throw updateDiffError;
 
+        cStats.signalsCreated += 1;
         signalsCreated += 1;
         if (signalStatus === "pending_review") signalsPendingReview += 1;
         rowsSucceeded += 1;
@@ -403,6 +438,32 @@ async function handler(req: ApiReq, res: ApiRes) {
     }
 
     const runtimeDurationMs = Date.now() - startedAt;
+
+    // ── Suppression anomaly detection ─────────────────────────────────────────
+    // If a competitor has ≥5 candidate diffs and ≥98% were suppressed, emit a
+    // structured warning. This surfaces extraction drift, calibration issues,
+    // or overly aggressive dedupe before they cause a "silent desert."
+    const suppressionBreakdown: Array<CompetitorRunStats & { competitor_id: string; suppressionRatio: number }> = [];
+    for (const [cid, s] of perCompetitorStats) {
+      const totalSuppressed = s.suppressedByNoise + s.suppressedByLowConfidence + s.suppressedByDuplicate;
+      const suppressionRatio = s.candidateDiffs > 0 ? totalSuppressed / s.candidateDiffs : 0;
+      suppressionBreakdown.push({ competitor_id: cid, ...s, suppressionRatio });
+
+      if (s.candidateDiffs >= SUPPRESSION_ANOMALY_MIN_DIFFS && suppressionRatio >= SUPPRESSION_ANOMALY_RATIO) {
+        Sentry.captureMessage("suppression_anomaly", {
+          level: "warning",
+          extra: {
+            competitor_id: cid,
+            candidate_diffs: s.candidateDiffs,
+            suppressed_by_noise: s.suppressedByNoise,
+            suppressed_by_low_confidence: s.suppressedByLowConfidence,
+            suppressed_by_duplicate: s.suppressedByDuplicate,
+            signals_created: s.signalsCreated,
+            suppression_ratio: parseFloat(suppressionRatio.toFixed(3)),
+          },
+        });
+      }
+    }
 
     Sentry.setContext("run_metrics", {
       rowsClaimed,
@@ -416,6 +477,10 @@ async function handler(req: ApiReq, res: ApiRes) {
       signalsDeduplicated,
       signalsPendingReview,
       runtimeDurationMs,
+    });
+
+    Sentry.setContext("suppression_breakdown", {
+      byCompetitor: suppressionBreakdown.slice(0, 20),
     });
 
     Sentry.captureCheckIn({
@@ -438,6 +503,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       suppressedByLowConfidence,
       signalsDeduplicated,
       signalsPendingReview,
+      suppressionBreakdown,
       runtimeDurationMs,
     });
 

@@ -185,6 +185,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     let diffsCreated = 0;
     let diffsConfirmed = 0;
     let sectionsSkippedSameCurrent = 0;
+    let diffStabilityWarnings = 0;
 
     for (const section of changedSections) {
       rowsProcessed += 1;
@@ -250,6 +251,25 @@ async function handler(req: ApiReq, res: ApiRes) {
             diffsConfirmed += 1;
           }
 
+          // Diff stability warning: a diff re-observed MAX times without a signal
+          // indicates consistent suppression — normalization mismatch, confidence
+          // floor, or unstable extraction producing valid-but-un-signalable content.
+          if (
+            nextCount >= MAX_OBSERVATION_COUNT &&
+            existingDiff.signal_detected !== true
+          ) {
+            Sentry.captureMessage("diff_stability_warning", {
+              level: "warning",
+              extra: {
+                diff_id:            existingDiff.id,
+                monitored_page_id:  existingDiff.monitored_page_id,
+                section_type:       existingDiff.section_type,
+                observation_count:  nextCount,
+              },
+            });
+            diffStabilityWarnings += 1;
+          }
+
           continue;
         }
 
@@ -313,6 +333,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       sectionsSkippedNoBaseline,
       sectionsSkippedStable,
       sectionsSkippedSameCurrent,
+      diffStabilityWarnings,
       runtimeDurationMs,
     });
 
@@ -335,6 +356,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       sectionsSkippedNoBaseline,
       sectionsSkippedStable,
       sectionsSkippedSameCurrent,
+      diffStabilityWarnings,
       runtimeDurationMs,
     });
   } catch (error) {
