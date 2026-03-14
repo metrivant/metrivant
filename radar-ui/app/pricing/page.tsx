@@ -9,7 +9,7 @@ const PLANS = [
     period:      "/mo",
     description: "Structured weekly intelligence on your top competitors.",
     features: [
-      "10 competitors monitored",
+      "5 competitors monitored",
       "Weekly intelligence digest",
       "Live radar dashboard",
       "30-day signal history",

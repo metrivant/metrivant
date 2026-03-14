@@ -141,12 +141,9 @@ export default function AboutPage() {
           </h1>
 
           <p className="mx-auto mt-6 max-w-sm text-[15px] leading-relaxed text-slate-500">
-            Metrivant is a competitive intelligence radar.
+            Metrivant is a competitive intelligence radar. It continuously watches competitor movement and surfaces signals that matter.
           </p>
-          <p className="mx-auto mt-2 max-w-sm text-[15px] leading-relaxed text-slate-500">
-            It continuously watches competitor movement across markets and surfaces signals that matter.
-          </p>
-          <p className="mx-auto mt-2 max-w-sm text-[15px] leading-relaxed text-slate-500">
+          <p className="mx-auto mt-3 max-w-sm text-[15px] leading-relaxed text-slate-500">
             See strategic shifts before they happen.
           </p>
 
@@ -187,7 +184,7 @@ export default function AboutPage() {
               Four intelligence surfaces.
             </h2>
             <p className="mt-3 text-[14px] text-slate-500">
-              Every dimension of competitor movement — monitored and surfaced.
+              Every type of competitor movement — monitored and surfaced.
             </p>
           </div>
 
@@ -225,7 +222,7 @@ export default function AboutPage() {
               </div>
               <div className="mb-2 text-[13px] font-semibold text-white">Product Expansion</div>
               <p className="text-[12px] leading-relaxed text-slate-500">
-                See new feature territory as rivals build it — not when they announce it.
+                See new features as rivals build them — not when they announce them.
               </p>
             </div>
 
@@ -242,7 +239,7 @@ export default function AboutPage() {
               </div>
               <div className="mb-2 text-[13px] font-semibold text-white">Market Repositioning</div>
               <p className="text-[12px] leading-relaxed text-slate-500">
-                Track ICP shifts, messaging pivots, and audience targeting as they happen.
+                Track positioning shifts, messaging pivots, and audience targeting as they happen.
               </p>
             </div>
 

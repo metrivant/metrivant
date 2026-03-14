@@ -117,7 +117,7 @@ export default function LoginPage() {
             </svg>
             <span className="text-[17px] font-bold tracking-[0.08em] text-white">METRIVANT</span>
           </Link>
-          <p className="mt-3 text-[13px] text-slate-500">Sign in to your account</p>
+          <p className="mt-3 text-[13px] text-slate-500">Return to your radar.</p>
         </div>
 
         {/* Card */}

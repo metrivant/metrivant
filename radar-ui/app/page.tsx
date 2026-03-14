@@ -1,9 +1,12 @@
 import Link from "next/link";
 import PublicNav from "../components/PublicNav";
 
+const BADGE_STYLE       = { background: "rgba(46,230,166,0.02)" } as const;
+const LABEL_COLOR_STYLE = { color: "rgba(46,230,166,0.55)" } as const;
+
 export default function LandingPage() {
   return (
-    <div className="flex min-h-screen w-full flex-col bg-[#000000] text-white">
+    <div className="flex min-h-screen w-full flex-col bg-[#000200] text-white">
       <PublicNav />
 
       {/* Dot grid */}
@@ -37,7 +40,7 @@ export default function LandingPage() {
 
         <div
           className="text-[11px] font-medium uppercase tracking-[0.34em]"
-          style={{ color: "rgba(46,230,166,0.55)" }}
+          style={LABEL_COLOR_STYLE}
         >
           Competitive Intelligence Radar
         </div>
@@ -80,7 +83,7 @@ export default function LandingPage() {
             <span
               key={label}
               className="rounded-full border border-[#0d2010] px-3 py-1 text-[11px] text-slate-600"
-              style={{ background: "rgba(46,230,166,0.02)" }}
+              style={BADGE_STYLE}
             >
               {label}
             </span>
@@ -119,7 +122,7 @@ export default function LandingPage() {
             },
           ].map(({ label, body }) => (
             <div key={label} className="flex flex-col gap-2">
-              <div className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: "rgba(46,230,166,0.55)" }}>
+              <div className="text-[11px] font-bold uppercase tracking-[0.18em]" style={LABEL_COLOR_STYLE}>
                 {label}
               </div>
               <p className="text-[12px] leading-relaxed text-slate-600">{body}</p>
