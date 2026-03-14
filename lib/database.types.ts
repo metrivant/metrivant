@@ -27,6 +27,7 @@ export type Database = {
           website_url: string | null;
           active: boolean;
           pressure_index: number;
+          last_signal_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -36,6 +37,7 @@ export type Database = {
           website_url?: string | null;
           active?: boolean;
           pressure_index?: number;
+          last_signal_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -45,6 +47,7 @@ export type Database = {
           website_url?: string | null;
           active?: boolean;
           pressure_index?: number;
+          last_signal_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };

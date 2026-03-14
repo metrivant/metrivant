@@ -39,6 +39,8 @@ import { verifyCronSecret } from "../lib/withCronAuth";
 interface CompetitorRow {
   id: string;
   name: string;
+  pressure_index: number | null;
+  last_signal_at: string | null;
 }
 
 interface PageRow {
@@ -124,7 +126,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     const { data: competitorRows, error: compError } = await supabase
       .from("competitors")
-      .select("id, name")
+      .select("id, name, pressure_index, last_signal_at")
       .eq("active", true)
       .order("name");
 
@@ -174,6 +176,8 @@ async function handler(req: ApiReq, res: ApiRes) {
         competitors: competitors.map((c) => ({
           id: c.id, name: c.name,
           monitoredPageCount: 0, lastSnapshotAt: null,
+          lastSignalAt: c.last_signal_at ?? null,
+          pressureIndex: c.pressure_index ?? 0,
           sectionCount: 0, diffCount: 0, signalCount: 0,
           baselineCount: 0, pagesWithNoSections: 0, pagesWithNoRules: 0,
         })),
@@ -308,6 +312,8 @@ async function handler(req: ApiReq, res: ApiRes) {
         name:               c.name,
         monitoredPageCount: compPages.length,
         lastSnapshotAt,
+        lastSignalAt:       c.last_signal_at ?? null,
+        pressureIndex:      c.pressure_index ?? 0,
         sectionCount,
         diffCount,
         signalCount,

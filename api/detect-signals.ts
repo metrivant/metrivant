@@ -59,7 +59,8 @@ interface PageSectionRow {
 function computeConfidence(
   sectionType: string,
   observationCount: number,
-  lastSeenAt: string | null
+  lastSeenAt: string | null,
+  pageClass: string
 ): number {
   const base = SECTION_WEIGHTS[sectionType] ?? DEFAULT_WEIGHT;
 
@@ -74,22 +75,38 @@ function computeConfidence(
   // Observation bonus: each additional confirmation (+0.05, max 0.15).
   const obsBonus = Math.min(0.15, Math.max(0, (observationCount - 1) * 0.05));
 
-  return Math.min(1.0, base + recencyBonus + obsBonus);
+  // Page class bonus: high_value pages (pricing, changelog, newsroom) carry
+  // more inherent signal quality than standard or ambient pages.
+  const pageClassBonus = pageClass === "high_value" ? 0.08 : 0;
+
+  return Math.min(1.0, base + recencyBonus + obsBonus + pageClassBonus);
 }
 
 function computeSignalHash(
   competitorId: string,
   signalType: string,
+  sectionType: string,
   lastSeenAt: string | null
 ): string {
-  // Bucket by UTC calendar day — one signal per (competitor, type) per day.
+  // Bucket by UTC calendar day — one signal per (competitor, section_type, signal_type) per day.
+  // Including section_type allows independent signals when the same signal_type fires
+  // from different page sections (e.g., pricing_plans vs pricing_references).
   const dateBucket = (lastSeenAt ? new Date(lastSeenAt) : new Date())
     .toISOString()
     .slice(0, 10); // "YYYY-MM-DD"
   return createHash("sha256")
-    .update(`${competitorId}:${signalType}:${dateBucket}`)
+    .update(`${competitorId}:${signalType}:${sectionType}:${dateBucket}`)
     .digest("hex")
     .slice(0, 32);
+}
+
+// Normalize machine-generated dynamic tokens before semantic comparison.
+// Strips ISO 8601 timestamps and tracking query parameters — these rotate
+// on every page load and create false diffs with no competitive intelligence.
+function normalizeForComparison(text: string): string {
+  let t = text.replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/g, "");
+  t = t.replace(/[?&](?:utm_[a-z_]+|fbclid|gclid|msclkid|_ga)=[^&\s"']*/gi, "");
+  return t.replace(/\s+/g, " ").trim();
 }
 
 // Extract excerpts anchored at the first divergence point rather than position 0.
@@ -207,6 +224,31 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     rowsClaimed = eligibleDiffs.length;
 
+    // ── Pre-batch: load all referenced page_sections in 2 queries ─────────────
+    // Avoids N+1 (previously 2 individual queries per diff × up to 50 diffs).
+    const allSectionIds = [
+      ...new Set(
+        eligibleDiffs.flatMap((d) =>
+          [d.previous_section_id, d.current_section_id].filter(Boolean) as string[]
+        )
+      ),
+    ];
+
+    const sectionContentMap = new Map<string, PageSectionRow>();
+
+    if (allSectionIds.length > 0) {
+      const { data: sectionRows, error: sectionsError } = await supabase
+        .from("page_sections")
+        .select("id, section_text, section_hash")
+        .in("id", allSectionIds);
+
+      if (sectionsError) throw sectionsError;
+
+      for (const row of (sectionRows ?? []) as PageSectionRow[]) {
+        sectionContentMap.set(row.id, row);
+      }
+    }
+
     for (const diff of eligibleDiffs) {
       rowsProcessed += 1;
 
@@ -220,24 +262,8 @@ async function handler(req: ApiReq, res: ApiRes) {
           throw new Error(`Diff ${diff.id} missing section references`);
         }
 
-        const [prevResult, currResult] = await Promise.all([
-          supabase
-            .from("page_sections")
-            .select("id, section_text, section_hash")
-            .eq("id", diff.previous_section_id)
-            .maybeSingle(),
-          supabase
-            .from("page_sections")
-            .select("id, section_text, section_hash")
-            .eq("id", diff.current_section_id)
-            .maybeSingle(),
-        ]);
-
-        if (prevResult.error) throw prevResult.error;
-        if (currResult.error) throw currResult.error;
-
-        const previous = prevResult.data as PageSectionRow | null;
-        const current  = currResult.data as PageSectionRow | null;
+        const previous = sectionContentMap.get(diff.previous_section_id) ?? null;
+        const current  = sectionContentMap.get(diff.current_section_id) ?? null;
 
         if (!previous || !current) {
           throw new Error(`Diff ${diff.id} missing section rows`);
@@ -256,6 +282,20 @@ async function handler(req: ApiReq, res: ApiRes) {
           continue;
         }
 
+        // Dynamic-content-only change: timestamps and tracking params rotated but
+        // no editorial content changed — zero competitive intelligence.
+        const prevNorm = normalizeForComparison(previous.section_text);
+        const currNorm = normalizeForComparison(current.section_text);
+        if (prevNorm === currNorm) {
+          await supabase
+            .from("section_diffs")
+            .update({ signal_detected: true, is_noise: true, noise_reason: "dynamic_content_only" })
+            .eq("id", diff.id);
+          signalsSuppressed += 1;
+          rowsSucceeded += 1;
+          continue;
+        }
+
         const signal = classifySignal(
           diff.section_type,
           previous.section_text,
@@ -266,7 +306,8 @@ async function handler(req: ApiReq, res: ApiRes) {
         const confidenceScore = computeConfidence(
           diff.section_type,
           diff.observation_count ?? 1,
-          diff.last_seen_at
+          diff.last_seen_at,
+          diff.monitored_pages?.page_class ?? "standard"
         );
 
         if (confidenceScore < CONFIDENCE_SUPPRESS) {
@@ -281,10 +322,11 @@ async function handler(req: ApiReq, res: ApiRes) {
         }
 
         // ── Signal-hash deduplication ─────────────────────────────────────────
-        // One signal per (competitor, signal_type) per calendar day.
+        // One signal per (competitor, section_type, signal_type) per calendar day.
         const signalHash = computeSignalHash(
           competitorId,
           signal.signal_type,
+          diff.section_type,
           diff.last_seen_at
         );
 

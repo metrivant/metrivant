@@ -31,9 +31,22 @@ const NOISE_SELECTORS = [
   "script", "style", "noscript",
   "[aria-hidden='true']",
   "[role='banner']", "[role='navigation']", "[role='complementary']",
+  // Cookie and consent banners
   ".cookie-banner", ".cookie-notice", "#cookie-notice",
   ".consent-banner", "#consent-banner",
+  ".gdpr-banner", "#gdpr-banner",
+  ".cc-banner", "#cc-banner",
+  // Chat and support widgets
   ".chat-widget", "#chat-widget",
+  "#intercom-container", ".intercom-lightweight-app",
+  "#hubspot-messages-iframe-container",
+  ".drift-widget", "#drift-widget",
+  "#crisp-chatbox",
+  // Promotional bars (rotate frequently, low-signal)
+  ".announcement-bar", ".promo-bar",
+  ".notification-bar", ".alert-bar",
+  // Bot/crawl barriers (nosnippet hints)
+  "[data-nosnippet]",
 ];
 
 // Broad selectors that capture the full document or major regions:

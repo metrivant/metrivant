@@ -33,6 +33,9 @@ function candidatePages(baseUrl: string): CandidatePage[] {
     { url: baseUrl + "/blog",        page_type: "blog",      page_class: "ambient"    },
     { url: baseUrl + "/features",    page_type: "features",  page_class: "standard"   },
     { url: baseUrl + "/newsroom",    page_type: "newsroom",  page_class: "high_value" },
+    // Careers page: ambient — feeds hiring_activity events and hiring_surge signals.
+    // Hiring acceleration is an early indicator of product expansion or market push.
+    { url: baseUrl + "/careers",     page_type: "careers",   page_class: "ambient"    },
   ];
 }
 
@@ -77,6 +80,12 @@ function rulesForPage(pageType: string): ExtractionRule[] {
         // Newsroom announcements — high-value strategic activity
         { section_type: "announcements", selector: "main" },
         { section_type: "headline",      selector: "h1"   },
+      ];
+
+    case "careers":
+      return [
+        // Job listings feed — hiring acceleration is an early movement indicator
+        { section_type: "careers_feed", selector: "main" },
       ];
 
     default:
