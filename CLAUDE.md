@@ -48,7 +48,18 @@ Production URLs:
 - UI:           https://metrivant.com
 
 Manual pipeline trigger:
-  See docs/SYSTEM_RUNTIME_FLOW.md section 13.
+  See docs/METRIVANT_MASTER_REFERENCE.md section 18.
+
+Full system reference:
+  docs/METRIVANT_MASTER_REFERENCE.md — single authoritative doc (replaces all individual docs)
+
+Sector model (v3.0):
+- Each sector has 15 competitors in the catalog
+- getSectorRandomDefaults(): priority 1–5 always anchored, 5 randomly sampled from 6–15
+- initialize-sector now bridges to runtime onboard-competitor API (fire-and-forget)
+- Required env vars: RUNTIME_URL, CRON_SECRET (both in radar-ui)
+- Custom sector: no defaults, user starts empty
+- Clean Slate: /api/clean-slate → deletes tracked_competitors + resets sector to custom
 
 Permanent engineering principles:
 - Simplicity over cleverness
