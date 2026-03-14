@@ -4,9 +4,26 @@ import PublicNav from "../components/PublicNav";
 const BADGE_STYLE       = { background: "rgba(46,230,166,0.02)" } as const;
 const LABEL_COLOR_STYLE = { color: "rgba(46,230,166,0.55)" } as const;
 
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Metrivant",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  url: "https://www.metrivant.com",
+  logo: "https://www.metrivant.com/icon-512.png",
+  description:
+    "Competitive intelligence radar detecting pricing, product, and strategy signals across competitors.",
+  offers: { "@type": "Offer", price: "9", priceCurrency: "USD" },
+};
+
 export default function LandingPage() {
   return (
     <div className="flex min-h-screen w-full flex-col bg-[#000200] text-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <PublicNav />
 
       {/* Dot grid */}
@@ -38,18 +55,18 @@ export default function LandingPage() {
           <circle cx="23" cy="23" r="2.5" fill="#2EE6A6" />
         </svg>
 
-        <div
-          className="text-[11px] font-medium uppercase tracking-[0.34em]"
-          style={LABEL_COLOR_STYLE}
-        >
-          Competitive Intelligence Radar
-        </div>
-        <div
+        <h1
           className="mt-1 text-[34px] font-bold leading-none text-white"
           style={{ letterSpacing: "0.09em" }}
         >
           METRIVANT
-        </div>
+        </h1>
+        <h2
+          className="mt-1 text-[11px] font-medium uppercase tracking-[0.34em]"
+          style={LABEL_COLOR_STYLE}
+        >
+          Competitive Intelligence Radar
+        </h2>
 
         <p className="mt-4 max-w-sm text-[14px] leading-relaxed text-slate-500">
           Know when competitors change pricing, launch features, or shift strategy — before the market does.

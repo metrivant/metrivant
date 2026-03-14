@@ -16,18 +16,24 @@ export const metadata: Metadata = {
     template: "%s — Metrivant",
   },
   description:
-    "Automated competitor monitoring. Detects meaningful changes across rival websites and surfaces them as structured intelligence.",
+    "Detect competitor moves before they matter. Metrivant monitors pricing, product changes, and strategy signals in real time.",
   openGraph: {
     type:        "website",
     siteName:    "Metrivant",
     title:       "Metrivant — Competitive Intelligence Radar",
-    description: "Automated competitor monitoring. Detects meaningful changes across rival websites and surfaces them as structured intelligence.",
+    description: "See competitor moves before the market does.",
     url:         "https://metrivant.com",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Metrivant — Competitive Intelligence Radar" }],
   },
   twitter: {
-    card:        "summary",
+    card:        "summary_large_image",
     title:       "Metrivant — Competitive Intelligence Radar",
-    description: "Automated competitor monitoring. Detects meaningful changes across rival websites and surfaces them as structured intelligence.",
+    description: "Detect competitor moves before they matter.",
+    images:      ["/og-image.png"],
+  },
+  icons: {
+    icon:  [{ url: "/favicon.ico" }],
+    apple: [{ url: "/apple-touch-icon.png" }],
   },
   robots: {
     index:  true,

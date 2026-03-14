@@ -450,7 +450,10 @@ const BlipNode = memo(function BlipNode({
   const pingPeak = (momentum >= 5 ? 0.88 : 0.68) * (0.45 + signalAgeGlow * 0.55);
 
   const ageOpacity = getAgeOpacity(competitor.latest_movement_last_seen_at);
-  const groupOpacity = isDimmed ? 0.22 : timeDimmed ? 0.12 : isSelected ? 1.0 : ageOpacity;
+  // Confidence-proportional opacity — low-confidence nodes render subtly subdued
+  const conf = Number(competitor.latest_movement_confidence ?? 1.0);
+  const confMult = isDimmed || timeDimmed || isSelected ? 1.0 : conf >= 0.65 ? 1.0 : conf >= 0.4 ? 0.88 : 0.75;
+  const groupOpacity = (isDimmed ? 0.22 : timeDimmed ? 0.12 : isSelected ? 1.0 : ageOpacity) * confMult;
 
   // When the beam crosses this blip (seconds into the 12s sweep cycle)
   const sweepDelay = getSweepDelay(x, y);
@@ -458,9 +461,15 @@ const BlipNode = memo(function BlipNode({
   return (
     <motion.g
       onClick={() => onSelect(competitor.competitor_id)}
-      style={{ cursor: "pointer", opacity: groupOpacity, transformOrigin: `${x}px ${y}px` }}
+      style={{ cursor: "pointer", transformOrigin: `${x}px ${y}px` }}
+      initial={{ opacity: 0, scale: 0.85 }}
+      animate={{ opacity: groupOpacity, scale: 1 }}
       whileHover={{ scale: 1.2 }}
-      transition={{ duration: 0.18, ease: "easeOut" }}
+      transition={{
+        default: { duration: 0.18, ease: "easeOut" },
+        opacity: { duration: 0.22, ease: "easeOut", delay: index * 0.012 },
+        scale:   { duration: 0.2,  ease: "easeOut", delay: index * 0.012 },
+      }}
       onHoverStart={() => { setHovered(true); getAudioManager().playBlip(momentum); }}
       onHoverEnd={() => setHovered(false)}
     >
@@ -772,7 +781,11 @@ const BlipNode = memo(function BlipNode({
           pointerEvents: "none",
         }}
       >
-        {competitor.competitor_name}
+        {(() => {
+          const name = competitor.competitor_name;
+          const maxLen = isMobile ? 10 : 14;
+          return name.length > maxLen ? name.slice(0, maxLen - 1) + "…" : name;
+        })()}
       </text>
 
       {/* Tension description — shown on hover when strategic tension exists */}
@@ -812,6 +825,30 @@ const BlipNode = memo(function BlipNode({
           Hiring surge detected
         </text>
       )}
+
+      {/* Signal type micro-symbol — tiny semantic shape at blip center */}
+      {!isDimmed && !timeDimmed && momentum > 0 && competitor.latest_movement_type && (() => {
+        const sw = "rgba(0,0,0,0.52)";
+        const s = 2.4;
+        switch (competitor.latest_movement_type) {
+          case "pricing_strategy_shift":
+            return <line x1={x - s} y1={y} x2={x + s} y2={y} stroke={sw} strokeWidth="1.5" strokeLinecap="round" style={{ pointerEvents: "none" }} />;
+          case "product_expansion":
+            return (
+              <g style={{ pointerEvents: "none" }}>
+                <line x1={x} y1={y - s} x2={x} y2={y + s} stroke={sw} strokeWidth="1.5" strokeLinecap="round" />
+                <line x1={x - s} y1={y} x2={x + s} y2={y} stroke={sw} strokeWidth="1.5" strokeLinecap="round" />
+              </g>
+            );
+          case "market_reposition":
+            return <path d={`M${x},${y - s} L${x + s},${y} L${x},${y + s} L${x - s},${y} Z`} fill={sw} style={{ pointerEvents: "none" }} />;
+          case "enterprise_push":
+          case "ecosystem_expansion":
+            return <path d={`M${x},${y + s * 0.8} L${x},${y - s * 0.8} M${x - s * 0.7},${y - s * 0.2} L${x},${y - s * 0.8} L${x + s * 0.7},${y - s * 0.2}`} stroke={sw} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" style={{ pointerEvents: "none" }} />;
+          default:
+            return null;
+        }
+      })()}
     </motion.g>
   );
 });
@@ -1193,6 +1230,16 @@ export default function Radar({
     [sorted]
   );
 
+  // Latest signal timestamp — drives pipeline heartbeat freshness indicator
+  const latestSignalAt = useMemo(
+    () => sorted.reduce<string | null>((latest, c) => {
+      if (!c.last_signal_at) return latest;
+      if (!latest) return c.last_signal_at;
+      return c.last_signal_at > latest ? c.last_signal_at : latest;
+    }, null),
+    [sorted]
+  );
+
   const tickerItems = useMemo(
     () =>
       sorted
@@ -1472,11 +1519,6 @@ export default function Radar({
 
                 {/* Latest change */}
                 {(() => {
-                  const latestSignalAt = sorted.reduce<string | null>((latest, c) => {
-                    if (!c.last_signal_at) return latest;
-                    if (!latest) return c.last_signal_at;
-                    return c.last_signal_at > latest ? c.last_signal_at : latest;
-                  }, null);
                   const latestMover = latestSignalAt
                     ? sorted.find((c) => c.last_signal_at === latestSignalAt) ?? null
                     : null;
@@ -1630,6 +1672,13 @@ export default function Radar({
                     <feMergeNode in="SourceGraphic" />
                   </feMerge>
                 </filter>
+
+                {/* Glass highlight — extremely faint surface reflection, instrument depth */}
+                <radialGradient id="glassHighlight" cx="38%" cy="26%" r="65%">
+                  <stop offset="0%" stopColor="#ffffff" stopOpacity="0.030" />
+                  <stop offset="55%" stopColor="#ffffff" stopOpacity="0.008" />
+                  <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+                </radialGradient>
 
                 {/* Hard circular clip — enforces a clean instrument boundary */}
                 <clipPath id="radarClip">
@@ -2195,6 +2244,26 @@ export default function Radar({
                 height={SIZE}
                 fill="url(#vignette)"
                 pointerEvents="none"
+              />
+
+              {/* Glass highlight — very faint top-left reflection, instrument polish */}
+              <circle
+                cx={CENTER}
+                cy={CENTER}
+                r={OUTER_RADIUS}
+                fill="url(#glassHighlight)"
+                pointerEvents="none"
+              />
+
+              {/* Radar breathing state — near-invisible slow oscillation, idle life */}
+              <motion.circle
+                cx={CENTER}
+                cy={CENTER}
+                r={OUTER_RADIUS * 0.38}
+                fill={gravityMode ? "url(#radarCoreGravity)" : "url(#radarCore)"}
+                animate={{ opacity: [0.0, 0.09, 0.0] }}
+                transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                style={{ pointerEvents: "none" }}
               />
 
               </g>{/* end radarClip */}
@@ -2924,10 +2993,19 @@ export default function Radar({
                   </p>
                 ) : primarySignal?.strategic_implication ? (
                   <p className="text-sm leading-relaxed text-slate-300">
+                    {interpretationConf !== null && interpretationConf < 0.5 && (
+                      <span className="text-slate-500">Possible indicator — </span>
+                    )}
+                    {interpretationConf !== null && interpretationConf >= 0.5 && interpretationConf < 0.65 && (
+                      <span className="text-slate-400">Likely: </span>
+                    )}
                     {primarySignal.strategic_implication}
                   </p>
                 ) : primarySignal?.summary ? (
                   <p className="text-sm leading-relaxed text-slate-400">
+                    {interpretationConf !== null && interpretationConf < 0.5 && (
+                      <span className="text-slate-500">Early signal — </span>
+                    )}
                     {primarySignal.summary}
                   </p>
 ) : detail?.signals && detail.signals.length === 0 ? (
@@ -3207,6 +3285,9 @@ export default function Radar({
 
                           {signal.previous_excerpt && signal.current_excerpt && (
                             <div className="space-y-1">
+                              <div className="mb-1 text-[10px] text-slate-600" style={{ letterSpacing: "0.08em" }}>
+                                {getPageTypeLabel(signal.page_type)} · {formatRelative(signal.detected_at)}
+                              </div>
                               <div className="rounded-[8px] bg-[#040a04] px-3 py-2">
                                 <span className="text-[10px] uppercase tracking-[0.12em] text-slate-600">
                                   Was
@@ -3326,6 +3407,19 @@ export default function Radar({
                   <div className="mt-0.5 text-[11px] text-slate-600">
                     {sorted.length} rival{sorted.length !== 1 ? "s" : ""} under surveillance
                   </div>
+                  {latestSignalAt && (
+                    <div
+                      className="mt-0.5 text-[11px]"
+                      style={{
+                        color: (() => {
+                          const h = (Date.now() - new Date(latestSignalAt).getTime()) / 3_600_000;
+                          return h < 6 ? "rgba(46,230,166,0.50)" : h < 24 ? "rgba(245,158,11,0.40)" : "rgba(100,116,139,0.45)";
+                        })(),
+                      }}
+                    >
+                      Updated {formatRelative(latestSignalAt)}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5 rounded-full border border-[#2EE6A6]/20 bg-[#2EE6A6]/6 px-3 py-1.5">
                   <span
@@ -3357,10 +3451,10 @@ export default function Radar({
                   style={{ background: "rgba(46,230,166,0.03)" }}
                 >
                   <div className="text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: "rgba(46,230,166,0.5)" }}>
-                    All Surfaces Clear
+                    Monitoring Active
                   </div>
                   <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600">
-                    No movement detected across {sorted.length} monitored rival{sorted.length !== 1 ? "s" : ""}
+                    No new signals — {sorted.length} rival{sorted.length !== 1 ? "s" : ""} under active surveillance
                   </p>
                 </div>
               )}
