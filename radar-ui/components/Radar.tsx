@@ -17,6 +17,9 @@ import {
   type CriticalAlert,
 } from "../lib/criticalAlert";
 import { getAudioManager } from "../lib/audio";
+import { deriveActivityEchoes, isWeakSignal as getIsWeakSignal } from "../lib/activityEcho";
+import { computeTensionLinks, getTensionDescription, type TensionLink } from "../lib/tension";
+import ActivityTimeline from "./ActivityTimeline";
 
 // ─── Radar geometry ──────────────────────────────────────────────────────────
 const SIZE = 1000;
@@ -391,6 +394,14 @@ type BlipNodeProps = {
   signalAgeGlow?: number;
   /** True when this competitor has signals but has not been opened this session */
   isUnvisited?: boolean;
+  /** Competitor has recent activity (last 24h) below strategic-signal threshold */
+  hasActivityEcho?: boolean;
+  /** Hours since last activity — scales echo ripple intensity */
+  echoAgeHours?: number;
+  /** Competitor shows signals but momentum is below stable threshold */
+  isWeakSignal?: boolean;
+  /** One-line tension description shown on hover — null when no tension exists */
+  tensionDescription?: string | null;
 };
 
 const BlipNode = memo(function BlipNode({
@@ -407,6 +418,10 @@ const BlipNode = memo(function BlipNode({
   timeDimmed,
   signalAgeGlow = 0.22,
   isUnvisited = false,
+  hasActivityEcho = false,
+  echoAgeHours = 24,
+  isWeakSignal = false,
+  tensionDescription = null,
 }: BlipNodeProps) {
   const [hovered, setHovered] = useState(false);
   const momentum = Number(competitor.momentum_score ?? 0);
@@ -492,6 +507,45 @@ const BlipNode = memo(function BlipNode({
           strokeWidth="0.5"
           animate={{ opacity: [0.0, 0.18, 0.0] }}
           transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
+          style={{ transformOrigin: `${x}px ${y}px`, pointerEvents: "none" }}
+        />
+      )}
+
+      {/* Weak signal orbit ring — dashed, lower visual priority than strategic rings */}
+      {isWeakSignal && !isDimmed && !isSelected && !isAlerted && (
+        <circle
+          cx={x}
+          cy={y}
+          r={nodeSize + 24}
+          fill="none"
+          stroke="rgba(148,163,184,0.28)"
+          strokeWidth="0.65"
+          strokeDasharray="3 9"
+          opacity={0.7}
+          style={{ pointerEvents: "none" }}
+        />
+      )}
+
+      {/* Activity echo ripple — subtle expanding ring for recent activity */}
+      {hasActivityEcho && !isDimmed && !isAlerted && (
+        <motion.circle
+          cx={x}
+          cy={y}
+          r={nodeSize + 6}
+          fill="none"
+          stroke="#2EE6A6"
+          strokeWidth="0.7"
+          initial={{ opacity: 0, scale: 1 }}
+          animate={{
+            scale: [1, 1.55, 2.0],
+            opacity: [0, echoAgeHours < 6 ? 0.20 : 0.11, 0],
+          }}
+          transition={{
+            duration: 3.8,
+            repeat: Infinity,
+            repeatDelay: 14,
+            ease: "easeOut",
+          }}
           style={{ transformOrigin: `${x}px ${y}px`, pointerEvents: "none" }}
         />
       )}
@@ -712,6 +766,25 @@ const BlipNode = memo(function BlipNode({
       >
         {competitor.competitor_name}
       </text>
+
+      {/* Tension description — shown on hover when strategic tension exists */}
+      {hovered && tensionDescription && (
+        <text
+          x={x}
+          y={y + nodeSize + 28}
+          textAnchor="middle"
+          fill="rgba(148,163,184,0.60)"
+          fontSize="9"
+          fontFamily="Inter, system-ui, sans-serif"
+          letterSpacing="0.04em"
+          style={{
+            pointerEvents: "none",
+            filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.98))",
+          }}
+        >
+          {tensionDescription}
+        </text>
+      )}
     </motion.g>
   );
 });
@@ -818,6 +891,34 @@ export default function Radar({
     return scaleLinear().domain([0, maxMomentum]).range([68, OUTER_RADIUS]);
   }, [sorted]);
 
+  // ── Activity Echo + Weak Signal derivation ───────────────────────────────
+  // Both are derived from existing RadarCompetitor data — no new fetch required.
+  const activityEchoMap = useMemo(() => deriveActivityEchoes(sorted), [sorted]);
+  const weakSignalSet   = useMemo(
+    () => new Set(sorted.filter(getIsWeakSignal).map((c) => c.competitor_id)),
+    [sorted]
+  );
+
+  // ── Strategic Tension ────────────────────────────────────────────────────
+  // Deterministic: requires shared movement_type + momentum ≥ 1.5 on both nodes.
+  // Memoized — recomputed only when sorted set changes.
+  const tensionLinks = useMemo(() => computeTensionLinks(sorted), [sorted]);
+
+  // Per-node tension description string — passed as stable string prop to BlipNode
+  // to avoid passing the full array (which would defeat memo equality checks).
+  const tensionDescriptionMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of sorted) {
+      const desc = getTensionDescription(
+        c.competitor_id,
+        tensionLinks,
+        c.latest_movement_type
+      );
+      if (desc) map.set(c.competitor_id, desc);
+    }
+    return map;
+  }, [sorted, tensionLinks]);
+
   // ── Gravity Field mode ───────────────────────────────────────────────────
   const [gravityMode, setGravityMode] = useState(false);
 
@@ -863,14 +964,14 @@ export default function Radar({
   // Pressure zones: movement-type clusters with 2+ nodes in standard mode
   const pressureZones = useMemo(() => {
     if (gravityMode) return [];
-    const map = new Map<string, { color: string; label: string; positions: Point[] }>();
+    const map = new Map<string, { color: string; label: string; positions: Point[]; movementType: string }>();
     for (const c of sorted) {
       const type = c.latest_movement_type;
       if (!type) continue;
       const pos = standardPositions.get(c.competitor_id);
       if (!pos) continue;
       if (!map.has(type)) {
-        map.set(type, { color: getMovementColor(type), label: getTrajectoryLabel(type), positions: [] });
+        map.set(type, { color: getMovementColor(type), label: getTrajectoryLabel(type), positions: [], movementType: type });
       }
       map.get(type)!.positions.push(pos);
     }
@@ -1721,6 +1822,36 @@ export default function Radar({
                     );
                   })}
 
+                  {/* ── Tension filaments — ambient strategic tension between converging nodes ── */}
+                  {/* Rendered as faint dashed lines. Opacity + dash density encode intensity.  */}
+                  {/* No SVG filter applied to the group to preserve GPU performance.           */}
+                  {tensionLinks.length > 0 && (
+                    <g style={{ pointerEvents: "none" }}>
+                      {tensionLinks.map((link) => {
+                        const posA = gravityPositions.get(link.idA);
+                        const posB = gravityPositions.get(link.idB);
+                        if (!posA || !posB) return null;
+                        const color      = getMovementColor(link.movementType);
+                        const opacity    = link.intensity * 0.30;
+                        const w          = 0.4 + link.intensity * 0.7;
+                        const gap        = link.intensity > 0.80 ? 5
+                                         : link.intensity > 0.65 ? 8
+                                         : 12;
+                        return (
+                          <line
+                            key={`t-${link.idA}-${link.idB}`}
+                            x1={posA.x} y1={posA.y}
+                            x2={posB.x} y2={posB.y}
+                            stroke={color}
+                            strokeWidth={w}
+                            strokeOpacity={opacity}
+                            strokeDasharray={`1.5 ${gap}`}
+                          />
+                        );
+                      })}
+                    </g>
+                  )}
+
                   {/* Relationship lines — selected node to same-type peers */}
                   {selected && (() => {
                     const selPos = gravityPositions.get(selected.competitor_id);
@@ -1785,30 +1916,82 @@ export default function Radar({
               {/* ── Standard-mode pressure zones — trajectory clusters ──── */}
               {!gravityMode && pressureZones.length > 0 && (
                 <g style={{ pointerEvents: "none", opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.55s ease" }}>
-                  {pressureZones.map(({ color, label, positions }) => {
+                  {pressureZones.map(({ color, label, positions, movementType }, zoneIdx) => {
                     const cx = positions.reduce((s, p) => s + p.x, 0) / positions.length;
                     const cy = positions.reduce((s, p) => s + p.y, 0) / positions.length;
                     const maxR = Math.max(...positions.map((p) => Math.sqrt((p.x - cx) ** 2 + (p.y - cy) ** 2))) + 38;
+                    // Tension intensity for this zone — average across matching links
+                    const zoneLinks = tensionLinks.filter((l) => l.movementType === movementType);
+                    const avgTension = zoneLinks.length > 0
+                      ? zoneLinks.reduce((s, l) => s + l.intensity, 0) / zoneLinks.length
+                      : 0;
+                    const isHeated = avgTension > 0.70;
                     return (
                       <g key={label}>
-                        <circle
+                        {/* Cluster breathing — intensity-aware: heated zones breathe more */}
+                        <motion.circle
                           cx={cx} cy={cy} r={maxR}
-                          fill={color} fillOpacity={0.025}
-                          stroke={color} strokeWidth={0.75} strokeOpacity={0.08}
-                          strokeDasharray="4 8"
+                          fill={color} fillOpacity={0.025 + avgTension * 0.018}
+                          stroke={color} strokeWidth={0.75}
+                          strokeOpacity={0.08 + avgTension * 0.10}
+                          strokeDasharray={isHeated ? "3 6" : "4 8"}
+                          animate={{ scale: [1, isHeated ? 1.018 : 1.012, 1] }}
+                          transition={{
+                            duration: 7 + zoneIdx * 1.5,
+                            repeat: Infinity,
+                            ease: "easeInOut",
+                          }}
+                          style={{ transformOrigin: `${cx}px ${cy}px` }}
                         />
                         <text
                           x={cx} y={cy - maxR - 6}
                           textAnchor="middle"
-                          fill={color} fontSize="8" opacity={0.28}
+                          fill={color}
+                          fontSize="8"
+                          opacity={isHeated ? 0.42 : 0.28}
                           letterSpacing="0.14em"
                           fontFamily="Inter, system-ui, sans-serif" fontWeight="600"
                         >
-                          {label} · {positions.length} rivals
+                          {label} · {positions.length} rivals{isHeated ? " · rising" : ""}
                         </text>
                       </g>
                     );
                   })}
+                </g>
+              )}
+
+              {/* ── Ambient pulse lines — faint trajectory toward recently-active nodes */}
+              {/* At most 3 lines (freshest echoes); very low opacity, slow pulse cycle.     */}
+              {activityEchoMap.size > 0 && (
+                <g style={{ pointerEvents: "none", opacity: entryPhase >= 2 ? 1 : 0 }}>
+                  {[...activityEchoMap.values()]
+                    .sort((a, b) => a.ageHours - b.ageHours)
+                    .slice(0, 3)
+                    .map((echo, i) => {
+                      const pos = gravityMode
+                        ? gravityPositions.get(echo.competitorId)
+                        : standardPositions.get(echo.competitorId);
+                      if (!pos) return null;
+                      const freshness = Math.max(0, 1 - echo.ageHours / 24);
+                      return (
+                        <motion.line
+                          key={`ambient-${echo.competitorId}`}
+                          x1={CENTER} y1={CENTER}
+                          x2={pos.x}  y2={pos.y}
+                          stroke="#2EE6A6"
+                          strokeWidth="0.35"
+                          strokeDasharray="2 10"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: [0, freshness * 0.07, 0] }}
+                          transition={{
+                            duration: 9,
+                            repeat: Infinity,
+                            repeatDelay: 6 + i * 4,
+                            ease: "easeInOut",
+                          }}
+                        />
+                      );
+                    })}
                 </g>
               )}
 
@@ -1836,6 +2019,10 @@ export default function Radar({
                     !visitedIds.has(competitor.competitor_id) &&
                     (competitor.signals_7d ?? 0) > 0
                   }
+                  hasActivityEcho={activityEchoMap.has(competitor.competitor_id)}
+                  echoAgeHours={activityEchoMap.get(competitor.competitor_id)?.ageHours ?? 24}
+                  isWeakSignal={weakSignalSet.has(competitor.competitor_id)}
+                  tensionDescription={tensionDescriptionMap.get(competitor.competitor_id) ?? null}
                 />
               ))}
               </g>
@@ -2883,6 +3070,12 @@ export default function Radar({
                   </div>
                 </div>
               )}
+
+              {/* ── Recent Activity (Activity Echo feed) ─────────── */}
+              <ActivityTimeline
+                signals={detail?.signals ?? []}
+                loading={detailLoading}
+              />
             </motion.div>
           ) : (
             /* ── Compact contact list ─────────────────────────── */
