@@ -89,7 +89,60 @@ export default function SignalConstellation({
 }) {
   const cluster = useMemo(() => detectCluster(competitors), [competitors]);
 
-  if (!cluster) return null;
+  if (!cluster) {
+    return (
+      <div className="px-3 py-3">
+        <div
+          className="mb-2 text-[9px] uppercase tracking-[0.28em]"
+          style={{ color: "rgba(46,230,166,0.35)" }}
+        >
+          Signal Constellation
+        </div>
+        <div
+          className="overflow-hidden rounded-[10px]"
+          style={{
+            background: "rgba(0,0,0,0.40)",
+            border: "1px solid rgba(46,230,166,0.05)",
+          }}
+        >
+          <svg
+            width="100%"
+            viewBox="0 0 200 80"
+            xmlns="http://www.w3.org/2000/svg"
+            style={{ display: "block" }}
+            aria-hidden="true"
+          >
+            {/* Faint dormant dots */}
+            {[
+              { x: 68, y: 34 }, { x: 100, y: 22 }, { x: 132, y: 34 },
+              { x: 120, y: 54 }, { x: 80, y: 54 },
+            ].map((pos, i) => (
+              <circle
+                key={i}
+                cx={pos.x}
+                cy={pos.y}
+                r={1.8}
+                fill="rgba(46,230,166,0.12)"
+              />
+            ))}
+            {/* Dormant label */}
+            <text
+              x="100"
+              y="70"
+              textAnchor="middle"
+              fill="rgba(255,255,255,0.14)"
+              fontSize="5"
+              fontWeight="600"
+              letterSpacing="0.20em"
+              fontFamily="ui-monospace, monospace"
+            >
+              AWAITING CLUSTER
+            </text>
+          </svg>
+        </div>
+      </div>
+    );
+  }
 
   const { movementType, nodes, avgConfidence } = cluster;
   const color = getColor(movementType);

@@ -21,14 +21,31 @@ const TIMEZONE_OPTIONS = [
 
 const STORAGE_KEY = "mv_tz";
 
-// ── Movement type → terminal display label ────────────────────────────────────
+// ── Movement type → neon color + tag label ────────────────────────────────────
 
-const MOVEMENT_LABEL: Record<string, string> = {
+const MOVEMENT_COLOR: Record<string, string> = {
+  pricing_strategy_shift: "#f97316",  // orange
+  product_expansion:      "#00e5ff",  // cyan
+  market_reposition:      "#a855f7",  // violet
+  enterprise_push:        "#f59e0b",  // amber
+  ecosystem_expansion:    "#22d3ee",  // electric blue
+};
+
+const MOVEMENT_TAG: Record<string, string> = {
   pricing_strategy_shift: "PRICING",
   product_expansion:      "PRODUCT",
   market_reposition:      "REPOSITION",
   enterprise_push:        "ENTERPRISE",
   ecosystem_expansion:    "ECOSYSTEM",
+};
+
+// ── Ticker item type ──────────────────────────────────────────────────────────
+
+type TickerItem = {
+  text:     string;
+  tag:      string;
+  color:    string;
+  tagColor: string;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -68,30 +85,90 @@ function formatDate(date: Date, tz: string): string {
   return `${weekday} ${day} ${month}`;
 }
 
-function buildTickerText(competitors: RadarCompetitor[], newsItems: string[]): string {
-  const segments: string[] = [];
+function buildTickerItems(
+  competitors: RadarCompetitor[],
+  newsItems: string[]
+): TickerItem[] {
+  const items: TickerItem[] = [];
 
   for (const c of competitors) {
     if (!c.latest_movement_type) continue;
-    const label   = MOVEMENT_LABEL[c.latest_movement_type] ?? c.latest_movement_type.replace(/_/g, " ").toUpperCase();
+    const color   = MOVEMENT_COLOR[c.latest_movement_type] ?? "#94a3b8";
+    const tag     = MOVEMENT_TAG[c.latest_movement_type]
+      ?? c.latest_movement_type.replace(/_/g, " ").toUpperCase();
     const summary = c.latest_movement_summary?.slice(0, 90) ?? null;
-    segments.push(
-      summary
-        ? `${c.competitor_name.toUpperCase()}  ${label} — ${summary}`
-        : `${c.competitor_name.toUpperCase()}  ${label}`
-    );
+    items.push({
+      text:     summary
+        ? `${c.competitor_name.toUpperCase()} — ${summary}`
+        : c.competitor_name.toUpperCase(),
+      tag,
+      color,
+      tagColor: color,
+    });
   }
 
-  // Interleave sector news headlines
   for (const headline of newsItems) {
-    segments.push(`MARKET INTEL  ${headline.slice(0, 100)}`);
+    items.push({
+      text:     headline.slice(0, 100),
+      tag:      "SECTOR",
+      color:    "rgba(46,230,166,0.80)",
+      tagColor: "rgba(46,230,166,0.45)",
+    });
   }
 
-  if (segments.length === 0) segments.push("MONITORING ACTIVE — AWAITING FIRST SIGNAL");
+  if (items.length === 0) {
+    items.push({
+      text:     "MONITORING ACTIVE — AWAITING FIRST SIGNAL",
+      tag:      "SYS",
+      color:    "#475569",
+      tagColor: "#334155",
+    });
+  }
 
-  // Separator between items; doubled for seamless infinite scroll
-  const joined = segments.join("   ·   ");
-  return joined + "   ·   ";
+  return items;
+}
+
+// ── Single ticker item renderer ───────────────────────────────────────────────
+
+function TickerEntry({ item }: { item: TickerItem }) {
+  return (
+    <span
+      className="inline-flex shrink-0 items-center"
+      style={{ fontFamily: "'Courier New', Monaco, 'Lucida Console', monospace" }}
+    >
+      <span
+        style={{
+          color:         item.tagColor,
+          fontSize:      "8px",
+          fontWeight:    700,
+          letterSpacing: "0.20em",
+          marginRight:   "7px",
+          opacity:       0.75,
+        }}
+      >
+        {item.tag}
+      </span>
+      <span
+        style={{
+          color:         item.color,
+          fontSize:      "10px",
+          letterSpacing: "0.035em",
+        }}
+      >
+        {item.text}
+      </span>
+      <span
+        aria-hidden="true"
+        style={{
+          color:    "rgba(46,230,166,0.18)",
+          margin:   "0 18px",
+          fontSize: "10px",
+        }}
+      >
+        ·
+      </span>
+    </span>
+  );
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -105,14 +182,13 @@ export default function IntelligenceStrip({
   newsItems?: string[];
   sector?: string;
 }) {
-  const [tz, setTz]                 = useState("UTC");
-  const [now, setNow]               = useState<Date | null>(null);
-  const [showSettings, setShowSettings] = useState(false);
+  const [tz, setTz]                       = useState("UTC");
+  const [now, setNow]                     = useState<Date | null>(null);
+  const [showSettings, setShowSettings]   = useState(false);
   const [liveNewsItems, setLiveNewsItems] = useState<string[]>(initialNewsItems);
   const settingsRef = useRef<HTMLDivElement>(null);
 
-  // Hydrate timezone from localStorage after mount.
-  // If no saved preference, auto-detect from browser locale.
+  // Hydrate timezone from localStorage; auto-detect from browser locale if absent.
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -125,8 +201,6 @@ export default function IntelligenceStrip({
           setTz(match.value);
           localStorage.setItem(STORAGE_KEY, match.value);
         }
-        // If no match, leave UTC as default — all IANA tz values still work
-        // in formatClock/formatDate via Intl.DateTimeFormat
       }
     } catch {}
   }, []);
@@ -151,8 +225,7 @@ export default function IntelligenceStrip({
         }
       } catch { /* non-fatal */ }
     }
-    // Refresh once immediately (after initial SSR items), then every 5 minutes
-    const delay = setTimeout(refresh, 5 * 60 * 1000);
+    const delay    = setTimeout(refresh, 5 * 60 * 1000);
     const interval = setInterval(refresh, 5 * 60 * 1000);
     return () => { cancelled = true; clearTimeout(delay); clearInterval(interval); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -180,18 +253,21 @@ export default function IntelligenceStrip({
   const dateStr = now ? formatDate(now, tz)  : "--- -- ---";
   const tzAbbr  = getTzAbbr(tz);
 
-  const tickerText = buildTickerText(competitors, liveNewsItems);
-  // Scale duration: faster for fewer items (feels more active), slower for many
-  const tickerDuration = `${Math.max(22, competitors.filter((c) => c.latest_movement_type).length * 7)}s`;
+  const tickerItems    = buildTickerItems(competitors, liveNewsItems);
+  // ~8s per item, min 35s for premium readable pacing
+  const tickerDuration = `${Math.max(35, tickerItems.length * 8)}s`;
 
   return (
     <div
       className="relative z-10 flex h-[26px] shrink-0 items-stretch border-b border-[#0a1a0a] bg-[#000100]"
-      style={{ fontFamily: "'Courier New', Monaco, 'Lucida Console', monospace" }}
     >
 
       {/* ── Clock | Date | TZ ───────────────────────────────────────────── */}
-      <div className="relative flex shrink-0 items-center gap-2.5 border-r border-[#0d1f0d] px-4" ref={settingsRef}>
+      <div
+        className="relative flex shrink-0 items-center gap-2.5 border-r border-[#0d1f0d] px-4"
+        ref={settingsRef}
+        style={{ fontFamily: "'Courier New', Monaco, 'Lucida Console', monospace" }}
+      >
         <span
           className="text-[11px] tabular-nums tracking-[0.06em]"
           style={{ color: "#2EE6A6" }}
@@ -249,19 +325,22 @@ export default function IntelligenceStrip({
           style={{ background: "linear-gradient(to left, #000100, transparent)" }}
         />
 
+        {/*
+          Two identical sets of items.
+          The CSS keyframe translates the container from 0 → -50%.
+          When the first set scrolls fully off-left, the second set is
+          at exactly 0 — creating a seamless infinite loop with no gap.
+        */}
         <div
           className="flex h-full items-center whitespace-nowrap"
-          style={{
-            animation: `intelligence-ticker ${tickerDuration} linear infinite`,
-          }}
+          style={{ animation: `intelligence-ticker ${tickerDuration} linear infinite` }}
         >
-          {/* Doubled for seamless loop */}
-          <span className="text-[10px] tracking-[0.04em] text-slate-500 px-2">
-            {tickerText}
-          </span>
-          <span className="text-[10px] tracking-[0.04em] text-slate-700 px-2" aria-hidden="true">
-            {tickerText}
-          </span>
+          {tickerItems.map((item, i) => (
+            <TickerEntry key={`a-${i}`} item={item} />
+          ))}
+          {tickerItems.map((item, i) => (
+            <TickerEntry key={`b-${i}`} item={item} />
+          ))}
         </div>
       </div>
 
