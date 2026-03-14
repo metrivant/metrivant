@@ -17,8 +17,10 @@ import {
   type CriticalAlert,
 } from "../lib/criticalAlert";
 import { getAudioManager } from "../lib/audio";
-import { deriveActivityEchoes, isWeakSignal as getIsWeakSignal } from "../lib/activityEcho";
+import { deriveActivityEchoes, isWeakSignal as getIsWeakSignal, detectHiringSurge } from "../lib/activityEcho";
 import { computeTensionLinks, getTensionDescription, type TensionLink } from "../lib/tension";
+import { computePressureIndex } from "../lib/pressure";
+import { generateMicroInsights } from "../lib/microInsights";
 import ActivityTimeline from "./ActivityTimeline";
 
 // ─── Radar geometry ──────────────────────────────────────────────────────────
@@ -402,6 +404,8 @@ type BlipNodeProps = {
   isWeakSignal?: boolean;
   /** One-line tension description shown on hover — null when no tension exists */
   tensionDescription?: string | null;
+  /** Hiring-related language detected in movement summary within last 48h */
+  isHiringSurge?: boolean;
 };
 
 const BlipNode = memo(function BlipNode({
@@ -422,6 +426,7 @@ const BlipNode = memo(function BlipNode({
   echoAgeHours = 24,
   isWeakSignal = false,
   tensionDescription = null,
+  isHiringSurge = false,
 }: BlipNodeProps) {
   const [hovered, setHovered] = useState(false);
   const momentum = Number(competitor.momentum_score ?? 0);
@@ -785,6 +790,25 @@ const BlipNode = memo(function BlipNode({
           {tensionDescription}
         </text>
       )}
+
+      {/* Hiring surge label — shown on hover when hiring activity detected */}
+      {hovered && isHiringSurge && (
+        <text
+          x={x}
+          y={y + nodeSize + (tensionDescription ? 40 : 28)}
+          textAnchor="middle"
+          fill="rgba(196,181,253,0.55)"
+          fontSize="9"
+          fontFamily="Inter, system-ui, sans-serif"
+          letterSpacing="0.04em"
+          style={{
+            pointerEvents: "none",
+            filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.98))",
+          }}
+        >
+          Hiring surge detected
+        </text>
+      )}
     </motion.g>
   );
 });
@@ -898,6 +922,30 @@ export default function Radar({
     () => new Set(sorted.filter(getIsWeakSignal).map((c) => c.competitor_id)),
     [sorted]
   );
+  const hiringSurgeSet  = useMemo(
+    () => new Set(sorted.filter(detectHiringSurge).map((c) => c.competitor_id)),
+    [sorted]
+  );
+
+  // ── Pressure Index ───────────────────────────────────────────────────────
+  const pressureState = useMemo(() => computePressureIndex(sorted), [sorted]);
+
+  // ── Micro Insights ───────────────────────────────────────────────────────
+  const insights = useMemo(() => generateMicroInsights(sorted), [sorted]);
+  const [insightIndex, setInsightIndex] = useState(0);
+  const [insightVisible, setInsightVisible] = useState(true);
+  useEffect(() => {
+    if (insights.length <= 1) return;
+    const id = setInterval(() => {
+      setInsightVisible(false);
+      setTimeout(() => {
+        setInsightIndex((prev) => (prev + 1) % insights.length);
+        setInsightVisible(true);
+      }, 400);
+    }, 9000);
+    return () => clearInterval(id);
+  }, [insights.length]);
+  const currentInsight = insights[insightIndex] ?? null;
 
   // ── Strategic Tension ────────────────────────────────────────────────────
   // Deterministic: requires shared movement_type + momentum ≥ 1.5 on both nodes.
@@ -1305,6 +1353,16 @@ export default function Radar({
                     </div>
                   </>
                 )}
+                <div className="h-7 w-px bg-[#0e2210]" />
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.26em] text-slate-600">Pressure</div>
+                  <div
+                    className="mt-0.5 text-[13px] font-semibold"
+                    style={{ color: pressureState.color }}
+                  >
+                    {pressureState.label}
+                  </div>
+                </div>
               </div>
               {/* Right: mode toggle + latest change */}
               <div className="flex items-center gap-4">
@@ -2023,6 +2081,7 @@ export default function Radar({
                   echoAgeHours={activityEchoMap.get(competitor.competitor_id)?.ageHours ?? 24}
                   isWeakSignal={weakSignalSet.has(competitor.competitor_id)}
                   tensionDescription={tensionDescriptionMap.get(competitor.competitor_id) ?? null}
+                  isHiringSurge={hiringSurgeSet.has(competitor.competitor_id)}
                 />
               ))}
               </g>
@@ -2130,6 +2189,26 @@ export default function Radar({
               ))}
             </svg>
             </div>{/* end zoom canvas */}
+
+            {/* ── Micro Insight overlay — rotating deterministic observation ── */}
+            {/* Shown only when no node is selected and no alert is active.       */}
+            {!selected && !alertActive && currentInsight && (
+              <div
+                className="pointer-events-none absolute bottom-[44px] left-0 right-0 flex justify-center"
+                style={{
+                  zIndex: 10,
+                  opacity: insightVisible ? 1 : 0,
+                  transition: "opacity 0.4s ease",
+                }}
+              >
+                <span
+                  className="text-[9px] uppercase tracking-[0.22em]"
+                  style={{ color: "rgba(46,230,166,0.26)" }}
+                >
+                  {currentInsight}
+                </span>
+              </div>
+            )}
 
             {/* ── Critical alert banner overlay ──────────────────────── */}
             {/* Positioned inside the radar SVG container so it overlays the

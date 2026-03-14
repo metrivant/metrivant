@@ -98,14 +98,17 @@ function buildTickerText(competitors: RadarCompetitor[], newsItems: string[]): s
 
 export default function IntelligenceStrip({
   competitors,
-  newsItems = [],
+  newsItems: initialNewsItems = [],
+  sector = "saas",
 }: {
   competitors: RadarCompetitor[];
   newsItems?: string[];
+  sector?: string;
 }) {
   const [tz, setTz]                 = useState("UTC");
   const [now, setNow]               = useState<Date | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [liveNewsItems, setLiveNewsItems] = useState<string[]>(initialNewsItems);
   const settingsRef = useRef<HTMLDivElement>(null);
 
   // Hydrate timezone from localStorage after mount.
@@ -135,6 +138,26 @@ export default function IntelligenceStrip({
     return () => clearInterval(id);
   }, []);
 
+  // Sector news refresh — poll every 5 minutes, non-blocking
+  useEffect(() => {
+    let cancelled = false;
+    async function refresh() {
+      try {
+        const res = await fetch(`/api/sector-news?sector=${encodeURIComponent(sector)}`);
+        if (!res.ok || cancelled) return;
+        const json = await res.json() as { items?: string[] };
+        if (Array.isArray(json.items) && json.items.length > 0 && !cancelled) {
+          setLiveNewsItems(json.items);
+        }
+      } catch { /* non-fatal */ }
+    }
+    // Refresh once immediately (after initial SSR items), then every 5 minutes
+    const delay = setTimeout(refresh, 5 * 60 * 1000);
+    const interval = setInterval(refresh, 5 * 60 * 1000);
+    return () => { cancelled = true; clearTimeout(delay); clearInterval(interval); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sector]);
+
   // Close settings popover on outside click
   useEffect(() => {
     if (!showSettings) return;
@@ -157,7 +180,7 @@ export default function IntelligenceStrip({
   const dateStr = now ? formatDate(now, tz)  : "--- -- ---";
   const tzAbbr  = getTzAbbr(tz);
 
-  const tickerText = buildTickerText(competitors, newsItems);
+  const tickerText = buildTickerText(competitors, liveNewsItems);
   // Scale duration: faster for fewer items (feels more active), slower for many
   const tickerDuration = `${Math.max(22, competitors.filter((c) => c.latest_movement_type).length * 7)}s`;
 

@@ -266,7 +266,7 @@ export default async function Page() {
       </header>
 
       {/* ── Intelligence strip — Bloomberg-style live ticker ──────────────── */}
-      <IntelligenceStrip competitors={competitors} newsItems={newsItems} />
+      <IntelligenceStrip competitors={competitors} newsItems={newsItems} sector={sector} />
 
       {/* ── Body: sidebar nav + radar ─────────────────────────────────────── */}
       <div className="flex flex-1 flex-row overflow-hidden">
