@@ -479,9 +479,16 @@ async function handler(req: ApiReq, res: ApiRes) {
       runtimeDurationMs,
     });
 
-    Sentry.setContext("suppression_breakdown", {
-      byCompetitor: suppressionBreakdown.slice(0, 20),
-    });
+    // Emit suppression breakdown context only when an anomaly exists — avoids
+    // payload noise on normal runs and reduces Sentry context volume.
+    const suppressionAnomalies = suppressionBreakdown.filter(
+      (s) => s.candidateDiffs >= SUPPRESSION_ANOMALY_MIN_DIFFS && s.suppressionRatio >= SUPPRESSION_ANOMALY_RATIO
+    );
+    if (suppressionAnomalies.length > 0) {
+      Sentry.setContext("suppression_breakdown", {
+        byCompetitor: suppressionAnomalies,
+      });
+    }
 
     Sentry.captureCheckIn({
       monitorSlug: "detect-signals",

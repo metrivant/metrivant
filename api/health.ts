@@ -172,7 +172,9 @@ export default async function handler(req: ApiReq, res: ApiRes) {
     // ── Suppression ratio last 24h ─────────────────────────────────────────────
     const noiseDiffs24h   = noiseDiffs24hResult.count ?? 0;
     const totalDiffs24h   = totalConfirmedDiffs24hResult.count ?? 0;
-    const suppressionRatioLast24h = totalDiffs24h > 0
+    // Named "noiseDiffRatio" (not "suppressionRatio") to make clear this is a
+    // diff-level noise rate, not the signal-stage suppression rate from detect-signals.
+    const noiseDiffRatioLast24h = totalDiffs24h > 0
       ? parseFloat((noiseDiffs24h / totalDiffs24h).toFixed(3)) : 0;
 
     // ── Backlog SLA checks → Sentry warnings ──────────────────────────────────
@@ -214,12 +216,12 @@ export default async function handler(req: ApiReq, res: ApiRes) {
       });
     }
 
-    if (totalDiffs24h >= 10 && suppressionRatioLast24h >= SUPPRESSION_RATIO_WARN) {
+    if (totalDiffs24h >= 10 && noiseDiffRatioLast24h >= SUPPRESSION_RATIO_WARN) {
       pipelineBacklogWarnings.push("high_suppression_ratio");
       Sentry.captureMessage("suppression_ratio_warning", {
         level: "warning",
         extra: {
-          suppression_ratio_24h: suppressionRatioLast24h,
+          suppression_ratio_24h: noiseDiffRatioLast24h,
           noise_diffs_24h:       noiseDiffs24h,
           total_diffs_24h:       totalDiffs24h,
         },
@@ -248,7 +250,7 @@ export default async function handler(req: ApiReq, res: ApiRes) {
       oldestDiffWaitingSignalMinutes,
       oldestSignalWaitingInterpretationMinutes,
       // Suppression ratio (Phase 6/8)
-      suppressionRatioLast24h,
+      noiseDiffRatioLast24h,
       noiseDiffs24h,
       totalDiffs24h,
       // SLA warnings
