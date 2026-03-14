@@ -14,6 +14,7 @@ const SECTOR_OPTIONS = [
   { value: "fintech",            label: "Fintech" },
   { value: "healthcare",         label: "Healthcare" },
   { value: "saas",               label: "Software" },
+  { value: "custom",             label: "Custom" },
 ] as const;
 
 export default function SectorSwitcher({ sector }: { sector: string }) {
@@ -105,18 +106,23 @@ export default function SectorSwitcher({ sector }: { sector: string }) {
           style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.8)" }}
         >
           {SECTOR_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => handleSelect(opt.value)}
-              className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-[12px] transition-colors hover:bg-[#0a1a0a]"
-              style={{ color: opt.value === activeSector ? "#2EE6A6" : "#64748b" }}
-            >
-              <span
-                className="h-1 w-1 shrink-0 rounded-full"
-                style={{ background: opt.value === activeSector ? "#2EE6A6" : "transparent" }}
-              />
-              {opt.label}
-            </button>
+            <div key={opt.value}>
+              {/* Separator before Custom */}
+              {opt.value === "custom" && (
+                <div className="mx-3 my-1 h-px bg-[#1a3020]" />
+              )}
+              <button
+                onClick={() => handleSelect(opt.value)}
+                className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-[12px] transition-colors hover:bg-[#0a1a0a]"
+                style={{ color: opt.value === activeSector ? "#2EE6A6" : "#64748b" }}
+              >
+                <span
+                  className="h-1 w-1 shrink-0 rounded-full"
+                  style={{ background: opt.value === activeSector ? "#2EE6A6" : "transparent" }}
+                />
+                {opt.label}
+              </button>
+            </div>
           ))}
         </div>
       )}

@@ -15,6 +15,7 @@ import DailyBriefOverlay from "../../components/DailyBriefOverlay";
 import MobileNav from "../../components/MobileNav";
 import AchievementsButton from "../../components/AchievementsButton";
 import SoundToggle from "../../components/SoundToggle";
+import CleanSlateButton from "../../components/CleanSlateButton";
 import { getRadarFeed } from "../../lib/api";
 import { createClient } from "../../lib/supabase/server";
 import { getSubscriptionState } from "../../lib/subscription";
@@ -201,8 +202,9 @@ export default async function Page() {
               hasCriticalAlert={hasCriticalAlert}
             />
             <PlanBadge plan={plan} trialDaysRemaining={trialDaysRemaining} />
-            {/* SectorSwitcher: accessible via Settings on mobile */}
-            <div className="hidden md:block">
+            {/* SectorSwitcher + Clean Slate: accessible via Settings on mobile */}
+            <div className="hidden md:flex items-center gap-2">
+              <CleanSlateButton competitorCount={competitors.length} />
               <SectorSwitcher sector={sector} />
             </div>
             <SoundToggle />

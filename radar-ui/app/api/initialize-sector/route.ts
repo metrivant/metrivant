@@ -1,6 +1,6 @@
 import { createClient } from "../../../lib/supabase/server";
 import { NextResponse } from "next/server";
-import { getSectorDefaults } from "../../../lib/sector-catalog";
+import { getSectorRandomDefaults } from "../../../lib/sector-catalog";
 import { captureException } from "../../../lib/sentry";
 
 // All sectors accepted by the onboarding selector.
@@ -145,10 +145,10 @@ export async function POST(request: Request) {
   // ── Step 3: Seed default competitors for the selected sector ──────────────
   //
   // "custom" has no defaults — user starts with an empty slate.
-  // Inserting into tracked_competitors is the trigger for metrivant-runtime
-  // to create monitored_pages entries on its next scheduled crawl.
+  // Top 5 competitors are always included; remaining 5 are randomly sampled
+  // from the extended pool (priority 6–15) for variety across sector switches.
 
-  const defaults = getSectorDefaults(sector);
+  const defaults = getSectorRandomDefaults(sector, 10);
   let seeded = 0;
 
   if (defaults.length > 0) {
@@ -174,6 +174,34 @@ export async function POST(request: Request) {
     }
 
     seeded = defaults.length;
+  }
+
+  // ── Step 4: Bridge to pipeline runtime ────────────────────────────────────
+  //
+  // Fire-and-forget: onboard each competitor into the pipeline so that
+  // monitored_pages and extraction_rules are created immediately.
+  // Does not block the response — failure is non-fatal (pipeline will catch up).
+
+  const runtimeUrl = process.env.RUNTIME_URL ?? "https://metrivant-runtime.vercel.app";
+  const cronSecret = process.env.CRON_SECRET;
+
+  if (cronSecret && defaults.length > 0) {
+    void (async () => {
+      for (const comp of defaults) {
+        try {
+          await fetch(`${runtimeUrl}/api/onboard-competitor`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${cronSecret}`,
+            },
+            body: JSON.stringify({ name: comp.name, website_url: comp.website_url }),
+          });
+        } catch {
+          // Non-fatal — pipeline will pick up on next scheduled run
+        }
+      }
+    })();
   }
 
   return NextResponse.json({ ok: true, seeded });
