@@ -19,13 +19,19 @@ export default async function AppLayout({
   }
 
   // Fetch org sector for PostHog segmentation — non-blocking, best-effort.
-  const { data: orgRows } = await supabase
-    .from("organizations")
-    .select("sector")
-    .eq("owner_id", user.id)
-    .limit(1);
-
-  const sector = (orgRows?.[0]?.sector as string | null) ?? null;
+  // Wrapped in try/catch: Supabase can throw "schema cache" errors on cold starts
+  // which would crash the layout without this guard.
+  let sector: string | null = null;
+  try {
+    const { data: orgRows } = await supabase
+      .from("organizations")
+      .select("sector")
+      .eq("owner_id", user.id)
+      .limit(1);
+    sector = (orgRows?.[0]?.sector as string | null) ?? null;
+  } catch {
+    // Non-fatal — PostHog segmentation degrades gracefully with sector=null
+  }
   const planRaw = user.user_metadata?.plan as string | undefined;
   const plan = planRaw === "pro" ? "pro" : "analyst";
 

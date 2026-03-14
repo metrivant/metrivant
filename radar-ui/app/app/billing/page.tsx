@@ -64,15 +64,19 @@ export default async function BillingPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Resolve org for subscription lookup
-  const { data: orgRows } = await supabase
-    .from("organizations")
-    .select("id")
-    .eq("owner_id", user.id)
-    .order("created_at", { ascending: true })
-    .limit(1);
-
-  const orgId = (orgRows?.[0]?.id as string | null) ?? null;
+  // Resolve org for subscription lookup — guarded against schema cache errors
+  let orgId: string | null = null;
+  try {
+    const { data: orgRows } = await supabase
+      .from("organizations")
+      .select("id")
+      .eq("owner_id", user.id)
+      .order("created_at", { ascending: true })
+      .limit(1);
+    orgId = (orgRows?.[0]?.id as string | null) ?? null;
+  } catch {
+    // Non-fatal — billing page degrades to trial state when org can't be resolved
+  }
 
   // ── Subscription state (authoritative from DB) ─────────────────────────────
   const subState = orgId
