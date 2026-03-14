@@ -1,18 +1,22 @@
 METRIVANT — PIPELINE STATE MACHINE
-Version: v1.1
+Version: v2.0 (intelligence cadence + precision tuning)
 
 ------------------------------------------------
 1. Pipeline Overview
 ------------------------------------------------
 
-fetch
+fetch (by page_class tier)
 → snapshot
-→ extract section
+→ extract section          (cleanText + DOM noise stripping)
 → validate extraction
-→ baseline comparison
-→ diff detection
-→ signal detection
-→ signal interpretation
+→ baseline comparison      (insert-only, never overwrites)
+→ diff detection           (batch queries — no N+1)
+→ whitespace noise filter  (suppress formatting-only changes)
+→ signal detection         (confidence gating + signal_hash dedup)
+→ ambient activity routing (ambient diffs → activity_events, not signals)
+→ pressure index update    (promotes pending_review at threshold >= 5.0)
+→ signal interpretation    (OpenAI — only pending + high confidence)
+→ movement detection       (14d window, min 2 signals, confidence-weighted)
 → weekly brief
 
 ------------------------------------------------
@@ -95,75 +99,121 @@ Input condition:
 section_diffs.status = 'confirmed'
 AND signal_detected = false
 AND is_noise = false
+AND monitored_pages.page_class != 'ambient'
 
-New signal:
+Whitespace noise check (before signal creation):
 
-status = 'pending'
+prev.replace(/\s+/g,"") === curr.replace(/\s+/g,"")
+→ is_noise = true, noise_reason = 'whitespace_only'
+→ no signal created
+
+Confidence model:
+
+base         = SECTION_WEIGHTS[section_type]  (0.25 – 0.85)
+recency_bonus = 0.05 / 0.10 / 0.15
+obs_bonus    = min(0.15, (observations-1) * 0.05)
+score        = min(1.0, base + recency_bonus + obs_bonus)
+
+Confidence gates:
+
+< 0.35         → suppressed, no signal, diff marked processed
+0.35 – 0.64   → status = 'pending_review'
+>= 0.65        → status = 'pending'
+
+Deduplication:
+
+signal_hash = sha256(competitor_id:signal_type:YYYY-MM-DD)[:32]
+UNIQUE INDEX on signal_hash (partial: WHERE signal_hash IS NOT NULL)
+One signal per (competitor, type) per UTC calendar day.
+
+Ambient routing:
+
+Ambient page diffs → detect-ambient-activity → activity_events table
+Never enter the signals table.
 
 ------------------------------------------------
-7. Interpretation Stage
+7. Pressure Index Stage
+------------------------------------------------
+
+Table: competitors.pressure_index
+
+Formula:
+  Σ(severity_weight × confidence × exp(-age_days × 0.2))
+  + activity_events_48h × 0.15
+  capped at 10.0
+
+Threshold: pressure_index >= 5.0
+  → pending_review signals promoted to pending
+  → interpret-signals picks them up on next run
+
+------------------------------------------------
+8. Interpretation Stage
 ------------------------------------------------
 
 signals.status transitions:
 
 pending
-→ interpreting
+→ in_progress    (claimed via FOR UPDATE SKIP LOCKED)
 → interpreted
 → failed
 
-Atomic claim:
+RPC: claim_pending_signals(batch_size=5)
 
-UPDATE signals
-SET status = 'interpreting'
-WHERE id IN (
-  SELECT id
-  FROM signals
-  WHERE status = 'pending'
-  ORDER BY detected_at
-  LIMIT 10
-  FOR UPDATE SKIP LOCKED
-)
-RETURNING *;
+Pre-interpretation skip:
+  previous_excerpt === current_excerpt → mark interpreted, no OpenAI call
+
+Prompt includes: competitor_name, signal_type, severity, page_type, page_url,
+                 previous_excerpt (divergence-anchored), current_excerpt
+
+Model: gpt-4o-mini, temperature=0, seed=42, json_object mode
+PROMPT_VERSION = "v1" — bump to trigger re-interpretation of all signals.
 
 -----------------------------------------------
-8. Stuck Job Recovery
+9. Stuck Job Recovery
 ------------------------------------------------
 
-Signals may remain stuck in interpreting.
+reset_stuck_signals(30):
+  status = 'in_progress' AND updated_at < now() - 30min → 'pending'
 
-Recovery query:
+fail_exhausted_signals(5):
+  retry_count >= 5 → status = 'failed'
 
-UPDATE signals
-SET status = 'pending'
-WHERE status = 'interpreting'
-AND updated_at < NOW() - INTERVAL '30 minutes';
-
-------------------------------------------------
-9. Dead Letter Policy
-------------------------------------------------
-
-Retries limited.
-
-Example limits:
-
-snapshots retries: 3
-section_diffs retries: 3
-signals retries: 5
-
-After threshold:
-
-status = 'failed'
+Both called at start of every interpret-signals run.
 
 ------------------------------------------------
-10. Idempotency
+10. Dead Letter Policy
 ------------------------------------------------
 
-Unique constraints prevent duplicates.
+signals retries: 5 (MAX_RETRIES)
+After threshold: status = 'failed'
 
-Examples:
+------------------------------------------------
+11. Movement Detection Stage
+------------------------------------------------
 
-signals unique:
+Table: strategic_movements
 
-(section_diff_id, signal_type)
+Window: 14 days (active clusters only — not 30d)
+Filter: interpreted=true AND (confidence_score IS NULL OR confidence_score >= 0.40)
+Minimum: 2 signals required per competitor to declare a movement
 
-Pipeline stages are safe to rerun.
+Confidence formula:
+  avgConf * 0.65 + min(signalCount, 6) * 0.06
+  capped at 0.95
+
+Upsert on (competitor_id, movement_type) — idempotent across cron cycles.
+
+------------------------------------------------
+12. Idempotency
+------------------------------------------------
+
+Unique constraints prevent duplicates at every stage:
+
+snapshots:           (monitored_page_id, content_hash)
+page_sections:       (snapshot_id, section_type)
+section_diffs:       (monitored_page_id, section_type, previous_section_id)
+signals:             (section_diff_id, signal_type)
+signals:             signal_hash (partial unique index)
+strategic_movements: (competitor_id, movement_type)
+
+All pipeline stages are safe to re-run.

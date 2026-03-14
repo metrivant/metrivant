@@ -18,16 +18,37 @@ Core architecture:
 
 Core pipeline:
 competitors
-→ monitored_pages
+→ monitored_pages        (page_class: high_value | standard | ambient)
 → snapshots
 → page_sections
-→ section_baselines
-→ section_diffs
-→ signals
-→ interpretations
-→ strategic_movements
+→ section_baselines      (insert-only anchor — never overwrite)
+→ section_diffs          (batch-loaded, no N+1 queries)
+→ signals                (confidence-gated, signal_hash deduped)
+→ activity_events        (ambient-only, NOT signals, NOT interpreted)
+→ interpretations        (OpenAI gpt-4o-mini, pending signals only)
+→ strategic_movements    (14d window, min 2 signals)
 → radar_feed
 → UI
+
+Key schema additions (migrations 008–012):
+- monitored_pages.page_class        'high_value' | 'standard' | 'ambient'
+- signals.confidence_score          float 0.0–1.0
+- signals.signal_hash               sha256 dedup key (one per competitor+type per day)
+- competitors.pressure_index        urgency scalar 0.0–10.0
+- competitors.last_signal_at        denormalized, kept by trigger
+- activity_events                   ambient intelligence table (30-day retention)
+
+Confidence thresholds:
+- < 0.35    suppressed — no signal created
+- 0.35–0.64 pending_review — held until pressure_index >= 5.0 promotes it
+- >= 0.65   pending — sent to OpenAI
+
+Production URLs:
+- Runtime API:  https://metrivant-runtime.vercel.app
+- UI:           https://metrivant.com
+
+Manual pipeline trigger:
+  See docs/SYSTEM_RUNTIME_FLOW.md section 13.
 
 Permanent engineering principles:
 - Simplicity over cleverness
