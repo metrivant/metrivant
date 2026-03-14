@@ -217,6 +217,25 @@ Service-role Supabase client (RLS bypass) is used only in server-side cron route
 
 Plan is stored in `user.user_metadata.plan` (set at signup). Valid values: `"analyst"`, `"pro"`. Legacy value `"starter"` is normalized to `"analyst"` at read time. Defaults to `"analyst"` when absent.
 
+### Mobile gating (desktop-first strategy)
+
+The core app (`/app/*`) is desktop-first. Mobile users are shown a branded holding page.
+
+**`components/MobileAppGate.tsx`** — Client component wrapping all `/app/*` children. Detects mobile via `window.matchMedia("(max-width: 767px)")`. If the user is on mobile and the current route is not in `MOBILE_ALLOWED`, renders the holding page instead of children. Uses `ready` state to avoid hydration flash (returns `null` until client detection completes).
+
+Mobile-allowed routes (bypass the gate):
+- `/app/billing`
+- `/app/settings`
+
+Holding page features:
+- Radar SVG illustration
+- "Desktop experience" headline
+- "Copy desktop link" button → copies `https://metrivant.com/app` to clipboard
+- "Billing & account" link → `/app/billing`
+- "Sign out" button → `supabase.auth.signOut()` + redirect to `/login`
+
+Login, signup, and all public pages are NOT gated (mobile-accessible by design).
+
 ---
 
 # 5. ENGINEERING PHILOSOPHY
@@ -416,6 +435,39 @@ Node radius scales with momentum score. Selected nodes receive a permanent halo.
 - Framer Motion handles all animation via layout animations and AnimatePresence
 - No rotating beam element — pulse timing is driven by ring animations
 
+### Node entry physics
+
+BlipNodes mount with `initial={{ opacity: 0, scale: 0.85 }}` and animate to their target state. Stagger delay = `index * 0.012s` (max ~0.6s for 50 nodes). Opacity is in `animate` only — NOT in `style` — so Framer Motion's `initial` works correctly on mount.
+
+### Confidence-proportional node opacity
+
+Node opacity is scaled by `latest_movement_confidence` when the node is not dimmed/selected:
+- conf ≥ 0.65 → 1.0× (full)
+- conf 0.40–0.64 → 0.88×
+- conf < 0.40 → 0.75×
+- dimmed, timeDimmed, or selected states ignore the conf multiplier (always 1.0×)
+
+### Signal type micro-shapes
+
+Small SVG symbols rendered inside BlipNodes (only when momentum > 0 and node is not dimmed):
+- `pricing_strategy_shift` → horizontal dash
+- `product_expansion` → plus/cross
+- `market_reposition` → diamond
+- `enterprise_push` / `ecosystem_expansion` → upward arrow
+
+### Visual depth features
+
+**Glass highlight** — Radial gradient (`glassHighlight` def, cx=38%, cy=26%) overlaid on the radar circle. Very faint white highlight (max opacity 0.030) simulating instrument glass.
+
+**Radar breathing state** — `motion.circle` at OUTER_RADIUS * 0.38 using `radarCore` or `radarCoreGravity` fill. Animates `opacity: [0.0, 0.09, 0.0]` on a 10-second loop (1s delay). Simulates a living instrument.
+
+### Label truncation
+
+Competitor name in SVG text label is truncated:
+- Mobile: 10 chars max
+- Desktop: 14 chars max
+Truncated names end in `…`.
+
 ### Alert visual model
 
 When a critical alert is active:
@@ -423,6 +475,30 @@ When a critical alert is active:
 - The alerted competitor node renders a bloom ring and pulsing stroke halo
 - An alert banner overlays the radar (bottom of container) via AnimatePresence
 - The radar SVG rings pulse in the alert movement color instead of the default green
+
+### Pipeline heartbeat
+
+`latestSignalAt` is a useMemo computed from `sorted` (the `RadarCompetitor[]` array). It finds the most recent `last_signal_at` across all competitors. Displayed in the intelligence panel header as "Updated X ago" with color-coded freshness:
+- < 6 hours → green (`rgba(46,230,166,0.50)`)
+- 6–24 hours → amber (`rgba(245,158,11,0.40)`)
+- > 24 hours → slate (`rgba(100,116,139,0.45)`)
+
+### Calibrated confidence language
+
+In the intelligence drawer's Assessment section, a prefix is prepended based on `interpretationConf`:
+- conf < 0.5 → "Possible indicator — " (slate text)
+- conf 0.5–0.64 → "Likely: " (slate-400 text)
+- conf ≥ 0.65 → no prefix
+
+### Evidence chain anchoring
+
+Above each Was/Now diff block in the signals list, a line shows:
+`{page_type label} · {formatRelative(signal.detected_at)}`
+This anchors each piece of evidence to its source page and timing.
+
+### Quiet state messaging
+
+When no signals are present: "Monitoring Active" headline + "No new signals — N rivals under active surveillance" (not "All Surfaces Clear").
 
 ### Information hierarchy
 
@@ -470,11 +546,26 @@ No Stripe integration currently exists in radar-ui. Upgrade surfaces link to `/p
 
 ### Public surfaces
 
-**Landing page** (`app/page.tsx`) — Hero with brand identity, value proposition, and pricing snapshot. CTAs: "Start free trial" → `/signup`, pricing links.
+**Landing page** (`app/page.tsx`) — Hero with brand identity, value proposition, and pricing snapshot. CTAs: "Start free trial" → `/signup`, pricing links. Semantic H1 (brand name) and H2 (tagline) for SEO. JSON-LD `SoftwareApplication` structured data block injected inline. Base price: $9.
 
 **Pricing page** (`app/pricing/page.tsx`) — Full 3-plan comparison grid. Tracks `pricing_viewed` PostHog event.
 
 **Login / Signup** (`app/login`, `app/signup`) — Supabase auth flow. Signup accepts `?plan=` query param to pre-select plan.
+
+**PublicNav** (`components/PublicNav.tsx`) — Top navigation bar used on all public pages. Desktop (`hidden md:flex`): About, Pricing, Log in, Get started. Mobile (`flex md:hidden`): Log in + Get started buttons + hamburger (`☰`/`✕`) that toggles a dropdown with About and Pricing. Nav height: `h-14` mobile / `h-16` desktop. All links close the menu on click.
+
+### SEO configuration
+
+Root metadata (`app/layout.tsx`):
+- `metadataBase`: `https://metrivant.com`
+- Title template: `"%s — Metrivant"`, default: `"Metrivant — Competitive Intelligence Radar"`
+- Description: `"Detect competitor moves before they matter. Metrivant monitors pricing, product changes, and strategy signals in real time."`
+- OG: `type: "website"`, image `/og-image.png` (1200×630)
+- Twitter: `summary_large_image` card
+- Icons: `/favicon.ico`, `/apple-touch-icon.png`
+- Robots: `index: true, follow: true`
+
+Structured data (landing page, `app/page.tsx`): `SoftwareApplication` JSON-LD with `offers` price `9 USD`.
 
 ### Authenticated app surfaces
 
