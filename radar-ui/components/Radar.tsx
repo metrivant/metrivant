@@ -3069,7 +3069,9 @@ export default function Radar({
                           boxShadow: `0 0 6px ${getMovementColor(selected.latest_movement_type)}`,
                         }}
                       />
-                      {translateMovementType(selected.latest_movement_type, sector)}
+                      {selected.latest_movement_type
+                        ? translateMovementType(selected.latest_movement_type, sector)
+                        : Number(selected.momentum_score ?? 0) >= 1.5 ? "Watching" : "Dormant"}
                     </span>
                     {!detailLoading && primarySignal?.urgency != null && (
                       <span
