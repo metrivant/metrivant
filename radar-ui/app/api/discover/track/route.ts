@@ -116,10 +116,13 @@ export async function POST(request: Request) {
     const planValue = user.user_metadata?.plan as string | undefined;
     const limit = planValue === "pro" ? 25 : 10;
 
+    // Count only properly linked rows (competitor_id IS NOT NULL) so ghost rows
+    // from failed onboard attempts don't consume plan quota.
     const { count: currentCount } = await supabase
       .from("tracked_competitors")
       .select("*", { count: "exact", head: true })
-      .eq("org_id", orgId);
+      .eq("org_id", orgId)
+      .not("competitor_id", "is", null);
 
     if ((currentCount ?? 0) >= limit) {
       return NextResponse.json(
@@ -146,6 +149,62 @@ export async function POST(request: Request) {
       org_id: orgId,
     });
     return NextResponse.json({ error: "Failed to track competitor" }, { status: 500 });
+  }
+
+  // ── Onboard into pipeline runtime (backfills competitor_id) ──────────────
+  //
+  // Without this call, the tracked_competitors row has competitor_id = null
+  // and is invisible to radar-feed, Market Map, and all cron analysis routes.
+  // On any failure we delete the ghost row and surface an error to the caller.
+
+  const runtimeUrl = process.env.RUNTIME_URL ?? "https://metrivant-runtime.vercel.app";
+  const cronSecret = process.env.CRON_SECRET;
+
+  if (cronSecret) {
+    // Look up org sector for the onboard call (non-fatal default: "custom")
+    let sector = "custom";
+    try {
+      const { data: orgData } = await supabase
+        .from("organizations")
+        .select("sector")
+        .eq("id", orgId)
+        .limit(1);
+      if (orgData?.[0]?.sector) sector = orgData[0].sector as string;
+    } catch { /* non-fatal — default sector used */ }
+
+    let onboardOk = false;
+    try {
+      const res = await fetch(`${runtimeUrl}/api/onboard-competitor`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${cronSecret}`,
+        },
+        body: JSON.stringify({ name, website_url: url, sector }),
+      });
+
+      if (res.ok) {
+        const body = await res.json() as { competitor_id?: string };
+        if (body.competitor_id) {
+          await supabase
+            .from("tracked_competitors")
+            .update({ competitor_id: body.competitor_id })
+            .eq("org_id", orgId)
+            .eq("website_url", url);
+          onboardOk = true;
+        }
+      }
+    } catch { /* network-level failure — handled below */ }
+
+    if (!onboardOk) {
+      // Remove the ghost row so it doesn't consume quota or pollute the tracked set
+      await supabase
+        .from("tracked_competitors")
+        .delete()
+        .eq("org_id", orgId)
+        .eq("website_url", url);
+      return NextResponse.json({ error: "Failed to initialize competitor monitoring" }, { status: 503 });
+    }
   }
 
   // PostHog — best-effort, fire-and-forget.

@@ -30,83 +30,106 @@ async function runGeneration(): Promise<NextResponse> {
     );
   }
 
-  const runStart = Date.now();
-  const siteUrl  = process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
+  const runStart  = Date.now();
+  const siteUrl   = process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
+  const week      = weekLabel(new Date());
+  const supabase  = createServiceClient();
 
-  // 1 — Fetch active competitors (signals in last 7 days)
-  const allCompetitors = await getRadarFeed(50);
-  const active = allCompetitors.filter((c) => c.signals_7d > 0);
-  const signalCount = active.reduce((sum, c) => sum + (c.signals_7d ?? 0), 0);
-  const week = weekLabel(new Date());
+  // 1 — Load all organisations
+  const { data: orgs, error: orgsError } = await supabase
+    .from("organizations")
+    .select("id, owner_id");
 
-  // 2 — Generate brief with OpenAI
-  const briefContent = await generateBrief(openaiKey, active, week);
-
-  // 3 — Persist to Supabase (service role, bypasses RLS)
-  const supabase = createServiceClient();
-  const { data: briefRow, error: insertError } = await supabase
-    .from("weekly_briefs")
-    .insert({
-      org_id:       null, // system-wide brief
-      content:      briefContent,
-      signal_count: signalCount,
-      generated_at: new Date().toISOString(),
-    })
-    .select("id")
-    .single();
-
-  if (insertError) {
-    captureException(insertError, { route: "generate-brief", step: "brief_insert" });
-    console.error("[generate-brief] insert failed:", insertError.message);
-    // Non-fatal — continue to email delivery
+  if (orgsError) {
+    captureException(orgsError, { route: "generate-brief", step: "fetch_orgs" });
+    return NextResponse.json({ error: "Failed to fetch organizations" }, { status: 500 });
   }
 
-  // 4 — Gather email recipients (all org owners)
-  let recipients: string[] = [];
+  if (!orgs || orgs.length === 0) {
+    await writeCronHeartbeat(supabase, "/api/generate-brief", "ok", Date.now() - runStart, 0);
+    return NextResponse.json({ ok: true, briefs_generated: 0, emails_sent: 0, message: "No organizations" });
+  }
+
+  // 2 — Load all auth users once (for email lookup per org owner)
+  let userEmailById: Map<string, string> = new Map();
   try {
-    const { data: orgs } = await supabase
-      .from("organizations")
-      .select("owner_id");
-
-    if (orgs && orgs.length > 0) {
-      const ownerIds = orgs.map((o: { owner_id: string }) => o.owner_id);
-      const {
-        data: { users },
-      } = await supabase.auth.admin.listUsers({ perPage: 500 });
-
-      recipients = users
-        .filter((u) => u.email && ownerIds.includes(u.id))
-        .map((u) => u.email!)
-        .filter(Boolean);
-    }
+    const { data: { users } } = await supabase.auth.admin.listUsers({ perPage: 500 });
+    userEmailById = new Map(
+      users.filter((u) => u.email).map((u) => [u.id, u.email!])
+    );
   } catch (err) {
     captureException(err instanceof Error ? err : new Error(String(err)), {
-      route: "generate-brief", step: "fetch_recipients",
+      route: "generate-brief", step: "fetch_users",
     });
-    console.error("[generate-brief] failed to fetch recipients:", err);
+    // Non-fatal — briefs are generated even if emails can't be sent
   }
 
-  // 5 — Send emails via canonical email module
-  const emailsSent: string[] = [];
+  // 3 — Per-org brief generation
+  let briefsGenerated = 0;
+  let emailsSent      = 0;
+  let totalSignals    = 0;
 
-  if (recipients.length > 0) {
-    const emailHtml = buildBriefEmailHtml(briefContent, week, siteUrl);
+  for (const org of orgs as { id: string; owner_id: string }[]) {
+    try {
+      // Fetch this org's tracked competitor set (same source as Radar + Market Map)
+      const allCompetitors = await getRadarFeed(50, org.id);
+      const active = allCompetitors.filter((c) => c.signals_7d > 0);
 
-    const emailTasks = recipients.map((email) =>
-      sendEmail({
-        to:      email,
-        subject: `Your weekly competitor intelligence brief — ${week}`,
-        html:    emailHtml,
-        from:    FROM_BRIEFS,
-      }).then((result) => {
-        if (result.ok) emailsSent.push(email);
-      })
-    );
+      if (active.length === 0) continue; // no signal data — skip this org
 
-    await Promise.allSettled(emailTasks);
+      const signalCount = active.reduce((sum, c) => sum + (c.signals_7d ?? 0), 0);
+      totalSignals += signalCount;
+
+      // Generate brief with OpenAI
+      const briefContent = await generateBrief(openaiKey, active, week);
+
+      // Persist to Supabase scoped to this org
+      const { data: briefRow, error: insertError } = await supabase
+        .from("weekly_briefs")
+        .insert({
+          org_id:       org.id,
+          content:      briefContent,
+          signal_count: signalCount,
+          generated_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
+
+      if (insertError) {
+        captureException(insertError, {
+          route: "generate-brief",
+          step: "brief_insert",
+          org_id: org.id,
+        });
+        // Non-fatal — continue to next org
+      } else {
+        briefsGenerated++;
+        void briefRow; // referenced in PostHog below if needed
+      }
+
+      // Send email to this org's owner
+      const ownerEmail = userEmailById.get(org.owner_id);
+      if (ownerEmail) {
+        const emailHtml = buildBriefEmailHtml(briefContent, week, siteUrl);
+        const result = await sendEmail({
+          to:      ownerEmail,
+          subject: `Your weekly competitor intelligence brief — ${week}`,
+          html:    emailHtml,
+          from:    FROM_BRIEFS,
+        });
+        if (result.ok) emailsSent++;
+      }
+    } catch (orgErr) {
+      captureException(orgErr instanceof Error ? orgErr : new Error(String(orgErr)), {
+        route: "generate-brief",
+        step: "per_org_generation",
+        org_id: org.id,
+      });
+      // Non-fatal — continue to next org
+    }
   }
 
-  // 6 — PostHog event (best-effort)
+  // 4 — PostHog event (best-effort)
   const posthogKey = process.env.POSTHOG_API_KEY;
   if (posthogKey) {
     void fetch("https://app.posthog.com/capture", {
@@ -117,28 +140,25 @@ async function runGeneration(): Promise<NextResponse> {
         event:       "brief_generated",
         distinct_id: "system",
         properties:  {
-          signal_count:           signalCount,
-          competitors_analyzed:   briefContent.competitors_analyzed.length,
-          emails_sent:            emailsSent.length,
+          orgs_processed:  orgs.length,
+          briefs_generated: briefsGenerated,
+          emails_sent:      emailsSent,
+          total_signals:    totalSignals,
           week,
-          brief_id:               briefRow?.id ?? null,
-          prompt_tokens:          briefContent.prompt_tokens,
-          completion_tokens:      briefContent.completion_tokens,
         },
       }),
     });
   }
 
-  const supabaseFinal = createServiceClient();
-  await writeCronHeartbeat(supabaseFinal, "/api/generate-brief", "ok", Date.now() - runStart, emailsSent.length);
+  await writeCronHeartbeat(supabase, "/api/generate-brief", "ok", Date.now() - runStart, emailsSent);
 
   return NextResponse.json({
-    ok:                   true,
-    brief_id:             briefRow?.id ?? null,
+    ok:               true,
     week,
-    signal_count:         signalCount,
-    competitors_analyzed: briefContent.competitors_analyzed.length,
-    emails_sent:          emailsSent.length,
+    orgs_processed:   orgs.length,
+    briefs_generated: briefsGenerated,
+    emails_sent:      emailsSent,
+    total_signals:    totalSignals,
   });
 }
 

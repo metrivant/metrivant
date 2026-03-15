@@ -20,15 +20,36 @@ export default async function BriefsPage() {
 
   if (!user) redirect("/login");
 
+  // Resolve org so we can scope briefs to this org only
+  let orgId: string | null = null;
+  try {
+    const { data: orgRows } = await supabase
+      .from("organizations")
+      .select("id")
+      .eq("owner_id", user.id)
+      .order("created_at", { ascending: true })
+      .limit(1);
+    orgId = (orgRows?.[0]?.id as string | undefined) ?? null;
+  } catch { /* non-fatal */ }
+
   let briefs: WeeklyBrief[] = [];
   let fetchError = false;
 
   try {
-    const { data, error } = await supabase
+    // Show this org's briefs + legacy system-wide briefs (org_id IS NULL)
+    // that predate the per-org migration. The IS NULL clause is backward-compat
+    // only and will be vacuous once all briefs are org-scoped.
+    let query = supabase
       .from("weekly_briefs")
       .select("id, generated_at, content, signal_count")
       .order("generated_at", { ascending: false })
       .limit(12);
+
+    if (orgId) {
+      query = query.or(`org_id.is.null,org_id.eq.${orgId}`);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       fetchError = true;
