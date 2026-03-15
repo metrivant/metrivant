@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 const SECTOR_OPTIONS = [
@@ -16,11 +16,30 @@ const SECTOR_OPTIONS = [
   { value: "custom",            label: "Custom" },
 ] as const;
 
+const LOADING_PHASES = [
+  "Adding rivals to your radar…",
+  "Setting up monitoring pages…",
+  "Finalizing your radar…",
+];
+
 export default function SectorSelectClient() {
   const router = useRouter();
-  const [sector, setSector] = useState<string>("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [sector, setSector]           = useState<string>("");
+  const [loading, setLoading]         = useState(false);
+  const [loadingPhase, setLoadingPhase] = useState(0);
+  const [error, setError]             = useState<string | null>(null);
+
+  // Cycle loading message every 5s to signal real progress
+  useEffect(() => {
+    if (!loading) {
+      setLoadingPhase(0);
+      return;
+    }
+    const timer = setInterval(() => {
+      setLoadingPhase((p) => (p < LOADING_PHASES.length - 1 ? p + 1 : p));
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [loading]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -41,8 +60,26 @@ export default function SectorSelectClient() {
       return;
     }
 
+    let body: { seeded?: number; attempted?: number; failed?: number; partial?: boolean; custom?: boolean } = {};
+    try {
+      body = await res.json();
+    } catch { /* non-fatal */ }
+
+    // Write init data for the radar banner — read once on radar mount then cleared
+    try {
+      sessionStorage.setItem("radar_init", JSON.stringify({
+        seeded:    body.seeded    ?? 0,
+        attempted: body.attempted ?? 0,
+        failed:    body.failed    ?? 0,
+        sector,
+        custom:    body.custom    ?? sector === "custom",
+      }));
+    } catch { /* sessionStorage unavailable — banner simply won't show */ }
+
     router.push("/app");
   }
+
+  const isCustom = sector === "custom";
 
   return (
     <div className="flex h-screen w-full flex-col items-center justify-center bg-[#000000] text-white">
@@ -105,10 +142,9 @@ export default function SectorSelectClient() {
               value={sector}
               onChange={(e) => setSector(e.target.value)}
               required
-              className="w-full appearance-none rounded-[12px] border border-[#1a3020] bg-[#070d07] px-4 py-3 text-[14px] text-white outline-none transition-colors focus:border-[#2EE6A6]/35 focus:ring-1 focus:ring-[#2EE6A6]/20"
-              style={{
-                colorScheme: "dark",
-              }}
+              disabled={loading}
+              className="w-full appearance-none rounded-[12px] border border-[#1a3020] bg-[#070d07] px-4 py-3 text-[14px] text-white outline-none transition-colors focus:border-[#2EE6A6]/35 focus:ring-1 focus:ring-[#2EE6A6]/20 disabled:opacity-50"
+              style={{ colorScheme: "dark" }}
             >
               <option value="" disabled style={{ color: "#475569" }}>
                 Choose a sector…
@@ -128,6 +164,13 @@ export default function SectorSelectClient() {
             </div>
           </div>
 
+          {/* Custom sector note */}
+          {isCustom && !loading && (
+            <p className="text-center text-[12px] text-slate-500">
+              No rivals will be pre-added. You&apos;ll build your watchlist manually from Discover.
+            </p>
+          )}
+
           {/* Error */}
           {error && (
             <p className="text-center text-[12px] text-red-400">{error}</p>
@@ -139,20 +182,29 @@ export default function SectorSelectClient() {
             disabled={!sector || loading}
             className="rounded-full bg-[#2EE6A6] py-3 text-[14px] font-semibold text-black transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30"
           >
-            {loading ? "Setting up…" : "Start monitoring"}
+            {loading ? LOADING_PHASES[loadingPhase] : "Start monitoring"}
           </button>
+
+          {/* Loading sub-label */}
+          {loading && (
+            <p className="text-center text-[11px] text-slate-600">
+              This takes 15–30 seconds — setting up monitoring across all rivals.
+            </p>
+          )}
 
         </div>
       </form>
 
-      {/* Skip */}
-      <button
-        type="button"
-        onClick={() => router.push("/app")}
-        className="mt-8 text-[12px] text-slate-700 transition-colors hover:text-slate-500"
-      >
-        Skip for now →
-      </button>
+      {/* Skip — hidden during load to prevent race */}
+      {!loading && (
+        <button
+          type="button"
+          onClick={() => router.push("/app")}
+          className="mt-8 text-[12px] text-slate-700 transition-colors hover:text-slate-500"
+        >
+          Skip for now →
+        </button>
+      )}
 
     </div>
   );

@@ -180,7 +180,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Failed to seed competitors" }, { status: 500 });
     }
 
-    seeded = defaults.length;
+    // seeded is incremented per-competitor after successful onboard + backfill below.
   }
 
   // ── Step 4: Bridge to pipeline runtime ────────────────────────────────────
@@ -226,14 +226,18 @@ export async function POST(request: Request) {
             sector,
           }
         );
+        // Remove the null row — a failed onboard produces a ghost entry that
+        // is invisible to radar-feed but pollutes tracked_competitors.
+        await supabase
+          .from("tracked_competitors")
+          .delete()
+          .eq("org_id", orgId)
+          .eq("website_url", comp.website_url);
       } else if (!result.value.ok) {
         // HTTP-level failure — runtime responded but with a non-2xx status.
-        // Previously silently ignored; these competitors will have no monitored_pages
-        // and will appear on radar with momentum_score=0 indefinitely.
         failedCount += 1;
-        const statusText = `HTTP ${result.value.status}`;
         captureException(
-          new Error(`onboard-competitor HTTP error: ${statusText}`),
+          new Error(`onboard-competitor HTTP error: HTTP ${result.value.status}`),
           {
             route: "initialize-sector",
             step: "onboard_competitor_http",
@@ -243,6 +247,12 @@ export async function POST(request: Request) {
             sector,
           }
         );
+        // Remove the null row for the same reason as above.
+        await supabase
+          .from("tracked_competitors")
+          .delete()
+          .eq("org_id", orgId)
+          .eq("website_url", comp.website_url);
       } else {
         // Success — parse the response body and backfill competitor_id into
         // tracked_competitors so radar-feed can surface this competitor.
@@ -256,10 +266,10 @@ export async function POST(request: Request) {
               .update({ competitor_id: responseBody.competitor_id })
               .eq("org_id", orgId)
               .eq("website_url", comp.website_url);
+            seeded += 1;
           }
         } catch (backfillErr) {
-          // Non-fatal — competitor is tracked but won't appear on radar until
-          // the next time onboard-competitor is called for this org.
+          // Backfill failed — remove the null row so it doesn't ghost the radar.
           captureException(
             new Error(`onboard-competitor: failed to backfill competitor_id for ${comp?.name ?? "unknown"}`),
             {
@@ -271,6 +281,12 @@ export async function POST(request: Request) {
               original_error: backfillErr instanceof Error ? backfillErr.message : String(backfillErr),
             }
           );
+          failedCount += 1;
+          await supabase
+            .from("tracked_competitors")
+            .delete()
+            .eq("org_id", orgId)
+            .eq("website_url", comp.website_url);
         }
       }
     }
@@ -296,7 +312,9 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ok: true,
     seeded,
+    attempted: defaults.length,
     failed: failedCount,
     partial: failedCount > 0,
+    custom: sector === "custom",
   });
 }

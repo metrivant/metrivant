@@ -22,6 +22,7 @@ import DailyBriefOverlay from "../../components/DailyBriefOverlay";
 import MobileNav from "../../components/MobileNav";
 import AchievementsButton from "../../components/AchievementsButton";
 import SoundToggleButton from "../../components/SoundToggleButton";
+import InitBanner from "../../components/InitBanner";
 import { getRadarFeed } from "../../lib/api";
 import { createClient } from "../../lib/supabase/server";
 import { getSubscriptionState } from "../../lib/subscription";
@@ -316,6 +317,9 @@ export default async function Page() {
           </div>
         </div>
       </header>
+
+      {/* ── Post-initialization banner — shown once after sector selection ── */}
+      <InitBanner />
 
       {/* ── Intelligence strip — Bloomberg-style live ticker ──────────────── */}
       <IntelligenceStrip competitors={competitors} newsItems={newsItems} sector={sector} />
