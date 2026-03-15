@@ -964,6 +964,14 @@ export default function Radar({
     [competitors]
   );
 
+  // Zero-node diagnostic: if the server passed N > 0 competitors but sorted is empty,
+  // that indicates a sortCompetitors/slice bug — log once per competitors change.
+  useEffect(() => {
+    if (competitors.length > 0 && sorted.length === 0) {
+      console.warn("[radar] zero nodes rendered despite receiving", competitors.length, "competitors from API");
+    }
+  }, [competitors.length, sorted.length]);
+
   const radiusScale = useMemo(() => {
     const maxMomentum = Math.max(
       ...sorted.map((c) => Number(c.momentum_score ?? 0)),

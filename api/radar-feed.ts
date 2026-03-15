@@ -13,6 +13,28 @@ import { checkRateLimit, getClientIp, RATE_LIMITS } from "../lib/rate-limit";
 //   movement:     latest movement confidence bonus when movement is recent (≤14d)
 //
 // Score bands: cooling <1.5 | stable 1.5–3 | rising 3–5 | accelerating ≥5
+//
+// NULL/ZERO safety:
+//   signals7d          — always a non-negative integer; defaults to 0 when no signals join
+//   weightedVelocity7d — always ≥ 0 (normalised average); defaults to 0 when no signals join
+//   movementConfidence — may be null (competitor has no recent movement)
+//   movementLastSeenAt — may be null (no movement or movement > 14 days old)
+//   movementBonus      — explicitly initialised to 0; only set when BOTH confidence and
+//                        lastSeenAt are non-null AND movement is ≤ 14 days old — safe against
+//                        a null movement collapsing the entire formula
+//
+// Minimum non-zero score for a competitor with exactly 1 low-severity signal:
+//   signalComponent   = 1 * 0.4 = 0.4
+//   velocityComponent = 1.0 (low=1) * 0.6 = 0.6   (velocity normalised to 1.0)
+//   movementBonus     = 0 (no movement)
+//   minimum score     = 1.0
+//
+// SCOPE: radar-feed queries ALL active competitors regardless of which org is tracking
+// them. The runtime has no org context. The UI (page.tsx) receives this full set; it does
+// not currently filter to the authenticated org's tracked_competitors. This is intentional
+// for v1 — all active pipeline competitors are shown. When multi-tenancy requires per-org
+// isolation, filtering must be added in the UI (page.tsx → getRadarFeed) or a query
+// parameter must be forwarded from the UI to the runtime.
 
 interface SignalAggRow {
   competitor_id: string;
@@ -129,6 +151,11 @@ async function handler(req: ApiReq, res: ApiRes) {
     const signalAggMap = new Map<string, SignalAggRow>();
 
     if (allPageIds.length > 0) {
+      // NOTE: interpreted=true is intentional — only signals that have been processed by
+      // the OpenAI interpretation layer contribute to momentum_score. Uninterpreted (pending
+      // or pending_review) signals exist in the DB but are not yet strategic intelligence.
+      // A competitor with pending signals will show momentum_score=0 until interpretation
+      // completes. This is correct behaviour: the radar reflects confirmed intelligence only.
       const { data: signalRows, error: signalsError } = await supabase
         .from("signals")
         .select("monitored_page_id, severity, detected_at")
@@ -243,13 +270,31 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     const paginatedRows = feedRows.slice(0, limit);
 
-    // ── Observability: warn when feed is non-empty at DB but all zero ─────────
+    // ── Observability ─────────────────────────────────────────────────────────
+    // Case 1: all competitors have zero momentum — likely pipeline has not run yet
     if (paginatedRows.length > 0 && paginatedRows.every((r) => r.momentum_score === 0)) {
       Sentry.captureMessage("radar_feed_all_zero", {
         level: "warning",
         extra: {
           competitor_count: paginatedRows.length,
-          note: "All competitors have momentum_score=0. Pipeline may not have produced signals yet.",
+          note: "All competitors have momentum_score=0. Pipeline may not have produced interpreted signals yet.",
+        },
+      });
+    }
+
+    // Case 2: individual competitors with interpreted signals_7d > 0 but momentum_score = 0.
+    // This should be mathematically impossible with the current formula (1 low signal → score ≥ 1.0)
+    // but guards against future formula changes or data corruption.
+    const signalsWithZeroMomentum = paginatedRows.filter(
+      (r) => r.signals_7d > 0 && r.momentum_score === 0
+    );
+    if (signalsWithZeroMomentum.length > 0) {
+      Sentry.captureMessage("radar_feed_signals_but_zero_momentum", {
+        level: "warning",
+        extra: {
+          affected_count: signalsWithZeroMomentum.length,
+          competitor_ids: signalsWithZeroMomentum.map((r) => r.competitor_id),
+          note: "signals_7d > 0 but momentum_score = 0 — formula invariant violated.",
         },
       });
     }

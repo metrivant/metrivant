@@ -1,7 +1,7 @@
 import { createClient } from "../../../lib/supabase/server";
 import { NextResponse } from "next/server";
 import { getSectorRandomDefaults } from "../../../lib/sector-catalog";
-import { captureException } from "../../../lib/sentry";
+import { captureException, captureMessage } from "../../../lib/sentry";
 
 // All sectors accepted by the onboarding selector.
 // The core pipeline is sector-agnostic; this string is stored for display
@@ -202,21 +202,59 @@ export async function POST(request: Request) {
       )
     );
 
-    onboardResults.forEach((result, index) => {
+    for (let index = 0; index < onboardResults.length; index++) {
+      const result = onboardResults[index];
+      const comp = defaults[index];
+
       if (result.status === "rejected") {
+        // Network-level failure — fetch itself threw (timeout, DNS, etc.)
         failedCount += 1;
-        const comp = defaults[index];
         captureException(
-          new Error(`onboard-competitor failed: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`),
+          new Error(`onboard-competitor network error: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`),
           {
             route: "initialize-sector",
-            step: "onboard_competitor",
+            step: "onboard_competitor_network",
             competitor_name: comp?.name ?? "unknown",
+            org_id: orgId,
+            sector,
+          }
+        );
+      } else if (!result.value.ok) {
+        // HTTP-level failure — runtime responded but with a non-2xx status.
+        // Previously silently ignored; these competitors will have no monitored_pages
+        // and will appear on radar with momentum_score=0 indefinitely.
+        failedCount += 1;
+        const statusText = `HTTP ${result.value.status}`;
+        captureException(
+          new Error(`onboard-competitor HTTP error: ${statusText}`),
+          {
+            route: "initialize-sector",
+            step: "onboard_competitor_http",
+            competitor_name: comp?.name ?? "unknown",
+            http_status: result.value.status,
+            org_id: orgId,
             sector,
           }
         );
       }
-    });
+    }
+  }
+
+  // Post-seeding integrity warning: if any competitors failed to onboard they will
+  // exist in tracked_competitors (and eventually in the competitors pipeline table)
+  // but have no monitored_pages. They will show on the radar with momentum_score=0
+  // permanently — visually indistinguishable from a real quiet competitor.
+  if (failedCount > 0) {
+    captureMessage(
+      "tracked_competitor_no_monitored_pages",
+      {
+        failed_count: failedCount,
+        seeded_count: seeded,
+        org_id: orgId ?? "unknown",
+        sector,
+      },
+      "warning"
+    );
   }
 
   return NextResponse.json({

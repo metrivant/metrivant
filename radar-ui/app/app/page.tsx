@@ -49,7 +49,11 @@ async function fetchSectorNews(sector: string): Promise<string[]> {
 
 export default async function Page() {
   const competitorsRaw = await getRadarFeed(50);
-  // Deduplicate by name (keep highest-momentum entry per name — feed is already sorted desc)
+  // Deduplicate by name — keeps the highest-momentum entry per name.
+  // The feed is sorted momentum DESC before arriving here, so the first occurrence
+  // of any name is already the highest-momentum row. This deduplicates cases where
+  // the same company was onboarded under slightly different names (e.g. "Notion" and
+  // "Notion (notion.so)") that collide after normalisation.
   const seenNames = new Set<string>();
   const competitors = competitorsRaw.filter((c) => {
     const key = c.competitor_name.toLowerCase().trim();
@@ -57,6 +61,13 @@ export default async function Page() {
     seenNames.add(key);
     return true;
   });
+
+  // Diagnostic: if runtime returned data but every competitor dropped in dedup, log a warning.
+  if (competitorsRaw.length > 0 && competitors.length === 0) {
+    console.warn("[radar] zero competitors after dedup — all names collapsed to duplicates", {
+      rawCount: competitorsRaw.length,
+    });
+  }
 
   // Read org sector + subscription state — best-effort, both default to safe values
   let sector             = "saas";
