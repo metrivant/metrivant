@@ -1,24 +1,29 @@
 #!/usr/bin/env npx tsx
 // ── Metrivant migration runner ─────────────────────────────────────────────
 //
-// Runs SQL migration files against Supabase via a direct Postgres connection.
+// Runs SQL migration files against Supabase via Supavisor Session mode.
 // Tracks applied migrations in a `schema_migrations` table so each file
 // is applied exactly once.
 //
-// Using direct Postgres (pg driver) instead of the Supabase Management API
-// because DDL (CREATE FUNCTION, ALTER TABLE, BEGIN/COMMIT, dollar-quoting)
-// requires raw protocol support that the HTTP-based Management API cannot
-// reliably provide.
+// Connection: Supavisor pooler, port 5432 (Session mode).
+// Session mode is the right choice for migration-grade work: DDL, NOTIFY,
+// RPC creation/update, and schema cache reload all require session-level behaviour.
+//
+// Auth: field-based pg.Client config (host/user/password/database).
+// Avoids password-escaping and path-parsing ambiguity present in URI connections.
 //
 // Usage:
 //   npx tsx scripts/migrate.ts            # apply all pending
 //   npx tsx scripts/migrate.ts --status   # list applied / pending
 //   npx tsx scripts/migrate.ts --dry-run  # show SQL without running
 //
-// Required env var:
-//   SUPABASE_DB_URL — Postgres connection string from Supabase project settings
-//                     Settings → Database → Connection string → URI
-//                     Format: postgresql://postgres:[password]@db.[ref].supabase.co:5432/postgres
+// Required env vars (field-based, preferred — used in CI):
+//   SUPABASE_DB_HOST     — pooler hostname, e.g. aws-0-eu-west-3.pooler.supabase.com
+//   SUPABASE_DB_USER     — pooler user, e.g. postgres.[project-ref]
+//   SUPABASE_DB_PASSWORD — database password
+//
+// Fallback (local dev convenience):
+//   SUPABASE_DB_URL — full connection string (URI)
 //
 // Migration files:
 //   migrations/*.sql          → tracked as "runtime:001_..."

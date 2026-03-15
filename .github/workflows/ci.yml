@@ -55,14 +55,15 @@ jobs:
 
   # ── Database migrations (runs only on push to main, after build passes) ─────
   #
-  # Applies all pending SQL migration files to Supabase via a direct Postgres
-  # connection. Each file is tracked in schema_migrations and applied exactly once.
-  # No manual SQL editor work required — ever.
+  # Applies all pending SQL migration files to Supabase via Supavisor Session mode
+  # (pooler host, port 5432). Each file is tracked in schema_migrations and applied
+  # exactly once. No manual SQL editor work required — ever.
+  #
+  # Connection uses field-based pg.Client config (not a URI) to avoid password-
+  # escaping and path-parsing ambiguity in CI environments.
   #
   # Required GitHub Secret:
-  #   SUPABASE_DB_URL — connection string from:
-  #   Supabase dashboard → Settings → Database → Connection string → URI
-  #   Format: postgresql://postgres:[password]@db.[ref].supabase.co:5432/postgres
+  #   SUPABASE_DB_PASSWORD — from Supabase dashboard → Settings → Database → Password
   #
   migrate:
     runs-on: ubuntu-latest
