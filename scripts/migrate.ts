@@ -28,9 +28,14 @@
 //   runtime:001_... runtime:002_... ... ui:001_... ui:002_... ...
 // ─────────────────────────────────────────────────────────────────────────────
 
+import dns from "dns";
 import fs from "fs";
 import path from "path";
 import { Client } from "pg";
+
+// GitHub Actions runners (and many CI environments) lack IPv6 connectivity.
+// Supabase direct connections sometimes resolve to IPv6 — force IPv4 first.
+dns.setDefaultResultOrder("ipv4first");
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
