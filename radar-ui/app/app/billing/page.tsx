@@ -95,7 +95,15 @@ export default async function BillingPage({
     (new Date(trialExpiredAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
   ));
 
-  const hasActiveSub     = subState.status === "active" || subState.status === "canceled_active" || subState.status === "past_due";
+  // user_metadata.plan fallback: Stripe webhook sets this on successful payment.
+  // If the subscriptions table row is missing, this is the reliable signal.
+  const metaPlan = user.user_metadata?.plan as string | undefined;
+  const metaActiveSub = metaPlan === "analyst" || metaPlan === "pro";
+
+  const hasActiveSub     = subState.status === "active"
+                        || subState.status === "canceled_active"
+                        || subState.status === "past_due"
+                        || metaActiveSub;
   const canManageBilling = !!subState.stripeCustomerId;
 
   // Checkout success banner

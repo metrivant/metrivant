@@ -96,7 +96,20 @@ export default async function Page() {
       if (org?.id) {
         const subState = await getSubscriptionState(supabase, org.id as string, user.created_at);
         plan         = subState.plan;
-        hasActiveSub = subState.status === "active" || subState.status === "canceled_active";
+        hasActiveSub = subState.status === "active"
+                    || subState.status === "canceled_active"
+                    || subState.status === "past_due"; // past_due = subscription exists, grace period active
+
+        // Final override: Stripe webhook writes user_metadata.plan on successful checkout.
+        // If the subscriptions table row is missing (webhook org_id resolution race or failure),
+        // user_metadata.plan is the reliable fallback — it is only set by Stripe on payment
+        // and cleared on subscription deletion.
+        const metaPlanOrg = user.user_metadata?.plan as string | undefined;
+        if (!hasActiveSub && (metaPlanOrg === "analyst" || metaPlanOrg === "pro")) {
+          hasActiveSub = true;
+          plan         = metaPlanOrg;
+        }
+
         // Active subscription always unlocks — never show trial gate regardless of
         // trial window state. Covers analyst and pro equally.
         trialExpired = subState.status === "expired" && !hasActiveSub;
