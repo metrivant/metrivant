@@ -1330,6 +1330,16 @@ export default function Radar({
     ? (sorted.find((c) => c.competitor_id === selectedId) ?? null)
     : null;
 
+  // Resolved color for the selected competitor's intelligence drawer.
+  // Falls back to signal type color when no movement type is declared yet.
+  const selectedColor = selected
+    ? (selected.latest_movement_type
+        ? selectedColor
+        : selected.latest_signal_type
+          ? getSignalColor(selected.latest_signal_type)
+          : getMovementColor(null))
+    : getMovementColor(null);
+
   // Highest momentum in the current sorted set — used to scale contact list bars.
   const maxMomentum = useMemo(
     () => Math.max(...sorted.map((c) => Number(c.momentum_score ?? 0)), 1),
@@ -2161,7 +2171,7 @@ export default function Radar({
                   {selected && (() => {
                     const selPos = gravityPositions.get(selected.competitor_id);
                     if (!selPos || !selected.latest_movement_type) return null;
-                    const relColor = getMovementColor(selected.latest_movement_type);
+                    const relColor = selectedColor;
                     return sorted
                       .filter(
                         (c) =>
@@ -2196,7 +2206,7 @@ export default function Radar({
                         c.latest_movement_type === selected.latest_movement_type,
                     ).length;
                     if (relCount === 0) return null;
-                    const relColor = getMovementColor(selected.latest_movement_type);
+                    const relColor = selectedColor;
                     const label = getMovementLabel(selected.latest_movement_type);
                     const nodeR = getNodeSize(Number(selected.momentum_score ?? 0));
                     return (
@@ -2939,10 +2949,10 @@ export default function Radar({
         onTouchEnd={handleSheetTouchEnd}
         style={{
           borderColor: selected
-            ? `${getMovementColor(selected.latest_movement_type)}38`
+            ? `${selectedColor}38`
             : "#0e2010",
           boxShadow: selected
-            ? `inset 0 1px 0 0 ${getMovementColor(selected.latest_movement_type)}18, 0 0 60px rgba(0,0,0,0.6)`
+            ? `inset 0 1px 0 0 ${selectedColor}18, 0 0 60px rgba(0,0,0,0.6)`
             : "inset 0 1px 0 0 rgba(46,230,166,0.05), 0 0 60px rgba(0,0,0,0.6)",
           opacity: entryPhase >= 3 ? 1 : 0,
           transition: "opacity 0.4s ease, border-color 0.5s ease, box-shadow 0.5s ease",
@@ -2990,10 +3000,10 @@ export default function Radar({
                     <div
                       className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] text-[17px] font-bold"
                       style={{
-                        background: `${getMovementColor(selected.latest_movement_type)}18`,
-                        border: `1px solid ${getMovementColor(selected.latest_movement_type)}30`,
-                        color: getMovementColor(selected.latest_movement_type),
-                        textShadow: `0 0 10px ${getMovementColor(selected.latest_movement_type)}60`,
+                        background: `${selectedColor}18`,
+                        border: `1px solid ${selectedColor}30`,
+                        color: selectedColor,
+                        textShadow: `0 0 10px ${selectedColor}60`,
                       }}
                     >
                       {selected.competitor_name.charAt(0).toUpperCase()}
@@ -3057,16 +3067,16 @@ export default function Radar({
                     <span
                       className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium"
                       style={{
-                        backgroundColor: `${getMovementColor(selected.latest_movement_type)}18`,
-                        color: getMovementColor(selected.latest_movement_type),
-                        border: `1px solid ${getMovementColor(selected.latest_movement_type)}30`,
+                        backgroundColor: `${selectedColor}18`,
+                        color: selectedColor,
+                        border: `1px solid ${selectedColor}30`,
                       }}
                     >
                       <span
                         className="h-1.5 w-1.5 rounded-full"
                         style={{
-                          backgroundColor: getMovementColor(selected.latest_movement_type),
-                          boxShadow: `0 0 6px ${getMovementColor(selected.latest_movement_type)}`,
+                          backgroundColor: selectedColor,
+                          boxShadow: `0 0 6px ${selectedColor}`,
                         }}
                       />
                       {selected.latest_movement_type
@@ -3104,7 +3114,7 @@ export default function Radar({
               <div
                 className="mb-6 h-px"
                 style={{
-                  background: `linear-gradient(90deg, transparent, ${getMovementColor(selected.latest_movement_type)}30 40%, ${getMovementColor(selected.latest_movement_type)}30 60%, transparent)`,
+                  background: `linear-gradient(90deg, transparent, ${selectedColor}30 40%, ${selectedColor}30 60%, transparent)`,
                 }}
               />
 
@@ -3114,11 +3124,11 @@ export default function Radar({
                 <div
                   className="h-px w-full"
                   style={{
-                    background: `linear-gradient(90deg, transparent, ${getMovementColor(selected.latest_movement_type)}45 35%, ${getMovementColor(selected.latest_movement_type)}60 50%, ${getMovementColor(selected.latest_movement_type)}45 65%, transparent)`,
+                    background: `linear-gradient(90deg, transparent, ${selectedColor}45 35%, ${selectedColor}60 50%, ${selectedColor}45 65%, transparent)`,
                   }}
                 />
                 <div className="px-4 py-3.5">
-                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: `${getMovementColor(selected.latest_movement_type)}90` }}>
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: `${selectedColor}90` }}>
                   Assessment
                 </div>
                 {detailLoading ? (
@@ -3160,11 +3170,11 @@ export default function Radar({
                   className="mt-3 rounded-[14px] border border-[#1a2d18] px-4 py-3.5"
                   style={{
                     background: "#070e07",
-                    borderLeftColor: `${getMovementColor(selected.latest_movement_type)}55`,
+                    borderLeftColor: `${selectedColor}55`,
                     borderLeftWidth: "2px",
                   }}
                 >
-                  <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: `${getMovementColor(selected.latest_movement_type)}95` }}>
+                  <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: `${selectedColor}95` }}>
                     <span style={{ opacity: 0.7 }}>→</span>
                     <span>Recommended Action</span>
                   </div>
@@ -3182,7 +3192,7 @@ export default function Radar({
                   </div>
                   <div
                     className="mt-2 text-xl font-bold tabular-nums leading-none"
-                    style={{ color: getMovementColor(selected.latest_movement_type) }}
+                    style={{ color: selectedColor }}
                   >
                     {formatNumber(selected.momentum_score)}
                   </div>
@@ -3282,13 +3292,13 @@ export default function Radar({
                         interpretationConf === null
                           ? "#475569"
                           : interpretationConf >= 0.75
-                          ? getMovementColor(selected.latest_movement_type)
+                          ? selectedColor
                           : interpretationConf >= 0.5
                           ? "#f59e0b"
                           : "#94a3b8",
                       textShadow:
                         interpretationConf !== null && interpretationConf >= 0.75
-                          ? `0 0 14px ${getMovementColor(selected.latest_movement_type)}55`
+                          ? `0 0 14px ${selectedColor}55`
                           : undefined,
                     }}
                   >
@@ -3314,14 +3324,14 @@ export default function Radar({
                     style={{
                       background:
                         interpretationConf !== null && interpretationConf >= 0.75
-                          ? `linear-gradient(90deg, ${getMovementColor(selected.latest_movement_type)}70, ${getMovementColor(selected.latest_movement_type)})`
+                          ? `linear-gradient(90deg, ${selectedColor}70, ${selectedColor})`
                           : interpretationConf !== null && interpretationConf >= 0.5
                           ? "linear-gradient(90deg, #f59e0b70, #f59e0b)"
                           : "linear-gradient(90deg, #64748b50, #64748b)",
                       boxShadow:
                         interpretationConf !== null && interpretationConf >= 0.5
                           ? interpretationConf >= 0.75
-                            ? `0 0 12px ${getMovementColor(selected.latest_movement_type)}65`
+                            ? `0 0 12px ${selectedColor}65`
                             : "0 0 8px rgba(245,158,11,0.5)"
                           : undefined,
                     }}
@@ -3616,7 +3626,11 @@ export default function Radar({
               {/* ── Contact list ──────────────────────────────── */}
               <div className="space-y-1">
                 {sorted.map((competitor) => {
-                  const color    = getMovementColor(competitor.latest_movement_type);
+                  const color    = competitor.latest_movement_type
+                    ? getMovementColor(competitor.latest_movement_type)
+                    : competitor.latest_signal_type
+                      ? getSignalColor(competitor.latest_signal_type)
+                      : getMovementColor(null);
                   const momentum = Number(competitor.momentum_score ?? 0);
                   const fresh    = isNewToday(competitor);
                   const isActive = competitor.latest_movement_type !== null;

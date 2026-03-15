@@ -4,54 +4,67 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import type { RadarCompetitor } from "../lib/api";
 
-// ─── Color by movement type ───────────────────────────────────────────────────
-function getColor(movementType: string): string {
-  switch (movementType) {
-    case "pricing_strategy_shift": return "#f97316"; // orange
-    case "product_expansion":      return "#00e5ff"; // cyan
-    case "market_reposition":      return "#a855f7"; // purple
+// ─── Color by movement or signal type ─────────────────────────────────────────
+function getColor(type: string): string {
+  switch (type) {
+    case "pricing_strategy_shift":
+    case "price_point_change":
+    case "tier_change":          return "#f97316";
+    case "product_expansion":
+    case "feature_launch":       return "#00e5ff";
+    case "market_reposition":
+    case "positioning_shift":    return "#a855f7";
     case "enterprise_push":
-    case "ecosystem_expansion":    return "#f59e0b"; // gold
-    default:                       return "#2EE6A6";
+    case "ecosystem_expansion":  return "#f59e0b";
+    default:                     return "#2EE6A6";
   }
 }
 
-function getMovementLabel(movementType: string): string {
-  return movementType
-    .split("_")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
+function getTypeLabel(type: string): string {
+  const LABELS: Record<string, string> = {
+    pricing_strategy_shift: "Pricing Shift",
+    price_point_change:     "Price Change",
+    tier_change:            "Tier Change",
+    product_expansion:      "Product Expansion",
+    feature_launch:         "Feature Launch",
+    market_reposition:      "Market Reposition",
+    positioning_shift:      "Positioning Shift",
+    enterprise_push:        "Enterprise Push",
+    ecosystem_expansion:    "Ecosystem Expansion",
+    content_change:         "Content Change",
+  };
+  return LABELS[type] ?? type.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 
-// ─── Cluster detection ────────────────────────────────────────────────────────
+// ─── Cluster detection ─────────────────────────────────────────────────────────
+// Priority 1: movement type clusters (confirmed, ≥2 rivals)
+// Priority 2: signal type clusters (pre-movement, ≥2 rivals) — fires earlier in pipeline
 type Cluster = {
-  movementType: string;
+  type: string;
+  isSignalCluster: boolean;
   nodes: RadarCompetitor[];
   totalSignals: number;
   avgConfidence: number;
 };
 
-function detectCluster(competitors: RadarCompetitor[]): Cluster | null {
-  const groups = new Map<string, RadarCompetitor[]>();
-  for (const c of competitors) {
-    if (!c.latest_movement_type) continue;
-    const g = groups.get(c.latest_movement_type) ?? [];
-    g.push(c);
-    groups.set(c.latest_movement_type, g);
-  }
-
+function pickBestFromGroups(
+  groups: Map<string, RadarCompetitor[]>,
+  isSignalCluster: boolean,
+): Cluster | null {
   let best: Cluster | null = null;
-  for (const [movementType, comps] of groups) {
+  for (const [type, comps] of groups) {
     if (comps.length < 2) continue;
     const totalSignals = comps.reduce((s, c) => s + (c.signals_7d ?? 0), 0);
     const confs = comps
-      .filter((c) => c.latest_movement_confidence != null)
-      .map((c) => c.latest_movement_confidence!);
-    const avgConfidence =
-      confs.length > 0 ? confs.reduce((s, v) => s + v, 0) / confs.length : 0;
+      .filter(c => c.latest_movement_confidence != null)
+      .map(c => c.latest_movement_confidence!);
+    const avgConfidence = confs.length > 0
+      ? confs.reduce((a, b) => a + b, 0) / confs.length
+      : 0.5;
     if (!best || totalSignals > best.totalSignals) {
       best = {
-        movementType,
+        type,
+        isSignalCluster,
         nodes: comps
           .slice()
           .sort((a, b) => Number(b.momentum_score ?? 0) - Number(a.momentum_score ?? 0))
@@ -64,33 +77,59 @@ function detectCluster(competitors: RadarCompetitor[]): Cluster | null {
   return best;
 }
 
-// ─── Recency opacity ──────────────────────────────────────────────────────────
+function detectCluster(competitors: RadarCompetitor[]): Cluster | null {
+  // Movement clusters — confirmed intelligence
+  const movGroups = new Map<string, RadarCompetitor[]>();
+  for (const c of competitors) {
+    if (!c.latest_movement_type) continue;
+    const g = movGroups.get(c.latest_movement_type) ?? [];
+    g.push(c);
+    movGroups.set(c.latest_movement_type, g);
+  }
+  const movCluster = pickBestFromGroups(movGroups, false);
+  if (movCluster) return movCluster;
+
+  // Signal clusters — pre-movement, uses latest_signal_type
+  const sigGroups = new Map<string, RadarCompetitor[]>();
+  for (const c of competitors) {
+    if (!c.latest_signal_type) continue;
+    const g = sigGroups.get(c.latest_signal_type) ?? [];
+    g.push(c);
+    sigGroups.set(c.latest_signal_type, g);
+  }
+  return pickBestFromGroups(sigGroups, true);
+}
+
+// ─── Recency opacity ───────────────────────────────────────────────────────────
 function recencyOpacity(lastSignalAt: string | null): number {
   if (!lastSignalAt) return 0.55;
   const ageHours = (Date.now() - new Date(lastSignalAt).getTime()) / 3_600_000;
-  if (ageHours < 24)  return 1.0;
-  if (ageHours < 72)  return 0.75;
+  if (ageHours < 24) return 1.0;
+  if (ageHours < 72) return 0.75;
   return 0.55;
 }
 
-// ─── Star positions — deterministic circular spread ───────────────────────────
-// viewBox is 200 × 138. Stars cluster in the upper portion (cy ≈ 54).
+// ─── Star positions — deterministic circular spread ────────────────────────────
 function getStarPositions(count: number): { x: number; y: number }[] {
-  const cx = 100;
-  const cy = 54;
+  const cx = 100, cy = 54;
   const baseRadius = count <= 2 ? 24 : count <= 3 ? 30 : 34;
   return Array.from({ length: count }, (_, i) => {
     const angle = (i / count) * 2 * Math.PI - Math.PI / 2;
-    // slight deterministic jitter per index for natural feel
     const r = baseRadius + [6, -4, 2, 8, -6][i % 5];
-    return {
-      x: cx + r * Math.cos(angle),
-      y: cy + r * Math.sin(angle),
-    };
+    return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
   });
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// Sparkle offsets per star — deterministic positions for cross/plus flashes
+const SPARKLE_OFFSETS = [
+  [{ dx: 8,  dy: -7 }, { dx: -9, dy: -4 }, { dx: 5,  dy: 9  }],
+  [{ dx: -8, dy:  8 }, { dx:  9, dy:  3 }, { dx: -4, dy: -9 }],
+  [{ dx: 7,  dy:  7 }, { dx: -6, dy:  8 }, { dx: 8,  dy: -5 }],
+  [{ dx: -9, dy: -6 }, { dx:  7, dy: -8 }, { dx: -5, dy:  8 }],
+  [{ dx: 6,  dy: -9 }, { dx: -8, dy:  5 }, { dx: 9,  dy:  6 }],
+];
+
+// ─── Component ─────────────────────────────────────────────────────────────────
 export default function SignalConstellation({
   competitors,
 }: {
@@ -98,6 +137,7 @@ export default function SignalConstellation({
 }) {
   const cluster = useMemo(() => detectCluster(competitors), [competitors]);
 
+  // Empty state — animated dormant dots
   if (!cluster) {
     return (
       <div className="px-3 py-3">
@@ -109,10 +149,7 @@ export default function SignalConstellation({
         </div>
         <div
           className="overflow-hidden rounded-[10px]"
-          style={{
-            background: "rgba(0,0,0,0.40)",
-            border: "1px solid rgba(46,230,166,0.05)",
-          }}
+          style={{ background: "rgba(0,0,0,0.40)", border: "1px solid rgba(46,230,166,0.05)" }}
         >
           <svg
             width="100%"
@@ -121,28 +158,25 @@ export default function SignalConstellation({
             style={{ display: "block" }}
             aria-hidden="true"
           >
-            {/* Faint dormant dots */}
             {[
               { x: 68, y: 34 }, { x: 100, y: 22 }, { x: 132, y: 34 },
               { x: 120, y: 54 }, { x: 80, y: 54 },
             ].map((pos, i) => (
-              <circle
+              <motion.circle
                 key={i}
                 cx={pos.x}
                 cy={pos.y}
                 r={1.8}
                 fill="rgba(46,230,166,0.12)"
+                animate={{ opacity: [0.12, 0.32, 0.12] }}
+                transition={{ duration: 2.4, delay: i * 0.38, repeat: Infinity, ease: "easeInOut" }}
               />
             ))}
-            {/* Dormant label */}
             <text
-              x="100"
-              y="70"
+              x="100" y="70"
               textAnchor="middle"
               fill="rgba(255,255,255,0.14)"
-              fontSize="5"
-              fontWeight="600"
-              letterSpacing="0.20em"
+              fontSize="5" fontWeight="600" letterSpacing="0.20em"
               fontFamily="ui-monospace, monospace"
             >
               AWAITING CLUSTER
@@ -153,27 +187,39 @@ export default function SignalConstellation({
     );
   }
 
-  const { movementType, nodes, avgConfidence } = cluster;
-  const color = getColor(movementType);
-  const label = getMovementLabel(movementType);
-  const confidencePct = Math.round(avgConfidence * 100);
+  const { type, isSignalCluster, nodes, avgConfidence } = cluster;
+  const color   = getColor(type);
+  const label   = getTypeLabel(type);
+  const confPct = Math.round(avgConfidence * 100);
   const positions = getStarPositions(nodes.length);
 
-  // Animation timing constants (seconds)
-  const STAR_STAGGER   = 0.12;
-  const LINE_START     = nodes.length * STAR_STAGGER + 0.3;
-  const LINE_STAGGER   = 0.22;
-  const TITLE_START    = LINE_START + (nodes.length - 1) * LINE_STAGGER + 0.5;
-  const PULSE_START    = TITLE_START + 0.5;
+  // Timing constants (seconds)
+  const STAR_STAGGER = 0.10;
+  const LINE_START   = nodes.length * STAR_STAGGER + 0.2;
+  const LINE_STAGGER = 0.18;
+  const TITLE_START  = LINE_START + (nodes.length - 1) * LINE_STAGGER + 0.30;
+  const PULSE_START  = TITLE_START + 0.25;
 
   return (
     <div className="px-3 py-3">
       {/* Section label */}
-      <div
-        className="mb-2 text-center text-[9px] uppercase tracking-[0.28em]"
-        style={{ color: "rgba(46,230,166,0.35)" }}
-      >
-        Signal Constellation
+      <div className="mb-2 flex items-center justify-between px-0.5">
+        <div
+          className="text-[9px] uppercase tracking-[0.28em]"
+          style={{ color: "rgba(46,230,166,0.35)" }}
+        >
+          Signal Constellation
+        </div>
+        {isSignalCluster && (
+          <motion.div
+            className="text-[8px] uppercase tracking-[0.14em]"
+            style={{ color: `${color}99` }}
+            animate={{ opacity: [0.6, 1.0, 0.6] }}
+            transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+          >
+            emerging
+          </motion.div>
+        )}
       </div>
 
       {/* SVG panel */}
@@ -181,7 +227,8 @@ export default function SignalConstellation({
         className="overflow-hidden rounded-[10px]"
         style={{
           background: "rgba(0,0,0,0.55)",
-          border: "1px solid rgba(46,230,166,0.07)",
+          border: `1px solid ${color}1a`,
+          boxShadow: `0 0 20px ${color}08`,
         }}
       >
         <svg
@@ -191,160 +238,225 @@ export default function SignalConstellation({
           style={{ display: "block" }}
           aria-hidden="true"
         >
-          {/* Subtle dot grid */}
           <defs>
-            <pattern
-              id="scDots"
-              x="0"
-              y="0"
-              width="10"
-              height="10"
-              patternUnits="userSpaceOnUse"
-            >
+            <pattern id="scDots" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
               <circle cx="5" cy="5" r="0.4" fill="rgba(255,255,255,0.035)" />
             </pattern>
+            <radialGradient id="scClusterGlow" cx="50%" cy="39%" r="45%">
+              <stop offset="0%" stopColor={color} stopOpacity="0.11" />
+              <stop offset="100%" stopColor={color} stopOpacity="0" />
+            </radialGradient>
           </defs>
           <rect width="200" height="138" fill="url(#scDots)" />
 
-          {/* Connection lines — draw in after stars appear */}
+          {/* Background radial glow — breathes with cluster */}
+          <motion.rect
+            width="200"
+            height="138"
+            fill="url(#scClusterGlow)"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0.5, 1.0, 0.5] }}
+            transition={{ duration: 3.5, delay: TITLE_START, repeat: Infinity, ease: "easeInOut" }}
+          />
+
+          {/* Connection lines + travel dots */}
           {positions.map((pos, i) => {
             if (i === 0) return null;
             const prev = positions[i - 1];
+            const mx   = (prev.x + pos.x) / 2;
+            const my   = (prev.y + pos.y) / 2;
             return (
-              <motion.line
-                key={`line-${i}`}
-                x1={prev.x}
-                y1={prev.y}
-                x2={pos.x}
-                y2={pos.y}
-                stroke={color}
-                strokeWidth="0.9"
-                strokeLinecap="round"
-                initial={{ pathLength: 0, opacity: 0 }}
-                animate={{ pathLength: 1, opacity: 0.55 }}
-                transition={{
-                  duration: 0.35,
-                  delay: LINE_START + (i - 1) * LINE_STAGGER,
-                  ease: "easeOut",
-                }}
-                style={{ filter: `drop-shadow(0 0 3px ${color}88)` }}
-              />
+              <g key={`line-${i}`}>
+                {/* Static line */}
+                <motion.line
+                  x1={prev.x} y1={prev.y}
+                  x2={pos.x}  y2={pos.y}
+                  stroke={color}
+                  strokeWidth="0.8"
+                  strokeLinecap="round"
+                  initial={{ pathLength: 0, opacity: 0 }}
+                  animate={{ pathLength: 1, opacity: 0.40 }}
+                  transition={{
+                    duration: 0.28,
+                    delay: LINE_START + (i - 1) * LINE_STAGGER,
+                    ease: "easeOut",
+                  }}
+                  style={{ filter: `drop-shadow(0 0 2px ${color}55)` }}
+                />
+                {/* Travel dot along line */}
+                <motion.circle
+                  r={1.0}
+                  fill={color}
+                  initial={{ opacity: 0, cx: prev.x, cy: prev.y }}
+                  animate={{
+                    cx: [prev.x, mx, pos.x, mx, prev.x],
+                    cy: [prev.y, my, pos.y, my, prev.y],
+                    opacity: [0, 0.9, 0.9, 0.9, 0],
+                  }}
+                  transition={{
+                    duration: 2.0,
+                    delay: LINE_START + (i - 1) * LINE_STAGGER + 0.35,
+                    repeat: Infinity,
+                    repeatDelay: 3.0 + i * 0.7,
+                    ease: "easeInOut",
+                  }}
+                  style={{ filter: `drop-shadow(0 0 3px ${color})` }}
+                />
+              </g>
             );
           })}
 
           {/* Stars */}
           {positions.map((pos, i) => {
-            // Per-node slow drift: each star oscillates slightly for a living feel
-            const driftY = [3, -2, 2.5, -3, 1.5][i % 5];
-            const driftX = [1.5, -2, 1, -1.5, 2][i % 5];
-            const driftDur = 6 + i * 0.8;
-            const nodeOpacity = recencyOpacity(nodes[i]?.last_signal_at ?? null);
+            const driftY    = [3, -2, 2.5, -3, 1.5][i % 5];
+            const driftX    = [1.5, -2, 1, -1.5, 2][i % 5];
+            const driftDur  = 3.5 + i * 0.65;
+            const nodeOp    = recencyOpacity(nodes[i]?.last_signal_at ?? null);
+            const sparkles  = SPARKLE_OFFSETS[i % 5];
+
             return (
-            <motion.g
-              key={`star-${i}`}
-              animate={{ x: [0, driftX, 0, -driftX, 0], y: [0, driftY, 0, -driftY, 0] }}
-              transition={{ duration: driftDur, repeat: Infinity, ease: "easeInOut", delay: i * 0.4 }}
-            >
-              {/* Outer glow — breathes continuously */}
-              <motion.circle
-                cx={pos.x}
-                cy={pos.y}
-                r={6}
-                fill={color}
-                initial={{ opacity: 0, scale: 0 }}
-                animate={{ opacity: [0, 0.14 * nodeOpacity, 0.08 * nodeOpacity, 0.14 * nodeOpacity, 0.08 * nodeOpacity], scale: [0, 1.4, 1, 1.2, 1] }}
-                transition={{
-                  duration: 0.5,
-                  delay: i * STAR_STAGGER,
-                  ease: "easeOut",
-                  times: [0, 0.4, 0.7, 0.85, 1],
-                  opacity: { repeat: Infinity, repeatDelay: 2.5 + i * 0.5, duration: 3 },
-                  scale: { duration: 0.5, delay: i * STAR_STAGGER },
-                }}
-                style={{ transformBox: "fill-box", transformOrigin: "center" }}
-              />
-              {/* Core dot */}
-              <motion.circle
-                cx={pos.x}
-                cy={pos.y}
-                r={2.4}
-                fill={color}
-                initial={{ opacity: 0, scale: 0 }}
-                animate={{ opacity: nodeOpacity * 0.95, scale: 1 }}
-                transition={{
-                  duration: 0.2,
-                  delay: i * STAR_STAGGER,
-                  ease: "easeOut",
-                }}
-                style={{
-                  filter: `drop-shadow(0 0 4px ${color})`,
-                  transformBox: "fill-box",
-                  transformOrigin: "center",
-                }}
-              />
-              {/* Repeating slow pulse ring */}
-              <motion.circle
-                cx={pos.x}
-                cy={pos.y}
-                r={2.4}
-                fill="none"
-                stroke={color}
-                strokeWidth="0.8"
-                initial={{ opacity: 0, scale: 1 }}
-                animate={{ opacity: [0, 0.65, 0], scale: [1, 2.8, 3.4] }}
-                transition={{
-                  duration: 1.1,
-                  delay: PULSE_START + i * 0.12,
-                  ease: "easeOut",
-                  repeat: Infinity,
-                  repeatDelay: 4 + i * 0.6,
-                  times: [0, 0.3, 1],
-                }}
-                style={{ transformBox: "fill-box", transformOrigin: "center" }}
-              />
-            </motion.g>
+              <motion.g
+                key={`star-${i}`}
+                animate={{ x: [0, driftX, 0, -driftX, 0], y: [0, driftY, 0, -driftY, 0] }}
+                transition={{ duration: driftDur, repeat: Infinity, ease: "easeInOut", delay: i * 0.4 }}
+              >
+                {/* Wide ambient glow halo — breathes */}
+                <motion.circle
+                  cx={pos.x} cy={pos.y} r={9}
+                  fill={color}
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{
+                    opacity: [0, 0.13 * nodeOp, 0.06 * nodeOp, 0.13 * nodeOp],
+                    scale: [0, 1.2, 1, 1.1, 1],
+                  }}
+                  transition={{
+                    duration: 0.38, delay: i * STAR_STAGGER, ease: "easeOut",
+                    opacity: { repeat: Infinity, repeatDelay: 1.6 + i * 0.35, duration: 2.2 },
+                    scale:   { duration: 0.38, delay: i * STAR_STAGGER },
+                  }}
+                  style={{ transformBox: "fill-box", transformOrigin: "center" }}
+                />
+
+                {/* Core dot with glow */}
+                <motion.circle
+                  cx={pos.x} cy={pos.y} r={2.6}
+                  fill={color}
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: nodeOp * 0.95, scale: 1 }}
+                  transition={{ duration: 0.16, delay: i * STAR_STAGGER, ease: "easeOut" }}
+                  style={{
+                    filter: `drop-shadow(0 0 5px ${color}) drop-shadow(0 0 2px ${color})`,
+                    transformBox: "fill-box",
+                    transformOrigin: "center",
+                  }}
+                />
+
+                {/* Primary pulse ring */}
+                <motion.circle
+                  cx={pos.x} cy={pos.y} r={2.6}
+                  fill="none" stroke={color} strokeWidth="0.7"
+                  initial={{ opacity: 0, scale: 1 }}
+                  animate={{ opacity: [0, 0.72, 0], scale: [1, 2.6, 3.2] }}
+                  transition={{
+                    duration: 0.85,
+                    delay: PULSE_START + i * 0.11,
+                    ease: "easeOut",
+                    repeat: Infinity,
+                    repeatDelay: 1.8 + i * 0.45,
+                    times: [0, 0.22, 1],
+                  }}
+                  style={{ transformBox: "fill-box", transformOrigin: "center" }}
+                />
+
+                {/* Secondary pulse ring — wider, offset */}
+                <motion.circle
+                  cx={pos.x} cy={pos.y} r={2.6}
+                  fill="none" stroke={color} strokeWidth="0.45"
+                  initial={{ opacity: 0, scale: 1 }}
+                  animate={{ opacity: [0, 0.38, 0], scale: [1, 4.0, 5.0] }}
+                  transition={{
+                    duration: 1.2,
+                    delay: PULSE_START + i * 0.11 + 0.45,
+                    ease: "easeOut",
+                    repeat: Infinity,
+                    repeatDelay: 2.2 + i * 0.45,
+                    times: [0, 0.18, 1],
+                  }}
+                  style={{ transformBox: "fill-box", transformOrigin: "center" }}
+                />
+
+                {/* Sparkle crosses — brief flashes near each star */}
+                {sparkles.map((sp, si) => {
+                  const sx = pos.x + sp.dx;
+                  const sy = pos.y + sp.dy;
+                  const sparkDelay = PULSE_START + i * 0.18 + si * 0.38;
+                  const sparkRepeatDelay = 4.2 + si * 1.1 + i * 0.65;
+                  return (
+                    <motion.g key={`sp-${i}-${si}`}>
+                      <motion.line
+                        x1={sx - 1.6} y1={sy} x2={sx + 1.6} y2={sy}
+                        stroke={color} strokeWidth="0.65" strokeLinecap="round"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: [0, 0.90, 0] }}
+                        transition={{
+                          duration: 0.48, delay: sparkDelay,
+                          repeat: Infinity, repeatDelay: sparkRepeatDelay,
+                          times: [0, 0.28, 1],
+                        }}
+                        style={{ filter: `drop-shadow(0 0 2px ${color})` }}
+                      />
+                      <motion.line
+                        x1={sx} y1={sy - 1.6} x2={sx} y2={sy + 1.6}
+                        stroke={color} strokeWidth="0.65" strokeLinecap="round"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: [0, 0.90, 0] }}
+                        transition={{
+                          duration: 0.48, delay: sparkDelay,
+                          repeat: Infinity, repeatDelay: sparkRepeatDelay,
+                          times: [0, 0.28, 1],
+                        }}
+                        style={{ filter: `drop-shadow(0 0 2px ${color})` }}
+                      />
+                    </motion.g>
+                  );
+                })}
+              </motion.g>
             );
           })}
 
-          {/* Pattern title block */}
+          {/* Title block */}
           <motion.g
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: TITLE_START, ease: "easeOut" }}
+            transition={{ duration: 0.4, delay: TITLE_START, ease: "easeOut" }}
           >
             <text
-              x="100"
-              y="98"
+              x="100" y="98"
               textAnchor="middle"
               fill="rgba(255,255,255,0.38)"
-              fontSize="5"
-              fontWeight="600"
-              letterSpacing="0.18em"
+              fontSize="5" fontWeight="600" letterSpacing="0.18em"
               fontFamily="ui-monospace, monospace"
             >
-              CONSTELLATION DETECTED
+              {isSignalCluster ? "SIGNAL PATTERN EMERGING" : "CONSTELLATION DETECTED"}
             </text>
             <text
-              x="100"
-              y="109"
+              x="100" y="109"
               textAnchor="middle"
               fill={color}
-              fontSize="7"
-              fontWeight="700"
-              letterSpacing="0.06em"
+              fontSize="7" fontWeight="700" letterSpacing="0.06em"
               fontFamily="ui-monospace, monospace"
+              style={{ filter: `drop-shadow(0 0 6px ${color}88)` }}
             >
               {label}
             </text>
             <text
-              x="100"
-              y="120"
+              x="100" y="120"
               textAnchor="middle"
               fill="rgba(255,255,255,0.28)"
               fontSize="5"
               fontFamily="ui-monospace, monospace"
             >
-              {nodes.length} rivals · {confidencePct}% confidence
+              {nodes.length} rivals · {isSignalCluster ? "emerging" : `${confPct}% confidence`}
             </text>
           </motion.g>
         </svg>
