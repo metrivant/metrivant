@@ -168,12 +168,21 @@ async function handler(req: ApiReq, res: ApiRes) {
         rowsSucceeded += 1;
       } catch (error) {
         rowsFailed += 1;
-        // 404s and timeouts are expected pipeline outcomes — don't pollute Sentry
+        // These are expected pipeline outcomes — websites block bots, timeout,
+        // redirect-loop, or return oversized pages. Don't pollute Sentry with them.
         const msg = error instanceof Error ? error.message : String(error);
+        // Also check error code for Supabase DB errors where the message
+        // may not match the pattern but the error is a known non-critical outcome.
+        const errCode = (error as { code?: string })?.code;
         const isExpectedFailure =
           msg.includes("404") ||
+          msg.includes("403") ||
+          msg.includes("401") ||
           msg.includes("AbortError") ||
-          msg.includes("This operation was aborted");
+          msg.includes("This operation was aborted") ||
+          msg.includes("redirect count exceeded") ||
+          msg.includes("HTML exceeds size limit") ||
+          errCode === "23505"; // unique constraint violation — concurrent run race
         if (!isExpectedFailure) {
           Sentry.captureException(error);
         }

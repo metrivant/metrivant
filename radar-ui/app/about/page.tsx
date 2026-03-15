@@ -1,5 +1,6 @@
 import Link from "next/link";
 import PublicNav from "../../components/PublicNav";
+import FeaturesButton from "../../components/FeaturesButton";
 
 export const metadata = {
   title: "About — Metrivant",
@@ -607,6 +608,9 @@ export default function AboutPage() {
           </a>
         </p>
       </div>
+
+      {/* Persistent Features button — fixed floating, opens the features overlay */}
+      <FeaturesButton />
     </div>
   );
 }

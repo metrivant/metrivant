@@ -406,6 +406,7 @@ async function handler(req: ApiReq, res: ApiRes) {
           .from("signals")
           .upsert(
             {
+              competitor_id:     competitorId,
               section_diff_id:   diff.id,
               monitored_page_id: diff.monitored_page_id,
               signal_type:       signal.signal_type,

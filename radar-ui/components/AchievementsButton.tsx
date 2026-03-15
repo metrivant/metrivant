@@ -30,110 +30,126 @@ type Props = {
   hasAccelerating: boolean;
 };
 
-// ── Achievement icons ──────────────────────────────────────────────────────────
+// ── Achievement icons (24×24 inline SVG, brand-themed) ────────────────────────
 
 function AchievIcon({ id, color }: { id: string; color: string }) {
   switch (id) {
     case "signal_first":
+      // Radar blip — concentric rings + hot dot
       return (
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          <circle cx="10" cy="10" r="8.5" stroke={color} strokeWidth="1" strokeOpacity="0.38" />
-          <circle cx="10" cy="10" r="5"   stroke={color} strokeWidth="1" strokeOpacity="0.55" />
-          <circle cx="10" cy="10" r="2"   fill={color} />
-          <circle cx="15" cy="6"  r="1.5" fill={color} fillOpacity="0.85" />
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" stroke={color} strokeWidth="1" strokeOpacity="0.28" />
+          <circle cx="12" cy="12" r="6.5" stroke={color} strokeWidth="1" strokeOpacity="0.48" />
+          <circle cx="12" cy="12" r="3"   stroke={color} strokeWidth="1" strokeOpacity="0.70" />
+          <circle cx="12" cy="12" r="1.4" fill={color} />
+          <circle cx="18"  cy="7"  r="1.8" fill={color} fillOpacity="0.80" />
         </svg>
       );
     case "rival_tracked":
+      // Crosshair / target
       return (
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          <circle cx="10" cy="10" r="8.5" stroke={color} strokeWidth="1" strokeOpacity="0.4" />
-          <line x1="10" y1="1.5" x2="10" y2="4.5" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-          <line x1="10" y1="15.5" x2="10" y2="18.5" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-          <line x1="1.5" y1="10" x2="4.5" y2="10" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-          <line x1="15.5" y1="10" x2="18.5" y2="10" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-          <circle cx="10" cy="10" r="2.8" stroke={color} strokeWidth="1.4" />
-        </svg>
-      );
-    case "brief_viewed":
-      return (
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          <rect x="3" y="2" width="14" height="16" rx="2" stroke={color} strokeWidth="1.2" strokeOpacity="0.55" />
-          <line x1="6" y1="6.5"  x2="14" y2="6.5"  stroke={color} strokeWidth="1.2" strokeLinecap="round" />
-          <line x1="6" y1="10"   x2="14" y2="10"   stroke={color} strokeWidth="1.2" strokeLinecap="round" />
-          <line x1="6" y1="13.5" x2="10" y2="13.5" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
-        </svg>
-      );
-    case "movement_detected":
-      return (
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          <polyline points="2,16 7,9 11,12 18,4" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          <polyline points="14,4 18,4 18,8"       stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      );
-    case "critical_alert":
-      return (
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          <path d="M10 2L18.5 17H1.5L10 2Z" stroke={color} strokeWidth="1.3" strokeOpacity="0.6" strokeLinecap="round" strokeLinejoin="round" />
-          <line x1="10" y1="8"    x2="10" y2="12.5" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
-          <circle cx="10" cy="14.8" r="1" fill={color} />
-        </svg>
-      );
-    case "signals_10":
-      return (
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          <rect x="2"  y="13" width="4" height="5"    rx="0.8" fill={color} fillOpacity="0.42" />
-          <rect x="8"  y="8"  width="4" height="10"   rx="0.8" fill={color} fillOpacity="0.62" />
-          <rect x="14" y="3"  width="4" height="15"   rx="0.8" fill={color} fillOpacity="0.88" />
-        </svg>
-      );
-    case "strategy_reviewed":
-      return (
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          <rect x="2"  y="2"  width="7" height="7" rx="1.2" stroke={color} strokeWidth="1.2" strokeOpacity="0.48" />
-          <rect x="11" y="2"  width="7" height="7" rx="1.2" stroke={color} strokeWidth="1.2" strokeOpacity="0.72" />
-          <rect x="2"  y="11" width="7" height="7" rx="1.2" stroke={color} strokeWidth="1.2" strokeOpacity="0.72" />
-          <rect x="11" y="11" width="7" height="7" rx="1.2" stroke={color} strokeWidth="1.2" strokeOpacity="0.48" />
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="9.5" stroke={color} strokeWidth="1" strokeOpacity="0.38" />
+          <line x1="12" y1="2"  x2="12" y2="5.5"  stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+          <line x1="12" y1="18.5" x2="12" y2="22" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+          <line x1="2"  y1="12" x2="5.5" y2="12"  stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+          <line x1="18.5" y1="12" x2="22" y2="12" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+          <circle cx="12" cy="12" r="3" stroke={color} strokeWidth="1.4" />
         </svg>
       );
     case "rivals_5":
+      // Pentagon of nodes — Five Eyes
       return (
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          {/* Five nodes arranged like a pentagon — "five eyes" */}
-          <circle cx="10" cy="3.5" r="1.6" fill={color} fillOpacity="0.85" />
-          <circle cx="17" cy="8"   r="1.4" fill={color} fillOpacity="0.65" />
-          <circle cx="14" cy="16"  r="1.4" fill={color} fillOpacity="0.65" />
-          <circle cx="6"  cy="16"  r="1.4" fill={color} fillOpacity="0.65" />
-          <circle cx="3"  cy="8"   r="1.4" fill={color} fillOpacity="0.65" />
-          <path d="M10 3.5L17 8L14 16L6 16L3 8Z" stroke={color} strokeWidth="0.7" strokeOpacity="0.28" />
-          <circle cx="10" cy="10"  r="1"   fill={color} fillOpacity="0.40" />
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12"  cy="3.5"  r="1.8" fill={color} fillOpacity="0.90" />
+          <circle cx="20.5" cy="9.5"  r="1.6" fill={color} fillOpacity="0.68" />
+          <circle cx="17.5" cy="19.5" r="1.6" fill={color} fillOpacity="0.68" />
+          <circle cx="6.5"  cy="19.5" r="1.6" fill={color} fillOpacity="0.68" />
+          <circle cx="3.5"  cy="9.5"  r="1.6" fill={color} fillOpacity="0.68" />
+          <path d="M12 3.5L20.5 9.5L17.5 19.5L6.5 19.5L3.5 9.5Z" stroke={color} strokeWidth="0.7" strokeOpacity="0.24" />
+          <circle cx="12" cy="12"  r="1.2" fill={color} fillOpacity="0.42" />
+        </svg>
+      );
+    case "brief_viewed":
+      // Document / book icon
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="3.5" y="2" width="17" height="20" rx="2" stroke={color} strokeWidth="1.2" strokeOpacity="0.50" />
+          <line x1="7" y1="7"    x2="17" y2="7"    stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+          <line x1="7" y1="10.5" x2="17" y2="10.5" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+          <line x1="7" y1="14"   x2="13" y2="14"   stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+          <line x1="7" y1="17.5" x2="11" y2="17.5" stroke={color} strokeWidth="0.9" strokeLinecap="round" strokeOpacity="0.55" />
+        </svg>
+      );
+    case "strategy_reviewed":
+      // Four-quadrant grid — pattern analysis
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="2.5"  y="2.5"  width="8.5" height="8.5" rx="1.4" stroke={color} strokeWidth="1.2" strokeOpacity="0.45" />
+          <rect x="13"   y="2.5"  width="8.5" height="8.5" rx="1.4" stroke={color} strokeWidth="1.2" strokeOpacity="0.72" />
+          <rect x="2.5"  y="13"   width="8.5" height="8.5" rx="1.4" stroke={color} strokeWidth="1.2" strokeOpacity="0.72" />
+          <rect x="13"   y="13"   width="8.5" height="8.5" rx="1.4" stroke={color} strokeWidth="1.2" strokeOpacity="0.45" />
         </svg>
       );
     case "map_viewed":
+      // Positioning map / scatter plot
       return (
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          <rect x="2" y="2" width="16" height="16" rx="1.5" stroke={color} strokeWidth="0.9" strokeOpacity="0.30" />
-          <line x1="10" y1="2"  x2="10" y2="18" stroke={color} strokeWidth="0.6" strokeDasharray="1.5 2" strokeOpacity="0.25" />
-          <line x1="2"  y1="10" x2="18" y2="10" stroke={color} strokeWidth="0.6" strokeDasharray="1.5 2" strokeOpacity="0.25" />
-          <circle cx="6"  cy="6"  r="2"   fill={color} fillOpacity="0.30" />
-          <circle cx="15" cy="6"  r="1.6" fill={color} fillOpacity="0.55" />
-          <circle cx="5"  cy="14" r="1.4" fill={color} fillOpacity="0.25" />
-          <circle cx="14" cy="14" r="2.4" fill={color} fillOpacity="0.70" />
-          <circle cx="10" cy="9"  r="1.5" fill={color} fillOpacity="0.42" />
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="2" y="2" width="20" height="20" rx="2" stroke={color} strokeWidth="0.9" strokeOpacity="0.28" />
+          <line x1="12" y1="2"  x2="12" y2="22" stroke={color} strokeWidth="0.6" strokeDasharray="2 2.5" strokeOpacity="0.22" />
+          <line x1="2"  y1="12" x2="22" y2="12" stroke={color} strokeWidth="0.6" strokeDasharray="2 2.5" strokeOpacity="0.22" />
+          <circle cx="7"  cy="7"  r="2.4" fill={color} fillOpacity="0.30" />
+          <circle cx="17" cy="7"  r="1.8" fill={color} fillOpacity="0.58" />
+          <circle cx="6"  cy="17" r="1.6" fill={color} fillOpacity="0.25" />
+          <circle cx="17" cy="17" r="2.8" fill={color} fillOpacity="0.72" />
+          <circle cx="12" cy="10" r="1.6" fill={color} fillOpacity="0.44" />
+        </svg>
+      );
+    case "signals_10":
+      // Signal density bar chart
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="2"   y="16" width="5" height="6"  rx="1" fill={color} fillOpacity="0.38" />
+          <rect x="9.5" y="10" width="5" height="12" rx="1" fill={color} fillOpacity="0.60" />
+          <rect x="17"  y="4"  width="5" height="18" rx="1" fill={color} fillOpacity="0.88" />
+          <line x1="1" y1="22" x2="23" y2="22" stroke={color} strokeWidth="0.8" strokeOpacity="0.22" />
         </svg>
       );
     case "pressure_detected":
+      // Pressure wave — concentric burst
       return (
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          <circle cx="10" cy="10" r="8.5" stroke={color} strokeWidth="0.8" strokeOpacity="0.22" />
-          <circle cx="10" cy="10" r="5.5" stroke={color} strokeWidth="0.8" strokeOpacity="0.38" strokeDasharray="2 2" />
-          <circle cx="10" cy="10" r="2.8" fill={color} fillOpacity="0.55" />
-          <circle cx="10" cy="10" r="1.4" fill={color} fillOpacity="0.90" />
-          {/* Pressure wave indicator */}
-          <path d="M10 1.5L10.8 4.5L13.5 3L11.5 5.5L14.5 6.5L11.5 7L13 9.5" stroke={color} strokeWidth="0.8" strokeOpacity="0.45" strokeLinecap="round" strokeLinejoin="round" />
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" stroke={color} strokeWidth="0.8" strokeOpacity="0.20" />
+          <circle cx="12" cy="12" r="6.5" stroke={color} strokeWidth="0.8" strokeOpacity="0.38" strokeDasharray="2.5 2" />
+          <circle cx="12" cy="12" r="3.4" fill={color} fillOpacity="0.52" />
+          <circle cx="12" cy="12" r="1.6" fill={color} fillOpacity="0.92" />
+          <path d="M12 2L12.9 5.2L16 3.4L13.8 6.2L17.2 7.5L13.8 8.2L15.6 11" stroke={color} strokeWidth="0.9" strokeOpacity="0.44" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    case "movement_detected":
+      // Rising trend / arrow
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <polyline points="2,20 7,12 12,15 22,4" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          <polyline points="16,4 22,4 22,10" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    case "critical_alert":
+      // Lightning / alert triangle
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 2.5L21.5 20H2.5L12 2.5Z" stroke={color} strokeWidth="1.4" strokeOpacity="0.55" strokeLinecap="round" strokeLinejoin="round" />
+          <line x1="12" y1="9"    x2="12" y2="14.5" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+          <circle cx="12" cy="17" r="1.1" fill={color} />
         </svg>
       );
     default:
-      return <span style={{ color }} className="text-sm font-bold">◈</span>;
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" stroke={color} strokeWidth="1.2" strokeOpacity="0.48" />
+          <circle cx="12" cy="12" r="2"  fill={color} />
+        </svg>
+      );
   }
 }
 
@@ -159,7 +175,6 @@ function ToastCard({ name, points, onDone }: Toast & { onDone: () => void }) {
         minWidth:     "220px",
       }}
     >
-      {/* Top accent */}
       <div
         className="absolute inset-x-0 top-0 h-[1px]"
         style={{ background: "linear-gradient(90deg, transparent, rgba(46,230,166,0.7), transparent)" }}
@@ -175,17 +190,15 @@ function ToastCard({ name, points, onDone }: Toast & { onDone: () => void }) {
   );
 }
 
-// ── Overlay panel ──────────────────────────────────────────────────────────────
+// ── Compact dropdown panel ────────────────────────────────────────────────────
 
-function AchievementsPanel({
-  onClose,
+function AchievementsDropdown({
   unlockedIds,
   completedActionIds,
   intelScore,
   loading,
   onCompleteAction,
 }: {
-  onClose: () => void;
   unlockedIds: Set<string>;
   completedActionIds: Set<string>;
   intelScore: number;
@@ -197,228 +210,221 @@ function AchievementsPanel({
 
   return (
     <motion.div
-      className="fixed inset-0 z-[100] flex flex-col border-[#0e2210] bg-[#000200] md:inset-y-0 md:left-auto md:right-0 md:w-[500px] md:border-l"
-      style={{ boxShadow: "-20px 0 60px rgba(0,0,0,0.78)" }}
-      initial={{ x: "100%" }}
-      animate={{ x: 0 }}
-      exit={{ x: "100%" }}
-      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+      initial={{ opacity: 0, y: -8, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0,   scale: 1 }}
+      exit={{ opacity: 0, y: -6, scale: 0.97 }}
+      transition={{ duration: 0.20, ease: [0.22, 1, 0.36, 1] }}
+      className="absolute right-0 top-full z-[200] mt-2 w-[340px] overflow-hidden rounded-[14px] border"
+      style={{
+        background:   "rgba(8,10,14,0.97)",
+        borderColor:  "rgba(46,230,166,0.15)",
+        boxShadow:    "0 20px 60px rgba(0,0,0,0.85), 0 0 0 1px rgba(46,230,166,0.06), inset 0 1px 0 rgba(46,230,166,0.06)",
+        backdropFilter: "blur(16px)",
+      }}
     >
-      {/* Atmospheric glow */}
+      {/* Top accent line */}
       <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background: "radial-gradient(ellipse 70% 40% at 50% -5%, rgba(46,230,166,0.04) 0%, transparent 70%)",
-        }}
+        className="absolute inset-x-0 top-0 h-[1px]"
+        style={{ background: "linear-gradient(90deg, transparent, rgba(46,230,166,0.42), transparent)" }}
       />
 
-      {/* Header */}
-      <div className="relative z-10 shrink-0 border-b border-[#0e2210] bg-[rgba(0,0,0,0.92)]">
-        {/* Accent line */}
-        <div
-          className="absolute inset-x-0 top-0 h-[1px]"
-          style={{
-            background:
-              "linear-gradient(90deg, transparent 0%, rgba(46,230,166,0.28) 40%, rgba(46,230,166,0.42) 50%, rgba(46,230,166,0.28) 60%, transparent 100%)",
-          }}
-        />
-
-        <div className="flex items-center justify-between px-5 pt-5 pb-4">
+      {/* Header row */}
+      <div className="px-4 pt-4 pb-3 border-b" style={{ borderColor: "rgba(46,230,166,0.08)" }}>
+        <div className="flex items-end justify-between mb-2.5">
           <div>
-            <div className="text-[9px] font-bold uppercase tracking-[0.32em]" style={{ color: "rgba(46,230,166,0.50)" }}>
+            <div className="text-[8px] font-bold uppercase tracking-[0.30em]" style={{ color: "rgba(46,230,166,0.45)" }}>
               Intel Score
             </div>
             <motion.div
               key={intelScore}
-              initial={{ opacity: 0.6, y: -4 }}
+              initial={{ opacity: 0.5, y: -4 }}
               animate={{ opacity: 1,   y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="mt-0.5 text-[34px] font-bold leading-none tabular-nums text-white"
+              transition={{ duration: 0.25 }}
+              className="text-[28px] font-bold leading-none tabular-nums text-white mt-0.5"
             >
               {intelScore}
             </motion.div>
-            <div className="mt-1 text-[10px] text-slate-600">
-              {unlockedCount} of {ACHIEVEMENTS.length} achievements
-            </div>
           </div>
-          <button
-            onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-full border border-[#1a3020] bg-[#070d07] transition-colors hover:border-[#2a4a30] hover:text-[#2EE6A6]"
-            style={{ color: "rgba(46,230,166,0.55)" }}
-            aria-label="Close achievements"
-          >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-              <path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-          </button>
+          <div className="text-right pb-0.5">
+            <div className="text-[10px] tabular-nums" style={{ color: "rgba(46,230,166,0.60)" }}>
+              {unlockedCount} / {ACHIEVEMENTS.length}
+            </div>
+            <div className="text-[9px] text-slate-600 mt-0.5">milestones</div>
+          </div>
         </div>
 
         {/* Progress bar */}
-        <div className="mx-5 mb-4 h-[3px] overflow-hidden rounded-full bg-[#0a1a0a]">
+        <div className="h-[2px] overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.05)" }}>
           <motion.div
             className="h-full rounded-full"
             style={{ background: "linear-gradient(90deg, #2EE6A6, #1abf88)" }}
             initial={{ width: 0 }}
             animate={{ width: `${progressPct}%` }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
+            transition={{ duration: 0.7, ease: "easeOut" }}
           />
         </div>
+        <div className="mt-1 text-[9px] text-slate-700 tabular-nums">{progressPct}% complete</div>
       </div>
 
-      {/* Body */}
-      <div className="relative z-10 flex-1 overflow-y-auto px-5 py-4">
+      {/* Body — scrollable */}
+      <div
+        className="overflow-y-auto px-3 py-3"
+        style={{
+          maxHeight: "360px",
+          scrollbarWidth: "thin",
+          scrollbarColor: "rgba(46,230,166,0.15) transparent",
+        }}
+      >
         {loading ? (
-          <div className="flex h-32 items-center justify-center">
-            <div className="text-[11px] uppercase tracking-[0.22em] text-slate-600">Loading…</div>
+          <div className="flex h-24 items-center justify-center">
+            <div className="text-[10px] uppercase tracking-[0.22em] text-slate-600">Loading…</div>
           </div>
         ) : (
-          <div className="space-y-6">
-
-            {/* ── Achievement grid ────────────────────────────────────────── */}
-            <div>
-              <div className="mb-3 text-[9px] font-bold uppercase tracking-[0.26em] text-slate-600">
-                Milestones
-              </div>
-              <div className="grid grid-cols-2 gap-2.5">
-                {ACHIEVEMENTS.map((a) => {
-                  const unlocked = unlockedIds.has(a.id);
-                  return (
+          <div className="space-y-0.5">
+            {ACHIEVEMENTS.map((a) => {
+              const unlocked = unlockedIds.has(a.id);
+              return (
+                <div
+                  key={a.id}
+                  className="relative flex items-center gap-3 rounded-[10px] px-3 py-2.5 transition-all duration-200"
+                  style={{
+                    background:  unlocked ? "rgba(46,230,166,0.04)" : "transparent",
+                    opacity:     unlocked ? 1 : 0.42,
+                  }}
+                >
+                  {/* Unlocked left accent */}
+                  {unlocked && (
                     <div
-                      key={a.id}
-                      className="relative overflow-hidden rounded-[12px] border p-3 transition-all duration-300"
+                      className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] rounded-full"
                       style={{
-                        borderColor: unlocked ? "rgba(46,230,166,0.28)" : "rgba(255,255,255,0.04)",
-                        background:  unlocked ? "rgba(46,230,166,0.04)" : "rgba(255,255,255,0.015)",
-                        opacity:     unlocked ? 1 : 0.38,
+                        height: "60%",
+                        background: "rgba(46,230,166,0.55)",
+                        boxShadow: "0 0 6px rgba(46,230,166,0.35)",
                       }}
+                    />
+                  )}
+
+                  {/* Icon */}
+                  <div className="shrink-0">
+                    <AchievIcon id={a.id} color={unlocked ? "#2EE6A6" : "#475569"} />
+                  </div>
+
+                  {/* Text */}
+                  <div className="flex-1 min-w-0">
+                    <div
+                      className="text-[12px] font-semibold leading-snug"
+                      style={{ color: unlocked ? "rgba(255,255,255,0.90)" : "#64748b" }}
                     >
-                      {/* Unlocked glow top */}
-                      {unlocked && (
-                        <div
-                          className="pointer-events-none absolute inset-x-0 top-0 h-[1px]"
-                          style={{ background: "linear-gradient(90deg, transparent, rgba(46,230,166,0.5), transparent)" }}
-                        />
-                      )}
-
-                      <div className="mb-2 flex items-start justify-between gap-1">
-                        <div style={{ color: unlocked ? "#2EE6A6" : "#475569" }}>
-                          <AchievIcon id={a.id} color={unlocked ? "#2EE6A6" : "#475569"} />
-                        </div>
-                        <span
-                          className="rounded-full px-1.5 py-0.5 text-[9px] font-bold tabular-nums"
-                          style={{
-                            background: unlocked ? "rgba(46,230,166,0.12)" : "rgba(255,255,255,0.04)",
-                            color:      unlocked ? "#2EE6A6" : "#475569",
-                          }}
-                        >
-                          +{a.points}
-                        </span>
-                      </div>
-
-                      <div
-                        className="text-[11px] font-semibold leading-tight"
-                        style={{ color: unlocked ? "rgba(255,255,255,0.9)" : "#64748b" }}
-                      >
-                        {a.name}
-                      </div>
-                      <div className="mt-0.5 text-[10px] leading-snug text-slate-600">
-                        {a.description}
-                      </div>
-
-                      {unlocked && (
-                        <div
-                          className="mt-1.5 text-[9px] font-bold uppercase tracking-[0.18em]"
-                          style={{ color: "rgba(46,230,166,0.55)" }}
-                        >
-                          Unlocked
-                        </div>
-                      )}
+                      {a.name}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
+                    <div className="text-[10px] leading-snug mt-0.5" style={{ color: unlocked ? "#475569" : "#334155" }}>
+                      {a.description}
+                    </div>
+                  </div>
 
-            {/* ── Strategy checklist ──────────────────────────────────────── */}
-            <div>
-              <div className="mb-1 text-[9px] font-bold uppercase tracking-[0.26em] text-slate-600">
+                  {/* Points badge */}
+                  <div
+                    className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold tabular-nums"
+                    style={{
+                      background: unlocked ? "rgba(46,230,166,0.12)" : "rgba(255,255,255,0.04)",
+                      color:      unlocked ? "#2EE6A6" : "#334155",
+                    }}
+                  >
+                    +{a.points}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Strategy actions divider */}
+            <div
+              className="my-2 mx-1 border-t"
+              style={{ borderColor: "rgba(46,230,166,0.07)" }}
+            />
+            <div className="px-3 pb-1">
+              <div className="text-[8px] font-bold uppercase tracking-[0.28em] text-slate-600">
                 Strategic Actions
               </div>
-              <div className="mb-3 text-[10px] text-slate-700">
-                Complete actions to earn Intel Score.
-              </div>
-              <div className="space-y-2">
-                {STRATEGY_ACTIONS.map((action) => {
-                  const done = completedActionIds.has(action.id);
-                  return (
-                    <div
-                      key={action.id}
-                      className="flex items-center gap-3 rounded-[10px] border px-3.5 py-3 transition-all duration-200"
-                      style={{
-                        borderColor: done ? "rgba(46,230,166,0.18)" : "rgba(255,255,255,0.05)",
-                        background:  done ? "rgba(46,230,166,0.03)" : "rgba(255,255,255,0.012)",
-                      }}
-                    >
-                      {/* Checkbox */}
-                      <button
-                        onClick={() => !done && onCompleteAction(action.id as StrategyActionId)}
-                        disabled={done}
-                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-all duration-150"
-                        style={{
-                          borderColor: done ? "#2EE6A6"             : "rgba(46,230,166,0.25)",
-                          background:  done ? "rgba(46,230,166,0.18)" : "transparent",
-                          cursor:      done ? "default"               : "pointer",
-                        }}
-                        aria-label={done ? "Completed" : `Complete: ${action.name}`}
-                      >
-                        {done && (
-                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-                            <path d="M2 5.5L4.2 7.8L8 3" stroke="#2EE6A6" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        )}
-                      </button>
-
-                      {/* Label */}
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className="text-[12px] font-medium leading-snug"
-                          style={{
-                            color: done ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.82)",
-                            textDecoration: done ? "line-through" : "none",
-                          }}
-                        >
-                          {action.name}
-                        </div>
-                      </div>
-
-                      {/* Difficulty + reward */}
-                      <div className="flex shrink-0 items-center gap-2">
-                        <span
-                          className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold"
-                          style={{
-                            color:      done ? "#475569" : DIFFICULTY_COLOR[action.difficulty],
-                            background: done ? "rgba(255,255,255,0.04)" : `${DIFFICULTY_COLOR[action.difficulty]}18`,
-                          }}
-                        >
-                          {action.difficulty}
-                        </span>
-                        <span
-                          className="text-[10px] tabular-nums font-semibold"
-                          style={{ color: done ? "#475569" : "#2EE6A6" }}
-                        >
-                          +{action.points}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
             </div>
 
-            {/* Bottom spacer */}
-            <div className="h-4" />
+            {STRATEGY_ACTIONS.map((action) => {
+              const done = completedActionIds.has(action.id);
+              return (
+                <div
+                  key={action.id}
+                  className="flex items-center gap-3 rounded-[10px] px-3 py-2.5 transition-all duration-150"
+                  style={{
+                    background: done ? "rgba(46,230,166,0.03)" : "transparent",
+                    opacity:    done ? 0.55 : 1,
+                  }}
+                >
+                  {/* Checkbox */}
+                  <button
+                    onClick={() => !done && onCompleteAction(action.id as StrategyActionId)}
+                    disabled={done}
+                    className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded border transition-all duration-150"
+                    style={{
+                      width: "18px",
+                      height: "18px",
+                      borderColor: done ? "#2EE6A6" : "rgba(46,230,166,0.22)",
+                      background:  done ? "rgba(46,230,166,0.16)" : "transparent",
+                      cursor:      done ? "default" : "pointer",
+                    }}
+                    aria-label={done ? "Completed" : `Complete: ${action.name}`}
+                  >
+                    {done && (
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                        <path d="M2 5.5L4.2 7.8L8 3" stroke="#2EE6A6" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </button>
+
+                  {/* Label */}
+                  <div className="flex-1 min-w-0">
+                    <div
+                      className="text-[11px] font-medium leading-snug"
+                      style={{
+                        color: done ? "#475569" : "rgba(255,255,255,0.78)",
+                        textDecoration: done ? "line-through" : "none",
+                      }}
+                    >
+                      {action.name}
+                    </div>
+                  </div>
+
+                  {/* Difficulty + points */}
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <span
+                      className="rounded-full px-1.5 py-0.5 text-[8px] font-semibold"
+                      style={{
+                        color:      done ? "#475569" : DIFFICULTY_COLOR[action.difficulty],
+                        background: done ? "rgba(255,255,255,0.04)" : `${DIFFICULTY_COLOR[action.difficulty]}18`,
+                      }}
+                    >
+                      {action.difficulty}
+                    </span>
+                    <span
+                      className="text-[10px] tabular-nums font-semibold"
+                      style={{ color: done ? "#334155" : "#2EE6A6" }}
+                    >
+                      +{action.points}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
+      </div>
+
+      {/* Footer */}
+      <div
+        className="px-4 py-2.5 border-t"
+        style={{ borderColor: "rgba(46,230,166,0.07)", background: "rgba(0,0,0,0.30)" }}
+      >
+        <div className="text-[9px] text-slate-700 text-center">
+          Press <kbd className="rounded px-1 py-0.5 text-[8px]" style={{ background: "rgba(255,255,255,0.06)", color: "#64748b" }}>I</kbd> to toggle
+        </div>
       </div>
     </motion.div>
   );
@@ -433,20 +439,33 @@ export default function AchievementsButton({
   hasCriticalAlert,
   hasAccelerating,
 }: Props) {
-  const [open, setOpen]                         = useState(false);
-  const [userId, setUserId]                     = useState<string | null>(null);
-  const [unlockedIds, setUnlockedIds]           = useState<Set<string>>(new Set());
+  const [open, setOpen]                             = useState(false);
+  const [userId, setUserId]                         = useState<string | null>(null);
+  const [unlockedIds, setUnlockedIds]               = useState<Set<string>>(new Set());
   const [completedActionIds, setCompletedActionIds] = useState<Set<string>>(new Set());
-  const [loaded, setLoaded]                     = useState(false);
-  const [toasts, setToasts]                     = useState<Toast[]>([]);
-  const [hasNew, setHasNew]                     = useState(false);
+  const [loaded, setLoaded]                         = useState(false);
+  const [toasts, setToasts]                         = useState<Toast[]>([]);
+  const [hasNew, setHasNew]                         = useState(false);
 
-  // Tracks which IDs we've already attempted to unlock this session (prevents double-fire)
   const attemptedRef = useRef(new Set<string>());
   const openRef      = useRef(open);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => { openRef.current = open; }, [open]);
 
   const intelScore = computeIntelScore(unlockedIds, completedActionIds);
+
+  // ── Click-outside to close ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!open) return;
+    function handler(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
 
   // ── Load user + existing achievements on mount ───────────────────────────────
   useEffect(() => {
@@ -468,7 +487,6 @@ export default function AchievementsButton({
         const ids    = new Set((achRows    ?? []).map((r) => r.achievement_id as string));
         const actIds = new Set((actionRows ?? []).map((r) => r.action_id as string));
 
-        // Pre-populate attemptedRef so we don't re-fire already-unlocked
         ids.forEach((id)    => attemptedRef.current.add(id));
         actIds.forEach((id) => attemptedRef.current.add(`action:${id}`));
 
@@ -496,7 +514,6 @@ export default function AchievementsButton({
         .from("user_achievements")
         .insert({ user_id: userId, achievement_id: id });
 
-      // Unique violation (23505) means already unlocked — treat as success
       if (error && !error.code?.includes("23505")) return;
     } catch {
       // Non-fatal
@@ -510,7 +527,7 @@ export default function AchievementsButton({
       { key: `${id}-${Date.now()}`, name: def.name, points: def.points },
       ...prev.slice(0, 3),
     ]);
-    setHasNew((prev) => prev || !openRef.current); // only mark "new" if panel is closed
+    setHasNew((prev) => prev || !openRef.current);
     getAudioManager().play("achieve");
   }, [userId]);
 
@@ -585,9 +602,11 @@ export default function AchievementsButton({
     return () => document.removeEventListener("keydown", handler);
   }, []);
 
-  function openPanel() {
-    setOpen(true);
-    setHasNew(false);
+  function togglePanel() {
+    setOpen((v) => {
+      if (!v) setHasNew(false);
+      return !v;
+    });
   }
 
   function dismissToast(key: string) {
@@ -596,77 +615,65 @@ export default function AchievementsButton({
 
   return (
     <>
-      {/* ── Header button ──────────────────────────────────────────────────── */}
-      <button
-        onClick={openPanel}
-        className="relative flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-medium transition-all duration-200 hover:opacity-90"
-        style={{
-          borderColor: hasNew ? "rgba(46,230,166,0.45)" : "rgba(46,230,166,0.15)",
-          background:  hasNew ? "rgba(46,230,166,0.08)"  : "rgba(46,230,166,0.04)",
-          color:       "rgba(46,230,166,0.70)",
-          boxShadow:   hasNew ? "0 0 12px rgba(46,230,166,0.20), inset 0 0 8px rgba(46,230,166,0.04)" : "none",
-        }}
-        aria-label="Intel Score — Achievements"
-      >
-        {/* New achievement pulse dot */}
-        {hasNew && (
-          <motion.span
-            className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full"
-            style={{ background: "#2EE6A6", boxShadow: "0 0 6px #2EE6A6" }}
-            animate={{ scale: [1, 1.4, 1] }}
-            transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-          />
-        )}
-
-        {/* Icon: radar rings */}
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-          <circle cx="6" cy="6" r="5"   stroke="currentColor" strokeWidth="1"   strokeOpacity="0.5" />
-          <circle cx="6" cy="6" r="2.8" stroke="currentColor" strokeWidth="0.9" strokeOpacity="0.7" />
-          <circle cx="6" cy="6" r="1.2" fill="currentColor" />
-        </svg>
-
-        {/* Score — label hidden on mobile */}
-        <span className="hidden sm:inline text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-          Intel
-        </span>
-        <motion.span
-          key={intelScore}
-          initial={{ y: -6, opacity: 0 }}
-          animate={{ y: 0,  opacity: 1 }}
-          transition={{ duration: 0.28, ease: "easeOut" }}
-          className="tabular-nums font-bold"
-          style={{ color: "rgba(46,230,166,0.88)" }}
+      {/* ── Button + dropdown wrapper ───────────────────────────────────── */}
+      <div ref={containerRef} className="relative">
+        <button
+          onClick={togglePanel}
+          className="relative flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-medium transition-all duration-200 hover:opacity-90"
+          style={{
+            borderColor: open || hasNew ? "rgba(46,230,166,0.45)" : "rgba(46,230,166,0.15)",
+            background:  open || hasNew ? "rgba(46,230,166,0.08)"  : "rgba(46,230,166,0.04)",
+            color:       "rgba(46,230,166,0.70)",
+            boxShadow:   open || hasNew ? "0 0 12px rgba(46,230,166,0.20), inset 0 0 8px rgba(46,230,166,0.04)" : "none",
+          }}
+          aria-label="Intel Score — Achievements"
+          aria-expanded={open}
         >
-          {intelScore}
-        </motion.span>
-      </button>
-
-      {/* ── Achievements overlay ───────────────────────────────────────────── */}
-      <AnimatePresence>
-        {open && (
-          <>
-            {/* Backdrop (mobile only — panel is side-mounted on md+) */}
-            <motion.div
-              className="fixed inset-0 z-[99] md:hidden"
-              style={{ background: "rgba(0,0,0,0.6)" }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              onClick={() => setOpen(false)}
+          {/* New achievement pulse dot */}
+          {hasNew && !open && (
+            <motion.span
+              className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full"
+              style={{ background: "#2EE6A6", boxShadow: "0 0 6px #2EE6A6" }}
+              animate={{ scale: [1, 1.4, 1] }}
+              transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
             />
-            <AchievementsPanel
-              key="achievements"
-              onClose={() => setOpen(false)}
+          )}
+
+          {/* Icon: radar rings */}
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <circle cx="6" cy="6" r="5"   stroke="currentColor" strokeWidth="1"   strokeOpacity="0.5" />
+            <circle cx="6" cy="6" r="2.8" stroke="currentColor" strokeWidth="0.9" strokeOpacity="0.7" />
+            <circle cx="6" cy="6" r="1.2" fill="currentColor" />
+          </svg>
+
+          <span className="hidden sm:inline text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+            Intel
+          </span>
+          <motion.span
+            key={intelScore}
+            initial={{ y: -6, opacity: 0 }}
+            animate={{ y: 0,  opacity: 1 }}
+            transition={{ duration: 0.28, ease: "easeOut" }}
+            className="tabular-nums font-bold"
+            style={{ color: "rgba(46,230,166,0.88)" }}
+          >
+            {intelScore}
+          </motion.span>
+        </button>
+
+        {/* ── Compact dropdown ───────────────────────────────────────────── */}
+        <AnimatePresence>
+          {open && (
+            <AchievementsDropdown
               unlockedIds={unlockedIds}
               completedActionIds={completedActionIds}
               intelScore={intelScore}
               loading={!loaded}
               onCompleteAction={completeAction}
             />
-          </>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* ── Toast stack ────────────────────────────────────────────────────── */}
       <div className="fixed bottom-5 right-5 z-[200] flex flex-col-reverse gap-2 pointer-events-none">

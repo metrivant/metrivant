@@ -64,9 +64,10 @@ export default function LandingLogo() {
 
         {/* Rotating sweep group */}
         <motion.g
-          style={{ transformOrigin: "23px 23px" }}
+          style={{ transformOrigin: "50% 50%", transformBox: "view-box" }}
+          initial={{ rotate: 0 }}
           animate={{ rotate: 360 }}
-          transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+          transition={{ duration: 9, repeat: Infinity, ease: "linear", repeatType: "loop" }}
         >
           {/* Sweep wedge */}
           <path
