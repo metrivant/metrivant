@@ -30,7 +30,7 @@ const NAV_ITEMS: { href: string; label: string; icon: ReactNode; overlayKey?: st
     ),
   },
   {
-    href: "/app/market-map",
+    href: "/app",
     label: "Market Map",
     overlayKey: "map",
     icon: (

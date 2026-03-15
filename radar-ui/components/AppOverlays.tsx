@@ -183,8 +183,13 @@ function MapOverlay({
           };
         });
 
-        setMapData(mapped);
-        if (mapped.length > 0) {
+        // Cross-reference with currently tracked competitors to exclude ghost rows
+        // (positioning rows for competitors that have since been untracked)
+        const trackedIds = new Set(competitors.map((c) => c.competitor_id));
+        const filtered = mapped.filter((m) => trackedIds.has(m.competitor_id));
+
+        setMapData(filtered);
+        if (filtered.length > 0) {
           window.dispatchEvent(new CustomEvent("mv:achieve", { detail: "map_viewed" }));
         }
       } catch {
