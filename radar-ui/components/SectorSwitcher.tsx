@@ -143,41 +143,65 @@ export default function SectorSwitcher({
   }
 
   return (
-    <div ref={ref} className="relative flex items-center">
+    <div ref={ref} className="relative flex items-center gap-2">
 
-      {/* ── Sector pill ─────────────────────────────────────────────────── */}
+      {/* ── Sector selector ─────────────────────────────────────────────── */}
       <button
         onClick={() => { setOpen((v) => !v); setSlateConfirm(false); setPendingSwitch(null); }}
         disabled={switching}
-        className="flex items-center gap-1.5 rounded-l-full border-y border-l border-[#1a3020] bg-[#070d07] px-3 py-1.5 text-[11px] font-medium transition-colors hover:border-[#2a4a30] hover:bg-[#0a1a0a] disabled:opacity-50"
-        style={{ color: toast?.type === "error" ? "#ef4444" : "rgba(46,230,166,0.75)" }}
+        className="group flex items-center gap-2 rounded-[8px] border bg-[#060d06] px-3 py-1.5 transition-all duration-150 hover:bg-[#0a140a] disabled:opacity-50"
+        style={{
+          borderColor: open ? "rgba(46,230,166,0.28)" : "rgba(46,230,166,0.12)",
+          boxShadow: open ? "0 0 0 1px rgba(46,230,166,0.08)" : "none",
+        }}
       >
-        <span className="uppercase tracking-[0.18em] text-slate-500">Sector</span>
-        <span className="text-[#2EE6A6]/80">·</span>
-        <span>{toastLabel()}</span>
+        {/* Sector dot */}
+        <span
+          className="h-1.5 w-1.5 shrink-0 rounded-full transition-colors"
+          style={{ background: toast?.type === "error" ? "#ef4444" : "rgba(46,230,166,0.60)" }}
+        />
+        <div className="flex flex-col items-start leading-none">
+          <span
+            className="text-[8px] font-semibold uppercase tracking-[0.22em]"
+            style={{ color: "rgba(46,230,166,0.35)" }}
+          >
+            Sector
+          </span>
+          <span
+            className="mt-0.5 text-[11px] font-medium"
+            style={{ color: toast?.type === "error" ? "#ef4444" : "rgba(46,230,166,0.80)" }}
+          >
+            {toastLabel()}
+          </span>
+        </div>
         <svg
-          width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden="true"
-          className="ml-0.5 opacity-50"
-          style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
+          width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true"
+          className="ml-0.5 shrink-0 opacity-40 transition-transform duration-150"
+          style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
         >
-          <path d="M1.5 3L4.5 6.5L7.5 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M1 2.5L4 5.5L7 2.5" stroke="rgba(46,230,166,0.7)" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
 
-      {/* ── Clean slate X ───────────────────────────────────────────────── */}
+      {/* ── Clean slate button ──────────────────────────────────────────── */}
       <div ref={slateRef} className="relative">
         <button
           onMouseEnter={() => setSlateHover(true)}
           onMouseLeave={() => { if (!slateConfirm) setSlateHover(false); }}
           onClick={() => setSlateConfirm((v) => !v)}
-          className="flex h-full items-center justify-center rounded-r-full border border-[#1a2a1a] bg-[#070d07] px-2.5 py-1.5 transition-colors hover:border-red-900/50 hover:bg-[#0d0505]"
-          style={{ color: slateHover || slateConfirm ? "rgba(239,68,68,0.65)" : "rgba(100,116,139,0.35)" }}
+          className="flex items-center gap-1.5 rounded-[8px] border px-2.5 py-1.5 transition-all duration-150"
+          style={{
+            borderColor: slateConfirm ? "rgba(239,68,68,0.35)" : slateHover ? "rgba(239,68,68,0.22)" : "rgba(100,116,139,0.14)",
+            background: slateConfirm ? "rgba(239,68,68,0.06)" : slateHover ? "rgba(239,68,68,0.04)" : "rgba(6,13,6,0.80)",
+            color: slateHover || slateConfirm ? "rgba(239,68,68,0.70)" : "rgba(100,116,139,0.40)",
+          }}
           aria-label="Clean slate — remove all rivals"
           title="Clean slate"
         >
           <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
-            <path d="M1 1l6 6M7 1L1 7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            <path d="M1 1l6 6M7 1L1 7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
           </svg>
+          <span className="text-[9px] font-medium uppercase tracking-[0.14em]">Reset</span>
         </button>
 
         {/* Hover / confirm popup */}

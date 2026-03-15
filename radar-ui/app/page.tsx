@@ -2,6 +2,7 @@ import Link from "next/link";
 import PublicNav from "../components/PublicNav";
 import LandingLogo from "../components/LandingLogo";
 import LandingFeaturePrompt from "../components/LandingFeaturePrompt";
+import LandingCTAButtons from "../components/LandingCTAButtons";
 
 const LABEL_COLOR_STYLE = { color: "rgba(46,230,166,0.55)" } as const;
 
@@ -91,22 +92,8 @@ export default function LandingPage() {
           Automated monitoring across every rival. Pricing shifts, product launches, and strategy pivots — surfaced as signals, not noise.
         </p>
 
-        <div
-          className="hero-fade-up mt-8 flex items-center gap-3"
-          style={{ animationDelay: "440ms" }}
-        >
-          <Link
-            href="/signup"
-            className="cta-pulse rounded-full bg-[#2EE6A6] px-8 py-2.5 text-[14px] font-semibold text-black transition-opacity hover:opacity-90"
-          >
-            Start free trial
-          </Link>
-          <Link
-            href="/login"
-            className="px-4 py-2.5 text-[14px] font-medium text-slate-600 transition-colors hover:text-slate-300"
-          >
-            Sign in
-          </Link>
+        <div className="hero-fade-up" style={{ animationDelay: "440ms" }}>
+          <LandingCTAButtons />
         </div>
 
         {/* Pricing teaser */}

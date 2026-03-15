@@ -1714,7 +1714,7 @@ export default function Radar({
                       transition: "color 0.6s ease, background 0.6s ease",
                     }}
                   >
-                    Standard
+                    Radar
                   </button>
                   <button
                     onClick={() => { if (!gravityMode) { setGravityMode(true); getAudioManager().play("gravity-enter"); } }}

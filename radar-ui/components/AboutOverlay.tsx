@@ -166,6 +166,27 @@ function IconConstellation() {
   );
 }
 
+function IconGravity() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+      {/* Warped grid lines — spacetime curvature */}
+      <path d="M3 10 Q10 10 14 14 Q18 18 25 18" stroke="#818cf8" strokeWidth="0.6" strokeOpacity="0.35" fill="none" />
+      <path d="M3 14 Q10 13 14 14 Q18 15 25 14" stroke="#818cf8" strokeWidth="0.6" strokeOpacity="0.22" fill="none" />
+      <path d="M3 18 Q10 18 14 14 Q18 10 25 10" stroke="#818cf8" strokeWidth="0.6" strokeOpacity="0.35" fill="none" />
+      <path d="M10 3 Q10 10 14 14 Q18 18 18 25" stroke="#818cf8" strokeWidth="0.6" strokeOpacity="0.22" fill="none" />
+      <path d="M14 3 Q13 10 14 14 Q15 18 14 25" stroke="#818cf8" strokeWidth="0.6" strokeOpacity="0.18" fill="none" />
+      <path d="M18 3 Q18 10 14 14 Q10 18 10 25" stroke="#818cf8" strokeWidth="0.6" strokeOpacity="0.22" fill="none" />
+      {/* Gravitational well — central mass */}
+      <circle cx="14" cy="14" r="7" stroke="#818cf8" strokeWidth="0.5" strokeOpacity="0.18" strokeDasharray="2 3" />
+      <circle cx="14" cy="14" r="4" stroke="#818cf8" strokeWidth="0.6" strokeOpacity="0.28" />
+      <circle cx="14" cy="14" r="2.2" fill="#7c3aed" fillOpacity="0.65" />
+      <circle cx="14" cy="14" r="1.0" fill="#e0d7ff" fillOpacity="0.95" />
+      {/* Orbiting node */}
+      <circle cx="21" cy="10" r="1.4" fill="#818cf8" fillOpacity="0.60" />
+    </svg>
+  );
+}
+
 function IconCaveman() {
   return (
     <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
@@ -266,6 +287,12 @@ const FEATURES = [
     tag: "Signal Constellation",
     headline: "Every rival's signal history, mapped across time.",
     body: "The Signal Constellation renders each competitor as a star field — brightness encoding recency, density encoding activity volume. A dim, sparse field means silence. A bright, dense cluster means acceleration. See at a glance which rivals are generating the most intelligence and when they last moved.",
+  },
+  {
+    Icon: IconGravity,
+    tag: "Gravity Field",
+    headline: "The market as spacetime. Mass is momentum.",
+    body: "Switch to Gravity Field mode and the radar transforms into a physics simulation grounded in general relativity. High-momentum competitors warp the field around them — the spacetime grid visibly bends toward their position, just as mass curves spacetime. Tension filaments pulse between rivals converging on the same strategy. Gravitational well rings orbit accelerating nodes. It is not decoration. It is a different way to read force.",
   },
   {
     Icon: IconCaveman,
