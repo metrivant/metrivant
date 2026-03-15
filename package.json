@@ -6,7 +6,8 @@
     "typecheck": "tsc --noEmit",
     "migrate": "tsx scripts/migrate.ts",
     "migrate:status": "tsx scripts/migrate.ts --status",
-    "migrate:dry-run": "tsx scripts/migrate.ts --dry-run"
+    "migrate:dry-run": "tsx scripts/migrate.ts --dry-run",
+    "prepare": "node scripts/setup-git-hooks.js"
   },
   "license": "ISC",
   "type": "commonjs",

@@ -1,6 +1,6 @@
 {
   "framework": "nextjs",
-  "buildCommand": "next build",
+  "buildCommand": "npm run typecheck && next build",
   "crons": [
     {
       "path": "/api/generate-brief",
