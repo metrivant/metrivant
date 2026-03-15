@@ -507,7 +507,11 @@ const BlipNode = memo(function BlipNode({
   const { x, y } = gravityPos ?? getNodePosition(index, total, radius);
   // Trail dots: suppress for dormant (no movement history); direction follows actual position.
   const trail = (gravityMode || isDormantNode) ? [] : getTrailPointsFromPos(x, y);
-  const color = getMovementColor(competitor.latest_movement_type);
+  const color = competitor.latest_movement_type
+    ? getMovementColor(competitor.latest_movement_type)
+    : competitor.latest_signal_type
+      ? getSignalColor(competitor.latest_signal_type)
+      : getMovementColor(null);
   const nodeSize = getNodeSize(momentum);
   const echoDuration = getMomentumEchoDuration(momentum);
   // Ping brightness scaled by signal recency — fresh nodes flash brighter
@@ -1498,6 +1502,21 @@ export default function Radar({
       .catch(() => setDetailError(true))
       .finally(() => setDetailLoading(false));
   }, [selectedId]);
+
+  // ── Silent detail refresh on background radar update ─────────────────────
+  // When router.refresh() fires (competitors prop changes) and the drawer is open,
+  // silently re-fetch detail so signals stay current without closing the drawer.
+  useEffect(() => {
+    if (!selectedId || detailLoading) return;
+    fetch(`/api/competitor-detail?id=${encodeURIComponent(selectedId)}`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.ok || json.competitor) setDetail(json);
+      })
+      .catch(() => { /* non-fatal — stale data is acceptable on background refresh */ });
+  // competitors is the dependency — fires when router.refresh() delivers new props
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [competitors]);
 
   async function handleRemoveConfirmed(websiteUrl: string) {
     setRemoveLoading(true);
@@ -3642,7 +3661,9 @@ export default function Radar({
                               {translateMovementType(competitor.latest_movement_type, sector)}
                             </span>
                           ) : (
-                            <span className="uppercase tracking-[0.14em] text-slate-600">Dormant</span>
+                            <span className="uppercase tracking-[0.14em] text-slate-600">
+                              {momentum >= 1.5 ? "Watching" : "Dormant"}
+                            </span>
                           )}
                           <span className="text-slate-700">/</span>
                           <span className="tabular-nums text-slate-600">

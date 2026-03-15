@@ -41,6 +41,7 @@ interface SignalAggRow {
   signals_7d: number;
   weighted_velocity_7d: number;
   last_signal_at: string | null;
+  latest_signal_type: string | null;
 }
 
 interface CompetitorRow {
@@ -189,7 +190,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       // completes. This is correct behaviour: the radar reflects confirmed intelligence only.
       const { data: signalRows, error: signalsError } = await supabase
         .from("signals")
-        .select("monitored_page_id, severity, detected_at")
+        .select("monitored_page_id, severity, detected_at, signal_type")
         .in("monitored_page_id", allPageIds)
         .eq("interpreted", true)
         .gte("detected_at", since7d)
@@ -198,7 +199,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       if (signalsError) throw signalsError;
 
       // Group by competitor
-      for (const sig of (signalRows ?? []) as { monitored_page_id: string; severity: string; detected_at: string }[]) {
+      for (const sig of (signalRows ?? []) as { monitored_page_id: string; severity: string; detected_at: string; signal_type: string }[]) {
         const cid = pageToCompetitor.get(sig.monitored_page_id);
         if (!cid) continue;
 
@@ -207,6 +208,7 @@ async function handler(req: ApiReq, res: ApiRes) {
           signals_7d: 0,
           weighted_velocity_7d: 0,
           last_signal_at: null,
+          latest_signal_type: null,
         };
 
         const severityWeight = sig.severity === "high" ? 3 : sig.severity === "medium" ? 2 : 1;
@@ -215,6 +217,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
         if (!existing.last_signal_at || sig.detected_at > existing.last_signal_at) {
           existing.last_signal_at = sig.detected_at;
+          existing.latest_signal_type = sig.signal_type;
         }
 
         signalAggMap.set(cid, existing);
@@ -287,6 +290,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         latest_movement_first_seen_at: movement?.first_seen_at ?? null,
         latest_movement_last_seen_at:  movement?.last_seen_at ?? null,
         latest_movement_summary:       movement?.summary ?? null,
+        latest_signal_type:            agg?.latest_signal_type ?? null,
         momentum_score:                momentumScore,
       };
     });

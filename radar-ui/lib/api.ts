@@ -12,6 +12,7 @@ export type RadarCompetitor = {
   latest_movement_first_seen_at: string | null;
   latest_movement_last_seen_at: string | null;
   latest_movement_summary: string | null;
+  latest_signal_type: string | null;
   momentum_score: number;
 };
 
