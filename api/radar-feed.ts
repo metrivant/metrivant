@@ -102,25 +102,31 @@ async function handler(req: ApiReq, res: ApiRes) {
       ? Math.max(1, Math.min(limitParam, 100))
       : 20;
 
+    // org_id scoping — when provided, restrict feed to the org's tracked competitors.
+    // This is the multi-tenancy gate: each org sees only the competitors it tracks.
+    // At scale (1000s of orgs × 25 competitors each) this prevents the tracked_competitors
+    // query from growing into a 25,000-ID IN() clause on the competitors table.
+    const orgId = typeof req.query?.org_id === "string" ? req.query.org_id : null;
+
     const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const since14d = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
 
-    // ── Step 1: Load all tracked competitors ──────────────────────────────────
-    // Source of truth is now the tracking relation: a competitor is included in
-    // the radar feed if and only if at least one org is tracking it via
-    // tracked_competitors.competitor_id. This replaces the `active=true` boolean
-    // which required explicit sync on every add/remove/clean-slate and was
-    // prone to drift. `active` is kept on the table during the transition but
-    // is no longer the gate for pipeline reads.
-
-    // First resolve the set of tracked competitor IDs across all orgs.
+    // ── Step 1: Load tracked competitors ──────────────────────────────────────
+    // When org_id is provided: load only that org's tracked competitors (multi-tenant).
+    // When absent (legacy / internal): load all tracked competitors across orgs.
     // `tracked_competitors` is a UI-DB table not present in the runtime's generated
     // types — cast through `any` since the same Supabase instance serves both.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: trackedRows, error: trackedError } = await (supabase as any)
+    let trackedQuery = (supabase as any)
       .from("tracked_competitors")
       .select("competitor_id")
       .not("competitor_id", "is", null);
+
+    if (orgId) {
+      trackedQuery = trackedQuery.eq("org_id", orgId);
+    }
+
+    const { data: trackedRows, error: trackedError } = await trackedQuery;
 
     if (trackedError) throw trackedError;
 

@@ -81,7 +81,7 @@ export default async function MarketMapPage() {
           website_url:            string | null;
         }>();
         try {
-          const feed = await getRadarFeed(50);
+          const feed = await getRadarFeed(50, org.id as string);
           radarData = new Map(
             feed.map((c) => [
               c.competitor_id,

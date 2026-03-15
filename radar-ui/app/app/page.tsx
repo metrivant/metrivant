@@ -56,28 +56,9 @@ async function fetchSectorNews(sector: string): Promise<string[]> {
 }
 
 export default async function Page() {
-  const competitorsRaw = await getRadarFeed(50);
-  // Deduplicate by name — keeps the highest-momentum entry per name.
-  // The feed is sorted momentum DESC before arriving here, so the first occurrence
-  // of any name is already the highest-momentum row. This deduplicates cases where
-  // the same company was onboarded under slightly different names (e.g. "Notion" and
-  // "Notion (notion.so)") that collide after normalisation.
-  const seenNames = new Set<string>();
-  const competitorsAll = competitorsRaw.filter((c) => {
-    const key = c.competitor_name.toLowerCase().trim();
-    if (seenNames.has(key)) return false;
-    seenNames.add(key);
-    return true;
-  });
-
-  // Diagnostic: if runtime returned data but every competitor dropped in dedup, log a warning.
-  if (competitorsRaw.length > 0 && competitorsAll.length === 0) {
-    console.warn("[radar] zero competitors after dedup — all names collapsed to duplicates", {
-      rawCount: competitorsRaw.length,
-    });
-  }
-
-  // Read org sector + subscription state — best-effort, both default to safe values
+  // Resolve org FIRST so the radar feed can be scoped to this org's competitors.
+  // At scale, passing org_id limits the runtime to querying only the org's rows in
+  // tracked_competitors, avoiding an unbounded IN() clause across all orgs.
   let sector             = "saas";
   let orgId: string | undefined;
   let plan               = "analyst";
@@ -140,10 +121,33 @@ export default async function Page() {
     // Non-fatal — sector and plan display are optional
   }
 
+  // Fetch radar feed scoped to this org (orgId may be undefined on first load
+  // before an org is created — runtime falls back to all-orgs behavior in that case).
+  const competitorsRaw = await getRadarFeed(50, orgId);
+
+  // Deduplicate by name — keeps the highest-momentum entry per name.
+  // The feed is sorted momentum DESC before arriving here, so the first occurrence
+  // of any name is already the highest-momentum row. This deduplicates cases where
+  // the same company was onboarded under slightly different names (e.g. "Notion" and
+  // "Notion (notion.so)") that collide after normalisation.
+  const seenNames = new Set<string>();
+  const competitorsAll = competitorsRaw.filter((c) => {
+    const key = c.competitor_name.toLowerCase().trim();
+    if (seenNames.has(key)) return false;
+    seenNames.add(key);
+    return true;
+  });
+
+  // Diagnostic: if runtime returned data but every competitor dropped in dedup, log a warning.
+  if (competitorsRaw.length > 0 && competitorsAll.length === 0) {
+    console.warn("[radar] zero competitors after dedup — all names collapsed to duplicates", {
+      rawCount: competitorsRaw.length,
+    });
+  }
+
   // Enforce plan display limit: Pro = 25, Analyst = 10.
-  // radar-feed returns all active pipeline competitors (no org filter by design).
-  // Slice here ensures the radar never renders beyond the plan ceiling regardless
-  // of how many pipeline competitors have accumulated from sector switches.
+  // Slice ensures the radar never renders beyond the plan ceiling regardless
+  // of how many competitors the org has accumulated from sector switches.
   const planLimit = plan === "pro" ? 25 : 10;
   const competitors = competitorsAll.slice(0, planLimit);
 

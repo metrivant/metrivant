@@ -58,7 +58,7 @@ export type CompetitorDetail = {
   monitoredPages: MonitoredPage[];
 };
 
-export async function getRadarFeed(limit = 24): Promise<RadarCompetitor[]> {
+export async function getRadarFeed(limit = 24, orgId?: string): Promise<RadarCompetitor[]> {
   const baseUrl =
     process.env.RADAR_API_BASE_URL ?? "https://metrivant-runtime.vercel.app";
 
@@ -68,7 +68,10 @@ export async function getRadarFeed(limit = 24): Promise<RadarCompetitor[]> {
     headers["Authorization"] = `Bearer ${secret}`;
   }
 
-  const res = await fetch(baseUrl + "/api/radar-feed?limit=" + limit, {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (orgId) params.set("org_id", orgId);
+
+  const res = await fetch(baseUrl + "/api/radar-feed?" + params.toString(), {
     cache: "no-store",
     headers,
   });
