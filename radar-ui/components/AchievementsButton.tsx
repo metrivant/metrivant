@@ -28,6 +28,10 @@ type Props = {
   hasMovement: boolean;
   hasCriticalAlert: boolean;
   hasAccelerating: boolean;
+  /** Active subscription plan — used to unlock subscription achievements */
+  planType?: "analyst" | "pro" | null;
+  /** Whether the user has an active (paid) subscription */
+  hasActiveSub?: boolean;
 };
 
 // ── Achievement icons (24×24 inline SVG, brand-themed) ────────────────────────
@@ -141,6 +145,38 @@ function AchievIcon({ id, color }: { id: string; color: string }) {
           <path d="M12 2.5L21.5 20H2.5L12 2.5Z" stroke={color} strokeWidth="1.4" strokeOpacity="0.55" strokeLinecap="round" strokeLinejoin="round" />
           <line x1="12" y1="9"    x2="12" y2="14.5" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
           <circle cx="12" cy="17" r="1.1" fill={color} />
+        </svg>
+      );
+    case "subscribed_analyst":
+      // Circuit / signal activation — node grid + pulse line
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="5"  cy="12" r="1.8" fill={color} fillOpacity="0.70" />
+          <circle cx="12" cy="12" r="1.8" fill={color} fillOpacity="0.90" />
+          <circle cx="19" cy="12" r="1.8" fill={color} fillOpacity="0.70" />
+          <line x1="6.8" y1="12" x2="10.2" y2="12" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+          <line x1="13.8" y1="12" x2="17.2" y2="12" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+          <circle cx="12" cy="6"  r="1.4" fill={color} fillOpacity="0.50" />
+          <circle cx="12" cy="18" r="1.4" fill={color} fillOpacity="0.50" />
+          <line x1="12" y1="7.4"  x2="12" y2="10.2" stroke={color} strokeWidth="1" strokeLinecap="round" strokeOpacity="0.55" />
+          <line x1="12" y1="13.8" x2="12" y2="16.6" stroke={color} strokeWidth="1" strokeLinecap="round" strokeOpacity="0.55" />
+          <path d="M2 12 Q4 9 5 12 Q6 15 8 12" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.45" fill="none" />
+        </svg>
+      );
+    case "subscribed_pro":
+      // Full radar sweep — complete arcs + center dot + sweep line
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"  stroke={color} strokeWidth="0.9" strokeOpacity="0.28" />
+          <circle cx="12" cy="12" r="6.5" stroke={color} strokeWidth="0.9" strokeOpacity="0.48" />
+          <circle cx="12" cy="12" r="3.2" stroke={color} strokeWidth="0.9" strokeOpacity="0.68" />
+          <circle cx="12" cy="12" r="1.4" fill={color} />
+          {/* Sweep wedge */}
+          <path d="M12 12 L12 2 A10 10 0 0 1 21.66 17 Z" fill={color} fillOpacity="0.10" />
+          <line x1="12" y1="12" x2="12" y2="2" stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.80" />
+          {/* Active blip */}
+          <circle cx="18.5" cy="6.5" r="1.6" fill={color} fillOpacity="0.82" />
+          <circle cx="18.5" cy="6.5" r="3"   stroke={color} strokeWidth="0.7" strokeOpacity="0.28" />
         </svg>
       );
     default:
@@ -438,6 +474,8 @@ export default function AchievementsButton({
   hasMovement,
   hasCriticalAlert,
   hasAccelerating,
+  planType = null,
+  hasActiveSub = false,
 }: Props) {
   const [open, setOpen]                             = useState(false);
   const [userId, setUserId]                         = useState<string | null>(null);
@@ -572,7 +610,14 @@ export default function AchievementsButton({
     if (hasAccelerating)        void unlock("pressure_detected");
     if (hasCriticalAlert)       void unlock("critical_alert");
     if (totalSignals7d >= 10)   void unlock("signals_10");
-  }, [loaded, userId, totalSignals7d, competitorCount, hasMovement, hasCriticalAlert, hasAccelerating, unlock]);
+
+    // Subscription achievements — fired when user holds an active paid plan
+    if (hasActiveSub && planType === "analyst") void unlock("subscribed_analyst");
+    if (hasActiveSub && planType === "pro") {
+      void unlock("subscribed_analyst"); // pro implies analyst tier was reached
+      void unlock("subscribed_pro");
+    }
+  }, [loaded, userId, totalSignals7d, competitorCount, hasMovement, hasCriticalAlert, hasAccelerating, hasActiveSub, planType, unlock]);
 
   // ── Listen for overlay-based unlock events ────────────────────────────────────
   useEffect(() => {

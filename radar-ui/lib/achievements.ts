@@ -12,7 +12,9 @@ export type AchievementId =
   | "strategy_reviewed"
   | "rivals_5"
   | "map_viewed"
-  | "pressure_detected";
+  | "pressure_detected"
+  | "subscribed_analyst"
+  | "subscribed_pro";
 
 export type StrategyActionId =
   | "pricing_monitor"
@@ -95,6 +97,18 @@ export const ACHIEVEMENTS: Achievement[] = [
     name: "Red Zone",
     description: "A competitor entered critical acceleration. Act now.",
     points: 100,
+  },
+  {
+    id: "subscribed_analyst",
+    name: "Intelligence Activated",
+    description: "Activate an Analyst subscription.",
+    points: 10,
+  },
+  {
+    id: "subscribed_pro",
+    name: "Full Spectrum",
+    description: "Activate a Pro subscription.",
+    points: 25,
   },
 ];
 

@@ -73,6 +73,7 @@ export default async function Page() {
   let sector             = "saas";
   let orgId: string | undefined;
   let plan               = "analyst";
+  let hasActiveSub       = false;
   let trialExpired       = false;
   let trialDaysRemaining: number | null = null;
   try {
@@ -95,6 +96,7 @@ export default async function Page() {
       if (org?.id) {
         const subState = await getSubscriptionState(supabase, org.id as string, user.created_at);
         plan         = subState.plan;
+        hasActiveSub = subState.status === "active" || subState.status === "canceled_active";
         trialExpired = subState.status === "expired";
         if (subState.status === "trial") {
           const trialEnd = new Date(user.created_at).getTime() + 3 * 24 * 60 * 60 * 1000;
@@ -217,6 +219,8 @@ export default async function Page() {
               hasMovement={competitors.some((c) => c.latest_movement_type != null)}
               hasCriticalAlert={hasCriticalAlert}
               hasAccelerating={hasAccelerating}
+              planType={plan as "analyst" | "pro"}
+              hasActiveSub={hasActiveSub}
             />
             {/* SectorSwitcher (with built-in clean slate X) — desktop only */}
             <div className="hidden md:flex items-center gap-2">

@@ -6,6 +6,7 @@ import BillingTracker from "./BillingTracker";
 import UpgradeClickTracker from "./UpgradeClickTracker";
 import ManageSubscriptionPanel from "../../../components/ManageSubscriptionPanel";
 import CheckoutButton from "../../../components/CheckoutButton";
+import SubscribedStatusSurface from "../../../components/SubscribedStatusSurface";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -43,13 +44,6 @@ const PRO_UPGRADE_FEATURES = [
   "90-day signal history",
   "Strategic movement analysis",
 ];
-
-function fmtDate(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "long", day: "numeric", year: "numeric",
-  });
-}
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 
@@ -102,7 +96,6 @@ export default async function BillingPage({
   ));
 
   const hasActiveSub     = subState.status === "active" || subState.status === "canceled_active" || subState.status === "past_due";
-  const isUpgradable     = !hasActiveSub || validPlan !== "pro";
   const canManageBilling = !!subState.stripeCustomerId;
 
   // Checkout success banner
@@ -189,163 +182,154 @@ export default async function BillingPage({
           </h1>
         </div>
 
-        {/* ── Current plan ──────────────────────────────────────────── */}
-        <section className="mb-4 rounded-[16px] border border-[#0d2010] bg-[#020802] p-6">
-          <div className="mb-5 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-            Current plan
-          </div>
+        {/* ── Subscribed: premium status surface ────────────────────── */}
+        {hasActiveSub && (subState.status === "active" || subState.status === "canceled_active" || subState.status === "past_due") && (
+          <SubscribedStatusSurface
+            plan={validPlan}
+            status={subState.status as "active" | "canceled_active" | "past_due"}
+            currentPeriodEnd={subState.currentPeriodEnd}
+            canManageBilling={canManageBilling}
+          />
+        )}
 
-          <div className="flex items-start justify-between gap-6">
-            <div className="flex-1">
-              <div className="flex items-baseline gap-2">
-                <span className="text-[22px] font-bold text-white">{PLAN_LABEL[validPlan]}</span>
-                <span className="text-[14px] text-slate-500">{PLAN_PRICE[validPlan]}</span>
+        {/* ── Not subscribed: current plan card + upgrade path ──────── */}
+        {!hasActiveSub && (
+          <>
+            <section className="mb-4 rounded-[16px] border border-[#0d2010] bg-[#020802] p-6">
+              <div className="mb-5 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                Current plan
               </div>
 
-              {/* Subscription status line */}
-              <div className="mt-2 mb-4">
-                {subState.status === "active" && (
-                  <span className="text-[12px] text-[#2EE6A6]">
-                    Active — renews {fmtDate(subState.currentPeriodEnd)}
-                  </span>
-                )}
-                {subState.status === "canceled_active" && (
-                  <span className="text-[12px] text-amber-400">
-                    Canceled — access until {fmtDate(subState.currentPeriodEnd)}
-                  </span>
-                )}
-                {subState.status === "past_due" && (
-                  <div>
-                    <span className="block text-[12px] text-red-400">
-                      Payment failed — action required
-                    </span>
-                    {canManageBilling && (
-                      <form action="/api/stripe/portal" method="POST" className="mt-1.5 inline">
-                        <button
-                          type="submit"
-                          className="text-[12px] font-medium text-[#2EE6A6] transition-opacity hover:opacity-75"
-                        >
-                          Update payment method →
-                        </button>
-                      </form>
+              <div className="flex items-start justify-between gap-6">
+                <div className="flex-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[22px] font-bold text-white">{PLAN_LABEL[validPlan]}</span>
+                    <span className="text-[14px] text-slate-500">{PLAN_PRICE[validPlan]}</span>
+                  </div>
+
+                  {/* Subscription status line */}
+                  <div className="mt-2 mb-4">
+                    {subState.status === "trial" && (
+                      <span className="text-[12px] text-amber-400">
+                        {trialDaysRemaining === 0
+                          ? "Trial ends today — subscribe to keep access"
+                          : trialDaysRemaining === 1
+                            ? "Trial ends tomorrow"
+                            : `Trial active — ${trialDaysRemaining} days remaining`}
+                      </span>
+                    )}
+                    {subState.status === "expired" && (
+                      <span className="text-[12px] text-red-400">
+                        Trial expired — subscribe to continue
+                      </span>
                     )}
                   </div>
-                )}
-                {subState.status === "trial" && (
-                  <span className="text-[12px] text-amber-400">
-                    {trialDaysRemaining === 0
-                      ? "Trial ends today — subscribe to keep access"
-                      : trialDaysRemaining === 1
-                        ? "Trial ends tomorrow"
-                        : `Trial active — ${trialDaysRemaining} days remaining`}
-                  </span>
-                )}
-                {subState.status === "expired" && (
-                  <span className="text-[12px] text-red-400">
-                    Trial expired — subscribe to continue
-                  </span>
-                )}
+
+                  <ul className="space-y-2">
+                    {PLAN_FEATURES[validPlan].map((f) => (
+                      <li key={f} className="flex items-start gap-2">
+                        <span
+                          className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full"
+                          style={{ background: "#2EE6A6", opacity: 0.65 }}
+                        />
+                        <span className="text-[13px] text-slate-400">{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="flex shrink-0 flex-col gap-2">
+                  <UpgradeClickTracker source="billing_current_plan">
+                    <CheckoutButton
+                      plan="pro"
+                      className="rounded-full bg-[#2EE6A6] px-5 py-2 text-[12px] font-bold text-black transition-opacity hover:opacity-90"
+                    >
+                      Upgrade
+                    </CheckoutButton>
+                  </UpgradeClickTracker>
+                </div>
+              </div>
+            </section>
+
+            {/* ── Upgrade card (trial / expired users) ──────────────── */}
+            <section
+              className="relative mb-4 overflow-hidden rounded-[16px] border border-[#2EE6A6]/18 bg-[#030c03] p-6"
+              style={{ boxShadow: "0 0 30px rgba(46,230,166,0.03)" }}
+            >
+              <div
+                className="absolute inset-x-0 top-0 h-[1px]"
+                style={{ background: "linear-gradient(90deg, transparent, rgba(46,230,166,0.40), transparent)" }}
+              />
+
+              <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                Unlock Pro
+              </div>
+              <div className="mb-4 flex items-baseline gap-2">
+                <span className="text-[18px] font-bold text-white">$19</span>
+                <span className="text-[13px] text-slate-500">/mo</span>
               </div>
 
-              <ul className="space-y-2">
-                {PLAN_FEATURES[validPlan].map((f) => (
+              <ul className="mb-6 space-y-2">
+                {PRO_UPGRADE_FEATURES.map((f) => (
                   <li key={f} className="flex items-start gap-2">
                     <span
-                      className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full"
-                      style={{ background: "#2EE6A6", opacity: 0.65 }}
+                      className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#2EE6A6]"
+                      style={{ boxShadow: "0 0 4px rgba(46,230,166,0.6)" }}
                     />
-                    <span className="text-[13px] text-slate-400">{f}</span>
+                    <span className="text-[13px] text-slate-300">{f}</span>
                   </li>
                 ))}
               </ul>
-            </div>
 
-            <div className="flex shrink-0 flex-col gap-2">
-              {isUpgradable && !hasActiveSub && (
-                <UpgradeClickTracker source="billing_current_plan">
-                  <CheckoutButton
-                    plan="pro"
-                    className="rounded-full bg-[#2EE6A6] px-5 py-2 text-[12px] font-bold text-black transition-opacity hover:opacity-90"
-                  >
-                    Upgrade
-                  </CheckoutButton>
-                </UpgradeClickTracker>
-              )}
-              {hasActiveSub && validPlan === "analyst" && (
-                <UpgradeClickTracker source="billing_current_plan">
-                  <form action="/api/stripe/upgrade" method="POST">
-                    <button
-                      type="submit"
-                      className="rounded-full bg-[#2EE6A6] px-5 py-2 text-[12px] font-bold text-black transition-opacity hover:opacity-90"
-                    >
-                      Upgrade to Pro
-                    </button>
-                  </form>
-                </UpgradeClickTracker>
-              )}
-              {canManageBilling && (
-                <form action="/api/stripe/portal" method="POST">
-                  <button
-                    type="submit"
-                    className="rounded-full border border-[#1a3020] px-5 py-2 text-[12px] font-medium text-slate-400 transition-colors hover:border-[#2a4a30] hover:text-slate-200"
-                  >
-                    Manage billing →
-                  </button>
-                </form>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* ── Upgrade card (Analyst → Pro) ───────────────────────────── */}
-        {isUpgradable && (!hasActiveSub || validPlan === "analyst") && (
-          <section
-            className="relative mb-4 overflow-hidden rounded-[16px] border border-[#2EE6A6]/18 bg-[#030c03] p-6"
-            style={{ boxShadow: "0 0 30px rgba(46,230,166,0.03)" }}
-          >
-            <div
-              className="absolute inset-x-0 top-0 h-[1px]"
-              style={{ background: "linear-gradient(90deg, transparent, rgba(46,230,166,0.40), transparent)" }}
-            />
-
-            <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-              Unlock Pro
-            </div>
-            <div className="mb-4 flex items-baseline gap-2">
-              <span className="text-[18px] font-bold text-white">$19</span>
-              <span className="text-[13px] text-slate-500">/mo</span>
-            </div>
-
-            <ul className="mb-6 space-y-2">
-              {PRO_UPGRADE_FEATURES.map((f) => (
-                <li key={f} className="flex items-start gap-2">
-                  <span
-                    className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#2EE6A6]"
-                    style={{ boxShadow: "0 0 4px rgba(46,230,166,0.6)" }}
-                  />
-                  <span className="text-[13px] text-slate-300">{f}</span>
-                </li>
-              ))}
-            </ul>
-
-            <UpgradeClickTracker source="billing_upgrade_card">
-              {hasActiveSub && validPlan === "analyst" ? (
-                <form action="/api/stripe/upgrade" method="POST">
-                  <button
-                    type="submit"
-                    className="block w-full rounded-full bg-[#2EE6A6] py-2.5 text-center text-[13px] font-bold text-black transition-opacity hover:opacity-90"
-                  >
-                    Upgrade to Pro →
-                  </button>
-                </form>
-              ) : (
+              <UpgradeClickTracker source="billing_upgrade_card">
                 <CheckoutButton
                   plan="pro"
                   className="block w-full rounded-full bg-[#2EE6A6] py-2.5 text-center text-[13px] font-bold text-black transition-opacity hover:opacity-90"
                 >
                   Upgrade →
                 </CheckoutButton>
-              )}
+              </UpgradeClickTracker>
+            </section>
+          </>
+        )}
+
+        {/* ── Subscribed Analyst: upgrade to Pro path ───────────────── */}
+        {hasActiveSub && validPlan === "analyst" && (
+          <section
+            className="relative mb-4 overflow-hidden rounded-[16px] border border-[#2EE6A6]/12 bg-[#030c03] p-6"
+            style={{ boxShadow: "0 0 24px rgba(46,230,166,0.02)" }}
+          >
+            <div
+              className="absolute inset-x-0 top-0 h-[1px]"
+              style={{ background: "linear-gradient(90deg, transparent, rgba(46,230,166,0.28), transparent)" }}
+            />
+            <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-600">
+              Upgrade to Pro
+            </div>
+            <div className="mb-4 flex items-baseline gap-2">
+              <span className="text-[18px] font-bold text-white">$19</span>
+              <span className="text-[13px] text-slate-500">/mo</span>
+            </div>
+            <ul className="mb-6 space-y-2">
+              {PRO_UPGRADE_FEATURES.map((f) => (
+                <li key={f} className="flex items-start gap-2">
+                  <span
+                    className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#2EE6A6]"
+                    style={{ opacity: 0.55 }}
+                  />
+                  <span className="text-[13px] text-slate-400">{f}</span>
+                </li>
+              ))}
+            </ul>
+            <UpgradeClickTracker source="billing_upgrade_card">
+              <form action="/api/stripe/upgrade" method="POST">
+                <button
+                  type="submit"
+                  className="block w-full rounded-full bg-[#2EE6A6] py-2.5 text-center text-[13px] font-bold text-black transition-opacity hover:opacity-90"
+                >
+                  Upgrade to Pro →
+                </button>
+              </form>
             </UpgradeClickTracker>
           </section>
         )}
