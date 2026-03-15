@@ -1,6 +1,6 @@
 METRIVANT — MASTER SYSTEM REFERENCE
-Version: v4.1 (reliability hardening pass — operational observability)
-Last updated: 2026-03-14
+Version: v4.2 (billing integration, plan enforcement, clean slate hardening)
+Last updated: 2026-03-15
 
 This document is the single authoritative reference for the Metrivant system.
 It replaces: ARCHITECTURE_INDEX, MASTER_ARCHITECTURE_PLAN, SYSTEM_ARCHITECTURE,
@@ -266,9 +266,10 @@ strategic_movements: (competitor_id, movement_type)
 All pipeline stages are safe to re-run.
 
 ================================================
-8. SCHEMA — KEY ADDITIONS (Migrations 008–012)
+8. SCHEMA — KEY ADDITIONS (Migrations 008–017)
 ================================================
 
+-- Migrations 008–012 (intelligence cadence + precision tuning) --
 monitored_pages.page_class               'high_value' | 'standard' | 'ambient'
 monitored_pages.last_fetched_at          timestamptz
 monitored_pages.consecutive_fetch_failures  integer (auto-deactivates at >= 5)
@@ -291,6 +292,42 @@ interpretations.prompt_hash              text (for PROMPT_VERSION gating)
 Triggers:
   trg_deactivate_failing_pages     — deactivates monitored_pages when failures >= 5
   trg_sync_last_signal_at          — keeps competitors.last_signal_at current
+
+-- Migrations 013–017 (reference pipeline, constraint hardening, billing) --
+signals.competitor_id                    uuid FK → competitors.id (migration 015)
+                                         Backfilled via monitored_pages join.
+                                         Indexed on (competitor_id, detected_at DESC) WHERE interpreted=true.
+
+signals UNIQUE constraint:               signals_section_diff_signal_type_unique
+                                         ON (section_diff_id, signal_type)
+                                         Required by detect-signals ON CONFLICT.
+                                         (migration 015)
+
+signals status check constraint:         signals_status_check
+                                         IN ('pending','pending_review','in_progress','interpreted','failed')
+                                         (migration 016 — replaces stale chk_signals_status)
+
+page_sections section_type constraint:   chk_section_type_page_sections
+                                         Includes 'headline' (h1/h2 extraction)
+                                         (migration 017)
+
+extraction_rules section_type constraint: chk_section_type
+                                         Includes 'headline'
+                                         (migration 017)
+
+section_diffs UNIQUE constraint:         section_diffs_page_type_previous_unique
+                                         ON (monitored_page_id, section_type, previous_section_id)
+                                         Required by detect-diffs ON CONFLICT.
+                                         (migration 017)
+
+snapshots.fetch_quality                  text CHECK IN ('full','shell') DEFAULT 'full'
+                                         'shell' = bot wall / JS-rendered page (<3 text elements)
+                                         (migration 017)
+
+subscriptions table (UI Supabase):       org_id FK → organizations.id
+                                         stripe_customer_id, stripe_subscription_id,
+                                         status, plan, current_period_end
+                                         Written by Stripe webhook on checkout.session.completed
 
 ================================================
 9. SECTOR MODEL
@@ -378,9 +415,16 @@ Manual competitor addition:
 
 Route: POST /api/clean-slate
 Effect:
-  1. Deletes all tracked_competitors for the org
-  2. Resets organizations.sector = 'custom'
-  3. Returns { ok: true, removed: N }
+  1. Collects tracked website_urls before deletion
+  2. Deletes all tracked_competitors for the org
+  3. Sets competitors.active = false on matching pipeline entries (service client)
+     → radar clears immediately; no waiting for pipeline housekeeping
+  4. Resets organizations.sector = 'custom'
+  5. Returns { ok: true, removed: N }
+
+Pipeline re-activation:
+  onboard-competitor re-sets active=true when a competitor URL is re-onboarded
+  after a clean slate. The upsert-on-conflict path now includes the re-activation.
 
 UI: CleanSlateButton in radar header (hidden on mobile)
   - Inline confirm flow (shows count of rivals to be removed)
@@ -456,17 +500,52 @@ Positioning map (lib/positioning.ts):
   Significant shift threshold: > 15 points on either axis
 
 ================================================
-16. USER PLAN STRUCTURE
+16. USER PLAN STRUCTURE + BILLING
 ================================================
 
 | Plan    | Competitors | Signal history | Alerts         |
 |---------|-------------|----------------|----------------|
-| Analyst | 5           | 30 days        | Weekly digest  |
+| Analyst | 10          | 30 days        | Weekly digest  |
 | Pro     | 25          | 90 days        | Real-time      |
 
 Legacy: plan = "starter" → treated as "analyst" everywhere.
-Plan enforcement: defined in product, not yet enforced at DB/API level.
-Billing: informational only — no Stripe integration.
+
+Plan enforcement (fully implemented):
+  - discover/track: enforces limit before insert (403 + upgrade_url on breach)
+  - app/app/page.tsx: slices radar feed to planLimit (Pro=25, Analyst=10) after
+    plan resolution — pipeline may have more active competitors but UI caps display.
+  - radar-feed: returns all active pipeline competitors (no org filter); UI applies limit.
+
+Stripe (fully integrated):
+  - Checkout sessions: lib/stripe.ts (STRIPE_SECRET_KEY trimmed of whitespace)
+  - Webhook: /api/stripe/webhook (processes checkout.session.completed,
+    customer.subscription.updated, invoice.payment_failed)
+  - Alias: /api/stripe-webhook → re-exports POST (Stripe dashboard points here)
+  - On successful checkout: writes subscriptions row + sets user_metadata.plan
+  - Subscriptions table: org_id, stripe_customer_id, stripe_subscription_id,
+    status IN ('active','canceled_active','past_due','canceled'), plan, current_period_end
+
+Plan resolution logic (app/app/page.tsx — force-dynamic):
+  Priority 1: user_metadata.plan = "analyst"|"pro" → hasActiveSub=true, gate unlocked
+              (Stripe webhook writes this; reliable even if subscriptions row is missing)
+  Priority 2: subscriptions table → status: active|canceled_active|past_due
+  Priority 3: time-based trial (3 days from user.created_at)
+
+TrialLockScreen:
+  Shown only when trialExpired=true AND hasActiveSub=false.
+  SyncSubscription component fires on mount: searches Stripe by email,
+  writes missing subscription row, router.refresh() if found.
+
+Billing page (/app/billing):
+  Subscribed users: shows SubscribedStatusSurface (plan name, renewal date,
+                    subscription achievements, billing portal link)
+  Unsubscribed:     shows upgrade cards + Stripe checkout CTAs
+  SyncOnSuccess:    mounts when ?checkout=success and not yet subscribed,
+                    auto-syncs subscription from Stripe, then refreshes
+
+Sync endpoint: POST /api/stripe/sync-subscription
+  Auth-gated. Searches Stripe by email if no stripe_customer_id.
+  Upserts subscription row + sets user_metadata.plan.
 
 ================================================
 17. EMAIL SYSTEM
@@ -703,3 +782,54 @@ Without explicit approval:
 - Calm refinement over flashy complexity
 - Production-grade maintainability at all times
 - Solo-operator maintainability preserved always
+
+================================================
+26. PENDING SQL MIGRATIONS
+================================================
+
+Apply in Supabase SQL Editor (service role). Check migration file before running —
+all migrations in /migrations/ are idempotent (DROP IF EXISTS before ADD).
+
+Applied:
+  ✅ 015_signals_competitor_id_and_radar_feed_view.sql
+  ✅ 016_fix_signals_status_constraint.sql
+
+Needs verification / apply if not yet done:
+  ⬜ 017_fetch_quality_and_constraint_hardening.sql
+     - Adds snapshots.fetch_quality column (removes 42703 fallback in fetch-snapshots.ts)
+     - Fixes section_type constraints (page_sections + extraction_rules)
+     - Adds section_diffs unique constraint (required by detect-diffs ON CONFLICT)
+     - UUID-safe dedup using ctid (not MIN(id))
+
+Note: migration 014 was superseded by 017. If 014 was already applied, 017 is still
+safe to run (all steps are DROP IF EXISTS / ADD IF NOT EXISTS).
+
+Signal hash dedup note (CLAUDE.md shows old formula):
+  signal_hash = sha256(competitor_id:signal_type:section_type:diff_id)[:32]
+  Anchored to the diff — NOT a calendar-day bucket.
+  CLAUDE.md section on signal_hash still shows old "YYYY-MM-DD" formula — that is stale.
+  The code in detect-signals.ts is authoritative.
+
+================================================
+27. KEY SENTRY OBSERVABILITY SIGNALS (v4.2)
+================================================
+
+Expected warnings (designed behavior, not bugs):
+  fetch_shell_detected        fetch-snapshots  bot wall / JS shell detected (<3 text elements)
+  extraction_drift_detected   extract-sections  section count >60% deviation from 5-snapshot avg
+  radar_feed_all_zero         radar-feed       all competitors have momentum_score=0 (pipeline warming up)
+  suppression_anomaly         detect-signals   competitor ≥5 diffs, ≥98% suppressed
+
+Pipeline errors (should be zero after migrations applied):
+  chk_section_type_page_sections  extract-sections  → fixed by migration 017
+  chk_section_type (extraction_rules)  onboard-competitor → fixed by migration 017
+  section_diffs ON CONFLICT 42P10   detect-diffs   → fixed by migration 017
+  competitor_id column not found    detect-signals  → fixed by migration 015
+
+Expected failures silenced in fetch-snapshots (isExpectedFailure):
+  "Fetch failed: ..."     any HTTP error from competitor site (4xx, 5xx including 502)
+  "This operation was aborted"   timeout
+  "redirect count exceeded"      redirect loop
+  "HTML exceeds size limit"      page > 1MB
+  TypeError: fetch failed        DNS/connection failure
+  23505                          concurrent run duplicate insert race

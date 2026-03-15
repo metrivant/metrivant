@@ -184,39 +184,21 @@ async function handler(req: ApiReq, res: ApiRes) {
             continue;
           }
 
-          // The base snapshot payload — always safe to insert.
-          const basePayload = {
-            monitored_page_id: page.id,
-            fetched_at: fetchedAt,
-            raw_html: rawHtml,
-            extracted_text: null,
-            content_hash: contentHash,
-            status: "fetched",
-            sections_extracted: false,
-            is_duplicate: false,
-          };
-
-          // TODO: add fetch_quality column to snapshots via migration before removing this guard.
-          // We attempt to write fetch_quality. If the column does not yet exist, Supabase returns
-          // a 42703 ("undefined_column") error and we fall back to the base payload so no snapshot
-          // is ever lost. The cast is intentional — fetch_quality is not yet in the generated types.
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          let { error: insertError } = await supabase
+          const { error: insertError } = await supabase
             .from("snapshots")
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .insert({ ...basePayload, fetch_quality: fetchQuality } as any);
-
-          // Column does not exist yet — retry with base payload so the snapshot is not lost.
-          if (insertError && (insertError as { code?: string }).code === "42703") {
-            Sentry.addBreadcrumb({
-              category: "pipeline",
-              message: "fetch_quality column not yet on snapshots — skipping column write",
-              level: "info",
-            });
-            ({ error: insertError } = await supabase
-              .from("snapshots")
-              .insert(basePayload));
-          }
+            .insert({
+              monitored_page_id: page.id,
+              fetched_at: fetchedAt,
+              raw_html: rawHtml,
+              extracted_text: null,
+              content_hash: contentHash,
+              status: "fetched",
+              sections_extracted: false,
+              is_duplicate: false,
+              fetch_quality: fetchQuality,
+            } as any);
 
           if (insertError) {
             // Unique constraint violation (23505) = concurrent run inserted same hash first — treat as duplicate skip
@@ -240,9 +222,10 @@ async function handler(req: ApiReq, res: ApiRes) {
         // may not match the pattern but the error is a known non-critical outcome.
         const errCode = (error as { code?: string })?.code;
         const isExpectedFailure =
-          msg.includes("404") ||
-          msg.includes("403") ||
-          msg.includes("401") ||
+          // Any HTTP-level failure from a competitor site (4xx, 5xx) is expected —
+          // the site may be down, rate-limiting bots, or returning an error page.
+          // "Fetch failed: NNN ..." is the error format thrown by fetchWithTimeout.
+          msg.startsWith("Fetch failed:") ||
           msg.includes("AbortError") ||
           msg.includes("This operation was aborted") ||
           msg.includes("redirect count exceeded") ||
