@@ -1645,7 +1645,7 @@ export default function Radar({
   }
 
   return (
-    <div className="grid h-full gap-3 grid-cols-1 md:grid-cols-[1fr_320px] xl:grid-cols-[1fr_370px]">
+    <div className="grid h-full gap-3 grid-cols-1 lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_370px]">
       {/* ── Radar panel ─────────────────────────────────────────── */}
       <section
         className={`flex min-h-0 flex-1 flex-col overflow-hidden${isolated ? "" : " rounded-[20px]"}`}
@@ -3107,7 +3107,7 @@ export default function Radar({
       {/* ── Mobile backdrop — dims radar behind open drawer on small screens ── */}
       {selected && (
         <div
-          className="fixed inset-0 z-30 bg-black/60 md:hidden"
+          className="fixed inset-0 z-30 bg-black/60 lg:hidden"
           onClick={() => setSelectedId(null)}
           aria-hidden="true"
         />
@@ -3117,7 +3117,7 @@ export default function Radar({
       {/* Mobile: hidden when nothing selected; bottom-sheet when selected.  */}
       {/* Desktop (md+): always-visible second grid column.                  */}
       <aside
-        className={`border bg-[#000000] p-6 md:static md:block md:inset-auto md:z-auto md:min-h-0 md:max-h-none md:overflow-y-auto md:rounded-[20px]${
+        className={`border bg-[#000000] p-6 lg:static lg:block lg:inset-auto lg:z-auto lg:min-h-0 lg:max-h-none lg:overflow-y-auto lg:rounded-[20px]${
           selected
             ? sheetState === "full"
               ? " fixed inset-x-0 bottom-0 z-40 h-[100svh] overflow-y-auto rounded-t-[20px]"
@@ -3140,7 +3140,7 @@ export default function Radar({
         }}
       >
         {/* ── Mobile swipe handle + sheet state indicator ── */}
-        <div className="mb-4 flex flex-col items-center gap-2 md:hidden">
+        <div className="mb-4 flex flex-col items-center gap-2 lg:hidden">
           <div className="h-[4px] w-10 rounded-full bg-[#1c3a1c]" />
           {selected && (
             <div className="flex items-center gap-1.5" role="group" aria-label="Sheet position">
