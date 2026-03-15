@@ -145,6 +145,59 @@ function IconDiscover() {
   );
 }
 
+function IconConstellation() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+      {/* Constellation lines */}
+      <line x1="6"  y1="22" x2="12" y2="8"  stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.22" />
+      <line x1="12" y1="8"  x2="20" y2="14" stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.22" />
+      <line x1="20" y1="14" x2="23" y2="6"  stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.22" />
+      <line x1="12" y1="8"  x2="8"  y2="14" stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.18" />
+      <line x1="8"  y1="14" x2="20" y2="14" stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.18" />
+      <line x1="20" y1="14" x2="16" y2="22" stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.18" />
+      {/* Stars — varying brightness by recency */}
+      <circle cx="12" cy="8"  r="2.2" fill="#2EE6A6" fillOpacity="0.90" />
+      <circle cx="20" cy="14" r="1.8" fill="#2EE6A6" fillOpacity="0.75" />
+      <circle cx="23" cy="6"  r="1.4" fill="#2EE6A6" fillOpacity="0.55" />
+      <circle cx="6"  cy="22" r="1.4" fill="#2EE6A6" fillOpacity="0.55" />
+      <circle cx="8"  cy="14" r="1.2" fill="#2EE6A6" fillOpacity="0.40" />
+      <circle cx="16" cy="22" r="1.0" fill="#2EE6A6" fillOpacity="0.30" />
+    </svg>
+  );
+}
+
+function IconCaveman() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+      {/* Mammoth silhouette (right side) */}
+      <path
+        d="M16 18 Q17 14 20 13 Q23 12 24 14 L24 18 Q23 19 21 19 L21 22 L19 22 L19 19 Q17 19 16 18Z"
+        fill="#d97706" fillOpacity="0.35"
+      />
+      {/* Mammoth trunk */}
+      <path d="M16 18 Q15 20 16 22" stroke="#d97706" strokeWidth="0.8" strokeOpacity="0.40" strokeLinecap="round" fill="none" />
+      {/* Mammoth tusk */}
+      <path d="M17 15 Q15 16 16 18" stroke="#d97706" strokeWidth="0.7" strokeOpacity="0.35" strokeLinecap="round" fill="none" />
+      {/* Mammoth humped back */}
+      <path d="M20 13 Q21 10 22 11 Q23 10 24 12" stroke="#d97706" strokeWidth="0.7" strokeOpacity="0.28" strokeLinecap="round" fill="none" />
+      {/* Hunter figure (left side) */}
+      {/* Head */}
+      <circle cx="6" cy="8" r="2" fill="#d97706" fillOpacity="0.55" />
+      {/* Body */}
+      <line x1="6" y1="10" x2="6" y2="16" stroke="#d97706" strokeWidth="1" strokeOpacity="0.50" strokeLinecap="round" />
+      {/* Arm holding spear */}
+      <line x1="6" y1="12" x2="10" y2="10" stroke="#d97706" strokeWidth="0.8" strokeOpacity="0.45" strokeLinecap="round" />
+      {/* Spear */}
+      <line x1="10" y1="10" x2="15" y2="14" stroke="#d97706" strokeWidth="1" strokeOpacity="0.65" strokeLinecap="round" />
+      {/* Spear tip */}
+      <path d="M15 14 L14 12 L16 13Z" fill="#d97706" fillOpacity="0.80" />
+      {/* Legs */}
+      <line x1="6" y1="16" x2="4"  y2="22" stroke="#d97706" strokeWidth="0.9" strokeOpacity="0.40" strokeLinecap="round" />
+      <line x1="6" y1="16" x2="8"  y2="22" stroke="#d97706" strokeWidth="0.9" strokeOpacity="0.40" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 // ── Feature data ───────────────────────────────────────────────────────────────
 
 const FEATURES = [
@@ -152,7 +205,7 @@ const FEATURES = [
     Icon: IconRadar,
     tag: "Live Radar",
     headline: "Your market, rendered as a precision instrument.",
-    body: "Up to 50 competitors plotted in real time by momentum score. The nodes closest to the boundary are accelerating. At a glance, you know exactly who demands your attention — before the rest of the market does.",
+    body: "Up to 25 competitors plotted in real time by momentum score. The nodes closest to the boundary are accelerating. At a glance, you know exactly who demands your attention — before the rest of the market does.",
   },
   {
     Icon: IconSignal,
@@ -164,7 +217,7 @@ const FEATURES = [
     Icon: IconAI,
     tag: "AI Interpretation",
     headline: "Pattern recognition at the speed of the market.",
-    body: "Each signal is analyzed by GPT-4o to determine strategic intent. Is this a real pricing move or a cosmetic tweak? A feature launch or a UI refresh? Confidence scores tell you how certain to be. Calibrated language tells you how to act.",
+    body: "Each signal is analyzed by AI to determine strategic intent. Is this a real pricing move or a cosmetic tweak? A feature launch or a UI refresh? Confidence scores tell you how certain to be. Calibrated language tells you how to act.",
   },
   {
     Icon: IconMovement,
@@ -182,7 +235,7 @@ const FEATURES = [
     Icon: IconBrief,
     tag: "Intelligence Briefs",
     headline: "A weekly briefing that reads like it was written by your analyst.",
-    body: "Every week, GPT-4o synthesizes detected movements into a strategic digest: what moved, what it implies, and what you should do about it. Clear. Actionable. Evidence-backed.",
+    body: "Every week, the system synthesizes detected movements into a strategic digest: what moved, what it implies, and what you should do about it. Clear. Actionable. Evidence-backed.",
   },
   {
     Icon: IconMap,
@@ -207,6 +260,19 @@ const FEATURES = [
     tag: "Competitor Discovery",
     headline: "Your sector, catalogued. Ready to track instantly.",
     body: "Browse a curated catalog of competitors across SaaS, Defense, Energy, and more. Add rivals to your radar in one click. Sector-aware terminology means every movement type is expressed in the language your market actually uses.",
+  },
+  {
+    Icon: IconConstellation,
+    tag: "Signal Constellation",
+    headline: "Every rival's signal history, mapped across time.",
+    body: "The Signal Constellation renders each competitor as a star field — brightness encoding recency, density encoding activity volume. A dim, sparse field means silence. A bright, dense cluster means acceleration. See at a glance which rivals are generating the most intelligence and when they last moved.",
+  },
+  {
+    Icon: IconCaveman,
+    tag: "Evolutionary Edge",
+    headline: "Your brain evolved for this. Metrivant makes it precise.",
+    body: "For hundreds of thousands of years, survival meant tracking rival groups, reading their movements, detecting resource shifts before they happened. That competitive instinct is still hardwired into every strategist. Signals, patterns, territory, timing — the primitives of survival are the primitives of market intelligence. Metrivant gives that ancient circuitry the instrument it was always built for.",
+    _variant: "primal",
   },
 ] as const;
 
@@ -345,36 +411,46 @@ export default function AboutOverlay({
               </div>
 
               <div className="space-y-2">
-                {FEATURES.map(({ Icon, tag, headline, body }) => (
-                  <div
-                    key={tag}
-                    className="group rounded-[14px] border border-[#0d1e0d] px-4 py-4 transition-colors hover:border-[#1a3020]"
-                    style={{ background: "#020802" }}
-                  >
-                    <div className="flex items-start gap-3.5">
-                      {/* Icon */}
-                      <div className="mt-0.5 shrink-0 opacity-80 transition-opacity group-hover:opacity-100">
-                        <Icon />
-                      </div>
+                {FEATURES.map((feat) => {
+                  const { Icon, tag, headline, body } = feat;
+                  const isPrimal = "_variant" in feat && feat._variant === "primal";
+                  return (
+                    <div
+                      key={tag}
+                      className="group rounded-[14px] px-4 py-4 transition-colors"
+                      style={isPrimal ? {
+                        background: "#0a0500",
+                        border: "1px solid #2a1505",
+                      } : {
+                        background: "#020802",
+                        border: "1px solid #0d1e0d",
+                      }}
+                    >
+                      <div className="flex items-start gap-3.5">
+                        {/* Icon */}
+                        <div className="mt-0.5 shrink-0 opacity-80 transition-opacity group-hover:opacity-100">
+                          <Icon />
+                        </div>
 
-                      {/* Content */}
-                      <div className="min-w-0 flex-1">
-                        <div
-                          className="mb-1 text-[9px] font-bold uppercase tracking-[0.22em]"
-                          style={{ color: "rgba(46,230,166,0.55)" }}
-                        >
-                          {tag}
+                        {/* Content */}
+                        <div className="min-w-0 flex-1">
+                          <div
+                            className="mb-1 text-[9px] font-bold uppercase tracking-[0.22em]"
+                            style={{ color: isPrimal ? "rgba(217,119,6,0.70)" : "rgba(46,230,166,0.55)" }}
+                          >
+                            {tag}
+                          </div>
+                          <div className="mb-1.5 text-[12px] font-semibold leading-snug text-white">
+                            {headline}
+                          </div>
+                          <p className="text-[11px] leading-relaxed text-slate-500">
+                            {body}
+                          </p>
                         </div>
-                        <div className="mb-1.5 text-[12px] font-semibold leading-snug text-white">
-                          {headline}
-                        </div>
-                        <p className="text-[11px] leading-relaxed text-slate-500">
-                          {body}
-                        </p>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

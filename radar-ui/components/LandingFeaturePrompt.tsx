@@ -17,7 +17,7 @@ export default function LandingFeaturePrompt() {
     const timer = setTimeout(() => {
       setOpen(true);
       try { sessionStorage.setItem(SESSION_KEY, "1"); } catch { /* non-fatal */ }
-    }, 10_000);
+    }, 30_000);
 
     return () => clearTimeout(timer);
   }, []);
