@@ -48,7 +48,6 @@ interface AmbientDiffRow {
   monitored_page_id: string;
   last_seen_at: string | null;
   monitored_pages: {
-    page_class: string;
     competitor_id: string;
     url: string;
   } | null;
@@ -73,8 +72,10 @@ async function handler(req: ApiReq, res: ApiRes) {
   });
 
   try {
-    // Fetch confirmed diffs from all page classes — filter to ambient in TypeScript.
-    // This avoids a Supabase nested-table filter which has less predictable behaviour.
+    // page_class is denormalized onto section_diffs (migration 022).
+    // Filter directly at the DB layer — hits idx_section_diffs_ambient_pending
+    // (partial index: confirmed=true, signal_detected=false, is_noise=false,
+    // page_class='ambient') with no overlap with the detect-signals index.
     const { data: diffs, error } = await supabase
       .from("section_diffs")
       .select(`
@@ -82,24 +83,20 @@ async function handler(req: ApiReq, res: ApiRes) {
         section_type,
         monitored_page_id,
         last_seen_at,
-        monitored_pages!inner ( page_class, competitor_id, url )
+        monitored_pages!inner ( competitor_id, url )
       `)
       .eq("confirmed", true)
       .eq("signal_detected", false)
       .eq("is_noise", false)
+      .eq("page_class", "ambient")
       .order("last_seen_at", { ascending: true })
       .limit(100);
 
     if (error) throw error;
 
-    // Keep only ambient pages.
-    const ambientDiffs = ((diffs ?? []) as unknown as AmbientDiffRow[]).filter(
-      (d) => d.monitored_pages?.page_class === "ambient"
-    );
+    rowsClaimed = (diffs ?? []).length;
 
-    rowsClaimed = ambientDiffs.length;
-
-    for (const diff of ambientDiffs) {
+    for (const diff of (diffs ?? []) as unknown as AmbientDiffRow[]) {
       rowsProcessed += 1;
 
       try {

@@ -135,6 +135,21 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     const changedPageIds = [...new Set(changedSections.map((s) => s.monitored_page_id))];
 
+    // ── Batch-load page_class for all changed pages ───────────────────────────
+    // Written onto new section_diff rows so downstream stages can filter by
+    // page_class at the DB layer without a monitored_pages join.
+    const pageClassMap = new Map<string, string>();
+    if (changedPageIds.length > 0) {
+      const { data: pageClassRows, error: pageClassError } = await supabase
+        .from("monitored_pages")
+        .select("id, page_class")
+        .in("id", changedPageIds);
+      if (pageClassError) throw pageClassError;
+      for (const row of (pageClassRows ?? []) as { id: string; page_class: string }[]) {
+        pageClassMap.set(row.id, row.page_class);
+      }
+    }
+
     // ── Batch-load existing diffs for all changed pages (eliminates N+1) ─────
     // Keyed by "page_id::section_type::previous_section_id" → most-recent DiffRow.
     const diffMapByKey = new Map<string, DiffRow>();
@@ -302,6 +317,9 @@ async function handler(req: ApiReq, res: ApiRes) {
               confirmed: true,
               first_seen_at: section.created_at,
               last_seen_at: section.created_at,
+              // Denormalized from monitored_pages — enables DB-layer filtering in
+              // detect-ambient and detect-signals without a join on every query.
+              page_class: pageClassMap.get(section.monitored_page_id) ?? "standard",
             },
             {
               onConflict: "monitored_page_id,section_type,previous_section_id",

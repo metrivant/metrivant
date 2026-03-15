@@ -42,8 +42,8 @@ interface DiffRow {
   monitored_page_id: string;
   last_seen_at: string | null;
   observation_count: number | null;
+  page_class: string;
   monitored_pages: {
-    page_class: string;
     competitor_id: string;
   } | null;
 }
@@ -263,20 +263,21 @@ async function handler(req: ApiReq, res: ApiRes) {
         monitored_page_id,
         last_seen_at,
         observation_count,
-        monitored_pages!inner ( page_class, competitor_id )
+        page_class,
+        monitored_pages!inner ( competitor_id )
       `)
       .eq("confirmed", true)
       .eq("signal_detected", false)
       .eq("is_noise", false)
+      .neq("page_class", "ambient")
       .order("last_seen_at", { ascending: true })
       .limit(50);
 
     if (error) throw error;
 
-    // Exclude ambient pages — those produce activity_events via detect-ambient-activity.
-    const eligibleDiffs = ((diffs ?? []) as unknown as DiffRow[]).filter(
-      (d) => d.monitored_pages?.page_class !== "ambient"
-    );
+    // page_class filter is applied at the DB layer via .neq("page_class","ambient").
+    // The partial index idx_section_diffs_non_ambient_pending covers this exactly.
+    const eligibleDiffs = (diffs ?? []) as unknown as DiffRow[];
 
     rowsClaimed = eligibleDiffs.length;
 
@@ -396,7 +397,7 @@ async function handler(req: ApiReq, res: ApiRes) {
           diff.section_type,
           diff.observation_count ?? 1,
           diff.last_seen_at,
-          diff.monitored_pages?.page_class ?? "standard"
+          diff.page_class
         );
 
         if (confidenceScore < CONFIDENCE_SUPPRESS) {
