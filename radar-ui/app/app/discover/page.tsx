@@ -31,7 +31,8 @@ export default async function DiscoverPage() {
       const { data: competitors } = await supabase
         .from("tracked_competitors")
         .select("website_url")
-        .eq("org_id", org.id);
+        .eq("org_id", org.id)
+        .not("competitor_id", "is", null);
 
       if (competitors) {
         trackedDomains = competitors

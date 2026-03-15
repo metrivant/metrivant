@@ -11,9 +11,11 @@ import {
 } from "../../../lib/catalog";
 import { getSectorConfig, getSectorLabel } from "../../../lib/sectors";
 
-// ── Sector options (alphabetical) ─────────────────────────────────────────────
+// ── Catalog browse sectors (alphabetical) ────────────────────────────────────
+// This dropdown filters the catalog for browsing only.
+// It does NOT switch the org's sector — use the SectorSwitcher in the app header for that.
 
-const SECTOR_OPTIONS = [
+const BROWSE_SECTOR_OPTIONS = [
   { value: "ai-infrastructure", label: "AI Infrastructure" },
   { value: "consumer-tech",     label: "Consumer Tech" },
   { value: "custom",            label: "Custom" },
@@ -160,65 +162,49 @@ export default function DiscoverClient({
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<CatalogCategory | null>(null);
+  // tracked = set of domains where competitor_id IS NOT NULL (no ghosts)
   const [tracked, setTracked] = useState<Set<string>>(new Set(initialTracked));
   const [loadingDomain, setLoadingDomain] = useState<string | null>(null);
+  const [removingDomain, setRemovingDomain] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [trackError, setTrackError] = useState<string | null>(null);
 
-  // ── Sector state ──────────────────────────────────────────────────────────
-  const [sector, setSector] = useState(initialSector);
-  const [sectorOpen, setSectorOpen] = useState(false);
-  const [sectorSwitching, setSectorSwitching] = useState(false);
-  const [sectorError, setSectorError] = useState(false);
-  const sectorRef = useRef<HTMLDivElement>(null);
+  // ── Browse-sector state ──────────────────────────────────────────────────
+  // This controls which catalog is shown for browsing only.
+  // It does NOT switch the org's sector — that is done via SectorSwitcher in the header.
+  // Default: show the catalog matching the org's current sector; fall back to "saas".
+  const CATALOG_SECTORS = new Set(["saas", "defense", "energy"]);
+  const defaultBrowse = CATALOG_SECTORS.has(initialSector) ? initialSector : "saas";
+  const [browseSector, setBrowseSector] = useState(defaultBrowse);
+  const [browseSectorOpen, setBrowseSectorOpen] = useState(false);
+  const browseSectorRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
   useEffect(() => {
     function onPointerDown(e: PointerEvent) {
-      if (sectorRef.current && !sectorRef.current.contains(e.target as Node)) {
-        setSectorOpen(false);
+      if (browseSectorRef.current && !browseSectorRef.current.contains(e.target as Node)) {
+        setBrowseSectorOpen(false);
       }
     }
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, []);
 
-  async function handleSectorSelect(value: string) {
-    if (value === sector) { setSectorOpen(false); return; }
-    const prev = sector;
-    setSector(value);         // optimistic — catalog re-filters immediately
-    setSectorOpen(false);
-    setActiveCategory(null);  // reset filters for new sector
+  function handleBrowseSectorSelect(value: string) {
+    if (value === browseSector) { setBrowseSectorOpen(false); return; }
+    // Only saas/defense/energy have catalog entries — extended sectors fall back to saas
+    const catalogValue = CATALOG_SECTORS.has(value) ? value : "saas";
+    setBrowseSector(value);
+    setBrowseSectorOpen(false);
+    setActiveCategory(null);
     setQuery("");
     setPage(1);
-    setSectorSwitching(true);
-    setSectorError(false);
-    try {
-      const res = await fetch("/api/initialize-sector", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sector: value }),
-      });
-      if (!res.ok) {
-        setSector(prev);
-        setSectorError(true);
-        setTimeout(() => setSectorError(false), 2500);
-      }
-    } catch {
-      setSector(prev);
-      setSectorError(true);
-      setTimeout(() => setSectorError(false), 2500);
-    } finally {
-      setSectorSwitching(false);
-    }
+    // If the effective catalog sector didn't change (both map to saas), no visual update needed
+    void catalogValue; // used implicitly via catalogSector below
   }
 
-  // For catalog browsing, only saas/defense/energy have entries in COMPETITOR_CATALOG.
-  // Extended sectors (cybersecurity, fintech, devtools, etc.) fall back to the saas
-  // catalog so Discover remains browseable — their default competitors are seeded into
-  // tracked_competitors by /api/initialize-sector independently of catalog browsing.
-  const CATALOG_SECTORS = new Set(["saas", "defense", "energy"]);
-  const catalogSector = CATALOG_SECTORS.has(sector) ? sector : "saas";
+  // The actual catalog sector used for filtering entries
+  const catalogSector = CATALOG_SECTORS.has(browseSector) ? browseSector : "saas";
 
   // All categories for this catalog sector
   const sectorConfig = getSectorConfig(catalogSector);
@@ -280,6 +266,7 @@ export default function DiscoverClient({
 
       if (res.ok) {
         setTracked((prev) => new Set([...prev, entry.domain]));
+        router.refresh();
       } else if (res.status === 403) {
         router.push("/app/billing?limit=1");
       } else {
@@ -293,35 +280,64 @@ export default function DiscoverClient({
     }
   }
 
+  async function untrackCompetitor(entry: CatalogEntry) {
+    if (!tracked.has(entry.domain) || removingDomain === entry.domain) return;
+    setRemovingDomain(entry.domain);
+    setTrackError(null);
+
+    try {
+      const res = await fetch("/api/discover/untrack", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: `https://${entry.domain}` }),
+      });
+
+      if (res.ok) {
+        setTracked((prev) => {
+          const next = new Set(prev);
+          next.delete(entry.domain);
+          return next;
+        });
+        router.refresh();
+      } else {
+        const data = await res.json() as { error?: string };
+        setTrackError(data.error ?? "Failed to remove competitor");
+      }
+    } catch {
+      setTrackError("Network error — please try again");
+    } finally {
+      setRemovingDomain(null);
+    }
+  }
+
   function clearFilters() {
     setQuery("");
     setActiveCategory(null);
     setPage(1);
   }
 
+  const browseSectorLabel = getSectorLabel(browseSector);
+
   return (
     <div className="mx-auto max-w-6xl px-6 pb-20 pt-10">
 
-      {/* ── Sector selector ──────────────────────────────────────────── */}
+      {/* ── Browse-sector filter ─────────────────────────────────────── */}
+      {/* This is a CATALOG FILTER, not a sector switcher.               */}
+      {/* Use the Sector control in the app header to switch your sector. */}
       <div className="mb-6 flex items-center gap-2">
-        <div ref={sectorRef} className="relative">
+        <div ref={browseSectorRef} className="relative">
           <button
-            onClick={() => setSectorOpen((v) => !v)}
-            disabled={sectorSwitching}
-            className="inline-flex items-center gap-2 rounded-full border border-[#0d2010] px-3 py-1 text-[11px] font-medium transition-colors hover:border-[#1a3020] disabled:opacity-50"
-            style={{
-              background: "rgba(46,230,166,0.03)",
-              color: sectorError ? "#ef4444" : "#64748b",
-            }}
+            onClick={() => setBrowseSectorOpen((v) => !v)}
+            className="inline-flex items-center gap-2 rounded-full border border-[#0d2010] px-3 py-1 text-[11px] font-medium transition-colors hover:border-[#1a3020]"
+            style={{ background: "rgba(46,230,166,0.03)", color: "#64748b" }}
+            aria-label="Browse by sector"
           >
             <span
               className="h-1.5 w-1.5 shrink-0 rounded-full"
-              style={{ background: sectorError ? "#ef4444" : "#2EE6A6", opacity: 0.8 }}
+              style={{ background: "#2EE6A6", opacity: 0.8 }}
             />
-            <span style={{ color: sectorError ? "#ef4444" : "rgba(46,230,166,0.65)" }}>
-              {sectorSwitching ? "Switching…" : sectorError ? "Failed" : getSectorLabel(sector)}
-            </span>
-            <span className="text-slate-700">catalog</span>
+            <span className="text-slate-600 text-[10px] uppercase tracking-[0.14em] font-semibold">Browse</span>
+            <span style={{ color: "rgba(46,230,166,0.65)" }}>{browseSectorLabel}</span>
             <svg
               width="8"
               height="8"
@@ -329,27 +345,30 @@ export default function DiscoverClient({
               fill="none"
               aria-hidden="true"
               className="opacity-40"
-              style={{ transform: sectorOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
+              style={{ transform: browseSectorOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
             >
               <path d="M1.5 3L4.5 6.5L7.5 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
 
-          {sectorOpen && (
+          {browseSectorOpen && (
             <div
               className="absolute left-0 top-full z-50 mt-1.5 w-52 overflow-hidden rounded-[12px] border border-[#1a3020] bg-[#060d06] py-1"
               style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85)" }}
             >
-              {SECTOR_OPTIONS.map((opt) => (
+              <div className="px-3.5 pt-2 pb-1.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-700">
+                Browse catalog by sector
+              </div>
+              {BROWSE_SECTOR_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
-                  onClick={() => handleSectorSelect(opt.value)}
+                  onClick={() => handleBrowseSectorSelect(opt.value)}
                   className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-[12px] transition-colors hover:bg-[#0a1a0a]"
-                  style={{ color: opt.value === sector ? "#2EE6A6" : "#64748b" }}
+                  style={{ color: opt.value === browseSector ? "#2EE6A6" : "#64748b" }}
                 >
                   <span
                     className="h-1 w-1 shrink-0 rounded-full"
-                    style={{ background: opt.value === sector ? "#2EE6A6" : "transparent" }}
+                    style={{ background: opt.value === browseSector ? "#2EE6A6" : "transparent" }}
                   />
                   {opt.label}
                 </button>
@@ -357,6 +376,10 @@ export default function DiscoverClient({
             </div>
           )}
         </div>
+
+        <span className="text-[11px] text-slate-700">
+          — catalog filter only. To switch your sector use the control in the radar header.
+        </span>
       </div>
 
       {/* ── Search bar ──────────────────────────────────────────────── */}
@@ -504,8 +527,9 @@ export default function DiscoverClient({
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {visible.map((entry) => {
-            const isTracked = tracked.has(entry.domain);
-            const isLoading = loadingDomain === entry.domain;
+            const isTracked  = tracked.has(entry.domain);
+            const isLoading  = loadingDomain === entry.domain;
+            const isRemoving = removingDomain === entry.domain;
 
             return (
               <div
@@ -536,20 +560,45 @@ export default function DiscoverClient({
                   </p>
                 )}
 
-                <button
-                  onClick={() => trackCompetitor(entry)}
-                  disabled={isTracked || isLoading}
-                  className={`mt-auto w-full rounded-[10px] py-2 text-[12px] font-semibold transition-all ${
-                    isTracked
-                      ? "border border-[#2EE6A6]/18 text-[#2EE6A6]"
-                      : isLoading
+                {isTracked ? (
+                  <div className="mt-auto flex gap-2">
+                    {/* Tracked indicator */}
+                    <div
+                      className="flex flex-1 items-center justify-center rounded-[10px] border border-[#2EE6A6]/18 py-2 text-[12px] font-semibold text-[#2EE6A6]"
+                      style={{ background: "rgba(46,230,166,0.07)" }}
+                    >
+                      ✓ Tracking
+                    </div>
+                    {/* Remove button */}
+                    <button
+                      onClick={() => untrackCompetitor(entry)}
+                      disabled={isRemoving}
+                      className="flex items-center justify-center rounded-[10px] border border-[#1a0a0a] px-3 py-2 text-[11px] text-slate-700 transition-colors hover:border-red-900/40 hover:text-red-500 disabled:opacity-40"
+                      aria-label={`Remove ${entry.company_name} from tracking`}
+                      title="Remove from radar"
+                    >
+                      {isRemoving ? (
+                        <span className="text-[10px]">…</span>
+                      ) : (
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                          <path d="M2 2l8 8M10 2L2 10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => trackCompetitor(entry)}
+                    disabled={isLoading}
+                    className={`mt-auto w-full rounded-[10px] py-2 text-[12px] font-semibold transition-all ${
+                      isLoading
                         ? "border border-[#0d2010] text-slate-600 opacity-60"
                         : "border border-[#152a15] text-slate-400 hover:border-[#2EE6A6]/22 hover:text-[#2EE6A6]"
-                  }`}
-                  style={isTracked ? { background: "rgba(46,230,166,0.07)" } : undefined}
-                >
-                  {isTracked ? "✓ Tracking" : isLoading ? "Adding…" : "Track competitor"}
-                </button>
+                    }`}
+                  >
+                    {isLoading ? "Adding…" : "Track competitor"}
+                  </button>
+                )}
               </div>
             );
           })}
