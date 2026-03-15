@@ -5,18 +5,58 @@ import { motion, AnimatePresence } from "framer-motion";
 
 function playSonarPing() {
   try {
-    const ctx = new AudioContext();
-    const osc  = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(900, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.55);
-    gain.gain.setValueAtTime(0.12, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.55);
+    const ctx  = new AudioContext();
+    const t    = ctx.currentTime;
+
+    // ── Primary ping tone: low, resonant sine (ship sonar characteristic) ──
+    const ping = ctx.createOscillator();
+    const pingGain = ctx.createGain();
+    ping.type = "sine";
+    // Deep fundamental ~260 Hz — resonates like a submarine sonar
+    ping.frequency.setValueAtTime(260, t);
+    ping.frequency.exponentialRampToValueAtTime(180, t + 2.4);
+    pingGain.gain.setValueAtTime(0, t);
+    pingGain.gain.linearRampToValueAtTime(0.18, t + 0.04);   // sharp attack
+    pingGain.gain.setValueAtTime(0.18, t + 0.08);
+    pingGain.gain.exponentialRampToValueAtTime(0.001, t + 2.4); // long resonant decay
+    ping.connect(pingGain);
+
+    // ── Reverb simulation: short comb filter via two delayed echoes ──
+    // Echo 1: ~120 ms delay at lower amplitude
+    const delay1 = ctx.createDelay(0.3);
+    delay1.delayTime.value = 0.12;
+    const echo1Gain = ctx.createGain();
+    echo1Gain.gain.value = 0.35;
+    pingGain.connect(delay1);
+    delay1.connect(echo1Gain);
+
+    // Echo 2: ~260 ms delay (second reflection, even softer)
+    const delay2 = ctx.createDelay(0.4);
+    delay2.delayTime.value = 0.26;
+    const echo2Gain = ctx.createGain();
+    echo2Gain.gain.value = 0.18;
+    echo1Gain.connect(delay2);
+    delay2.connect(echo2Gain);
+
+    // ── Subtle harmonic overtone: fifth above (390 Hz) at low volume ──
+    const overtone = ctx.createOscillator();
+    const overtoneGain = ctx.createGain();
+    overtone.type = "sine";
+    overtone.frequency.setValueAtTime(390, t);
+    overtone.frequency.exponentialRampToValueAtTime(270, t + 1.2);
+    overtoneGain.gain.setValueAtTime(0, t);
+    overtoneGain.gain.linearRampToValueAtTime(0.045, t + 0.05);
+    overtoneGain.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
+    overtone.connect(overtoneGain);
+
+    // ── Route all to destination ──
+    pingGain.connect(ctx.destination);
+    echo1Gain.connect(ctx.destination);
+    echo2Gain.connect(ctx.destination);
+    overtoneGain.connect(ctx.destination);
+
+    ping.start(t);      ping.stop(t + 2.4);
+    overtone.start(t);  overtone.stop(t + 1.2);
   } catch { /* AudioContext unavailable — silent fail */ }
 }
 

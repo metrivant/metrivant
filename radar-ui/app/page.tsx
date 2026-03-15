@@ -127,8 +127,8 @@ export default function LandingPage() {
       </section>
 
       {/* ── Differentiation row ──────────────────────────────────────── */}
-      <section className="relative border-t border-[#0d2010] px-6 py-12">
-        <div className="mx-auto grid max-w-2xl gap-6 sm:grid-cols-3">
+      <section className="relative border-t border-[#0d2010] px-6 py-16">
+        <div className="mx-auto grid max-w-2xl gap-10 sm:grid-cols-3">
           {[
             {
               label: "Evidence-backed",
@@ -143,11 +143,11 @@ export default function LandingPage() {
               body:  "Detects competitor intent before it surfaces in press or public filings.",
             },
           ].map(({ label, body }) => (
-            <div key={label} className="flex flex-col gap-2 transition-transform duration-300 hover:-translate-y-0.5">
-              <div className="text-[11px] font-bold uppercase tracking-[0.18em]" style={LABEL_COLOR_STYLE}>
+            <div key={label} className="flex flex-col gap-3">
+              <div className="text-[10px] font-bold uppercase tracking-[0.22em]" style={LABEL_COLOR_STYLE}>
                 {label}
               </div>
-              <p className="text-[12px] leading-relaxed text-slate-600">{body}</p>
+              <p className="text-[13px] leading-relaxed text-slate-500">{body}</p>
             </div>
           ))}
         </div>
@@ -161,7 +161,7 @@ export default function LandingPage() {
               Pricing
             </div>
             <h2 className="mt-1.5 text-[20px] font-semibold text-white">
-              Full intelligence stack. From $9/mo.
+              Full intelligence stack. Start now.
             </h2>
           </div>
 
