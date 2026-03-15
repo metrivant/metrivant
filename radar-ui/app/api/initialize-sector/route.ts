@@ -145,10 +145,17 @@ export async function POST(request: Request) {
   // ── Step 3: Seed default competitors for the selected sector ──────────────
   //
   // "custom" has no defaults — user starts with an empty slate.
-  // Top 5 competitors are always included; remaining 5 are randomly sampled
+  // Top 5 competitors are always included; remaining slots are randomly sampled
   // from the extended pool (priority 6–15) for variety across sector switches.
+  //
+  // Count is plan-aware: analyst/trial = 10, pro = up to 15 (catalog ceiling).
+  // "starter" is the legacy value for analyst — normalised here.
 
-  const defaults = getSectorRandomDefaults(sector, 10);
+  const plan = user.user_metadata?.plan as string | undefined;
+  const normalizedPlan = !plan || plan === "starter" ? "analyst" : plan;
+  const seedCount = normalizedPlan === "pro" ? 15 : 10;
+
+  const defaults = getSectorRandomDefaults(sector, seedCount);
   let seeded = 0;
 
   if (defaults.length > 0) {
@@ -236,6 +243,35 @@ export async function POST(request: Request) {
             sector,
           }
         );
+      } else {
+        // Success — parse the response body and backfill competitor_id into
+        // tracked_competitors so radar-feed can surface this competitor.
+        // Without this, tracked_competitors rows have competitor_id = null and
+        // are invisible to the pipeline (radar-feed filters .not("competitor_id", "is", null)).
+        try {
+          const responseBody = await result.value.json() as { competitor_id?: string };
+          if (responseBody.competitor_id) {
+            await supabase
+              .from("tracked_competitors")
+              .update({ competitor_id: responseBody.competitor_id })
+              .eq("org_id", orgId)
+              .eq("website_url", comp.website_url);
+          }
+        } catch (backfillErr) {
+          // Non-fatal — competitor is tracked but won't appear on radar until
+          // the next time onboard-competitor is called for this org.
+          captureException(
+            new Error(`onboard-competitor: failed to backfill competitor_id for ${comp?.name ?? "unknown"}`),
+            {
+              route: "initialize-sector",
+              step: "backfill_competitor_id",
+              competitor_name: comp?.name ?? "unknown",
+              org_id: orgId,
+              sector,
+              original_error: backfillErr instanceof Error ? backfillErr.message : String(backfillErr),
+            }
+          );
+        }
       }
     }
   }
