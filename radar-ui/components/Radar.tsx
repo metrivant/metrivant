@@ -295,6 +295,76 @@ function getNodeSize(momentum: number): number {
   return 16 + Math.sqrt(Math.max(momentum, 0)) * 3.2;
 }
 
+// ─── Spacetime grid ───────────────────────────────────────────────────────────
+// Computes a gravitationally-warped grid for Gravity Field mode.
+// High-momentum nodes act as point masses — bending nearby grid lines toward them
+// in the same way mass warps spacetime in general relativity.
+// Returns row + column polyline point-strings for SVG <polyline> rendering.
+// GRID_N lines per axis × GRID_PTS sample points per line = smooth curves.
+function computeSpacetimeGrid(
+  competitors: RadarCompetitor[],
+  gravPositions: Map<string, Point>,
+): { rows: string[]; cols: string[] } {
+  const GRID_N     = 13; // lines per axis
+  const GRID_PTS   = 14; // sample points per line (for smooth warping)
+  const GRID_RANGE = OUTER_RADIUS * 0.84;
+  const SCALE      = 900; // deflection strength — tuned so warping is legible but subtle
+  const MAX_DEF    = 32;  // max pixel deflection (prevents fold-over at high momentum)
+
+  const masses = competitors
+    .filter((c) => Number(c.momentum_score ?? 0) >= 2)
+    .map((c) => ({ pos: gravPositions.get(c.competitor_id), mass: Number(c.momentum_score ?? 0) }))
+    .filter((m): m is { pos: Point; mass: number } => m.pos !== undefined);
+
+  if (masses.length === 0) return { rows: [], cols: [] };
+
+  function deflect(bx: number, by: number): Point {
+    let dx = 0, dy = 0;
+    for (const { pos, mass } of masses) {
+      const ddx = pos.x - bx;
+      const ddy = pos.y - by;
+      const dist2 = Math.max(ddx * ddx + ddy * ddy, 2500); // floor: 50px min dist
+      const f = (mass * SCALE) / dist2;
+      dx += ddx * f;
+      dy += ddy * f;
+    }
+    const mag = Math.sqrt(dx * dx + dy * dy);
+    if (mag > MAX_DEF) { dx = (dx / mag) * MAX_DEF; dy = (dy / mag) * MAX_DEF; }
+    return { x: bx + dx, y: by + dy };
+  }
+
+  const step   = (GRID_RANGE * 2) / (GRID_N - 1);
+  const startX = CENTER - GRID_RANGE;
+  const startY = CENTER - GRID_RANGE;
+
+  const rows: string[] = [];
+  const cols: string[] = [];
+
+  for (let r = 0; r < GRID_N; r++) {
+    const by = startY + r * step;
+    const pts: string[] = [];
+    for (let s = 0; s < GRID_PTS; s++) {
+      const bx = startX + (s / (GRID_PTS - 1)) * GRID_RANGE * 2;
+      const p = deflect(bx, by);
+      pts.push(`${p.x.toFixed(1)},${p.y.toFixed(1)}`);
+    }
+    rows.push(pts.join(" "));
+  }
+
+  for (let c = 0; c < GRID_N; c++) {
+    const bx = startX + c * step;
+    const pts: string[] = [];
+    for (let s = 0; s < GRID_PTS; s++) {
+      const by = startY + (s / (GRID_PTS - 1)) * GRID_RANGE * 2;
+      const p = deflect(bx, by);
+      pts.push(`${p.x.toFixed(1)},${p.y.toFixed(1)}`);
+    }
+    cols.push(pts.join(" "));
+  }
+
+  return { rows, cols };
+}
+
 // ─── Gravity Field layout ─────────────────────────────────────────────────────
 // Computes similarity between two competitors based on observable data only.
 // movement_type match is the dominant signal (0.50); signals_7d and momentum
@@ -1150,6 +1220,12 @@ export default function Radar({
     return [...map.values()].filter((g) => g.nodes.length >= 2);
   }, [gravityMode, gravityPositions, sorted]);
 
+  // Spacetime grid — warped mesh showing gravitational influence of high-momentum nodes
+  const spacetimeGrid = useMemo(() => {
+    if (!gravityMode || gravityPositions.size === 0) return { rows: [], cols: [] };
+    return computeSpacetimeGrid(sorted, gravityPositions);
+  }, [gravityMode, sorted, gravityPositions]);
+
   // Standard-mode node positions: zone-aware, ID-anchored placement.
   // Competitors are grouped by radial zone then spread across the zone's radius band.
   // sorted order is preserved within each zone for stable radius assignment.
@@ -1334,7 +1410,7 @@ export default function Radar({
   // Falls back to signal type color when no movement type is declared yet.
   const selectedColor = selected
     ? (selected.latest_movement_type
-        ? selectedColor
+        ? getMovementColor(selected.latest_movement_type)
         : selected.latest_signal_type
           ? getSignalColor(selected.latest_signal_type)
           : getMovementColor(null))
@@ -2042,6 +2118,24 @@ export default function Radar({
               {/* ── Gravity Field layers — cluster halos + relationship lines ── */}
               {gravityMode && (
                 <g style={{ opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.55s ease" }}>
+
+                  {/* ── Spacetime grid — GR warped mesh ──────────────────────── */}
+                  {/* Grid lines curve toward high-momentum nodes (mass bends spacetime).  */}
+                  {/* Faint indigo so warping is visible without distracting from nodes.   */}
+                  {spacetimeGrid.rows.length > 0 && (
+                    <g style={{ pointerEvents: "none" }}>
+                      {[...spacetimeGrid.rows, ...spacetimeGrid.cols].map((pts, i) => (
+                        <polyline
+                          key={`stg-${i}`}
+                          points={pts}
+                          fill="none"
+                          stroke="rgba(129,140,248,0.052)"
+                          strokeWidth="0.55"
+                        />
+                      ))}
+                    </g>
+                  )}
+
                   {/* ── Gravity Well ─────────────────────────────────────────── */}
                   {/* Concentric rotating field-rings — simulate gravitational contours */}
                   {([180, 130, 85, 48] as const).map((r, i) => (
@@ -2137,31 +2231,100 @@ export default function Radar({
                     );
                   })}
 
-                  {/* ── Tension filaments — ambient strategic tension between converging nodes ── */}
-                  {/* Rendered as faint dashed lines. Opacity + dash density encode intensity.  */}
-                  {/* No SVG filter applied to the group to preserve GPU performance.           */}
+                  {/* ── Per-node gravitational well rings — rising + accelerating nodes ── */}
+                  {/* Slow rotating dashed rings around high-momentum nodes, encoding   */}
+                  {/* their local gravitational influence on the field.                  */}
+                  {sorted
+                    .filter((c) => Number(c.momentum_score ?? 0) >= 3)
+                    .map((c) => {
+                      const pos = gravityPositions.get(c.competitor_id);
+                      if (!pos) return null;
+                      const momentum = Number(c.momentum_score ?? 0);
+                      const nodeColor = c.latest_movement_type
+                        ? getMovementColor(c.latest_movement_type)
+                        : c.latest_signal_type
+                          ? getSignalColor(c.latest_signal_type)
+                          : G.primary;
+                      const nodeR = getNodeSize(momentum);
+                      const ringCount = momentum >= 5 ? 3 : 2;
+                      return (
+                        <g key={`wring-${c.competitor_id}`} style={{ pointerEvents: "none" }}>
+                          {Array.from({ length: ringCount }, (_, ri) => (
+                            <motion.circle
+                              key={`wring-${c.competitor_id}-${ri}`}
+                              cx={pos.x} cy={pos.y}
+                              r={nodeR + 16 + ri * 14}
+                              fill="none"
+                              stroke={nodeColor}
+                              strokeWidth={0.55 - ri * 0.10}
+                              strokeOpacity={0.14 - ri * 0.03}
+                              strokeDasharray={`${2 + ri} ${11 + ri * 4}`}
+                              animate={{ rotate: ri % 2 === 0 ? 360 : -360 }}
+                              transition={{
+                                duration: 32 + ri * 14,
+                                repeat: Infinity,
+                                ease: "linear",
+                              }}
+                              style={{ transformOrigin: `${pos.x}px ${pos.y}px` }}
+                            />
+                          ))}
+                        </g>
+                      );
+                    })}
+
+                  {/* ── Tension filaments — animated strategic tension between converging nodes ── */}
+                  {/* Pulsing opacity encodes live tension. Traveling particle shows direction.   */}
                   {tensionLinks.length > 0 && (
                     <g style={{ pointerEvents: "none" }}>
                       {tensionLinks.map((link) => {
                         const posA = gravityPositions.get(link.idA);
                         const posB = gravityPositions.get(link.idB);
                         if (!posA || !posB) return null;
-                        const color      = getMovementColor(link.movementType);
-                        const opacity    = link.intensity * 0.30;
-                        const w          = 0.4 + link.intensity * 0.7;
-                        const gap        = link.intensity > 0.80 ? 5
-                                         : link.intensity > 0.65 ? 8
-                                         : 12;
+                        const color   = getMovementColor(link.movementType);
+                        const opacity = link.intensity * 0.30;
+                        const w       = 0.4 + link.intensity * 0.7;
+                        const gap     = link.intensity > 0.80 ? 5
+                                      : link.intensity > 0.65 ? 8
+                                      : 12;
+                        const dist = Math.sqrt(
+                          (posB.x - posA.x) ** 2 + (posB.y - posA.y) ** 2,
+                        );
+                        const travelDur = Math.max(2.5, dist / 65);
+                        // Deterministic stagger delay from competitor IDs
+                        const travelDelay = idHash(link.idA + link.idB) * travelDur;
                         return (
-                          <line
-                            key={`t-${link.idA}-${link.idB}`}
-                            x1={posA.x} y1={posA.y}
-                            x2={posB.x} y2={posB.y}
-                            stroke={color}
-                            strokeWidth={w}
-                            strokeOpacity={opacity}
-                            strokeDasharray={`1.5 ${gap}`}
-                          />
+                          <g key={`t-${link.idA}-${link.idB}`}>
+                            {/* Pulsing filament line */}
+                            <motion.line
+                              x1={posA.x} y1={posA.y}
+                              x2={posB.x} y2={posB.y}
+                              stroke={color}
+                              strokeWidth={w}
+                              strokeDasharray={`1.5 ${gap}`}
+                              animate={{ strokeOpacity: [opacity * 0.55, opacity, opacity * 0.55] }}
+                              transition={{
+                                duration: 4 + link.intensity * 2,
+                                repeat: Infinity,
+                                ease: "easeInOut",
+                              }}
+                            />
+                            {/* Traveling particle — shows flow direction along the filament */}
+                            <motion.circle
+                              r={1.3}
+                              fill={color}
+                              animate={{
+                                cx: [posA.x, posB.x],
+                                cy: [posA.y, posB.y],
+                                opacity: [0, link.intensity * 0.75, link.intensity * 0.75, 0],
+                              }}
+                              transition={{
+                                duration: travelDur,
+                                repeat: Infinity,
+                                ease: "linear",
+                                delay: travelDelay,
+                              }}
+                            />
+                          </g>
                         );
                       })}
                     </g>
