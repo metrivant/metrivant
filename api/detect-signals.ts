@@ -228,6 +228,33 @@ async function handler(req: ApiReq, res: ApiRes) {
   });
 
   try {
+    // ── Diagnostic: confirmed diffs not yet signaled ──────────────────────────
+    // Diffs that are confirmed=true but signal_detected=false for >2 hours indicate
+    // a dead zone between stage 4 (detect-diffs) and stage 5 (detect-signals).
+    // This is a read-only check — it does not affect processing.
+    {
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      const { count: staleDiffCount, data: staleDiffSample } = await supabase
+        .from("section_diffs")
+        .select("id", { count: "exact" })
+        .eq("confirmed", true)
+        .eq("signal_detected", false)
+        .eq("is_noise", false)
+        .lt("created_at", twoHoursAgo)
+        .limit(5);
+
+      if ((staleDiffCount ?? 0) > 0) {
+        const sampleIds = (staleDiffSample ?? []).map((r: { id: string }) => r.id);
+        Sentry.captureMessage("confirmed_diffs_not_signaled", {
+          level: "warning",
+          extra: {
+            count:      staleDiffCount,
+            sample_ids: sampleIds,
+          },
+        });
+      }
+    }
+
     // Join monitored_pages to get page_class and competitor_id.
     // Ambient pages are handled by detect-ambient-activity and are excluded here.
     const { data: diffs, error } = await supabase

@@ -7,7 +7,12 @@ import { verifyCronSecret } from "../lib/withCronAuth";
 import { createHash } from "crypto";
 
 const BATCH_SIZE = 5;
-const STALE_MINUTES = 30;
+// Stuck-signal reset window: signals stuck in 'in_progress' for longer than this
+// will be reset back to 'pending' so they can be retried.
+// Previously 30 min — cron jitter caused valid signals to be treated as permanently
+// stuck and discarded before they were processed. 24 hours is the sanity ceiling:
+// anything older than 24h is ancient data and should not be force-reset.
+const STALE_MINUTES = 24 * 60; // 1440 — 24-hour sanity ceiling
 const MAX_RETRIES = 5;
 const MODEL_USED = "gpt-4o-mini";
 const PROMPT_VERSION = "v1";

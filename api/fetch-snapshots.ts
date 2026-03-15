@@ -12,6 +12,13 @@ const MAX_HTML_SIZE = 1024 * 1024; // 1 MB
 interface MonitoredPage {
   id: string;
   url: string;
+  competitor_name: string | null;
+}
+
+interface MonitoredPageRow {
+  id: string;
+  url: string;
+  competitors: { name: string } | null;
 }
 
 interface LatestSnapshot {
@@ -81,7 +88,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   try {
     let pageQuery = supabase
       .from("monitored_pages")
-      .select("id, url")
+      .select("id, url, competitors ( name )")
       .eq("active", true);
 
     if (pageClass) {
@@ -94,7 +101,11 @@ async function handler(req: ApiReq, res: ApiRes) {
       throw monitoredPagesError;
     }
 
-    const pages = (monitoredPages ?? []) as MonitoredPage[];
+    const pages: MonitoredPage[] = ((monitoredPages ?? []) as MonitoredPageRow[]).map((r) => ({
+      id: r.id,
+      url: r.url,
+      competitor_name: r.competitors?.name ?? null,
+    }));
 
     const pagesByUrl = new Map<string, MonitoredPage[]>();
 
@@ -119,6 +130,39 @@ async function handler(req: ApiReq, res: ApiRes) {
         const contentHash = hashContent(rawHtml);
         const fetchedAt = new Date().toISOString();
 
+        // ── Fetch quality check: detect bot walls and JS-rendered shells ──────
+        // Count text-bearing elements using fast string operations (no parse needed).
+        // If fewer than 3 such elements are found, the HTML is likely a bot wall,
+        // a JS-shell that needs client rendering, or an anti-scrape fallback.
+        const textElementCount =
+          (rawHtml.match(/<\/p>/gi)?.length ?? 0) +
+          (rawHtml.match(/<\/h1>/gi)?.length ?? 0) +
+          (rawHtml.match(/<\/h2>/gi)?.length ?? 0) +
+          (rawHtml.match(/<\/li>/gi)?.length ?? 0);
+
+        // 'full' = normal page with meaningful content
+        // 'shell' = bot wall / JS-only shell / anti-scrape response
+        const fetchQuality = textElementCount < 3 ? "shell" : "full";
+
+        if (fetchQuality === "shell") {
+          // Use the first grouped page's competitor_name as a representative label.
+          const representativeName = groupedPages[0]?.competitor_name ?? "unknown";
+          Sentry.captureMessage("fetch_shell_detected", {
+            level: "warning",
+            extra: {
+              competitor_name: representativeName,
+              url,
+              text_element_count: textElementCount,
+            },
+          });
+          Sentry.addBreadcrumb({
+            category: "pipeline",
+            message: "Snapshot flagged as shell — low text-element count",
+            level: "warning",
+            data: { url, textElementCount, fetchQuality },
+          });
+        }
+
         for (const page of groupedPages) {
           const { data: latestSnapshot, error: latestSnapshotError } = await supabase
             .from("snapshots")
@@ -140,18 +184,39 @@ async function handler(req: ApiReq, res: ApiRes) {
             continue;
           }
 
-          const { error: insertError } = await supabase
+          // The base snapshot payload — always safe to insert.
+          const basePayload = {
+            monitored_page_id: page.id,
+            fetched_at: fetchedAt,
+            raw_html: rawHtml,
+            extracted_text: null,
+            content_hash: contentHash,
+            status: "fetched",
+            sections_extracted: false,
+            is_duplicate: false,
+          };
+
+          // TODO: add fetch_quality column to snapshots via migration before removing this guard.
+          // We attempt to write fetch_quality. If the column does not yet exist, Supabase returns
+          // a 42703 ("undefined_column") error and we fall back to the base payload so no snapshot
+          // is ever lost. The cast is intentional — fetch_quality is not yet in the generated types.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          let { error: insertError } = await supabase
             .from("snapshots")
-            .insert({
-              monitored_page_id: page.id,
-              fetched_at: fetchedAt,
-              raw_html: rawHtml,
-              extracted_text: null,
-              content_hash: contentHash,
-              status: "fetched",
-              sections_extracted: false,
-              is_duplicate: false,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .insert({ ...basePayload, fetch_quality: fetchQuality } as any);
+
+          // Column does not exist yet — retry with base payload so the snapshot is not lost.
+          if (insertError && (insertError as { code?: string }).code === "42703") {
+            Sentry.addBreadcrumb({
+              category: "pipeline",
+              message: "fetch_quality column not yet on snapshots — skipping column write",
+              level: "info",
             });
+            ({ error: insertError } = await supabase
+              .from("snapshots")
+              .insert(basePayload));
+          }
 
           if (insertError) {
             // Unique constraint violation (23505) = concurrent run inserted same hash first — treat as duplicate skip

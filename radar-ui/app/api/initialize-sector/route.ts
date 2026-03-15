@@ -186,8 +186,10 @@ export async function POST(request: Request) {
   const runtimeUrl = process.env.RUNTIME_URL ?? "https://metrivant-runtime.vercel.app";
   const cronSecret = process.env.CRON_SECRET;
 
+  let failedCount = 0;
+
   if (cronSecret && defaults.length > 0) {
-    await Promise.allSettled(
+    const onboardResults = await Promise.allSettled(
       defaults.map((comp) =>
         fetch(`${runtimeUrl}/api/onboard-competitor`, {
           method: "POST",
@@ -196,10 +198,31 @@ export async function POST(request: Request) {
             "Authorization": `Bearer ${cronSecret}`,
           },
           body: JSON.stringify({ name: comp.name, website_url: comp.website_url, sector }),
-        }).catch(() => null)
+        })
       )
     );
+
+    onboardResults.forEach((result, index) => {
+      if (result.status === "rejected") {
+        failedCount += 1;
+        const comp = defaults[index];
+        captureException(
+          new Error(`onboard-competitor failed: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`),
+          {
+            route: "initialize-sector",
+            step: "onboard_competitor",
+            competitor_name: comp?.name ?? "unknown",
+            sector,
+          }
+        );
+      }
+    });
   }
 
-  return NextResponse.json({ ok: true, seeded });
+  return NextResponse.json({
+    ok: true,
+    seeded,
+    failed: failedCount,
+    partial: failedCount > 0,
+  });
 }
