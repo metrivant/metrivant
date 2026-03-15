@@ -674,6 +674,10 @@ export type Database = {
         Args: { retain_days_clean?: number; retain_days_noise?: number };
         Returns: number;
       };
+      promote_section_baselines: {
+        Args: Record<PropertyKey, never>;
+        Returns: Array<{ promoted_count: number; pairs_evaluated: number }>;
+      };
     };
   };
 };

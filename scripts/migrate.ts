@@ -54,6 +54,41 @@ const args    = process.argv.slice(2);
 const STATUS  = args.includes("--status");
 const DRY_RUN = args.includes("--dry-run");
 
+// ── DDL detection — auto-append PostgREST schema cache reload ────────────────
+//
+// Any migration that contains schema-changing DDL (CREATE/ALTER/DROP TABLE,
+// VIEW, FUNCTION, TYPE, INDEX, POLICY) requires PostgREST to reload its schema
+// cache to make the changes visible via the HTTP API.
+//
+// Instead of relying on humans to remember this, the runner detects likely DDL
+// and appends NOTIFY pgrst, 'reload schema' automatically.
+// Over-triggering is free. Under-triggering causes NODE-C class outages.
+
+const DDL_TOKENS = [
+  "create table", "alter table",  "drop table",
+  "create view",  "drop view",    "create materialized view",
+  "create function", "drop function",
+  "create type",  "alter type",   "drop type",
+  "create index", "drop index",
+  "create policy","alter policy", "drop policy",
+  "add column",   "drop column",  "rename column",
+];
+
+// Strip SQL line comments (--), block comments (/* */), and single-quoted
+// string literals before scanning for DDL tokens. This prevents false matches
+// inside comments such as "-- drop table not executed" and quoted identifiers.
+function stripCommentsAndStrings(sql: string): string {
+  return sql
+    .replace(/--[^\n]*/g, " ")              // line comments
+    .replace(/\/\*[\s\S]*?\*\//g, " ")      // block comments
+    .replace(/'(?:[^'\\]|\\.)*'/g, "''");   // string literals → empty quotes
+}
+
+function looksLikeSchemaDDL(sql: string): boolean {
+  const normalized = stripCommentsAndStrings(sql).toLowerCase();
+  return DDL_TOKENS.some((token) => normalized.includes(token));
+}
+
 // ── Migration discovery ───────────────────────────────────────────────────────
 
 type Migration = { id: string; namespace: string; filename: string; filepath: string };
@@ -154,7 +189,15 @@ async function main(): Promise<void> {
       try {
         // Execute the entire migration file as one query.
         // pg supports multi-statement SQL, DDL, transactions, dollar-quoting.
-        await client.query(sql);
+        //
+        // Auto-append PostgREST schema cache reload for any migration that
+        // contains schema DDL. Prevents NODE-C class outages where column
+        // additions or view changes are invisible to the HTTP API until reload.
+        const finalSql = looksLikeSchemaDDL(sql)
+          ? `${sql.trimEnd()}\n\nNOTIFY pgrst, 'reload schema';\n`
+          : sql;
+
+        await client.query(finalSql);
 
         // Record in tracking table (safe to re-run — ON CONFLICT DO NOTHING)
         await client.query(

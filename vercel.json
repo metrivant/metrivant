@@ -13,6 +13,7 @@
     { "path": "/api/interpret-signals",                      "schedule": "28 * * * *"    },
     { "path": "/api/update-signal-velocity",                 "schedule": "50 * * * *"    },
     { "path": "/api/detect-movements",                       "schedule": "55 * * * *"    },
-    { "path": "/api/generate-brief",                         "schedule": "0 9 * * 1"     }
+    { "path": "/api/generate-brief",                         "schedule": "0 9 * * 1"     },
+    { "path": "/api/promote-baselines",                      "schedule": "0 2 * * *"     }
   ]
 }
