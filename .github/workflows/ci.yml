@@ -86,4 +86,6 @@ jobs:
       - name: Run database migrations
         run: npm run migrate
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_DB_HOST:     aws-1-eu-west-3.pooler.supabase.com
+          SUPABASE_DB_USER:     postgres.sponaiylvwzbnlmcfbzj
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}

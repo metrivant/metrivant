@@ -34,11 +34,19 @@ import { Client } from "pg";
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
-const DB_URL = process.env.SUPABASE_DB_URL;
+// Connection config — prefer individual fields (bypasses URI parsing / password-escaping issues).
+// Falls back to SUPABASE_DB_URL connection string for local dev convenience.
+const DB_HOST     = process.env.SUPABASE_DB_HOST;
+const DB_USER     = process.env.SUPABASE_DB_USER;
+const DB_PASSWORD = process.env.SUPABASE_DB_PASSWORD;
+const DB_URL      = process.env.SUPABASE_DB_URL;
 
-if (!DB_URL) {
-  console.error("✗ SUPABASE_DB_URL is not set");
-  console.error("  Find it in: Supabase dashboard → Settings → Database → Connection string → URI");
+const useFields = !!(DB_HOST && DB_USER && DB_PASSWORD);
+
+if (!useFields && !DB_URL) {
+  console.error("✗ No database credentials found.");
+  console.error("  Set SUPABASE_DB_HOST + SUPABASE_DB_USER + SUPABASE_DB_PASSWORD");
+  console.error("  or SUPABASE_DB_URL (connection string).");
   process.exit(1);
 }
 
@@ -115,28 +123,30 @@ function discoverMigrations(): Migration[] {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
-  // Diagnostic: print parsed connection details (no password) to confirm secret format
-  try {
-    const u = new URL(DB_URL!);
-    console.log(`\n  [diag] user=${u.username}  host=${u.hostname}  port=${u.port}  db=${u.pathname}`);
-  } catch {
-    console.log(`\n  [diag] URL parse failed — secret may be malformed`);
-  }
+  const clientConfig = useFields
+    ? {
+        host:     DB_HOST!,
+        port:     5432,
+        database: "postgres",
+        user:     DB_USER!,
+        password: DB_PASSWORD!,
+        ssl:      { rejectUnauthorized: false },
+        statement_timeout: 120_000,
+      }
+    : {
+        connectionString: DB_URL!,
+        ssl:              { rejectUnauthorized: false },
+        statement_timeout: 120_000,
+      };
 
-  const client = new Client({
-    connectionString: DB_URL,
-    // Supabase requires SSL for direct connections
-    ssl: { rejectUnauthorized: false },
-    // Long statement timeout for heavy migrations (index builds, backfills)
-    statement_timeout: 120_000,
-  });
+  const client = new Client(clientConfig);
 
   await client.connect();
 
   try {
     // Extract project ref for display
-    const refMatch = DB_URL!.match(/db\.([^.]+)\.supabase\.co/);
-    const projectRef = refMatch?.[1] ?? "unknown";
+    const refMatch = (DB_USER ?? DB_URL ?? "").match(/postgres\.([^:@\s]+)/);
+    const projectRef = refMatch?.[1] ?? DB_HOST?.split(".")[0] ?? "unknown";
     console.log(`\n  Metrivant migration runner`);
     console.log(`  Project: ${projectRef}\n`);
 
