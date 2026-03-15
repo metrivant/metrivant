@@ -28,14 +28,10 @@
 //   runtime:001_... runtime:002_... ... ui:001_... ui:002_... ...
 // ─────────────────────────────────────────────────────────────────────────────
 
-import dns from "dns";
+import dns from "dns/promises";
 import fs from "fs";
 import path from "path";
 import { Client } from "pg";
-
-// GitHub Actions runners (and many CI environments) lack IPv6 connectivity.
-// Supabase direct connections sometimes resolve to IPv6 — force IPv4 first.
-dns.setDefaultResultOrder("ipv4first");
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
@@ -120,8 +116,22 @@ function discoverMigrations(): Migration[] {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
+  // GitHub Actions runners lack IPv6 connectivity. Supabase direct DB hostnames
+  // can resolve to IPv6 (ENETUNREACH). Explicitly resolve to IPv4 and rewrite
+  // the URL so pg connects to an IPv4 address regardless of DNS preference.
+  const parsedUrl = new URL(DB_URL!);
+  let connectionString = DB_URL!;
+  try {
+    const [ipv4] = await dns.resolve4(parsedUrl.hostname);
+    const rewritten = new URL(DB_URL!);
+    rewritten.hostname = ipv4;
+    connectionString = rewritten.toString();
+  } catch {
+    // resolve4 failed (e.g., hostname is already an IP) — use original URL
+  }
+
   const client = new Client({
-    connectionString: DB_URL,
+    connectionString,
     // Supabase requires SSL for direct connections
     ssl: { rejectUnauthorized: false },
     // Long statement timeout for heavy migrations (index builds, backfills)
