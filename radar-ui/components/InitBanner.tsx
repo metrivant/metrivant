@@ -37,19 +37,19 @@ export default function InitBanner() {
   let isPartial = false;
 
   if (data.custom) {
-    line1 = "Clean slate ready.";
-    line2 = "Add rivals manually from Discover to begin monitoring.";
+    line1 = "Custom sector active.";
+    line2 = "Add rivals from Discover to begin monitoring. Change sector anytime via the Sector control in the header.";
   } else if (data.failed > 0 && data.seeded === 0) {
-    line1 = "Radar initializing.";
-    line2 = `${data.failed} rivals failed to onboard — check back shortly or add rivals from Discover.`;
+    line1 = "Onboarding failed.";
+    line2 = `All ${data.failed} rivals failed to initialize. Add them manually from Discover or switch sector to retry.`;
     isPartial = true;
   } else if (data.failed > 0) {
     line1 = `${data.seeded} of ${data.attempted} rivals added.`;
-    line2 = `${data.failed} failed to onboard and were removed. First signals arriving after the next crawl cycle.`;
+    line2 = `${data.failed} failed to onboard and were removed. The radar is now calibrating — first signals within the hour.`;
     isPartial = true;
   } else {
     line1 = `${data.seeded} rivals added.`;
-    line2 = "First signals arriving after the next crawl cycle — the radar will populate shortly.";
+    line2 = "Radar calibrating. The system is establishing baselines — first signals arrive within the hour.";
   }
 
   return (

@@ -2235,7 +2235,7 @@ export default function Radar({
                     fontFamily="Inter, system-ui, sans-serif"
                     letterSpacing="0.06em"
                   >
-                    SCANNING
+                    {sector === "custom" ? "STANDBY" : "CALIBRATING"}
                   </text>
                   <text
                     x={CENTER}
@@ -2246,7 +2246,9 @@ export default function Radar({
                     fontSize="10"
                     fontFamily="Inter, system-ui, sans-serif"
                   >
-                    Pipeline running — first signals arriving shortly
+                    {sector === "custom"
+                      ? "Add rivals from Discover to begin monitoring"
+                      : "Establishing baselines · first signals within the hour"}
                   </text>
                 </>
               )}
@@ -3448,12 +3450,32 @@ export default function Radar({
               {/* ── Empty state ───────────────────────────────── */}
               {sorted.length === 0 && (
                 <div className="flex flex-col items-center py-12 text-center">
-                  <div className="text-[11px] uppercase tracking-[0.22em] text-slate-600">
-                    No rivals tracked
-                  </div>
-                  <p className="mt-2 text-sm text-slate-600">
-                    Competitors will appear once added
-                  </p>
+                  {sector === "custom" ? (
+                    <>
+                      <div className="text-[11px] uppercase tracking-[0.22em] text-slate-600">
+                        Custom sector
+                      </div>
+                      <p className="mt-2 text-[12px] leading-relaxed text-slate-600">
+                        No rivals tracked. Add competitors to begin monitoring your market.
+                      </p>
+                      <a
+                        href="/app/discover"
+                        className="mt-4 rounded-full border border-[#1a3020] px-4 py-1.5 text-[11px] font-medium transition-colors hover:border-[#2a4a30]"
+                        style={{ color: "rgba(46,230,166,0.70)" }}
+                      >
+                        Open Discover →
+                      </a>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-[11px] uppercase tracking-[0.22em] text-slate-600">
+                        Calibrating
+                      </div>
+                      <p className="mt-2 text-[12px] leading-relaxed text-slate-600">
+                        Pipeline running · establishing baselines · first signals within the hour
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
 
