@@ -1,9 +1,14 @@
 #!/usr/bin/env npx tsx
 // ── Metrivant migration runner ─────────────────────────────────────────────
 //
-// Runs SQL migration files against Supabase via the Management API.
+// Runs SQL migration files against Supabase via a direct Postgres connection.
 // Tracks applied migrations in a `schema_migrations` table so each file
 // is applied exactly once.
+//
+// Using direct Postgres (pg driver) instead of the Supabase Management API
+// because DDL (CREATE FUNCTION, ALTER TABLE, BEGIN/COMMIT, dollar-quoting)
+// requires raw protocol support that the HTTP-based Management API cannot
+// reliably provide.
 //
 // Usage:
 //   npx tsx scripts/migrate.ts            # apply all pending
@@ -11,9 +16,9 @@
 //   npx tsx scripts/migrate.ts --dry-run  # show SQL without running
 //
 // Required env var:
-//   SUPABASE_URL          — e.g. https://abcxyz.supabase.co
-//   SUPABASE_ACCESS_TOKEN — personal access token from supabase.com/dashboard/account/tokens
-//   (SUPABASE_SERVICE_ROLE_KEY is not sufficient for DDL via management API)
+//   SUPABASE_DB_URL — Postgres connection string from Supabase project settings
+//                     Settings → Database → Connection string → URI
+//                     Format: postgresql://postgres:[password]@db.[ref].supabase.co:5432/postgres
 //
 // Migration files:
 //   migrations/*.sql          → tracked as "runtime:001_..."
@@ -25,27 +30,19 @@
 
 import fs from "fs";
 import path from "path";
+import { Client } from "pg";
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
-const SUPABASE_URL        = process.env.SUPABASE_URL;
-const SUPABASE_ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
+const DB_URL = process.env.SUPABASE_DB_URL;
 
-if (!SUPABASE_URL) {
-  console.error("✗ SUPABASE_URL is not set");
-  process.exit(1);
-}
-if (!SUPABASE_ACCESS_TOKEN) {
-  console.error("✗ SUPABASE_ACCESS_TOKEN is not set");
-  console.error("  Generate one at: https://supabase.com/dashboard/account/tokens");
+if (!DB_URL) {
+  console.error("✗ SUPABASE_DB_URL is not set");
+  console.error("  Find it in: Supabase dashboard → Settings → Database → Connection string → URI");
   process.exit(1);
 }
 
-// Extract project ref from URL: https://<ref>.supabase.co
-const projectRef = new URL(SUPABASE_URL).hostname.split(".")[0];
-const MGMT_BASE  = `https://api.supabase.com/v1/projects/${projectRef}/database/query`;
-
-const ROOT    = path.resolve(__dirname, "..");
+const ROOT = path.resolve(__dirname, "..");
 const DIRS: Array<{ namespace: string; dir: string }> = [
   { namespace: "runtime", dir: path.join(ROOT, "migrations") },
   { namespace: "ui",      dir: path.join(ROOT, "radar-ui", "migrations") },
@@ -53,70 +50,11 @@ const DIRS: Array<{ namespace: string; dir: string }> = [
 
 // ── Flags ────────────────────────────────────────────────────────────────────
 
-const args   = process.argv.slice(2);
+const args    = process.argv.slice(2);
 const STATUS  = args.includes("--status");
 const DRY_RUN = args.includes("--dry-run");
 
-// ── Management API helper ─────────────────────────────────────────────────────
-
-async function runSQL(sql: string): Promise<{ error?: string }> {
-  const res = await fetch(MGMT_BASE, {
-    method:  "POST",
-    headers: {
-      Authorization:  `Bearer ${SUPABASE_ACCESS_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ query: sql }),
-  });
-
-  if (res.ok) return {};
-
-  let detail = "";
-  try {
-    const body = await res.json() as { message?: string; error?: string };
-    detail = body.message ?? body.error ?? res.statusText;
-  } catch {
-    detail = res.statusText;
-  }
-  return { error: detail };
-}
-
-// ── Bootstrap tracking table ──────────────────────────────────────────────────
-
-async function bootstrap(): Promise<void> {
-  const { error } = await runSQL(`
-    CREATE TABLE IF NOT EXISTS schema_migrations (
-      id         text        PRIMARY KEY,
-      applied_at timestamptz NOT NULL DEFAULT now()
-    );
-  `);
-  if (error) {
-    console.error("✗ Failed to bootstrap schema_migrations:", error);
-    process.exit(1);
-  }
-}
-
-// ── Load applied migrations ───────────────────────────────────────────────────
-
-async function loadApplied(): Promise<Set<string>> {
-  // Use REST API to read the tracking table (service role key not needed —
-  // schema_migrations has no RLS; management API can read it directly).
-  const res = await fetch(MGMT_BASE, {
-    method:  "POST",
-    headers: {
-      Authorization:  `Bearer ${SUPABASE_ACCESS_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ query: "SELECT id FROM schema_migrations ORDER BY id;" }),
-  });
-
-  if (!res.ok) return new Set();
-
-  const rows = await res.json() as Array<{ id: string }>;
-  return new Set(Array.isArray(rows) ? rows.map((r) => r.id) : []);
-}
-
-// ── Discover migration files ──────────────────────────────────────────────────
+// ── Migration discovery ───────────────────────────────────────────────────────
 
 type Migration = { id: string; namespace: string; filename: string; filepath: string };
 
@@ -136,83 +74,115 @@ function discoverMigrations(): Migration[] {
       });
     }
   }
-  // Sort: runtime first, then ui, each alphabetically (already done above)
   return result;
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
-  console.log(`\n  Metrivant migration runner`);
-  console.log(`  Project: ${projectRef}\n`);
+  const client = new Client({
+    connectionString: DB_URL,
+    // Supabase requires SSL for direct connections
+    ssl: { rejectUnauthorized: false },
+    // Long statement timeout for heavy migrations (index builds, backfills)
+    statement_timeout: 120_000,
+  });
 
-  const all = discoverMigrations();
-  if (all.length === 0) {
-    console.log("  No migration files found.");
-    return;
-  }
+  await client.connect();
 
-  await bootstrap();
-  const applied = await loadApplied();
+  try {
+    // Extract project ref for display
+    const refMatch = DB_URL!.match(/db\.([^.]+)\.supabase\.co/);
+    const projectRef = refMatch?.[1] ?? "unknown";
+    console.log(`\n  Metrivant migration runner`);
+    console.log(`  Project: ${projectRef}\n`);
 
-  const pending  = all.filter((m) => !applied.has(m.id));
-  const done     = all.filter((m) =>  applied.has(m.id));
+    // Bootstrap tracking table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        id         text        PRIMARY KEY,
+        applied_at timestamptz NOT NULL DEFAULT now()
+      );
+    `);
 
-  if (STATUS) {
-    console.log("  Applied:");
-    for (const m of done)    console.log(`    ✓  ${m.id}`);
-    console.log("\n  Pending:");
-    for (const m of pending) console.log(`    ·  ${m.id}`);
-    console.log();
-    return;
-  }
-
-  if (pending.length === 0) {
-    console.log("  All migrations applied. Nothing to do.\n");
-    return;
-  }
-
-  console.log(`  ${done.length} applied, ${pending.length} pending\n`);
-
-  let ok = 0;
-  let failed = 0;
-
-  for (const m of pending) {
-    const sql = fs.readFileSync(m.filepath, "utf-8");
-
-    if (DRY_RUN) {
-      console.log(`  ── ${m.id} (dry-run) ──`);
-      console.log(sql.trim().slice(0, 200) + (sql.length > 200 ? "\n  …" : ""));
-      console.log();
-      continue;
-    }
-
-    process.stdout.write(`  Applying ${m.id} … `);
-
-    const { error } = await runSQL(sql);
-    if (error) {
-      console.log("✗ FAILED");
-      console.error(`    ${error}`);
-      failed++;
-      // Continue with next migration — partial progress is still useful.
-      continue;
-    }
-
-    // Record in tracking table.
-    await runSQL(
-      `INSERT INTO schema_migrations (id) VALUES ('${m.id.replace(/'/g, "''")}') ON CONFLICT DO NOTHING;`
+    // Load applied migrations
+    const { rows: appliedRows } = await client.query<{ id: string }>(
+      "SELECT id FROM schema_migrations ORDER BY id;"
     );
+    const applied = new Set(appliedRows.map((r) => r.id));
 
-    console.log("✓");
-    ok++;
-  }
+    const all     = discoverMigrations();
+    const pending = all.filter((m) => !applied.has(m.id));
+    const done    = all.filter((m) =>  applied.has(m.id));
 
-  console.log();
-  if (failed === 0) {
-    console.log(`  ✓ ${ok} migration${ok !== 1 ? "s" : ""} applied successfully.\n`);
-  } else {
-    console.log(`  ${ok} applied, ${failed} failed. Check errors above.\n`);
-    process.exit(1);
+    if (all.length === 0) {
+      console.log("  No migration files found.\n");
+      return;
+    }
+
+    if (STATUS) {
+      console.log("  Applied:");
+      for (const m of done)    console.log(`    ✓  ${m.id}`);
+      console.log("\n  Pending:");
+      for (const m of pending) console.log(`    ·  ${m.id}`);
+      console.log();
+      return;
+    }
+
+    if (pending.length === 0) {
+      console.log("  All migrations applied. Nothing to do.\n");
+      return;
+    }
+
+    console.log(`  ${done.length} applied, ${pending.length} pending\n`);
+
+    let ok     = 0;
+    let failed = 0;
+
+    for (const m of pending) {
+      const sql = fs.readFileSync(m.filepath, "utf-8");
+
+      if (DRY_RUN) {
+        console.log(`  ── ${m.id} (dry-run) ──`);
+        console.log(sql.trim().slice(0, 300) + (sql.length > 300 ? "\n  …" : ""));
+        console.log();
+        continue;
+      }
+
+      process.stdout.write(`  Applying ${m.id} … `);
+
+      try {
+        // Execute the entire migration file as one query.
+        // pg supports multi-statement SQL, DDL, transactions, dollar-quoting.
+        await client.query(sql);
+
+        // Record in tracking table (safe to re-run — ON CONFLICT DO NOTHING)
+        await client.query(
+          "INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING;",
+          [m.id]
+        );
+
+        console.log("✓");
+        ok++;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.log("✗ FAILED");
+        console.error(`    ${msg}`);
+        failed++;
+        // Continue — partial progress is still useful. Other migrations may succeed.
+      }
+    }
+
+    console.log();
+    if (failed === 0) {
+      console.log(`  ✓ ${ok} migration${ok !== 1 ? "s" : ""} applied successfully.\n`);
+    } else {
+      console.log(`  ${ok} applied, ${failed} failed. Review errors above.\n`);
+      process.exit(1);
+    }
+
+  } finally {
+    await client.end();
   }
 }
 

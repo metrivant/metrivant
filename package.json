@@ -3,15 +3,16 @@
   "version": "1.0.0",
   "description": "Competitive intelligence engine",
   "scripts": {
-    "typecheck":       "tsc --noEmit",
-    "migrate":         "tsx scripts/migrate.ts",
-    "migrate:status":  "tsx scripts/migrate.ts --status",
+    "typecheck": "tsc --noEmit",
+    "migrate": "tsx scripts/migrate.ts",
+    "migrate:status": "tsx scripts/migrate.ts --status",
     "migrate:dry-run": "tsx scripts/migrate.ts --dry-run"
   },
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
     "@types/node": "^25.3.5",
+    "@types/pg": "^8.18.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
@@ -19,6 +20,7 @@
     "@sentry/node": "^10.42.0",
     "@supabase/supabase-js": "^2.99.0",
     "cheerio": "^1.2.0",
-    "openai": "^4"
+    "openai": "^4",
+    "pg": "^8.20.0"
   }
 }

@@ -14,10 +14,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           cache-dependency-path: package-lock.json
 
@@ -27,10 +27,10 @@ jobs:
       - name: Backend — TypeScript check
         run: npm run typecheck
 
-      - name: Setup Node (UI)
+      - name: Setup Node 24 (UI)
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           cache-dependency-path: radar-ui/package-lock.json
 
@@ -55,13 +55,14 @@ jobs:
 
   # ── Database migrations (runs only on push to main, after build passes) ─────
   #
-  # Applies all pending SQL migration files to Supabase automatically.
-  # Each file is tracked in schema_migrations and applied exactly once.
-  # No manual SQL editor work required for any migration.
+  # Applies all pending SQL migration files to Supabase via a direct Postgres
+  # connection. Each file is tracked in schema_migrations and applied exactly once.
+  # No manual SQL editor work required — ever.
   #
   # Required GitHub Secret:
-  #   SUPABASE_URL           — https://<ref>.supabase.co  (Settings → API)
-  #   SUPABASE_ACCESS_TOKEN  — personal access token from supabase.com/dashboard/account/tokens
+  #   SUPABASE_DB_URL — connection string from:
+  #   Supabase dashboard → Settings → Database → Connection string → URI
+  #   Format: postgresql://postgres:[password]@db.[ref].supabase.co:5432/postgres
   #
   migrate:
     runs-on: ubuntu-latest
@@ -72,10 +73,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           cache-dependency-path: package-lock.json
 
@@ -85,5 +86,4 @@ jobs:
       - name: Run database migrations
         run: npm run migrate
         env:
-          SUPABASE_URL:          ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
