@@ -165,6 +165,12 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     if (existingCompetitor) {
       competitorId = existingCompetitor.id;
+      // Re-activate if previously deactivated by clean-slate (or any other path).
+      // Idempotent — no-op if already active=true.
+      await supabase
+        .from("competitors")
+        .update({ active: true })
+        .eq("id", competitorId);
     } else {
       const { data: created, error } = await supabase
         .from("competitors")

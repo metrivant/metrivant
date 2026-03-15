@@ -62,7 +62,7 @@ export default async function Page() {
   // the same company was onboarded under slightly different names (e.g. "Notion" and
   // "Notion (notion.so)") that collide after normalisation.
   const seenNames = new Set<string>();
-  const competitors = competitorsRaw.filter((c) => {
+  const competitorsAll = competitorsRaw.filter((c) => {
     const key = c.competitor_name.toLowerCase().trim();
     if (seenNames.has(key)) return false;
     seenNames.add(key);
@@ -70,7 +70,7 @@ export default async function Page() {
   });
 
   // Diagnostic: if runtime returned data but every competitor dropped in dedup, log a warning.
-  if (competitorsRaw.length > 0 && competitors.length === 0) {
+  if (competitorsRaw.length > 0 && competitorsAll.length === 0) {
     console.warn("[radar] zero competitors after dedup — all names collapsed to duplicates", {
       rawCount: competitorsRaw.length,
     });
@@ -138,6 +138,13 @@ export default async function Page() {
   } catch {
     // Non-fatal — sector and plan display are optional
   }
+
+  // Enforce plan display limit: Pro = 25, Analyst = 10.
+  // radar-feed returns all active pipeline competitors (no org filter by design).
+  // Slice here ensures the radar never renders beyond the plan ceiling regardless
+  // of how many pipeline competitors have accumulated from sector switches.
+  const planLimit = plan === "pro" ? 25 : 10;
+  const competitors = competitorsAll.slice(0, planLimit);
 
   const activeCount = competitors.filter(
     (c) => Number(c.momentum_score ?? 0) > 0

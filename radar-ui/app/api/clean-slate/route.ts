@@ -1,4 +1,5 @@
 import { createClient } from "../../../lib/supabase/server";
+import { createServiceClient } from "../../../lib/supabase/service";
 import { NextResponse } from "next/server";
 import { captureException } from "../../../lib/sentry";
 
@@ -43,14 +44,15 @@ export async function POST() {
 
   const orgId = org.id as string;
 
-  // ── Count tracked competitors before deletion ──────────────────────────────
+  // ── Collect website URLs before deletion (needed to deactivate pipeline) ──
 
-  const { count } = await supabase
+  const { data: trackedRows, count } = await supabase
     .from("tracked_competitors")
-    .select("*", { count: "exact", head: true })
+    .select("website_url", { count: "exact" })
     .eq("org_id", orgId);
 
   const removed = count ?? 0;
+  const trackedUrls = (trackedRows ?? []).map((r) => (r as { website_url: string }).website_url).filter(Boolean);
 
   // ── Delete all tracked competitors for this org ────────────────────────────
 
@@ -62,6 +64,23 @@ export async function POST() {
   if (deleteError) {
     captureException(deleteError, { route: "clean-slate", step: "delete_competitors", user_id: user.id, org_id: orgId });
     return NextResponse.json({ error: "Failed to clear competitors" }, { status: 500 });
+  }
+
+  // ── Deactivate pipeline competitors so radar clears immediately ────────────
+  // The pipeline's competitors table has no org_id — we deactivate by matching
+  // website_url against the URLs we just removed from tracked_competitors.
+  // onboard-competitor re-activates (active=true) on re-onboard, so this is reversible.
+  if (trackedUrls.length > 0) {
+    const serviceSupabase = createServiceClient();
+    const { error: deactivateError } = await serviceSupabase
+      .from("competitors")
+      .update({ active: false })
+      .in("website_url", trackedUrls);
+
+    if (deactivateError) {
+      // Non-fatal — tracked_competitors already cleared; radar will self-correct on next pipeline run.
+      captureException(deactivateError, { route: "clean-slate", step: "deactivate_pipeline", user_id: user.id, org_id: orgId });
+    }
   }
 
   // ── Reset sector to custom ─────────────────────────────────────────────────
