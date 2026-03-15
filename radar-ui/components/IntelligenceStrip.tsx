@@ -92,19 +92,29 @@ function buildTickerItems(
   const items: TickerItem[] = [];
 
   for (const c of competitors) {
-    if (!c.latest_movement_type) continue;
-    const color   = MOVEMENT_COLOR[c.latest_movement_type] ?? "#94a3b8";
-    const tag     = MOVEMENT_TAG[c.latest_movement_type]
-      ?? c.latest_movement_type.replace(/_/g, " ").toUpperCase();
-    const summary = c.latest_movement_summary?.slice(0, 90) ?? null;
-    items.push({
-      text:     summary
-        ? `${c.competitor_name.toUpperCase()} — ${summary}`
-        : c.competitor_name.toUpperCase(),
-      tag,
-      color,
-      tagColor: color,
-    });
+    if (c.latest_movement_type) {
+      const color   = MOVEMENT_COLOR[c.latest_movement_type] ?? "#94a3b8";
+      const tag     = MOVEMENT_TAG[c.latest_movement_type]
+        ?? c.latest_movement_type.replace(/_/g, " ").toUpperCase();
+      const summary = c.latest_movement_summary?.slice(0, 90) ?? null;
+      items.push({
+        text:     summary
+          ? `${c.competitor_name.toUpperCase()} — ${summary}`
+          : c.competitor_name.toUpperCase(),
+        tag,
+        color,
+        tagColor: color,
+      });
+    } else if ((c.signals_7d ?? 0) > 0) {
+      // Signals detected but pipeline hasn't yet classified a movement
+      const n = c.signals_7d;
+      items.push({
+        text:     `${c.competitor_name.toUpperCase()} — ${n} signal${n !== 1 ? "s" : ""} detected · classifying`,
+        tag:      "ACTIVE",
+        color:    "rgba(46,230,166,0.65)",
+        tagColor: "rgba(46,230,166,0.35)",
+      });
+    }
   }
 
   for (const headline of newsItems) {
@@ -117,8 +127,11 @@ function buildTickerItems(
   }
 
   if (items.length === 0) {
+    const tracked = competitors.length;
     items.push({
-      text:     "MONITORING ACTIVE — AWAITING FIRST SIGNAL",
+      text:     tracked > 0
+        ? `SYS MONITORING ${tracked} RIVAL${tracked !== 1 ? "S" : ""} — PIPELINE PROCESSING`
+        : "SYS MONITORING ACTIVE — NO RIVALS TRACKED",
       tag:      "SYS",
       color:    "#475569",
       tagColor: "#334155",

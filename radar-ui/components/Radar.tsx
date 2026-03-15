@@ -3105,7 +3105,7 @@ export default function Radar({
       </section>
 
       {/* ── Mobile backdrop — dims radar behind open drawer on small screens ── */}
-      {selected && (
+      {selected && !isolated && (
         <div
           className="fixed inset-0 z-30 bg-black/60 lg:hidden"
           onClick={() => setSelectedId(null)}
@@ -3115,23 +3115,34 @@ export default function Radar({
 
       {/* ── Right panel — intelligence console ──────────────────── */}
       {/* Mobile: hidden when nothing selected; bottom-sheet when selected.  */}
-      {/* Desktop (md+): always-visible second grid column.                  */}
+      {/* Desktop (lg+): always-visible second grid column.                  */}
+      {/* Observatory (isolated): floating right panel over the fullscreen radar. */}
       <aside
-        className={`border bg-[#000000] p-6 lg:static lg:block lg:inset-auto lg:z-auto lg:min-h-0 lg:max-h-none lg:overflow-y-auto lg:rounded-[20px]${
-          selected
-            ? sheetState === "full"
-              ? " fixed inset-x-0 bottom-0 z-40 h-[100svh] overflow-y-auto rounded-t-[20px]"
-              : sheetState === "peek"
-              ? " fixed inset-x-0 bottom-0 z-40 h-[28vh] overflow-hidden rounded-t-[20px]"
-              : " fixed inset-x-0 bottom-0 z-40 max-h-[65vh] overflow-y-auto rounded-t-[20px]"
-            : " hidden"
-        }`}
+        className={isolated && selected
+          ? "fixed right-0 top-0 z-[60] h-full w-[360px] xl:w-[400px] overflow-y-auto rounded-l-[20px] border p-6"
+          : `border bg-[#000000] p-6 lg:static lg:block lg:inset-auto lg:z-auto lg:min-h-0 lg:max-h-none lg:overflow-y-auto lg:rounded-[20px]${
+            selected
+              ? sheetState === "full"
+                ? " fixed inset-x-0 bottom-0 z-40 h-[100svh] overflow-y-auto rounded-t-[20px]"
+                : sheetState === "peek"
+                ? " fixed inset-x-0 bottom-0 z-40 h-[28vh] overflow-hidden rounded-t-[20px]"
+                : " fixed inset-x-0 bottom-0 z-40 max-h-[65vh] overflow-y-auto rounded-t-[20px]"
+              : " hidden"
+          }`
+        }
         onTouchStart={handleSheetTouchStart}
         onTouchEnd={handleSheetTouchEnd}
-        style={{
-          borderColor: selected
-            ? `${selectedColor}38`
-            : "#0e2010",
+        style={isolated && selected ? {
+          background: "rgba(0, 2, 0, 0.93)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          borderColor: `${selectedColor}35`,
+          borderLeft: `2px solid ${selectedColor}55`,
+          boxShadow: `-24px 0 80px rgba(0,0,0,0.85), inset 1px 0 0 ${selectedColor}12`,
+          opacity: 1,
+          transition: "border-color 0.5s ease",
+        } : {
+          borderColor: selected ? `${selectedColor}38` : "#0e2010",
           boxShadow: selected
             ? `inset 0 1px 0 0 ${selectedColor}18, 0 0 60px rgba(0,0,0,0.6)`
             : "inset 0 1px 0 0 rgba(46,230,166,0.05), 0 0 60px rgba(0,0,0,0.6)",
@@ -3742,7 +3753,7 @@ export default function Radar({
                         })(),
                       }}
                     >
-                      Updated {formatRelative(latestSignalAt)}
+                      Last signal {formatRelative(latestSignalAt)}
                     </div>
                   )}
                 </div>
