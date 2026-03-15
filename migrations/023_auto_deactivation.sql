@@ -109,30 +109,45 @@ EXECUTE FUNCTION handle_snapshot_quality();
 -- on the next 10 crawl cycles anyway — this makes it immediate.
 -- Requires at least 10 total snapshots to avoid catching newly-onboarded
 -- pages that simply haven't been crawled enough times yet.
+--
+-- Rewritten as CTE + ROW_NUMBER() window function to avoid the
+-- Supabase SQL editor parser bug with nested correlated subqueries
+-- that use LIMIT in a WHERE clause.
 
-UPDATE monitored_pages mp
+WITH recent_quality AS (
+  SELECT
+    monitored_page_id,
+    COUNT(*) FILTER (WHERE fetch_quality <> 'full') AS non_full_count
+  FROM (
+    SELECT
+      monitored_page_id,
+      fetch_quality,
+      ROW_NUMBER() OVER (
+        PARTITION BY monitored_page_id
+        ORDER BY fetched_at DESC
+      ) AS rn
+    FROM snapshots
+  ) ranked
+  WHERE rn <= 10
+  GROUP BY monitored_page_id
+  HAVING COUNT(*) = 10          -- page has at least 10 snapshots
+),
+total_counts AS (
+  SELECT monitored_page_id, COUNT(*) AS total
+  FROM snapshots
+  GROUP BY monitored_page_id
+)
+UPDATE monitored_pages
 SET
   consecutive_non_full_snapshots = 10,
   active                         = false,
   auto_deactivated_reason        = 'persistent_non_full_backfill'
-WHERE
-  mp.active = true
-  AND (
-    SELECT COUNT(*)
-    FROM snapshots s
-    WHERE s.monitored_page_id = mp.id
-  ) >= 10
-  AND (
-    SELECT COUNT(*)
-    FROM (
-      SELECT s.fetch_quality
-      FROM snapshots s
-      WHERE s.monitored_page_id = mp.id
-      ORDER BY s.fetched_at DESC
-      LIMIT 10
-    ) recent
-    WHERE recent.fetch_quality <> 'full'
-  ) = 10;
+FROM recent_quality rq
+JOIN total_counts tc ON tc.monitored_page_id = rq.monitored_page_id
+WHERE monitored_pages.id = rq.monitored_page_id
+  AND monitored_pages.active = true
+  AND tc.total >= 10
+  AND rq.non_full_count = 10;
 
 
 -- ============================================================
