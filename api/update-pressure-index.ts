@@ -89,15 +89,24 @@ async function handler(req: ApiReq, res: ApiRes) {
   });
 
   try {
-    // ── 1. Load all active competitors ────────────────────────────────────────
-    const { data: competitors, error: compError } = await supabase
-      .from("competitors")
-      .select("id")
-      .eq("active", true);
+    // ── 1. Load all tracked competitors ───────────────────────────────────────
+    // Use tracked_competitors as the population gate — not competitors.active.
+    // This is the same source of truth used by radar-feed.ts and ensures that
+    // pressure index updates only run for competitors users are actually watching.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: trackedRows, error: compError } = await (supabase as any)
+      .from("tracked_competitors")
+      .select("competitor_id")
+      .not("competitor_id", "is", null);
 
     if (compError) throw compError;
 
-    const allCompetitors = (competitors ?? []) as CompetitorRow[];
+    const allCompetitors: CompetitorRow[] = [
+      ...new Set(
+        ((trackedRows ?? []) as { competitor_id: string }[]).map((r) => r.competitor_id)
+      ),
+    ].map((id) => ({ id }));
+
     if (allCompetitors.length === 0) {
       Sentry.captureCheckIn({ monitorSlug: "update-pressure-index", status: "ok" });
       await Sentry.flush(2000);

@@ -6,8 +6,17 @@ import { captureException } from "../../../lib/sentry";
 // POST /api/clean-slate
 //
 // Removes all tracked competitors for the authenticated user's org and resets
-// the sector to "custom". Pipeline-side competitors are deactivated via the
-// runtime onboard-competitor inverse (setting active=false) for each known URL.
+// the sector to "custom".
+//
+// Architecture note:
+//   competitors            = pipeline registry — NEVER modified here
+//   tracked_competitors    = org-scoped tracking relation — deleted here
+//   monitored_pages.active = set false for competitors no longer tracked by ANY org
+//
+// radar-feed.ts uses tracked_competitors as the source of truth, so deleting
+// the tracking rows is sufficient for the radar to clear immediately.
+// monitored_pages are deactivated to stop the crawler from fetching orphan pages,
+// but only when no other org still tracks the same competitor (multi-org safe).
 //
 // This is a destructive but recoverable action — users can re-add competitors
 // from the Discover page or by switching to any sector.
@@ -38,21 +47,26 @@ export async function POST() {
 
   const org = orgRows?.[0] ?? null;
   if (!org) {
-    // No org means no tracked competitors — nothing to do
     return NextResponse.json({ ok: true, removed: 0 });
   }
 
   const orgId = org.id as string;
 
-  // ── Collect website URLs before deletion (needed to deactivate pipeline) ──
+  // ── Collect competitor_ids before deletion (needed for page deactivation) ────
 
   const { data: trackedRows, count } = await supabase
     .from("tracked_competitors")
-    .select("website_url", { count: "exact" })
+    .select("competitor_id", { count: "exact" })
     .eq("org_id", orgId);
 
   const removed = count ?? 0;
-  const trackedUrls = (trackedRows ?? []).map((r) => (r as { website_url: string }).website_url).filter(Boolean);
+  const competitorIds = [
+    ...new Set(
+      ((trackedRows ?? []) as { competitor_id: string | null }[])
+        .map((r) => r.competitor_id)
+        .filter((id): id is string => !!id)
+    ),
+  ];
 
   // ── Delete all tracked competitors for this org ────────────────────────────
 
@@ -66,20 +80,33 @@ export async function POST() {
     return NextResponse.json({ error: "Failed to clear competitors" }, { status: 500 });
   }
 
-  // ── Deactivate pipeline competitors so radar clears immediately ────────────
-  // The pipeline's competitors table has no org_id — we deactivate by matching
-  // website_url against the URLs we just removed from tracked_competitors.
-  // onboard-competitor re-activates (active=true) on re-onboard, so this is reversible.
-  if (trackedUrls.length > 0) {
-    const serviceSupabase = createServiceClient();
-    const { error: deactivateError } = await serviceSupabase
-      .from("competitors")
-      .update({ active: false })
-      .in("website_url", trackedUrls);
+  // ── Deactivate monitored pages for fully untracked competitors ────────────
+  // Only deactivate pages for competitors that are no longer tracked by ANY org.
+  // Competitors still tracked by another org must keep their pages active.
 
-    if (deactivateError) {
-      // Non-fatal — tracked_competitors already cleared; radar will self-correct on next pipeline run.
-      captureException(deactivateError, { route: "clean-slate", step: "deactivate_pipeline", user_id: user.id, org_id: orgId });
+  if (competitorIds.length > 0) {
+    try {
+      const { data: stillTrackedRows } = await supabase
+        .from("tracked_competitors")
+        .select("competitor_id")
+        .in("competitor_id", competitorIds);
+
+      const stillTrackedIds = new Set(
+        ((stillTrackedRows ?? []) as { competitor_id: string }[]).map((r) => r.competitor_id)
+      );
+      const fullyUntracked = competitorIds.filter((id) => !stillTrackedIds.has(id));
+
+      if (fullyUntracked.length > 0) {
+        const serviceSupabase = createServiceClient();
+        const { error } = await serviceSupabase
+          .from("monitored_pages")
+          .update({ active: false })
+          .in("competitor_id", fullyUntracked);
+        if (error) captureException(error, { route: "clean-slate", step: "deactivate_pages", user_id: user.id, org_id: orgId });
+      }
+    } catch (pageError) {
+      // Non-fatal — competitor removal already succeeded
+      captureException(pageError, { route: "clean-slate", step: "deactivate_pages_catch", user_id: user.id, org_id: orgId });
     }
   }
 

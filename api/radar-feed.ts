@@ -105,16 +105,32 @@ async function handler(req: ApiReq, res: ApiRes) {
     const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const since14d = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
 
-    // ── Step 1: Load all active competitors ───────────────────────────────────
-    const { data: competitorRows, error: compError } = await supabase
-      .from("competitors")
-      .select("id, name, website_url, last_signal_at")
-      .eq("active", true);
+    // ── Step 1: Load all tracked competitors ──────────────────────────────────
+    // Source of truth is now the tracking relation: a competitor is included in
+    // the radar feed if and only if at least one org is tracking it via
+    // tracked_competitors.competitor_id. This replaces the `active=true` boolean
+    // which required explicit sync on every add/remove/clean-slate and was
+    // prone to drift. `active` is kept on the table during the transition but
+    // is no longer the gate for pipeline reads.
 
-    if (compError) throw compError;
+    // First resolve the set of tracked competitor IDs across all orgs.
+    // `tracked_competitors` is a UI-DB table not present in the runtime's generated
+    // types — cast through `any` since the same Supabase instance serves both.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: trackedRows, error: trackedError } = await (supabase as any)
+      .from("tracked_competitors")
+      .select("competitor_id")
+      .not("competitor_id", "is", null);
 
-    const competitors = (competitorRows ?? []) as CompetitorRow[];
-    if (competitors.length === 0) {
+    if (trackedError) throw trackedError;
+
+    const trackedIds = [...new Set(
+      ((trackedRows ?? []) as { competitor_id: string }[])
+        .map((r) => r.competitor_id)
+        .filter(Boolean)
+    )];
+
+    if (trackedIds.length === 0) {
       return res.status(200).json({
         ok: true,
         job: "radar-feed",
@@ -123,6 +139,15 @@ async function handler(req: ApiReq, res: ApiRes) {
         data: [],
       });
     }
+
+    const { data: competitorRows, error: compError } = await supabase
+      .from("competitors")
+      .select("id, name, website_url, last_signal_at")
+      .in("id", trackedIds);
+
+    if (compError) throw compError;
+
+    const competitors = (competitorRows ?? []) as CompetitorRow[];
 
     const competitorIds = competitors.map((c) => c.id);
 

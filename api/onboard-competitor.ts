@@ -4,6 +4,7 @@ import { Sentry } from "../lib/sentry";
 import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "../lib/rate-limit";
+import { normalizeDomain } from "../lib/normalizeDomain";
 
 type CandidatePage = {
   url: string;
@@ -155,10 +156,14 @@ async function handler(req: ApiReq, res: ApiRes) {
       1. Ensure competitor exists (idempotent)
     */
 
+    // Use canonical domain as the unique identity key for the competitor registry.
+    // This prevents duplicate rows from protocol/path variants of the same hostname.
+    const domain = normalizeDomain(baseUrl);
+
     const { data: existingCompetitor } = await supabase
       .from("competitors")
       .select("id")
-      .eq("website_url", baseUrl)
+      .eq("domain", domain)
       .maybeSingle();
 
     let competitorId: string;
@@ -166,18 +171,19 @@ async function handler(req: ApiReq, res: ApiRes) {
     if (existingCompetitor) {
       competitorId = existingCompetitor.id;
       // Re-activate if previously deactivated by clean-slate (or any other path).
-      // Idempotent — no-op if already active=true.
+      // Also ensure website_url and name stay current. Idempotent.
       await supabase
         .from("competitors")
-        .update({ active: true })
+        .update({ active: true, website_url: baseUrl, name })
         .eq("id", competitorId);
     } else {
       const { data: created, error } = await supabase
         .from("competitors")
         .insert({
-          name: name,
+          name,
           website_url: baseUrl,
-          active: true
+          domain,
+          active: true,
         })
         .select()
         .single();
