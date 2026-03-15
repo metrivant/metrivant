@@ -39,18 +39,21 @@ This mode improves execution speed and prevents unnecessary reasoning cycles.
 
 ### Deploy Steps (end of every prompt)
 ```bash
-# 1. Commit
+# 1. Review what changed
+git status && git diff --stat
+
+# 2. Commit
 git add <files>
 git commit -m "..."
 
-# 2. Push (triggers metrivant-ui auto-deploy)
+# 3. Push
 git push origin main
 
-# 3. Force prod deploy for metrivant-ui (if auto-deploy is slow)
-vercel deploy --prod --cwd /home/arcmatrix93/metrivant/radar-ui
+# 4. Force deploy runtime (from /home/arcmatrix93/metrivant)
+vercel --prod --force
 
-# 4. Redeploy metrivant-runtime (no code changes — force fresh build)
-vercel redeploy metrivant-runtime.vercel.app --target production
+# 5. Force deploy UI (from /home/arcmatrix93/metrivant/radar-ui)
+vercel --prod --force
 ```
 
 ### Supabase
