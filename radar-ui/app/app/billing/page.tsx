@@ -4,6 +4,7 @@ import { createClient } from "../../../lib/supabase/server";
 import { getSubscriptionState, TRIAL_DAYS } from "../../../lib/subscription";
 import BillingTracker from "./BillingTracker";
 import UpgradeClickTracker from "./UpgradeClickTracker";
+import SyncOnSuccess from "./SyncOnSuccess";
 import ManageSubscriptionPanel from "../../../components/ManageSubscriptionPanel";
 import CheckoutButton from "../../../components/CheckoutButton";
 import SubscribedStatusSurface from "../../../components/SubscribedStatusSurface";
@@ -53,7 +54,8 @@ export default async function BillingPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const limitReached = params["limit"] === "1";
+  const limitReached    = params["limit"] === "1";
+  const checkoutSuccess = params["checkout"] === "success";
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -114,6 +116,9 @@ export default async function BillingPage({
   return (
     <div className="min-h-screen bg-[#000200] text-white">
       <BillingTracker />
+
+      {/* Sync fallback: webhook may not have fired yet when user returns from checkout */}
+      {checkoutSuccess && !hasActiveSub && <SyncOnSuccess />}
 
       {limitReached && (
         <div

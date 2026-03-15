@@ -11,6 +11,7 @@ import RadarLogo from "../../components/RadarLogo";
 import IntelligenceStrip from "../../components/IntelligenceStrip";
 import AppOverlays from "../../components/AppOverlays";
 import TrialLockScreen from "../../components/TrialLockScreen";
+import SyncSubscription from "../../components/SyncSubscription";
 import DailyBriefOverlay from "../../components/DailyBriefOverlay";
 import MobileNav from "../../components/MobileNav";
 import AchievementsButton from "../../components/AchievementsButton";
@@ -346,6 +347,11 @@ export default async function Page() {
 
       {/* ── Trial lock screen — shown when trial expired and no active subscription ── */}
       {trialExpired && !hasActiveSub && <TrialLockScreen />}
+
+      {/* ── Subscription sync fallback — recovers from webhook write failures ─── */}
+      {/* Fires once on mount: checks Stripe for an active sub the webhook missed. */}
+      {/* On success: router.refresh() re-renders the page, clearing the lock screen. */}
+      {trialExpired && !hasActiveSub && <SyncSubscription />}
 
       {/* ── Mobile bottom navigation — md:hidden inside component ─────────── */}
       <MobileNav />
