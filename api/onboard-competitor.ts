@@ -278,7 +278,10 @@ async function handler(req: ApiReq, res: ApiRes) {
     });
 
     await Sentry.flush(2000);
-    throw error;
+
+    // Return 500 rather than rethrowing — withSentry would catch and re-report
+    // this to Sentry a second time, creating duplicate error noise.
+    return res.status(500).json({ ok: false, error: "internal_error" });
   }
 }
 
