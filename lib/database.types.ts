@@ -651,7 +651,7 @@ export type Database = {
         Returns: Array<{ id: string; signal_type: string; retry_count: number }>;
       };
       build_section_baselines: {
-        Args: Record<PropertyKey, never>;
+        Args: { batch_limit?: number };
         Returns: number;
       };
       cluster_recent_signals: {
@@ -661,6 +661,18 @@ export type Database = {
       calculate_signal_velocity: {
         Args: Record<PropertyKey, never>;
         Returns: undefined;
+      };
+      prune_activity_events: {
+        Args: { retain_days?: number };
+        Returns: number;
+      };
+      prune_old_snapshots: {
+        Args: { retain_days?: number };
+        Returns: number;
+      };
+      prune_old_section_diffs: {
+        Args: { retain_days_clean?: number; retain_days_noise?: number };
+        Returns: number;
       };
     };
   };

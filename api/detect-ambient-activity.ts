@@ -142,13 +142,19 @@ async function handler(req: ApiReq, res: ApiRes) {
       }
     }
 
-    // Prune activity_events older than 30 days to prevent unbounded growth.
-    // Non-fatal: if this fails the job still reports success.
-    const pruneThreshold = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    await supabase
-      .from("activity_events")
-      .delete()
-      .lt("detected_at", pruneThreshold);
+    // Inline retention pruning — all three calls are non-fatal.
+    // Runs at the end of the ambient stage (least-frequent pipeline stage)
+    // to keep storage bounded without a separate maintenance cron job.
+    try {
+      // activity_events: 30-day rolling window (already existed, now via RPC).
+      await supabase.rpc("prune_activity_events");
+      // snapshots: raw_html column — 90 days after sections extracted.
+      await supabase.rpc("prune_old_snapshots");
+      // section_diffs: 90 days (clean), 180 days (noise).
+      await supabase.rpc("prune_old_section_diffs");
+    } catch (pruneError) {
+      Sentry.captureException(pruneError);
+    }
 
     const runtimeDurationMs = Date.now() - startedAt;
 
