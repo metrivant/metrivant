@@ -1,3 +1,9 @@
+// Force dynamic rendering — never serve a cached version of this page.
+// The trial gate reads user_metadata.plan which is set by Stripe on payment;
+// a stale cached response would serve the lock screen even after a valid upgrade.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import Link from "next/link";
 import Radar from "../../components/Radar";
 import RadarViewedTracker from "../../components/RadarViewedTracker";
@@ -93,44 +99,39 @@ export default async function Page() {
       if (org?.id) orgId = org.id as string;
       if (org?.sector) sector = org.sector as string;
 
-      // Subscription state — authoritative source for plan + trial gate
-      if (org?.id) {
+      // Hard gate: user_metadata.plan is written by the Stripe webhook on successful
+      // payment and is the most reliable single source of truth when the subscriptions
+      // table row may be missing (race between webhook and page load, org_id resolution
+      // failure, or any other write-path failure). Check it FIRST before hitting the DB.
+      const metaPlan = user.user_metadata?.plan as string | undefined;
+      if (metaPlan === "analyst" || metaPlan === "pro") {
+        plan         = metaPlan;
+        hasActiveSub = true;
+        trialExpired = false;
+        // Still compute trial days remaining so the PlanBadge renders correctly
+        const trialEnd = new Date(user.created_at).getTime() + 3 * 24 * 60 * 60 * 1000;
+        if (Date.now() < trialEnd) {
+          trialDaysRemaining = Math.max(0, Math.ceil((trialEnd - Date.now()) / (1000 * 60 * 60 * 24)));
+        }
+      } else if (org?.id) {
+        // No metadata plan — fall back to subscriptions table as authoritative source
         const subState = await getSubscriptionState(supabase, org.id as string, user.created_at);
         plan         = subState.plan;
         hasActiveSub = subState.status === "active"
                     || subState.status === "canceled_active"
-                    || subState.status === "past_due"; // past_due = subscription exists, grace period active
+                    || subState.status === "past_due"; // past_due = grace period active
 
-        // Final override: Stripe webhook writes user_metadata.plan on successful checkout.
-        // If the subscriptions table row is missing (webhook org_id resolution race or failure),
-        // user_metadata.plan is the reliable fallback — it is only set by Stripe on payment
-        // and cleared on subscription deletion.
-        const metaPlanOrg = user.user_metadata?.plan as string | undefined;
-        if (!hasActiveSub && (metaPlanOrg === "analyst" || metaPlanOrg === "pro")) {
-          hasActiveSub = true;
-          plan         = metaPlanOrg;
-        }
-
-        // Active subscription always unlocks — never show trial gate regardless of
-        // trial window state. Covers analyst and pro equally.
         trialExpired = subState.status === "expired" && !hasActiveSub;
         if (subState.status === "trial") {
           const trialEnd = new Date(user.created_at).getTime() + 3 * 24 * 60 * 60 * 1000;
           trialDaysRemaining = Math.max(0, Math.ceil((trialEnd - Date.now()) / (1000 * 60 * 60 * 24)));
         }
       } else {
-        // No org yet — fall back to time-based trial check
-        plan = (user.user_metadata?.plan as string | undefined) ?? "analyst";
-        // user_metadata.plan is set to "analyst" or "pro" by Stripe webhook on
-        // successful payment — if it is set by Stripe, treat as active subscription
-        const metaPlan = user.user_metadata?.plan as string | undefined;
-        hasActiveSub = metaPlan === "analyst" || metaPlan === "pro";
-        if (!hasActiveSub && plan !== "pro") {
-          const trialEnd = new Date(user.created_at).getTime() + 3 * 24 * 60 * 60 * 1000;
-          trialExpired = Date.now() > trialEnd;
-          if (!trialExpired) {
-            trialDaysRemaining = Math.max(0, Math.ceil((trialEnd - Date.now()) / (1000 * 60 * 60 * 24)));
-          }
+        // No org yet — time-based trial check only
+        const trialEnd = new Date(user.created_at).getTime() + 3 * 24 * 60 * 60 * 1000;
+        trialExpired = Date.now() > trialEnd;
+        if (!trialExpired) {
+          trialDaysRemaining = Math.max(0, Math.ceil((trialEnd - Date.now()) / (1000 * 60 * 60 * 24)));
         }
       }
     }
