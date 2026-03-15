@@ -361,9 +361,16 @@ async function handler(req: ApiReq, res: ApiRes) {
             const historyCounts = [...pageSnaps.values()].slice(0, 5);
             const avgCount = historyCounts.reduce((a, b) => a + b, 0) / historyCounts.length;
 
-            if (avgCount > 0) {
+            // Only evaluate pages with a meaningful historical baseline (≥2 avg sections).
+            // Pages with avgCount=1 trivially hit 100% deviation on any change — these
+            // are single-rule pages where variance is expected and not indicative of
+            // extraction rot.
+            if (avgCount >= 2) {
               const deviation = Math.abs(currentCount - avgCount) / avgCount;
-              if (deviation > 0.6) {
+              // Also require an absolute delta of ≥2 sections to suppress noise on
+              // low-section pages (e.g., avg=2 → current=3 is 50% relative but 1 section absolute).
+              const absoluteDelta = Math.abs(currentCount - avgCount);
+              if (deviation > 0.6 && absoluteDelta >= 2) {
                 Sentry.captureMessage("extraction_drift_detected", {
                   level: "warning",
                   extra: {

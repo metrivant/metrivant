@@ -247,6 +247,9 @@ async function handler(req: ApiReq, res: ApiRes) {
           msg.includes("This operation was aborted") ||
           msg.includes("redirect count exceeded") ||
           msg.includes("HTML exceeds size limit") ||
+          // Node undici generic network error (DNS failure, connection reset, TLS error).
+          // These are expected when fetching arbitrary competitor websites.
+          (error instanceof TypeError && msg === "fetch failed") ||
           errCode === "23505"; // unique constraint violation — concurrent run race
         if (!isExpectedFailure) {
           Sentry.captureException(error);

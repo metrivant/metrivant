@@ -429,28 +429,46 @@ async function handler(req: ApiReq, res: ApiRes) {
           : "pending_review";
 
         // ── Upsert signal ─────────────────────────────────────────────────────
-        const { error: upsertError } = await supabase
+        // Base payload — always safe to write (columns exist in all schema versions).
+        const baseSignalPayload = {
+          section_diff_id:   diff.id,
+          monitored_page_id: diff.monitored_page_id,
+          signal_type:       signal.signal_type,
+          signal_data:       signal.signal_data,
+          severity:          signal.severity,
+          detected_at:       diff.last_seen_at ?? undefined,
+          interpreted:       false,
+          status:            signalStatus,
+          retry_count:       0,
+          is_duplicate:      false,
+          confidence_score:  confidenceScore,
+          signal_hash:       signalHash,
+        };
+
+        // TODO: remove this fallback once migration 015 (signals.competitor_id) is
+        // confirmed applied to production. Until then, 42703 means the column does
+        // not yet exist and we write without it so no signal is ever lost.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let { error: upsertError } = await supabase
           .from("signals")
-          .upsert(
-            {
-              competitor_id:     competitorId,
-              section_diff_id:   diff.id,
-              monitored_page_id: diff.monitored_page_id,
-              signal_type:       signal.signal_type,
-              signal_data:       signal.signal_data,
-              severity:          signal.severity,
-              detected_at:       diff.last_seen_at ?? undefined,
-              interpreted:       false,
-              status:            signalStatus,
-              retry_count:       0,
-              is_duplicate:      false,
-              confidence_score:  confidenceScore,
-              signal_hash:       signalHash,
-            },
-            {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .upsert({ ...baseSignalPayload, competitor_id: competitorId } as any, {
+            onConflict: "section_diff_id,signal_type",
+          });
+
+        if (upsertError && (upsertError as { code?: string }).code === "42703") {
+          // competitor_id column not yet in schema — fall back to base payload.
+          Sentry.addBreadcrumb({
+            category: "pipeline",
+            message: "competitor_id column not yet on signals — migration 015 pending",
+            level: "info",
+          });
+          ({ error: upsertError } = await supabase
+            .from("signals")
+            .upsert(baseSignalPayload, {
               onConflict: "section_diff_id,signal_type",
-            }
-          );
+            }));
+        }
 
         if (upsertError) throw upsertError;
 

@@ -7,12 +7,17 @@ import { verifyCronSecret } from "../lib/withCronAuth";
 import { createHash } from "crypto";
 
 const BATCH_SIZE = 5;
-// Stuck-signal reset window: signals stuck in 'in_progress' for longer than this
-// will be reset back to 'pending' so they can be retried.
-// Previously 30 min — cron jitter caused valid signals to be treated as permanently
-// stuck and discarded before they were processed. 24 hours is the sanity ceiling:
-// anything older than 24h is ancient data and should not be force-reset.
-const STALE_MINUTES = 24 * 60; // 1440 — 24-hour sanity ceiling
+// Stuck-signal reset window — how long a signal can sit in 'in_progress' before
+// being released back to 'pending' for retry.
+//
+// Design rationale: signal selection is gated on status='pending' and retry_count < MAX_RETRIES,
+// NOT on age. A signal created at T+29 min is as valid as one created at T+1 min.
+// A narrow time window (previously 30 min) combined with cron jitter silently discarded
+// valid signals: detect-signals ran at T-1, interpret-signals ran at T+28, signals
+// were already >30 min old and permanently stuck as 'in_progress' with no retry.
+// The correct invariant is: if status='pending' and retry_count < MAX_RETRIES, process it.
+// The only guard needed is a wide sanity ceiling to prevent reprocessing ancient data.
+const STALE_MINUTES = 24 * 60; // 1440 min — release in_progress claims older than 24h
 const MAX_RETRIES = 5;
 const MODEL_USED = "gpt-4o-mini";
 const PROMPT_VERSION = "v1";
