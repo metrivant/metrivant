@@ -97,7 +97,9 @@ export default async function Page() {
         const subState = await getSubscriptionState(supabase, org.id as string, user.created_at);
         plan         = subState.plan;
         hasActiveSub = subState.status === "active" || subState.status === "canceled_active";
-        trialExpired = subState.status === "expired";
+        // Active subscription always unlocks — never show trial gate regardless of
+        // trial window state. Covers analyst and pro equally.
+        trialExpired = subState.status === "expired" && !hasActiveSub;
         if (subState.status === "trial") {
           const trialEnd = new Date(user.created_at).getTime() + 3 * 24 * 60 * 60 * 1000;
           trialDaysRemaining = Math.max(0, Math.ceil((trialEnd - Date.now()) / (1000 * 60 * 60 * 24)));
@@ -105,7 +107,11 @@ export default async function Page() {
       } else {
         // No org yet — fall back to time-based trial check
         plan = (user.user_metadata?.plan as string | undefined) ?? "analyst";
-        if (plan !== "pro") {
+        // user_metadata.plan is set to "analyst" or "pro" by Stripe webhook on
+        // successful payment — if it is set by Stripe, treat as active subscription
+        const metaPlan = user.user_metadata?.plan as string | undefined;
+        hasActiveSub = metaPlan === "analyst" || metaPlan === "pro";
+        if (!hasActiveSub && plan !== "pro") {
           const trialEnd = new Date(user.created_at).getTime() + 3 * 24 * 60 * 60 * 1000;
           trialExpired = Date.now() > trialEnd;
           if (!trialExpired) {
@@ -325,8 +331,8 @@ export default async function Page() {
       {/* ── Daily scan brief — shown once per day on first radar load ──────── */}
       {!trialExpired && <DailyBriefOverlay competitors={competitors} />}
 
-      {/* ── Trial lock screen — shown when trial expired and plan is not Pro ── */}
-      {trialExpired && <TrialLockScreen />}
+      {/* ── Trial lock screen — shown when trial expired and no active subscription ── */}
+      {trialExpired && !hasActiveSub && <TrialLockScreen />}
 
       {/* ── Mobile bottom navigation — md:hidden inside component ─────────── */}
       <MobileNav />
