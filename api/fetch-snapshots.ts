@@ -29,6 +29,19 @@ function hashContent(content: string): string {
   return crypto.createHash("sha256").update(content).digest("hex");
 }
 
+// Estimate visible text length by stripping script/style blocks and HTML tags.
+// Used to distinguish JS-rendered shells (structural HTML, no text content)
+// from real pages. No parse needed — regex is sufficient for a rough count.
+function getVisibleTextLength(html: string): number {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .length;
+}
+
 async function fetchWithTimeout(url: string): Promise<string> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -130,37 +143,48 @@ async function handler(req: ApiReq, res: ApiRes) {
         const contentHash = hashContent(rawHtml);
         const fetchedAt = new Date().toISOString();
 
-        // ── Fetch quality check: detect bot walls and JS-rendered shells ──────
-        // Count text-bearing elements using fast string operations (no parse needed).
-        // If fewer than 3 such elements are found, the HTML is likely a bot wall,
-        // a JS-shell that needs client rendering, or an anti-scrape fallback.
+        // ── Fetch quality classification ──────────────────────────────────────
+        // Three tiers — extract-sections only processes 'full' snapshots.
+        //
+        // 'shell'       — bot wall / anti-scrape response: < 3 text-bearing
+        //                 structural elements. Site actively blocked the fetch.
+        //
+        // 'js_rendered' — SPA / client-side rendered page: structural elements
+        //                 present but visible text < 500 chars. Content is loaded
+        //                 by JavaScript which the static fetcher cannot execute.
+        //
+        // 'full'        — normal static or SSR page with extractable text content.
+        //
+        // Both non-full tiers are stored (for diagnostics and the auto-deactivation
+        // trigger) but skipped by extract-sections.
         const textElementCount =
           (rawHtml.match(/<\/p>/gi)?.length ?? 0) +
           (rawHtml.match(/<\/h1>/gi)?.length ?? 0) +
           (rawHtml.match(/<\/h2>/gi)?.length ?? 0) +
           (rawHtml.match(/<\/li>/gi)?.length ?? 0);
 
-        // 'full' = normal page with meaningful content
-        // 'shell' = bot wall / JS-only shell / anti-scrape response
-        const fetchQuality = textElementCount < 3 ? "shell" : "full";
+        const fetchQuality: "full" | "shell" | "js_rendered" =
+          textElementCount < 3          ? "shell" :
+          getVisibleTextLength(rawHtml) < 500 ? "js_rendered" :
+          "full";
 
-        if (fetchQuality === "shell") {
-          // Use the first grouped page's competitor_name as a representative label.
+        if (fetchQuality !== "full") {
           const representativeName = groupedPages[0]?.competitor_name ?? "unknown";
-          Sentry.captureMessage("fetch_shell_detected", {
-            level: "warning",
-            extra: {
-              competitor_name: representativeName,
-              url,
-              text_element_count: textElementCount,
-            },
-          });
-          Sentry.addBreadcrumb({
-            category: "pipeline",
-            message: "Snapshot flagged as shell — low text-element count",
-            level: "warning",
-            data: { url, textElementCount, fetchQuality },
-          });
+          Sentry.captureMessage(
+            fetchQuality === "shell" ? "fetch_shell_detected" : "fetch_js_rendered_detected",
+            {
+              level: "warning",
+              extra: {
+                competitor_name: representativeName,
+                url,
+                fetch_quality: fetchQuality,
+                text_element_count: textElementCount,
+                visible_text_length: fetchQuality === "js_rendered"
+                  ? getVisibleTextLength(rawHtml)
+                  : undefined,
+              },
+            }
+          );
         }
 
         for (const page of groupedPages) {

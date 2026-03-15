@@ -171,14 +171,16 @@ async function handler(req: ApiReq, res: ApiRes) {
   try {
     const batchSize = 50;
 
-    // Exclude shell snapshots — bot walls / JS-only pages produce empty or
-    // near-empty sections that waste baseline slots and create false diffs.
-    // fetch_quality has NOT NULL DEFAULT 'full' so neq is safe (no NULL rows).
+    // Only process 'full' quality snapshots. 'shell' (bot wall) and
+    // 'js_rendered' (SPA) snapshots are stored for diagnostics and the
+    // auto-deactivation trigger but will never yield valid sections.
+    // Using .eq('full') is future-proof: any new non-full quality level
+    // is automatically excluded without a code change here.
     const { data: snapshots, error: snapshotsError } = await supabase
       .from("snapshots")
       .select("id, monitored_page_id, raw_html")
       .eq("sections_extracted", false)
-      .neq("fetch_quality", "shell")
+      .eq("fetch_quality", "full")
       .order("fetched_at", { ascending: true })
       .limit(batchSize);
 
