@@ -8,6 +8,13 @@ const STUCK_SIGNAL_MINUTES  = 30;
 const RECENT_SIGNAL_DAYS    = 7;
 const FETCH_STALE_HOURS     = 12;
 
+// Fetch backlog SLA per page_class: warn when pending snapshots exceed these counts.
+// high_value runs every hour, standard every 3h, ambient every 30min — so a large
+// queue for any class indicates the fetcher is falling behind its crawl cadence.
+const FETCH_BACKLOG_WARN_HIGH_VALUE = 20;
+const FETCH_BACKLOG_WARN_STANDARD   = 50;
+const FETCH_BACKLOG_WARN_AMBIENT    = 100;
+
 // Backlog SLA thresholds — warns when a pipeline stage has unprocessed rows
 // older than these values (in minutes). Set at 2× the typical cron cadence.
 const BACKLOG_SNAPSHOT_WARN_MINUTES = 240; // 4h — extract-sections should clear
@@ -47,6 +54,10 @@ export default async function handler(req: ApiReq, res: ApiRes) {
       // 24h suppression ratio
       noiseDiffs24hResult,
       totalConfirmedDiffs24hResult,
+      // Fetch backlog by page_class (sections_extracted=false, full quality only)
+      fetchBacklogHighValueResult,
+      fetchBacklogStandardResult,
+      fetchBacklogAmbientResult,
     ] = await Promise.all([
       supabase
         .from("snapshots")
@@ -131,6 +142,28 @@ export default async function handler(req: ApiReq, res: ApiRes) {
         .select("*", { count: "exact", head: true })
         .eq("confirmed", true)
         .gte("last_seen_at", WINDOW_24H),
+
+      // Pending fetch backlog per page_class (full quality, not yet extracted)
+      supabase
+        .from("snapshots")
+        .select("monitored_pages!inner(page_class)", { count: "exact", head: true })
+        .eq("sections_extracted", false)
+        .eq("fetch_quality", "full")
+        .eq("monitored_pages.page_class", "high_value"),
+
+      supabase
+        .from("snapshots")
+        .select("monitored_pages!inner(page_class)", { count: "exact", head: true })
+        .eq("sections_extracted", false)
+        .eq("fetch_quality", "full")
+        .eq("monitored_pages.page_class", "standard"),
+
+      supabase
+        .from("snapshots")
+        .select("monitored_pages!inner(page_class)", { count: "exact", head: true })
+        .eq("sections_extracted", false)
+        .eq("fetch_quality", "full")
+        .eq("monitored_pages.page_class", "ambient"),
     ]);
 
     const coreResults = [
@@ -168,6 +201,11 @@ export default async function handler(req: ApiReq, res: ApiRes) {
       ? Math.round((now - new Date(oldestDiffAt).getTime()) / 60_000) : 0;
     const oldestSignalWaitingInterpretationMinutes = oldestSignalAt
       ? Math.round((now - new Date(oldestSignalAt).getTime()) / 60_000) : 0;
+
+    // ── Fetch backlog by page_class ───────────────────────────────────────────
+    const fetchBacklogHighValue = fetchBacklogHighValueResult.count ?? 0;
+    const fetchBacklogStandard  = fetchBacklogStandardResult.count ?? 0;
+    const fetchBacklogAmbient   = fetchBacklogAmbientResult.count ?? 0;
 
     // ── Suppression ratio last 24h ─────────────────────────────────────────────
     const noiseDiffs24h   = noiseDiffs24hResult.count ?? 0;
@@ -216,6 +254,45 @@ export default async function handler(req: ApiReq, res: ApiRes) {
       });
     }
 
+    if (fetchBacklogHighValue > FETCH_BACKLOG_WARN_HIGH_VALUE) {
+      pipelineBacklogWarnings.push("fetch_backlog_high_value");
+      Sentry.captureMessage("pipeline_backlog_warning", {
+        level: "warning",
+        extra: {
+          stage:         "fetch_backlog",
+          page_class:    "high_value",
+          pending_count: fetchBacklogHighValue,
+          threshold:     FETCH_BACKLOG_WARN_HIGH_VALUE,
+        },
+      });
+    }
+
+    if (fetchBacklogStandard > FETCH_BACKLOG_WARN_STANDARD) {
+      pipelineBacklogWarnings.push("fetch_backlog_standard");
+      Sentry.captureMessage("pipeline_backlog_warning", {
+        level: "warning",
+        extra: {
+          stage:         "fetch_backlog",
+          page_class:    "standard",
+          pending_count: fetchBacklogStandard,
+          threshold:     FETCH_BACKLOG_WARN_STANDARD,
+        },
+      });
+    }
+
+    if (fetchBacklogAmbient > FETCH_BACKLOG_WARN_AMBIENT) {
+      pipelineBacklogWarnings.push("fetch_backlog_ambient");
+      Sentry.captureMessage("pipeline_backlog_warning", {
+        level: "warning",
+        extra: {
+          stage:         "fetch_backlog",
+          page_class:    "ambient",
+          pending_count: fetchBacklogAmbient,
+          threshold:     FETCH_BACKLOG_WARN_AMBIENT,
+        },
+      });
+    }
+
     if (totalDiffs24h >= 10 && noiseDiffRatioLast24h >= SUPPRESSION_RATIO_WARN) {
       pipelineBacklogWarnings.push("high_suppression_ratio");
       Sentry.captureMessage("suppression_ratio_warning", {
@@ -253,6 +330,12 @@ export default async function handler(req: ApiReq, res: ApiRes) {
       noiseDiffRatioLast24h,
       noiseDiffs24h,
       totalDiffs24h,
+      // Fetch backlog by page_class
+      fetchBacklogByPageClass: {
+        high_value: fetchBacklogHighValue,
+        standard:   fetchBacklogStandard,
+        ambient:    fetchBacklogAmbient,
+      },
       // SLA warnings
       pipelineBacklogWarnings,
     });
