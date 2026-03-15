@@ -33,8 +33,10 @@ async function handler(req: ApiReq, res: ApiRes) {
   });
 
   try {
+    const isDryRun = req.query?.dry_run === "1" || req.query?.dry_run === "true";
+
     const { data, error } = await supabase
-      .rpc("promote_section_baselines");
+      .rpc("promote_section_baselines", { dry_run: isDryRun });
 
     if (error) throw error;
 
@@ -42,7 +44,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     const promoted = rows[0]?.promoted_count ?? 0;
     const evaluated = rows[0]?.pairs_evaluated ?? 0;
 
-    if (promoted > 0) {
+    if (promoted > 0 && !isDryRun) {
       Sentry.captureMessage("baselines_promoted", {
         level: "info",
         extra: { promoted, evaluated },
@@ -55,6 +57,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       stage_name:      "promote-baselines",
       promoted,
       evaluated,
+      dry_run:         isDryRun,
       runtimeDurationMs,
     });
 
@@ -68,6 +71,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     res.status(200).json({
       ok: true,
       job: "promote-baselines",
+      dry_run: isDryRun,
       promoted,
       evaluated,
       runtimeDurationMs,

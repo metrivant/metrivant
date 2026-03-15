@@ -166,7 +166,7 @@ export type Database = {
           id?: string;
           monitored_page_id?: string;
           fetched_at?: string;
-          raw_html?: string;
+          raw_html?: string | null;
           extracted_text?: string | null;
           content_hash?: string;
           status?: string;
@@ -675,7 +675,7 @@ export type Database = {
         Returns: number;
       };
       promote_section_baselines: {
-        Args: Record<PropertyKey, never>;
+        Args: { dry_run?: boolean };
         Returns: Array<{ promoted_count: number; pairs_evaluated: number }>;
       };
     };

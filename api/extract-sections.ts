@@ -243,12 +243,15 @@ async function handler(req: ApiReq, res: ApiRes) {
             level: "warning",
             data: { snapshot_id: snapshot.id, monitored_page_id: snapshot.monitored_page_id },
           });
-          // Mark as extracted to prevent infinite re-processing on future runs.
+          // Mark as extracted and immediately release raw_html storage.
+          // Snapshots with no extraction rules will never be re-processed —
+          // raw_html serves no purpose after this point.
           const { error: skipMarkError } = await supabase
             .from("snapshots")
             .update({
               sections_extracted: true,
               sections_extracted_at: new Date().toISOString(),
+              raw_html: null,
             })
             .eq("id", snapshot.id);
           if (skipMarkError) throw skipMarkError;
@@ -306,11 +309,15 @@ async function handler(req: ApiReq, res: ApiRes) {
           );
         }
 
+        // Release raw_html immediately — sections are extracted, HTML is no longer
+        // needed. Nulling here instead of the 90-day retention cron prevents
+        // unbounded storage growth (100KB × crawl volume = grotesque at scale).
         const { error: markError } = await supabase
           .from("snapshots")
           .update({
             sections_extracted: true,
             sections_extracted_at: new Date().toISOString(),
+            raw_html: null,
           })
           .eq("id", snapshot.id);
 

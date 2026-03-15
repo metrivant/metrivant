@@ -12,14 +12,17 @@ import { checkRateLimit, getClientIp, RATE_LIMITS } from "../lib/rate-limit";
 // budget: stop launching new work after this many ms of wall-clock elapsed.
 //         Keeps the Vercel function well inside its 10s ceiling.
 // jitter: random pre-fetch delay per URL to avoid CDN burst patterns.
+// cooldown: after this many consecutive 403/429/timeout failures from the same
+//           domain, skip remaining URLs on that domain for this invocation.
 
-const FETCH_TIMEOUT_MS       = 6500;    // per-URL hard abort
-const GLOBAL_CONCURRENCY     = 8;       // total parallel fetches
-const DOMAIN_CONCURRENCY     = 1;       // per-hostname concurrency
-const INVOCATION_BUDGET_MS   = 6000;    // wall-clock ceiling for new work
-const JITTER_MIN_MS          = 100;
-const JITTER_MAX_MS          = 400;
-const MAX_HTML_SIZE          = 1024 * 1024; // 1 MB
+const FETCH_TIMEOUT_MS         = 6500;    // per-URL hard abort
+const GLOBAL_CONCURRENCY       = 8;       // total parallel fetches
+const DOMAIN_CONCURRENCY       = 1;       // per-hostname concurrency
+const INVOCATION_BUDGET_MS     = 6000;    // wall-clock ceiling for new work
+const JITTER_MIN_MS            = 100;
+const JITTER_MAX_MS            = 400;
+const DOMAIN_COOLDOWN_THRESHOLD = 2;      // failures before domain is skipped
+const MAX_HTML_SIZE            = 1024 * 1024; // 1 MB
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -46,6 +49,8 @@ interface UrlResult {
   inserted: number;
   skippedDuplicates: number;
   skippedBudget: boolean;
+  skippedCooldown: boolean;
+  triggeredCooldown: boolean; // this URL's failure incremented the domain failure count
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -130,13 +135,24 @@ async function fetchWithTimeout(url: string): Promise<string> {
 
 async function processUrl(
   url: string,
+  hostname: string,
   groupedPages: MonitoredPage[],
-  invocationStart: number
+  invocationStart: number,
+  domainFailureCounts: Map<string, number>
 ): Promise<UrlResult> {
+  const empty: UrlResult = { succeeded: false, failed: false, inserted: 0, skippedDuplicates: 0, skippedBudget: false, skippedCooldown: false, triggeredCooldown: false };
+
   // Budget check: do not start new work if we are past the wall-clock ceiling.
   // Leaves time for the Supabase writes and Sentry flush before the function exits.
   if (Date.now() - invocationStart > INVOCATION_BUDGET_MS) {
-    return { succeeded: false, failed: false, inserted: 0, skippedDuplicates: 0, skippedBudget: true };
+    return { ...empty, skippedBudget: true };
+  }
+
+  // Domain cooldown check: if this hostname has already hit the failure threshold
+  // during this invocation, skip without fetching. Per-domain semaphore ensures
+  // requests are serialised per hostname, so this check is race-free.
+  if ((domainFailureCounts.get(hostname) ?? 0) >= DOMAIN_COOLDOWN_THRESHOLD) {
+    return { ...empty, skippedCooldown: true };
   }
 
   // Per-URL random jitter — staggers burst patterns against CDNs.
@@ -242,7 +258,7 @@ async function processUrl(
       inserted += 1;
     }
 
-    return { succeeded: true, failed: false, inserted, skippedDuplicates, skippedBudget: false };
+    return { ...empty, succeeded: true, inserted, skippedDuplicates };
 
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -263,7 +279,21 @@ async function processUrl(
       Sentry.captureException(error);
     }
 
-    return { succeeded: false, failed: true, inserted: 0, skippedDuplicates: 0, skippedBudget: false };
+    // Domain cooldown: track 403/429 and timeouts. After DOMAIN_COOLDOWN_THRESHOLD
+    // failures on the same hostname in one invocation, remaining URLs on that domain
+    // are skipped. The per-domain semaphore (concurrency=1) ensures this is safe
+    // to update without locks — only one request per domain runs at a time.
+    const triggersCooldown =
+      msg.includes("Fetch failed: 403") ||
+      msg.includes("Fetch failed: 429") ||
+      msg.includes("AbortError") ||
+      msg.includes("This operation was aborted");
+
+    if (triggersCooldown) {
+      domainFailureCounts.set(hostname, (domainFailureCounts.get(hostname) ?? 0) + 1);
+    }
+
+    return { ...empty, failed: true, triggeredCooldown: triggersCooldown };
   }
 }
 
@@ -332,6 +362,9 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     const globalSem = createSemaphore(GLOBAL_CONCURRENCY);
     const domainSems = new Map<string, ReturnType<typeof createSemaphore>>();
+    // Shared mutable failure counter per hostname. Safe without locks because
+    // per-domain semaphore (concurrency=1) serialises access per hostname.
+    const domainFailureCounts = new Map<string, number>();
 
     const getDomainSem = (hostname: string) => {
       if (!domainSems.has(hostname)) {
@@ -354,19 +387,20 @@ async function handler(req: ApiReq, res: ApiRes) {
 
         return globalSem(() =>
           domainSem(() =>
-            processUrl(url, groupedPages, startedAt)
+            processUrl(url, hostname, groupedPages, startedAt, domainFailureCounts)
           )
         );
       })
     );
 
     // ── Aggregate metrics ──────────────────────────────────────────────────
-    let rowsProcessed      = 0;
-    let rowsSucceeded      = 0;
-    let rowsFailed         = 0;
-    let rowsInserted       = 0;
+    let rowsProcessed         = 0;
+    let rowsSucceeded         = 0;
+    let rowsFailed            = 0;
+    let rowsInserted          = 0;
     let rowsSkippedDuplicates = 0;
-    let rowsSkippedBudget  = 0;
+    let rowsSkippedBudget     = 0;
+    let rowsSkippedCooldown   = 0;
 
     for (const result of settled) {
       if (result.status === "rejected") {
@@ -377,16 +411,26 @@ async function handler(req: ApiReq, res: ApiRes) {
       }
 
       const r = result.value;
-      if (r.skippedBudget) {
-        rowsSkippedBudget += 1;
-        continue;
-      }
+      if (r.skippedBudget)   { rowsSkippedBudget   += 1; continue; }
+      if (r.skippedCooldown) { rowsSkippedCooldown += 1; continue; }
 
-      rowsProcessed      += 1;
-      rowsInserted       += r.inserted;
+      rowsProcessed         += 1;
+      rowsInserted          += r.inserted;
       rowsSkippedDuplicates += r.skippedDuplicates;
       if (r.succeeded) rowsSucceeded += 1;
       if (r.failed)    rowsFailed    += 1;
+    }
+
+    // Emit a warning when domain cooldowns materially reduce coverage.
+    // This indicates a CDN blocking pattern that warrants investigation.
+    if (rowsSkippedCooldown > 0) {
+      const cooledDomains = [...domainFailureCounts.entries()]
+        .filter(([, count]) => count >= DOMAIN_COOLDOWN_THRESHOLD)
+        .map(([domain]) => domain);
+      Sentry.captureMessage("fetch_domain_cooldown", {
+        level: "warning",
+        extra: { rowsSkippedCooldown, cooledDomains },
+      });
     }
 
     const runtimeDurationMs = Date.now() - startedAt;
@@ -402,6 +446,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsInserted,
       rowsSkippedDuplicates,
       rowsSkippedBudget,
+      rowsSkippedCooldown,
       runtimeDurationMs,
     });
 
@@ -419,6 +464,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsInserted,
       rowsSkippedDuplicates,
       rowsSkippedBudget,
+      rowsSkippedCooldown,
       runtimeDurationMs,
     });
 

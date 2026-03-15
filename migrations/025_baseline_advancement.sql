@@ -19,6 +19,7 @@
 --
 -- Called by:
 --   /api/promote-baselines (Vercel cron, daily)
+--   /api/promote-baselines?dry_run=1 (manual verification — computes but does not commit)
 --
 -- HOW TO APPLY: paste each block separately in the Supabase SQL editor,
 -- or let the migration runner apply it automatically.
@@ -86,7 +87,7 @@ CREATE INDEX IF NOT EXISTS idx_section_baselines_page_type_active
 --
 -- Returns: promoted_count, pairs_evaluated
 
-CREATE OR REPLACE FUNCTION promote_section_baselines()
+CREATE OR REPLACE FUNCTION promote_section_baselines(dry_run boolean DEFAULT false)
 RETURNS TABLE(promoted_count integer, pairs_evaluated integer)
 LANGUAGE plpgsql
 AS $func$
@@ -200,32 +201,35 @@ BEGIN
       CONTINUE;
     END IF;
 
-    -- Retire the current active baseline.
-    UPDATE section_baselines
-    SET is_active  = false,
-        retired_at = now()
-    WHERE id = rec.old_baseline_id;
+    -- In dry-run mode, count but do not commit the promotion.
+    IF NOT dry_run THEN
+      -- Retire the current active baseline.
+      UPDATE section_baselines
+      SET is_active  = false,
+          retired_at = now()
+      WHERE id = rec.old_baseline_id;
 
-    -- Insert the new active baseline as the next version.
-    INSERT INTO section_baselines (
-      monitored_page_id,
-      section_type,
-      section_hash,
-      source_section_id,
-      baseline_text,
-      version,
-      is_active,
-      promoted_from_section_id
-    ) VALUES (
-      rec.monitored_page_id,
-      rec.section_type,
-      rec.candidate_hash,
-      rec.new_source_section_id,
-      rec.new_baseline_text,
-      rec.old_version + 1,
-      true,
-      rec.new_source_section_id
-    );
+      -- Insert the new active baseline as the next version.
+      INSERT INTO section_baselines (
+        monitored_page_id,
+        section_type,
+        section_hash,
+        source_section_id,
+        baseline_text,
+        version,
+        is_active,
+        promoted_from_section_id
+      ) VALUES (
+        rec.monitored_page_id,
+        rec.section_type,
+        rec.candidate_hash,
+        rec.new_source_section_id,
+        rec.new_baseline_text,
+        rec.old_version + 1,
+        true,
+        rec.new_source_section_id
+      );
+    END IF;
 
     v_promoted := v_promoted + 1;
   END LOOP;
