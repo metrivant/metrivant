@@ -235,6 +235,62 @@ function getTrailPoints(index: number, radius: number): Point[] {
   }));
 }
 
+// ─── Zone-aware layout ─────────────────────────────────────────────────────
+// Dormant competitors park in the inner orbit band — clear of the center point.
+// Each zone has a radius min/max; competitors spread across the band by zone rank.
+// Gaps between zones create visual tiers: quiet inside, active outside.
+const ZONE_RADII = {
+  dormant:  { min: 90,  max: 175 }, // momentum < 1.5
+  watch:    { min: 192, max: 252 }, // 1.5 ≤ momentum < 3
+  active:   { min: 270, max: 330 }, // 3 ≤ momentum < 5
+  critical: { min: 348, max: 408 }, // momentum ≥ 5
+} as const;
+
+function getRadialZone(momentum: number): keyof typeof ZONE_RADII {
+  if (momentum >= 5)   return "critical";
+  if (momentum >= 3)   return "active";
+  if (momentum >= 1.5) return "watch";
+  return "dormant";
+}
+
+// FNV-1a 32-bit hash → stable 0–1 float from competitor_id.
+// Same id always maps to the same angle across refreshes.
+function idHash(id: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) {
+    h = Math.imul(h ^ id.charCodeAt(i), 16777619) >>> 0;
+  }
+  return h / 0xFFFFFFFF;
+}
+
+// Zone-aware, ID-anchored placement.
+// competitorId → deterministic angle; momentum → zone; zoneIndex/zoneTotal → radius within band.
+function getZoneNodePosition(
+  competitorId: string,
+  momentum: number,
+  zoneIndex: number,
+  zoneTotal: number,
+): Point {
+  const band = ZONE_RADII[getRadialZone(momentum)];
+  const angle = idHash(competitorId) * 2 * Math.PI;
+  const t = zoneTotal > 1 ? zoneIndex / (zoneTotal - 1) : 0.5;
+  const r = band.min + t * (band.max - band.min);
+  return {
+    x: CENTER + r * Math.cos(angle),
+    y: CENTER + r * Math.sin(angle),
+  };
+}
+
+// Trail dots from center toward node — direction matches actual node position.
+function getTrailPointsFromPos(nx: number, ny: number): Point[] {
+  const dx = nx - CENTER;
+  const dy = ny - CENTER;
+  return [0.22, 0.40, 0.58, 0.76].map((factor) => ({
+    x: CENTER + dx * factor,
+    y: CENTER + dy * factor,
+  }));
+}
+
 function getNodeSize(momentum: number): number {
   return 16 + Math.sqrt(Math.max(momentum, 0)) * 3.2;
 }
@@ -438,6 +494,9 @@ const BlipNode = memo(function BlipNode({
   const [hovered, setHovered] = useState(false);
   const momentum = Number(competitor.momentum_score ?? 0);
 
+  // Dormant: momentum below stable threshold — receives de-emphasis treatment
+  const isDormantNode = momentum < 1.5;
+
   // "Movement building" — rising momentum with a recent signal (not yet critical)
   const isBuilding =
     momentum >= 3 &&
@@ -446,7 +505,8 @@ const BlipNode = memo(function BlipNode({
     Date.now() - new Date(competitor.last_signal_at).getTime() < 24 * 60 * 60 * 1000;
   const radius = radiusScale(momentum);
   const { x, y } = gravityPos ?? getNodePosition(index, total, radius);
-  const trail = gravityMode ? [] : getTrailPoints(index, radius);
+  // Trail dots: suppress for dormant (no movement history); direction follows actual position.
+  const trail = (gravityMode || isDormantNode) ? [] : getTrailPointsFromPos(x, y);
   const color = getMovementColor(competitor.latest_movement_type);
   const nodeSize = getNodeSize(momentum);
   const echoDuration = getMomentumEchoDuration(momentum);
@@ -457,7 +517,9 @@ const BlipNode = memo(function BlipNode({
   // Confidence-proportional opacity — low-confidence nodes render subtly subdued
   const conf = Number(competitor.latest_movement_confidence ?? 1.0);
   const confMult = isDimmed || timeDimmed || isSelected ? 1.0 : conf >= 0.65 ? 1.0 : conf >= 0.4 ? 0.88 : 0.75;
-  const groupOpacity = (isDimmed ? 0.22 : timeDimmed ? 0.12 : isSelected ? 1.0 : ageOpacity) * confMult;
+  // Dormant de-emphasis: lower base opacity when quiet and not selected/dimmed
+  const dormantFade = isDormantNode && !isSelected && !isDimmed && !timeDimmed ? 0.52 : 1.0;
+  const groupOpacity = (isDimmed ? 0.22 : timeDimmed ? 0.12 : isSelected ? 1.0 : ageOpacity) * confMult * dormantFade;
 
   // When the beam crosses this blip (seconds into the 12s sweep cycle)
   const sweepDelay = getSweepDelay(x, y);
@@ -748,55 +810,75 @@ const BlipNode = memo(function BlipNode({
         />
       )}
 
-      {/* Core blip */}
+      {/* Core blip — dormant: hollow outline; active: filled */}
       <motion.circle
         cx={x}
         cy={y}
         r={nodeSize}
-        fill={color}
-        filter={isSelected ? "url(#blipGlowStrong)" : "url(#blipGlow)"}
+        fill={isDormantNode ? "none" : color}
+        stroke={isDormantNode ? color : "none"}
+        strokeWidth={isDormantNode ? "1.2" : "0"}
+        filter={isSelected ? "url(#blipGlowStrong)" : (isDormantNode ? "none" : "url(#blipGlow)")}
         animate={isSelected ? { scale: [1, 1.1, 1] } : { scale: 1 }}
         transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
         style={{ transformOrigin: `${x}px ${y}px` }}
       />
 
-      {/* Label */}
-      <text
-        x={x}
-        y={y + nodeSize + 14}
-        textAnchor="middle"
-        fill={
-          isSelected
-            ? "#f0fff4"
-            : hovered
-            ? "#d0ead0"
-            : isMobile ? "#c8dfc8" : "#b8d0b8"
-        }
-        fontSize={isMobile ? "15" : "13"}
-        fontWeight={isSelected ? "600" : hovered ? "500" : isMobile ? "500" : "400"}
-        fontFamily="Inter, system-ui, sans-serif"
-        letterSpacing="0.02em"
-        style={{
-          filter: isSelected
-            ? "drop-shadow(0 0 6px rgba(46,230,166,0.70)) drop-shadow(0 1px 3px rgba(0,0,0,0.98))"
-            : hovered
-            ? "drop-shadow(0 0 4px rgba(46,230,166,0.45)) drop-shadow(0 1px 3px rgba(0,0,0,0.98))"
-            : "drop-shadow(0 1px 4px rgba(0,0,0,0.99)) drop-shadow(0 0 2px rgba(0,0,0,0.99))",
-          pointerEvents: "none",
-        }}
-      >
-        {(() => {
-          const name = competitor.competitor_name;
-          const maxLen = isMobile ? 10 : 14;
-          return name.length > maxLen ? name.slice(0, maxLen - 1) + "…" : name;
-        })()}
-      </text>
+      {/* Label — hidden for dormant nodes by default; shown on hover or selection */}
+      {(!isDormantNode || isSelected || hovered) && (
+        <text
+          x={x}
+          y={y + nodeSize + 14}
+          textAnchor="middle"
+          fill={
+            isSelected
+              ? "#f0fff4"
+              : hovered
+              ? "#d0ead0"
+              : isMobile ? "#c8dfc8" : "#b8d0b8"
+          }
+          fontSize={isMobile ? "15" : "13"}
+          fontWeight={isSelected ? "600" : hovered ? "500" : isMobile ? "500" : "400"}
+          fontFamily="Inter, system-ui, sans-serif"
+          letterSpacing="0.02em"
+          style={{
+            filter: isSelected
+              ? "drop-shadow(0 0 6px rgba(46,230,166,0.70)) drop-shadow(0 1px 3px rgba(0,0,0,0.98))"
+              : hovered
+              ? "drop-shadow(0 0 4px rgba(46,230,166,0.45)) drop-shadow(0 1px 3px rgba(0,0,0,0.98))"
+              : "drop-shadow(0 1px 4px rgba(0,0,0,0.99)) drop-shadow(0 0 2px rgba(0,0,0,0.99))",
+            pointerEvents: "none",
+          }}
+        >
+          {(() => {
+            const name = competitor.competitor_name;
+            const maxLen = isMobile ? 10 : 14;
+            return name.length > maxLen ? name.slice(0, maxLen - 1) + "…" : name;
+          })()}
+        </text>
+      )}
+
+      {/* Dormant state hint — shown on hover to confirm presence without signal label */}
+      {isDormantNode && hovered && !isSelected && (
+        <text
+          x={x}
+          y={y + nodeSize + 27}
+          textAnchor="middle"
+          fill="rgba(100,116,139,0.50)"
+          fontSize="9"
+          fontFamily="Inter, system-ui, sans-serif"
+          letterSpacing="0.05em"
+          style={{ pointerEvents: "none", filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.98))" }}
+        >
+          dormant
+        </text>
+      )}
 
       {/* Tension description — shown on hover when strategic tension exists */}
       {hovered && tensionDescription && (
         <text
           x={x}
-          y={y + nodeSize + 28}
+          y={y + nodeSize + (isDormantNode ? 40 : 28)}
           textAnchor="middle"
           fill="rgba(148,163,184,0.60)"
           fontSize="9"
@@ -815,7 +897,7 @@ const BlipNode = memo(function BlipNode({
       {hovered && isHiringSurge && (
         <text
           x={x}
-          y={y + nodeSize + (tensionDescription ? 40 : 28)}
+          y={y + nodeSize + (tensionDescription ? (isDormantNode ? 53 : 40) : (isDormantNode ? 40 : 28))}
           textAnchor="middle"
           fill="rgba(196,181,253,0.55)"
           fontSize="9"
@@ -1064,15 +1146,27 @@ export default function Radar({
     return [...map.values()].filter((g) => g.nodes.length >= 2);
   }, [gravityMode, gravityPositions, sorted]);
 
-  // Standard-mode node positions: same layout as golden-spiral, precomputed for pressure zones
+  // Standard-mode node positions: zone-aware, ID-anchored placement.
+  // Competitors are grouped by radial zone then spread across the zone's radius band.
+  // sorted order is preserved within each zone for stable radius assignment.
   const standardPositions = useMemo((): Map<string, Point> => {
+    const zoneGroups: Record<string, RadarCompetitor[]> = {
+      dormant: [], watch: [], active: [], critical: [],
+    };
+    for (const c of sorted) {
+      zoneGroups[getRadialZone(Number(c.momentum_score ?? 0))].push(c);
+    }
     const map = new Map<string, Point>();
-    sorted.forEach((c, i) => {
-      const pos = getNodePosition(i, sorted.length, radiusScale(Number(c.momentum_score ?? 0)));
-      map.set(c.competitor_id, pos);
-    });
+    for (const members of Object.values(zoneGroups)) {
+      members.forEach((c, zi) => {
+        map.set(
+          c.competitor_id,
+          getZoneNodePosition(c.competitor_id, Number(c.momentum_score ?? 0), zi, members.length),
+        );
+      });
+    }
     return map;
-  }, [sorted, radiusScale]);
+  }, [sorted]);
 
   // Pressure zones: movement-type clusters with 2+ nodes in standard mode
   const pressureZones = useMemo(() => {
@@ -2201,7 +2295,11 @@ export default function Radar({
                   isAlerted={alertActive && competitor.competitor_id === criticalAlert?.competitor_id}
                   onSelect={handleBlipClick}
                   isMobile={isMobile}
-                  gravityPos={gravityMode ? gravityPositions.get(competitor.competitor_id) : undefined}
+                  gravityPos={
+                    gravityMode
+                      ? gravityPositions.get(competitor.competitor_id)
+                      : standardPositions.get(competitor.competitor_id)
+                  }
                   gravityMode={gravityMode}
                   timeDimmed={
                     timeDimmedSet.has(competitor.competitor_id) &&
