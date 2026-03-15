@@ -4,16 +4,21 @@
 //
 // Pipeline:
 //  1. Load all orgs
-//  2. For each org, fetch radar_feed (via service client)
+//  2. For each org, fetch radar_feed via runtime API (org-scoped, tracked_competitors)
 //  3. Call OpenAI gpt-4o to score competitors on the 2-axis market map
 //  4. Detect significant shifts vs. previous known positions
 //  5. Upsert competitor_positioning (current state)
 //  6. Insert positioning_history (time series)
 //  7. Email org owner if significant shift detected
 //  8. Fire PostHog events
+//
+// NOTE: radar_feed Supabase view has no org_id column — do NOT query it with
+// .eq("org_id", ...). Use getRadarFeed(limit, orgId) which calls the runtime
+// API endpoint that scopes via tracked_competitors correctly.
 
 import { NextResponse } from "next/server";
 import { createServiceClient } from "../../../lib/supabase/service";
+import { getRadarFeed } from "../../../lib/api";
 import {
   generatePositioning,
   detectSignificantShift,
@@ -74,25 +79,22 @@ async function handler(request: Request): Promise<NextResponse> {
         .gte("updated_at", oneHourAgo);
       if ((recentCount ?? 0) > 0) { processedOrgCount++; continue; }
 
-      // Load radar feed for this org
-      const { data: feed } = await service
-        .from("radar_feed")
-        .select(
-          "competitor_id, competitor_name, signals_7d, weighted_velocity_7d, " +
-          "last_signal_at, latest_movement_type, latest_movement_confidence, " +
-          "latest_movement_signal_count, latest_movement_velocity, " +
-          "latest_movement_first_seen_at, latest_movement_last_seen_at, " +
-          "latest_movement_summary, momentum_score"
-        )
-        .eq("org_id", org.id)
-        .order("momentum_score", { ascending: false })
-        .limit(30);
+      // Load radar feed for this org via runtime API.
+      // The radar_feed Supabase view has no org_id column and cannot be scoped
+      // per-org directly. The runtime /api/radar-feed endpoint scopes correctly
+      // via tracked_competitors.not("competitor_id","is",null).eq("org_id", orgId).
+      let feed: Awaited<ReturnType<typeof getRadarFeed>>;
+      try {
+        feed = await getRadarFeed(30, org.id as string);
+      } catch {
+        // Non-fatal — runtime may be temporarily unavailable
+        continue;
+      }
 
       if (!feed || feed.length === 0) continue;
 
       // Generate positioning scores
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await generatePositioning(OPENAI_API_KEY, feed as any, analysisDate, (org.sector as string | null) ?? undefined);
+      const result = await generatePositioning(OPENAI_API_KEY, feed, analysisDate, (org.sector as string | null) ?? undefined);
 
       if (result.positioning.length === 0) continue;
 

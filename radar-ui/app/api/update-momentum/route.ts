@@ -1,12 +1,17 @@
 // ── /api/update-momentum ──────────────────────────────────────────────────────
 // Vercel cron: every 6 hours (0 */6 * * *)
-// 1. Reads radar_feed for each org
+// 1. Reads radar_feed via runtime API (org-scoped, tracked_competitors)
 // 2. Appends a momentum_history snapshot per competitor
 // 3. Upserts competitor_momentum with current state
 // 4. Emails org owner + fires PostHog if any competitor crossed → Accelerating
+//
+// NOTE: radar_feed Supabase view has no org_id column — do NOT query it with
+// .eq("org_id", ...). Use getRadarFeed(limit, orgId) which calls the runtime
+// API endpoint that scopes via tracked_competitors correctly.
 
 import { NextResponse } from "next/server";
 import { createServiceClient } from "../../../lib/supabase/service";
+import { getRadarFeed } from "../../../lib/api";
 import {
   getMomentumState,
   buildMomentumAlertEmailHtml,
@@ -55,13 +60,17 @@ async function handler(request: Request): Promise<NextResponse> {
 
   for (const org of orgs) {
     try {
-    // Load current radar_feed for this org — ordered for deterministic top-50 selection
-    const { data: feed } = await service
-      .from("radar_feed")
-      .select("competitor_id, competitor_name, momentum_score")
-      .eq("org_id", org.id)
-      .order("momentum_score", { ascending: false })
-      .limit(50);
+    // Load current radar_feed for this org via runtime API.
+    // The radar_feed Supabase view has no org_id column and cannot be scoped
+    // per-org directly. The runtime /api/radar-feed endpoint scopes correctly
+    // via tracked_competitors.not("competitor_id","is",null).eq("org_id", orgId).
+    let feed: Awaited<ReturnType<typeof getRadarFeed>>;
+    try {
+      feed = await getRadarFeed(50, org.id as string);
+    } catch {
+      // Non-fatal — runtime may be temporarily unavailable
+      continue;
+    }
 
     if (!feed || feed.length === 0) continue;
 

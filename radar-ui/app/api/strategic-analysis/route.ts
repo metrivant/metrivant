@@ -4,15 +4,20 @@
 //
 // Pipeline:
 //  1. Load all orgs
-//  2. For each org, fetch radar_feed
+//  2. For each org, fetch radar_feed via runtime API (org-scoped, tracked_competitors)
 //  3. Build structured prompt from competitor movements
 //  4. Call gpt-4o to detect cross-competitor patterns
 //  5. Store insights in strategic_insights
 //  6. Send email if any is_major insights detected
 //  7. Fire PostHog batch events
+//
+// NOTE: radar_feed Supabase view has no org_id column — do NOT query it with
+// .eq("org_id", ...). Use getRadarFeed(limit, orgId) which calls the runtime
+// API endpoint that scopes via tracked_competitors correctly.
 
 import { NextResponse } from "next/server";
 import { createServiceClient } from "../../../lib/supabase/service";
+import { getRadarFeed } from "../../../lib/api";
 import {
   generateStrategicAnalysis,
   buildStrategyAlertEmailHtml,
@@ -69,29 +74,22 @@ async function handler(request: Request): Promise<NextResponse> {
   for (const org of orgs) {
     if (processedOrgCount >= maxOrgsPerRun) break;
     try {
-      // Load radar feed for this org
-      const { data: feed } = await service
-        .from("radar_feed")
-        .select(
-          "competitor_id, competitor_name, signals_7d, weighted_velocity_7d, " +
-          "last_signal_at, latest_movement_type, latest_movement_confidence, " +
-          "latest_movement_signal_count, latest_movement_velocity, " +
-          "latest_movement_first_seen_at, latest_movement_last_seen_at, " +
-          "latest_movement_summary, momentum_score"
-        )
-        .eq("org_id", org.id)
-        .order("momentum_score", { ascending: false })
-        .limit(30);
+      // Load radar feed for this org via runtime API.
+      // The radar_feed Supabase view has no org_id column and cannot be scoped
+      // per-org directly. The runtime /api/radar-feed endpoint scopes correctly
+      // via tracked_competitors.not("competitor_id","is",null).eq("org_id", orgId).
+      let feed: Awaited<ReturnType<typeof getRadarFeed>>;
+      try {
+        feed = await getRadarFeed(30, org.id as string);
+      } catch {
+        // Non-fatal — runtime may be temporarily unavailable
+        continue;
+      }
 
       if (!feed || feed.length < 2) continue;
 
-      type FeedRow = {
-        latest_movement_type?: string | null;
-        signals_7d?: number | null;
-      };
-
       // Need at least 2 competitors with any movement for pattern detection
-      const withMovement = (feed as FeedRow[]).filter(
+      const withMovement = feed.filter(
         (c) => c.latest_movement_type || Number(c.signals_7d) > 0
       );
       if (withMovement.length < 2) continue;
@@ -99,8 +97,7 @@ async function handler(request: Request): Promise<NextResponse> {
       // Generate strategic analysis
       const result = await generateStrategicAnalysis(
         OPENAI_API_KEY,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        feed as any,
+        feed,
         analysisDate,
         (org.sector as string | null) ?? undefined
       );
