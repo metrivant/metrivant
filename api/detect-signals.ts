@@ -22,7 +22,6 @@ const SECTION_WEIGHTS: Record<string, number> = {
   features_overview:    0.50,
   press_feed:           0.50,
   product_mentions:     0.45,
-  careers_feed:         0.30,
 };
 
 const DEFAULT_WEIGHT = 0.25;
@@ -165,9 +164,6 @@ function classifySignal(
     case "product_mentions":
       return { signal_type: "feature_launch",     severity: "medium", signal_data: excerpts };
 
-    case "careers_feed":
-      return { signal_type: "hiring_surge",       severity: "low",    signal_data: excerpts };
-
     default:
       return { signal_type: "content_change",     severity: "low",    signal_data: excerpts };
   }
@@ -309,6 +305,31 @@ async function handler(req: ApiReq, res: ApiRes) {
       }
     }
 
+    // ── Pre-batch: compute all potential signal hashes + batch-fetch existing ──
+    // Eliminates N+1 SELECT on signals table (was 1 query per diff after confidence gate).
+    // Hash requires signalType which is determined purely by sectionType — no I/O needed.
+    const potentialHashes = new Map<string, string>(); // diffId → hash
+    for (const diff of eligibleDiffs) {
+      const cid = diff.monitored_pages?.competitor_id;
+      if (!cid) continue;
+      const prev = sectionContentMap.get(diff.previous_section_id ?? "");
+      const curr  = sectionContentMap.get(diff.current_section_id ?? "");
+      if (!prev || !curr) continue;
+      const { signal_type } = classifySignal(diff.section_type, prev.section_text, curr.section_text);
+      potentialHashes.set(diff.id, computeSignalHash(cid, signal_type, diff.section_type, diff.id));
+    }
+
+    const existingHashSet = new Set<string>();
+    if (potentialHashes.size > 0) {
+      const { data: existingHashes } = await supabase
+        .from("signals")
+        .select("signal_hash")
+        .in("signal_hash", [...potentialHashes.values()]);
+      for (const row of (existingHashes ?? []) as { signal_hash: string }[]) {
+        existingHashSet.add(row.signal_hash);
+      }
+    }
+
     for (const diff of eligibleDiffs) {
       rowsProcessed += 1;
 
@@ -393,20 +414,15 @@ async function handler(req: ApiReq, res: ApiRes) {
 
         // ── Signal-hash deduplication ─────────────────────────────────────────
         // One signal per diff — anchored to diff.id, not a calendar day.
-        const signalHash = computeSignalHash(
+        // Hash pre-fetched above in batch — O(1) Set lookup, no per-diff query.
+        const signalHash = potentialHashes.get(diff.id) ?? computeSignalHash(
           competitorId,
           signal.signal_type,
           diff.section_type,
           diff.id
         );
 
-        const { data: hashCheck } = await supabase
-          .from("signals")
-          .select("id")
-          .eq("signal_hash", signalHash)
-          .maybeSingle();
-
-        if (hashCheck) {
+        if (existingHashSet.has(signalHash)) {
           // Already have a signal for this diff — mark processed and skip.
           await supabase
             .from("section_diffs")
@@ -445,30 +461,13 @@ async function handler(req: ApiReq, res: ApiRes) {
           signal_hash:       signalHash,
         };
 
-        // TODO: remove this fallback once migration 015 (signals.competitor_id) is
-        // confirmed applied to production. Until then, 42703 means the column does
-        // not yet exist and we write without it so no signal is ever lost.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let { error: upsertError } = await supabase
+        const { error: upsertError } = await supabase
           .from("signals")
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .upsert({ ...baseSignalPayload, competitor_id: competitorId } as any, {
             onConflict: "section_diff_id,signal_type",
           });
-
-        if (upsertError && (upsertError as { code?: string }).code === "42703") {
-          // competitor_id column not yet in schema — fall back to base payload.
-          Sentry.addBreadcrumb({
-            category: "pipeline",
-            message: "competitor_id column not yet on signals — migration 015 pending",
-            level: "info",
-          });
-          ({ error: upsertError } = await supabase
-            .from("signals")
-            .upsert(baseSignalPayload, {
-              onConflict: "section_diff_id,signal_type",
-            }));
-        }
 
         if (upsertError) throw upsertError;
 
