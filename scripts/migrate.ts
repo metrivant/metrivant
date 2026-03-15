@@ -115,6 +115,14 @@ function discoverMigrations(): Migration[] {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
+  // Diagnostic: print parsed connection details (no password) to confirm secret format
+  try {
+    const u = new URL(DB_URL!);
+    console.log(`\n  [diag] user=${u.username}  host=${u.hostname}  port=${u.port}  db=${u.pathname}`);
+  } catch {
+    console.log(`\n  [diag] URL parse failed — secret may be malformed`);
+  }
+
   const client = new Client({
     connectionString: DB_URL,
     // Supabase requires SSL for direct connections
