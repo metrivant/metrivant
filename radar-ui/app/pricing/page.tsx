@@ -7,7 +7,7 @@ const PLANS = [
     name:        "Analyst",
     price:       "$9",
     period:      "/mo",
-    description: "Structured weekly intelligence on your top competitors.",
+    description: "Live radar dashboard and weekly briefings on your top rivals. First signals within hours of setup.",
     features: [
       "10 competitors monitored",
       "Weekly intelligence digest",
@@ -23,12 +23,12 @@ const PLANS = [
     period:      "/mo",
     description: "Live signals and alerts when rivals make their move.",
     features: [
-      "25 competitors monitored",
-      "Real-time signal alerts",
-      "Full intelligence drawer",
+      "Up to 25 rivals monitored",
+      "Instant alerts on critical moves",
+      "Deep-dive per-competitor profiles",
       "90-day signal history",
-      "Strategic movement analysis",
-      "Market positioning map",
+      "Cross-competitor pattern detection",
+      "Live market positioning map",
     ],
     cta:       "Start free trial",
     href:      "/signup?plan=pro",
@@ -102,10 +102,10 @@ export default function PricingPage() {
       <section className="mx-auto max-w-5xl px-6 pb-24 pt-36">
         <div className="mb-14 text-center">
           <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl">
-            Know what your competitors are doing.
+            All the intelligence.<br className="hidden md:block" /> None of the enterprise price.
           </h1>
           <p className="mt-4 text-[15px] text-slate-500">
-            3-day free trial. Cancel anytime.
+            Free trial included. Cancel anytime.
           </p>
         </div>
 
@@ -191,13 +191,8 @@ export default function PricingPage() {
           ))}
         </div>
 
-        {/* Trust line */}
-        <p className="mt-8 text-center text-[11px] text-slate-700">
-          No contracts · No setup fees · Cancel anytime
-        </p>
-
         {/* Price anchor */}
-        <div className="mt-12 flex items-center justify-center gap-3">
+        <div className="mt-10 flex items-center justify-center gap-3">
           <div className="flex items-center gap-2 rounded-full border border-[#0d1e0d] bg-[#020802] px-4 py-2">
             <span className="text-[11px] text-slate-600">Typical intelligence platforms</span>
             <span className="text-[13px] font-semibold text-slate-600 line-through decoration-slate-700/60">$200–$1,000/mo</span>
@@ -211,6 +206,11 @@ export default function PricingPage() {
             <span className="text-[13px] font-semibold text-[#2EE6A6]">Metrivant from $9/mo</span>
           </div>
         </div>
+
+        {/* Trust line */}
+        <p className="mt-6 text-center text-[11px] text-slate-700">
+          No contracts · No setup fees · Cancel anytime
+        </p>
       </section>
     </div>
   );

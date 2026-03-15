@@ -13,6 +13,7 @@ import {
 import StrategyTracker from "./StrategyTracker";
 import StrategyActionButton from "./StrategyActionButton";
 import StrategyTimeline from "./StrategyTimeline";
+import StrategyCompetitorPills from "./StrategyCompetitorPills";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -435,18 +436,7 @@ function SectionHeader({
 }
 
 function CompetitorPills({ names }: { names: string[] }) {
-  return (
-    <div className="mt-2 flex flex-wrap gap-1.5">
-      {names.map((name) => (
-        <span
-          key={name}
-          className="rounded-full border border-[#152415] bg-[#071507] px-2 py-0.5 text-[10px] text-slate-500"
-        >
-          {name}
-        </span>
-      ))}
-    </div>
-  );
+  return <StrategyCompetitorPills names={names} />;
 }
 
 function ConfidencePip({ confidence }: { confidence: number }) {

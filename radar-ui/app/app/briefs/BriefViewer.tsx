@@ -510,6 +510,42 @@ export default function BriefViewer({
               No significant competitive activity detected this week.
             </div>
           )}
+
+        {/* ── Cross-surface navigation ──────────────────────────────── */}
+        <div className="mt-8 flex items-center gap-4 border-t border-[#0d2010] pt-5">
+          <span
+            className="font-mono text-[9px] font-bold uppercase tracking-[0.22em]"
+            style={{ color: "rgba(46,230,166,0.28)" }}
+          >
+            Continue in
+          </span>
+          <a
+            href="/app/strategy"
+            className="flex items-center gap-1.5 text-[11px] text-slate-600 transition-colors hover:text-slate-300"
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"   stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.55" />
+              <circle cx="12" cy="12" r="4.5" stroke="currentColor" strokeWidth="1.2" strokeOpacity="0.40" />
+              <line x1="12" y1="3"  x2="12" y2="5.5"  stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.55" />
+              <line x1="12" y1="18.5" x2="12" y2="21" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.55" />
+              <line x1="3"  y1="12" x2="5.5"  y2="12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.55" />
+              <line x1="18.5" y1="12" x2="21" y2="12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.55" />
+            </svg>
+            Strategy →
+          </a>
+          <span className="text-slate-800">·</span>
+          <a
+            href="/app/market-map"
+            className="flex items-center gap-1.5 text-[11px] text-slate-600 transition-colors hover:text-slate-300"
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.55" />
+              <line x1="12" y1="3" x2="12" y2="21" stroke="currentColor" strokeWidth="1" strokeOpacity="0.35" strokeDasharray="3 2" />
+              <line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" strokeWidth="1" strokeOpacity="0.35" strokeDasharray="3 2" />
+            </svg>
+            Market Map →
+          </a>
+        </div>
       </div>
     </article>
   );

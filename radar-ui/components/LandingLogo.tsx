@@ -1,12 +1,46 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+
+function playSonarPing() {
+  try {
+    const ctx = new AudioContext();
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(900, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.55);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.55);
+  } catch { /* AudioContext unavailable — silent fail */ }
+}
 
 // Animated radar logo for the landing page hero.
 // Sweep arm rotates continuously; rings pulse at staggered intervals.
+// Click triggers a sonar ping sound + expanding pulse ring.
 export default function LandingLogo() {
+  const [pulseKey, setPulseKey] = useState(0);
+  const [pulsing,  setPulsing]  = useState(false);
+
+  function handleClick() {
+    playSonarPing();
+    setPulseKey((k) => k + 1);
+    setPulsing(true);
+    setTimeout(() => setPulsing(false), 900);
+  }
+
   return (
-    <div className="relative mb-5 flex items-center justify-center">
+    <div
+      className="relative mb-5 flex cursor-pointer items-center justify-center select-none"
+      onClick={handleClick}
+      role="button"
+      aria-label="Ping radar"
+    >
       {/* Outer ambient glow */}
       <motion.div
         className="pointer-events-none absolute rounded-full"
@@ -102,6 +136,25 @@ export default function LandingLogo() {
           animate={{ fillOpacity: [0.7, 1, 0.7] }}
           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
         />
+
+        {/* Click pulse — expands outward from centre */}
+        <AnimatePresence>
+          {pulsing && (
+            <motion.circle
+              key={pulseKey}
+              cx="23" cy="23"
+              r={2}
+              fill="none"
+              stroke="#2EE6A6"
+              strokeWidth="1.2"
+              initial={{ r: 2, strokeOpacity: 0.85, scale: 1 }}
+              animate={{ r: 26, strokeOpacity: 0, scale: 1 }}
+              exit={{}}
+              transition={{ duration: 0.85, ease: "easeOut" }}
+              style={{ transformBox: "fill-box", transformOrigin: "center" }}
+            />
+          )}
+        </AnimatePresence>
       </svg>
     </div>
   );

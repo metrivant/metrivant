@@ -235,9 +235,11 @@ export async function POST(request: Request) {
           .eq("website_url", comp.website_url);
       } else if (!result.value.ok) {
         // HTTP-level failure — runtime responded but with a non-2xx status.
+        // Use captureMessage (warning) not captureException — this is a transient
+        // infrastructure failure, not a code bug. Avoids Sentry error noise.
         failedCount += 1;
-        captureException(
-          new Error(`onboard-competitor HTTP error: HTTP ${result.value.status}`),
+        captureMessage(
+          `onboard-competitor HTTP ${result.value.status} for ${comp?.name ?? "unknown"}`,
           {
             route: "initialize-sector",
             step: "onboard_competitor_http",
@@ -245,7 +247,8 @@ export async function POST(request: Request) {
             http_status: result.value.status,
             org_id: orgId,
             sector,
-          }
+          },
+          "warning"
         );
         // Remove the null row for the same reason as above.
         await supabase

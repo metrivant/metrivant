@@ -1,6 +1,7 @@
 import Link from "next/link";
 import PublicNav from "../components/PublicNav";
 import LandingLogo from "../components/LandingLogo";
+import LandingFeaturePrompt from "../components/LandingFeaturePrompt";
 
 const LABEL_COLOR_STYLE = { color: "rgba(46,230,166,0.55)" } as const;
 
@@ -43,6 +44,7 @@ export default function LandingPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <PublicNav />
+      <LandingFeaturePrompt />
 
       {/* Dot grid */}
       <div
@@ -53,37 +55,46 @@ export default function LandingPage() {
           opacity: 0.018,
         }}
       />
-      {/* Green atmospheric glow */}
+      {/* Green atmospheric glow — breathing */}
       <div
         className="pointer-events-none fixed inset-0"
         style={{
-          background: "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(46,230,166,0.07) 0%, transparent 70%)",
+          background: "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(46,230,166,0.09) 0%, transparent 70%)",
+          animation: "glow-breathe 8s ease-in-out infinite",
         }}
       />
 
       {/* ── Hero ────────────────────────────────────────────────────── */}
       <section className="relative flex flex-1 flex-col items-center justify-center px-6 pb-24 pt-32 text-center">
         {/* Animated radar logo */}
-        <LandingLogo />
+        <div className="hero-fade-up" style={{ animationDelay: "0ms" }}>
+          <LandingLogo />
+        </div>
 
         <h1
-          className="mt-1 text-[34px] font-bold leading-none text-white"
-          style={{ letterSpacing: "0.09em" }}
+          className="hero-fade-up mt-1 text-[34px] font-bold leading-none text-white"
+          style={{ letterSpacing: "0.09em", animationDelay: "120ms" }}
         >
           METRIVANT
         </h1>
         <h2
-          className="mt-1 text-[11px] font-medium uppercase tracking-[0.34em]"
-          style={LABEL_COLOR_STYLE}
+          className="hero-fade-up mt-1 text-[11px] font-medium uppercase tracking-[0.34em]"
+          style={{ ...LABEL_COLOR_STYLE, animationDelay: "220ms" }}
         >
           Competitive Intelligence Radar
         </h2>
 
-        <p className="mt-4 max-w-sm text-[14px] leading-relaxed text-slate-500">
-          Know when competitors change pricing, launch features, or shift strategy — before the market does.
+        <p
+          className="hero-fade-up mt-4 max-w-sm text-[14px] leading-relaxed text-slate-400"
+          style={{ animationDelay: "320ms" }}
+        >
+          Automated monitoring across every rival. Pricing shifts, product launches, and strategy pivots — surfaced as signals, not noise.
         </p>
 
-        <div className="mt-8 flex items-center gap-3">
+        <div
+          className="hero-fade-up mt-8 flex items-center gap-3"
+          style={{ animationDelay: "440ms" }}
+        >
           <Link
             href="/signup"
             className="cta-pulse rounded-full bg-[#2EE6A6] px-8 py-2.5 text-[14px] font-semibold text-black transition-opacity hover:opacity-90"
@@ -92,14 +103,17 @@ export default function LandingPage() {
           </Link>
           <Link
             href="/login"
-            className="rounded-full border border-[#1a3a20] px-8 py-2.5 text-[14px] font-medium text-slate-400 transition-colors hover:border-[#2EE6A6]/30 hover:text-white"
+            className="px-4 py-2.5 text-[14px] font-medium text-slate-600 transition-colors hover:text-slate-300"
           >
             Sign in
           </Link>
         </div>
 
         {/* Pricing teaser */}
-        <div className="mt-6 flex items-center gap-2.5 text-[12px]">
+        <div
+          className="hero-fade-up mt-6 flex items-center gap-2.5 text-[12px]"
+          style={{ animationDelay: "560ms" }}
+        >
           <Link href="/pricing" className="text-slate-600 transition-colors hover:text-slate-400">
             From $9/mo
           </Link>
@@ -121,15 +135,15 @@ export default function LandingPage() {
               body:  "Every signal is grounded in real page changes — not AI guesswork.",
             },
             {
-              label: "Sector-aware",
-              body:  "Terminology and pattern detection tuned to your market vertical.",
+              label: "Zero noise",
+              body:  "Confidence scoring filters cosmetic page changes from real strategic moves. Signals, not notifications.",
             },
             {
               label: "Early signal",
               body:  "Detects competitor intent before it surfaces in press or public filings.",
             },
           ].map(({ label, body }) => (
-            <div key={label} className="flex flex-col gap-2">
+            <div key={label} className="flex flex-col gap-2 transition-transform duration-300 hover:-translate-y-0.5">
               <div className="text-[11px] font-bold uppercase tracking-[0.18em]" style={LABEL_COLOR_STYLE}>
                 {label}
               </div>
@@ -147,13 +161,13 @@ export default function LandingPage() {
               Pricing
             </div>
             <h2 className="mt-1.5 text-[20px] font-semibold text-white">
-              Start watching. Stop guessing.
+              Full intelligence stack. From $9/mo.
             </h2>
           </div>
 
           <div className="mx-auto grid max-w-xl gap-3 sm:grid-cols-2">
             {/* Analyst */}
-            <div className="rounded-[14px] border border-[#0d2010] bg-[#020802] px-5 py-5">
+            <div className="rounded-[14px] border border-[#0d2010] bg-[#020802] px-5 py-5 transition-transform duration-300 hover:-translate-y-0.5">
               <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Analyst</div>
               <div className="mt-2 text-[26px] font-bold text-white leading-none">
                 $9<span className="text-[13px] font-normal text-slate-500">/mo</span>
@@ -176,7 +190,7 @@ export default function LandingPage() {
 
             {/* Pro — highlighted */}
             <div
-              className="relative rounded-[14px] border border-[#2EE6A6]/22 bg-[#030c03] px-5 py-5"
+              className="relative rounded-[14px] border border-[#2EE6A6]/22 bg-[#030c03] px-5 py-5 transition-all duration-300 hover:-translate-y-0.5"
               style={{ boxShadow: "0 0 30px rgba(46,230,166,0.04)" }}
             >
               <div
@@ -194,12 +208,12 @@ export default function LandingPage() {
               </div>
               <ul className="mt-3 space-y-1.5">
                 {[
-                  "25 competitors monitored",
-                  "Real-time signal alerts",
-                  "Full intelligence drawer",
+                  "Up to 25 rivals monitored",
+                  "Instant alerts on critical moves",
+                  "Deep-dive per-competitor profiles",
                   "90-day signal history",
-                  "Strategic movement analysis",
-                  "Market positioning map",
+                  "Cross-competitor pattern detection",
+                  "Live market positioning map",
                 ].map((f) => (
                   <li key={f} className="flex items-center gap-2">
                     <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "#2EE6A6", opacity: 0.85 }} />

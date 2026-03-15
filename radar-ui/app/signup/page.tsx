@@ -62,7 +62,9 @@ function SignupForm() {
           className="flex h-12 w-12 items-center justify-center rounded-full border border-[#2EE6A6]/20"
           style={{ background: "rgba(46,230,166,0.06)" }}
         >
-          <span className="text-[#2EE6A6] text-xl">✓</span>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M4 10.5l4.5 4.5 7.5-9" stroke="#2EE6A6" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </div>
         <div>
           <p className="text-[15px] font-semibold text-white">Check your email</p>
@@ -79,6 +81,16 @@ function SignupForm() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      {plan === "pro" && (
+        <div
+          className="flex items-center gap-2 rounded-[10px] border border-[#2EE6A6]/18 px-3.5 py-2.5"
+          style={{ background: "rgba(46,230,166,0.04)" }}
+        >
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#2EE6A6]" />
+          <span className="text-[12px] text-[#2EE6A6]/80">Pro plan selected</span>
+        </div>
+      )}
+
       {error && (
         <div className="rounded-[10px] border border-red-900/40 bg-red-950/30 px-4 py-3 text-[13px] text-red-400">
           {error}
@@ -125,7 +137,14 @@ function SignupForm() {
       </button>
 
       <p className="text-center text-[11px] text-slate-600">
-        By signing up you agree to our terms of service.
+        By signing up you agree to our{" "}
+        <a
+          href="mailto:hello@metrivant.com?subject=Terms of Service"
+          className="text-slate-500 underline-offset-2 hover:underline"
+        >
+          terms of service
+        </a>
+        .
       </p>
     </form>
   );

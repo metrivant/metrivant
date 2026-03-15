@@ -64,6 +64,15 @@ function detectCluster(competitors: RadarCompetitor[]): Cluster | null {
   return best;
 }
 
+// ─── Recency opacity ──────────────────────────────────────────────────────────
+function recencyOpacity(lastSignalAt: string | null): number {
+  if (!lastSignalAt) return 0.55;
+  const ageHours = (Date.now() - new Date(lastSignalAt).getTime()) / 3_600_000;
+  if (ageHours < 24)  return 1.0;
+  if (ageHours < 72)  return 0.75;
+  return 0.55;
+}
+
 // ─── Star positions — deterministic circular spread ───────────────────────────
 // viewBox is 200 × 138. Stars cluster in the upper portion (cy ≈ 54).
 function getStarPositions(count: number): { x: number; y: number }[] {
@@ -229,6 +238,7 @@ export default function SignalConstellation({
             const driftY = [3, -2, 2.5, -3, 1.5][i % 5];
             const driftX = [1.5, -2, 1, -1.5, 2][i % 5];
             const driftDur = 6 + i * 0.8;
+            const nodeOpacity = recencyOpacity(nodes[i]?.last_signal_at ?? null);
             return (
             <motion.g
               key={`star-${i}`}
@@ -242,7 +252,7 @@ export default function SignalConstellation({
                 r={6}
                 fill={color}
                 initial={{ opacity: 0, scale: 0 }}
-                animate={{ opacity: [0, 0.14, 0.08, 0.14, 0.08], scale: [0, 1.4, 1, 1.2, 1] }}
+                animate={{ opacity: [0, 0.14 * nodeOpacity, 0.08 * nodeOpacity, 0.14 * nodeOpacity, 0.08 * nodeOpacity], scale: [0, 1.4, 1, 1.2, 1] }}
                 transition={{
                   duration: 0.5,
                   delay: i * STAR_STAGGER,
@@ -260,7 +270,7 @@ export default function SignalConstellation({
                 r={2.4}
                 fill={color}
                 initial={{ opacity: 0, scale: 0 }}
-                animate={{ opacity: 0.95, scale: 1 }}
+                animate={{ opacity: nodeOpacity * 0.95, scale: 1 }}
                 transition={{
                   duration: 0.2,
                   delay: i * STAR_STAGGER,

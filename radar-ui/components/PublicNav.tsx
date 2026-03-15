@@ -48,12 +48,6 @@ export default function PublicNav() {
           >
             Log in
           </Link>
-          <Link
-            href="/signup"
-            className="rounded-full bg-[#2EE6A6] px-4 py-1.5 text-[13px] font-semibold text-black transition-opacity hover:opacity-90"
-          >
-            Get started
-          </Link>
         </div>
 
         {/* Mobile nav — right side: Log in + CTA + menu trigger */}
@@ -63,12 +57,6 @@ export default function PublicNav() {
             className="rounded-full px-3 py-1.5 text-[12px] font-medium text-slate-400 transition-colors hover:text-white"
           >
             Log in
-          </Link>
-          <Link
-            href="/signup"
-            className="rounded-full bg-[#2EE6A6] px-3.5 py-1.5 text-[12px] font-semibold text-black transition-opacity active:opacity-75"
-          >
-            Get started
           </Link>
           <button
             onClick={() => setMenuOpen((o) => !o)}

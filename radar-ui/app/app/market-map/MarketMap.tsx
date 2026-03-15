@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { CompetitorDetail } from "../../../lib/api";
 import { formatRelative } from "../../../lib/format";
@@ -74,19 +74,41 @@ function getGlowOpacity(signals: number): number {
 
 // ── MapNode ───────────────────────────────────────────────────────────────────
 
+// ── Spatial isolation ─────────────────────────────────────────────────────────
+
+const ISOLATION_RADIUS = 150; // SVG units
+
+function computeIsolatedIds(competitors: MapCompetitor[]): Set<string> {
+  const isolated = new Set<string>();
+  for (const a of competitors) {
+    const ax = toX(a.market_focus_score);
+    const ay = toY(a.customer_segment_score);
+    const hasNeighbor = competitors.some((b) => {
+      if (b.competitor_id === a.competitor_id) return false;
+      const dx = toX(b.market_focus_score) - ax;
+      const dy = toY(b.customer_segment_score) - ay;
+      return Math.sqrt(dx * dx + dy * dy) < ISOLATION_RADIUS;
+    });
+    if (!hasNeighbor) isolated.add(a.competitor_id);
+  }
+  return isolated;
+}
+
 type NodeProps = {
-  competitor: MapCompetitor;
-  isSelected: boolean;
-  isDimmed:   boolean;
-  onSelect:   (id: string) => void;
-  onHoverIn:  (comp: MapCompetitor, cx: number, cy: number) => void;
-  onHoverOut: () => void;
+  competitor:  MapCompetitor;
+  isSelected:  boolean;
+  isDimmed:    boolean;
+  isIsolated:  boolean;
+  onSelect:    (id: string) => void;
+  onHoverIn:   (comp: MapCompetitor, cx: number, cy: number) => void;
+  onHoverOut:  () => void;
 };
 
 const MapNode = memo(function MapNode({
   competitor,
   isSelected,
   isDimmed,
+  isIsolated,
   onSelect,
   onHoverIn,
   onHoverOut,
@@ -136,6 +158,18 @@ const MapNode = memo(function MapNode({
           fill={color}
           opacity="0.07"
           filter="url(#mapNodeGlowStrong)"
+        />
+      )}
+
+      {/* Isolation ring — node has no neighbor within 150 SVG units */}
+      {isIsolated && !isSelected && (
+        <circle
+          cx={x} cy={y}
+          r={r + 16}
+          fill="none"
+          stroke="rgba(148,163,184,0.22)"
+          strokeWidth="1"
+          strokeDasharray="3 4"
         />
       )}
 
@@ -428,6 +462,8 @@ export default function MarketMap({ competitors }: Props) {
   const selected = selectedId
     ? (competitors.find((c) => c.competitor_id === selectedId) ?? null)
     : null;
+
+  const isolatedIds = useMemo(() => computeIsolatedIds(competitors), [competitors]);
 
   // Fetch competitor detail when selected
   useEffect(() => {
@@ -729,6 +765,7 @@ export default function MarketMap({ competitors }: Props) {
               competitor={c}
               isSelected={c.competitor_id === selectedId}
               isDimmed={selectedId !== null && c.competitor_id !== selectedId}
+              isIsolated={isolatedIds.has(c.competitor_id)}
               onSelect={handleSelect}
               onHoverIn={handleHoverIn}
               onHoverOut={handleHoverOut}
