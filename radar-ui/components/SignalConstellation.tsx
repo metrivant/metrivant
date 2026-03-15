@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import type { RadarCompetitor } from "../lib/api";
 
@@ -136,6 +136,15 @@ export default function SignalConstellation({
   competitors: RadarCompetitor[];
 }) {
   const cluster = useMemo(() => detectCluster(competitors), [competitors]);
+
+  // Dispatch pattern_emergence once when a cluster first resolves
+  const patternFiredRef = useRef(false);
+  useEffect(() => {
+    if (cluster && !patternFiredRef.current) {
+      patternFiredRef.current = true;
+      window.dispatchEvent(new CustomEvent("mv:achieve", { detail: "pattern_emergence" }));
+    }
+  }, [cluster]);
 
   // Empty state — animated dormant dots
   if (!cluster) {

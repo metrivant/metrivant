@@ -179,6 +179,124 @@ function AchievIcon({ id, color }: { id: string; color: string }) {
           <circle cx="18.5" cy="6.5" r="3"   stroke={color} strokeWidth="0.7" strokeOpacity="0.28" />
         </svg>
       );
+    case "gravity_shift":
+      // Warped grid converging on a central mass
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M2 8 Q12 10 22 8" stroke={color} strokeWidth="0.7" strokeOpacity="0.38" fill="none" />
+          <path d="M2 12 Q12 14.5 22 12" stroke={color} strokeWidth="0.7" strokeOpacity="0.55" fill="none" />
+          <path d="M2 16 Q12 13.5 22 16" stroke={color} strokeWidth="0.7" strokeOpacity="0.38" fill="none" />
+          <path d="M8 2 Q10 12 8 22" stroke={color} strokeWidth="0.7" strokeOpacity="0.38" fill="none" />
+          <path d="M12 2 Q14.5 12 12 22" stroke={color} strokeWidth="0.7" strokeOpacity="0.55" fill="none" />
+          <path d="M16 2 Q13.5 12 16 22" stroke={color} strokeWidth="0.7" strokeOpacity="0.38" fill="none" />
+          <circle cx="12" cy="12" r="3.2" stroke={color} strokeWidth="0.8" strokeOpacity="0.45" fill="none" />
+          <circle cx="12" cy="12" r="1.8" fill={color} fillOpacity="0.85" />
+          <circle cx="12" cy="12" r="0.7" fill={color} />
+        </svg>
+      );
+    case "singularity":
+      // Black hole — concentric rings collapsing to a point
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" stroke={color} strokeWidth="0.6" strokeOpacity="0.18" />
+          <circle cx="12" cy="12" r="7.5" stroke={color} strokeWidth="0.8" strokeOpacity="0.28" />
+          <circle cx="12" cy="12" r="5"   stroke={color} strokeWidth="0.9" strokeOpacity="0.42" />
+          <circle cx="12" cy="12" r="3"   stroke={color} strokeWidth="1.0" strokeOpacity="0.62" />
+          <circle cx="12" cy="12" r="1.5" fill={color} fillOpacity="0.90" />
+          <circle cx="12" cy="12" r="0.6" fill={color} />
+        </svg>
+      );
+    case "deep_field":
+      // Dense field of competitor dots — scattered across view
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="4"  cy="5"  r="1.2" fill={color} fillOpacity="0.55" />
+          <circle cx="10" cy="3"  r="1.0" fill={color} fillOpacity="0.40" />
+          <circle cx="17" cy="5"  r="1.3" fill={color} fillOpacity="0.65" />
+          <circle cx="21" cy="11" r="1.0" fill={color} fillOpacity="0.45" />
+          <circle cx="19" cy="18" r="1.2" fill={color} fillOpacity="0.60" />
+          <circle cx="13" cy="21" r="1.0" fill={color} fillOpacity="0.40" />
+          <circle cx="6"  cy="20" r="1.1" fill={color} fillOpacity="0.50" />
+          <circle cx="2"  cy="15" r="1.0" fill={color} fillOpacity="0.38" />
+          <circle cx="7"  cy="11" r="1.4" fill={color} fillOpacity="0.80" />
+          <circle cx="14" cy="13" r="1.2" fill={color} fillOpacity="0.72" />
+          <circle cx="12" cy="8"  r="0.9" fill={color} fillOpacity="0.48" />
+          <circle cx="17" cy="9"  r="1.0" fill={color} fillOpacity="0.55" />
+        </svg>
+      );
+    case "pattern_emergence":
+      // Constellation — nodes connected with lines forming a cluster
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <line x1="12" y1="4"  x2="20" y2="10" stroke={color} strokeWidth="0.7" strokeOpacity="0.32" />
+          <line x1="12" y1="4"  x2="4"  y2="10" stroke={color} strokeWidth="0.7" strokeOpacity="0.32" />
+          <line x1="20" y1="10" x2="17" y2="20" stroke={color} strokeWidth="0.7" strokeOpacity="0.32" />
+          <line x1="4"  y1="10" x2="7"  y2="20" stroke={color} strokeWidth="0.7" strokeOpacity="0.32" />
+          <line x1="7"  y1="20" x2="17" y2="20" stroke={color} strokeWidth="0.7" strokeOpacity="0.32" />
+          <line x1="12" y1="4"  x2="12" y2="14" stroke={color} strokeWidth="0.6" strokeOpacity="0.22" strokeDasharray="1.5 2" />
+          <circle cx="12" cy="4"  r="2"   fill={color} fillOpacity="0.88" />
+          <circle cx="20" cy="10" r="1.6" fill={color} fillOpacity="0.65" />
+          <circle cx="4"  cy="10" r="1.6" fill={color} fillOpacity="0.65" />
+          <circle cx="17" cy="20" r="1.6" fill={color} fillOpacity="0.65" />
+          <circle cx="7"  cy="20" r="1.6" fill={color} fillOpacity="0.65" />
+          <circle cx="12" cy="14" r="1.2" fill={color} fillOpacity="0.42" />
+        </svg>
+      );
+    case "the_long_game":
+      // Three-day timeline — ascending marks on a horizon line
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <line x1="2" y1="18" x2="22" y2="18" stroke={color} strokeWidth="0.8" strokeOpacity="0.28" />
+          <line x1="6"  y1="18" x2="6"  y2="13" stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.50" />
+          <line x1="12" y1="18" x2="12" y2="9"  stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.72" />
+          <line x1="18" y1="18" x2="18" y2="5"  stroke={color} strokeWidth="1.4" strokeLinecap="round" />
+          <circle cx="6"  cy="12" r="1.8" fill={color} fillOpacity="0.50" />
+          <circle cx="12" cy="8"  r="2.0" fill={color} fillOpacity="0.72" />
+          <circle cx="18" cy="4"  r="2.2" fill={color} />
+          <path d="M6 12 L12 8 L18 4" stroke={color} strokeWidth="0.6" strokeOpacity="0.22" strokeDasharray="2 2.5" />
+        </svg>
+      );
+    case "sentinel":
+      // Eye with radar rings — vigilant watchfulness
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M2 12 Q12 4 22 12 Q12 20 2 12Z" stroke={color} strokeWidth="1.2" strokeOpacity="0.55" fill="none" />
+          <circle cx="12" cy="12" r="4"   stroke={color} strokeWidth="1.0" strokeOpacity="0.70" fill="none" />
+          <circle cx="12" cy="12" r="2.2" fill={color} fillOpacity="0.85" />
+          <circle cx="12" cy="12" r="0.9" fill={color} />
+          <circle cx="13.6" cy="10.4" r="0.7" fill={color} fillOpacity="0.70" />
+          <circle cx="12" cy="12" r="6"   stroke={color} strokeWidth="0.6" strokeOpacity="0.22" strokeDasharray="2 3" fill="none" />
+        </svg>
+      );
+    case "temporal_lens":
+      // Hourglass — time flowing through all scales
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M5 2 H19 L12 11 L5 2Z"  fill={color} fillOpacity="0.30" stroke={color} strokeWidth="1.0" strokeOpacity="0.60" strokeLinejoin="round" />
+          <path d="M5 22 H19 L12 13 L5 22Z" fill={color} fillOpacity="0.55" stroke={color} strokeWidth="1.0" strokeOpacity="0.60" strokeLinejoin="round" />
+          <line x1="5"  y1="2"  x2="19" y2="2"  stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeOpacity="0.80" />
+          <line x1="5"  y1="22" x2="19" y2="22" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeOpacity="0.80" />
+          <circle cx="12" cy="12" r="1.2" fill={color} fillOpacity="0.88" />
+        </svg>
+      );
+    case "ancient_instinct":
+      // Branching evolutionary tree — natural selection encoded in structure
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <line x1="12" y1="22" x2="12" y2="13" stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.75" />
+          <line x1="12" y1="16" x2="7"  y2="11" stroke={color} strokeWidth="1.1" strokeLinecap="round" strokeOpacity="0.60" />
+          <line x1="12" y1="16" x2="17" y2="11" stroke={color} strokeWidth="1.1" strokeLinecap="round" strokeOpacity="0.60" />
+          <line x1="7"  y1="11" x2="4"  y2="6"  stroke={color} strokeWidth="0.9" strokeLinecap="round" strokeOpacity="0.48" />
+          <line x1="7"  y1="11" x2="10" y2="6"  stroke={color} strokeWidth="0.9" strokeLinecap="round" strokeOpacity="0.48" />
+          <line x1="17" y1="11" x2="14" y2="6"  stroke={color} strokeWidth="0.9" strokeLinecap="round" strokeOpacity="0.48" />
+          <line x1="17" y1="11" x2="20" y2="6"  stroke={color} strokeWidth="0.9" strokeLinecap="round" strokeOpacity="0.48" />
+          <circle cx="12" cy="22" r="1.4" fill={color} fillOpacity="0.60" />
+          <circle cx="4"  cy="5"  r="1.6" fill={color} fillOpacity="0.88" />
+          <circle cx="10" cy="5"  r="1.6" fill={color} fillOpacity="0.88" />
+          <circle cx="14" cy="5"  r="1.6" fill={color} fillOpacity="0.88" />
+          <circle cx="20" cy="5"  r="1.6" fill={color} fillOpacity="0.88" />
+        </svg>
+      );
     default:
       return (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -243,6 +361,7 @@ function AchievementsDropdown({
 }) {
   const unlockedCount = ACHIEVEMENTS.filter((a) => unlockedIds.has(a.id)).length;
   const progressPct   = MAX_INTEL_SCORE > 0 ? Math.round((intelScore / MAX_INTEL_SCORE) * 100) : 0;
+  const isApex        = unlockedCount === ACHIEVEMENTS.length;
 
   return (
     <motion.div
@@ -317,6 +436,38 @@ function AchievementsDropdown({
           </div>
         ) : (
           <div className="space-y-0.5">
+            {/* ── Apex Strategist completion reward ───────────────────── */}
+            {isApex && (
+              <div
+                className="relative mb-2 overflow-hidden rounded-[10px] px-3.5 py-3"
+                style={{
+                  background: "linear-gradient(135deg, rgba(234,179,8,0.08) 0%, rgba(234,179,8,0.04) 100%)",
+                  border: "1px solid rgba(234,179,8,0.28)",
+                  boxShadow: "0 0 24px rgba(234,179,8,0.08), inset 0 1px 0 rgba(234,179,8,0.12)",
+                }}
+              >
+                <div
+                  className="absolute inset-x-0 top-0 h-[1px]"
+                  style={{ background: "linear-gradient(90deg, transparent, rgba(234,179,8,0.60), transparent)" }}
+                />
+                <div className="flex items-center gap-2.5">
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                    <path d="M9 2L11.2 6.5L16 7.2L12.5 10.6L13.4 15.5L9 13.1L4.6 15.5L5.5 10.6L2 7.2L6.8 6.5Z" fill="rgba(234,179,8,0.85)" stroke="rgba(234,179,8,0.50)" strokeWidth="0.6" />
+                  </svg>
+                  <div>
+                    <div className="text-[9px] font-bold uppercase tracking-[0.26em]" style={{ color: "rgba(234,179,8,0.60)" }}>
+                      Title Unlocked
+                    </div>
+                    <div className="text-[13px] font-bold leading-tight" style={{ color: "rgba(234,179,8,0.92)" }}>
+                      APEX STRATEGIST
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-1.5 text-[10px] leading-relaxed" style={{ color: "rgba(234,179,8,0.45)" }}>
+                  All intelligence milestones achieved. The field belongs to those who watch it longest.
+                </div>
+              </div>
+            )}
             {ACHIEVEMENTS.map((a) => {
               const unlocked = unlockedIds.has(a.id);
               return (
@@ -492,6 +643,7 @@ export default function AchievementsButton({
   useEffect(() => { openRef.current = open; }, [open]);
 
   const intelScore = computeIntelScore(unlockedIds, completedActionIds);
+  const isApex     = loaded && unlockedIds.size === ACHIEVEMENTS.length;
 
   // ── Click-outside to close ────────────────────────────────────────────────────
   useEffect(() => {
@@ -606,10 +758,13 @@ export default function AchievementsButton({
     if (totalSignals7d > 0)     void unlock("signal_first");
     if (competitorCount > 0)    void unlock("rival_tracked");
     if (competitorCount >= 5)   void unlock("rivals_5");
+    if (competitorCount >= 10)  void unlock("deep_field");
     if (hasMovement)            void unlock("movement_detected");
     if (hasAccelerating)        void unlock("pressure_detected");
     if (hasCriticalAlert)       void unlock("critical_alert");
+    if (hasCriticalAlert)       void unlock("singularity");
     if (totalSignals7d >= 10)   void unlock("signals_10");
+    if (competitorCount >= 15 && hasMovement) void unlock("ancient_instinct");
 
     // Subscription achievements — fired when user holds an active paid plan
     if (hasActiveSub && planType === "analyst") void unlock("subscribed_analyst");
@@ -618,6 +773,26 @@ export default function AchievementsButton({
       void unlock("subscribed_pro");
     }
   }, [loaded, userId, totalSignals7d, competitorCount, hasMovement, hasCriticalAlert, hasAccelerating, hasActiveSub, planType, unlock]);
+
+  // ── Sentinel: 5 continuous minutes on the radar ───────────────────────────────
+  useEffect(() => {
+    if (!loaded || !userId) return;
+    const t = setTimeout(() => void unlock("sentinel"), 5 * 60 * 1000);
+    return () => clearTimeout(t);
+  }, [loaded, userId, unlock]);
+
+  // ── The Long Game: track distinct calendar days ───────────────────────────────
+  useEffect(() => {
+    if (!loaded || !userId) return;
+    try {
+      const key = "mv_visit_dates";
+      const today = new Date().toISOString().slice(0, 10);
+      const stored = JSON.parse(localStorage.getItem(key) ?? "[]") as string[];
+      const updated = [...new Set([...stored, today])];
+      localStorage.setItem(key, JSON.stringify(updated));
+      if (updated.length >= 3) void unlock("the_long_game");
+    } catch { /* non-fatal */ }
+  }, [loaded, userId, unlock]);
 
   // ── Listen for overlay-based unlock events ────────────────────────────────────
   useEffect(() => {
@@ -666,10 +841,10 @@ export default function AchievementsButton({
           onClick={togglePanel}
           className="relative flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-medium transition-all duration-200 hover:opacity-90"
           style={{
-            borderColor: open || hasNew ? "rgba(46,230,166,0.45)" : "rgba(46,230,166,0.15)",
-            background:  open || hasNew ? "rgba(46,230,166,0.08)"  : "rgba(46,230,166,0.04)",
-            color:       "rgba(46,230,166,0.70)",
-            boxShadow:   open || hasNew ? "0 0 12px rgba(46,230,166,0.20), inset 0 0 8px rgba(46,230,166,0.04)" : "none",
+            borderColor: isApex ? "rgba(234,179,8,0.45)" : open || hasNew ? "rgba(46,230,166,0.45)" : "rgba(46,230,166,0.15)",
+            background:  isApex ? "rgba(234,179,8,0.06)"  : open || hasNew ? "rgba(46,230,166,0.08)"  : "rgba(46,230,166,0.04)",
+            color:       isApex ? "rgba(234,179,8,0.80)" : "rgba(46,230,166,0.70)",
+            boxShadow:   isApex ? "0 0 14px rgba(234,179,8,0.14), inset 0 0 8px rgba(234,179,8,0.04)" : open || hasNew ? "0 0 12px rgba(46,230,166,0.20), inset 0 0 8px rgba(46,230,166,0.04)" : "none",
           }}
           aria-label="Intel Score — Achievements"
           aria-expanded={open}
@@ -684,15 +859,25 @@ export default function AchievementsButton({
             />
           )}
 
-          {/* Icon: radar rings */}
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-            <circle cx="6" cy="6" r="5"   stroke="currentColor" strokeWidth="1"   strokeOpacity="0.5" />
-            <circle cx="6" cy="6" r="2.8" stroke="currentColor" strokeWidth="0.9" strokeOpacity="0.7" />
-            <circle cx="6" cy="6" r="1.2" fill="currentColor" />
-          </svg>
+          {/* Icon: crown when apex, otherwise radar rings */}
+          {isApex ? (
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M1 9L3 4L6 7L9 2L11 4L11 9Z" fill="rgba(234,179,8,0.80)" stroke="rgba(234,179,8,0.50)" strokeWidth="0.6" strokeLinejoin="round" />
+              <line x1="1" y1="10" x2="11" y2="10" stroke="rgba(234,179,8,0.60)" strokeWidth="1" strokeLinecap="round" />
+            </svg>
+          ) : (
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <circle cx="6" cy="6" r="5"   stroke="currentColor" strokeWidth="1"   strokeOpacity="0.5" />
+              <circle cx="6" cy="6" r="2.8" stroke="currentColor" strokeWidth="0.9" strokeOpacity="0.7" />
+              <circle cx="6" cy="6" r="1.2" fill="currentColor" />
+            </svg>
+          )}
 
-          <span className="hidden sm:inline text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-            Intel
+          <span
+            className="hidden sm:inline text-[10px] font-semibold uppercase tracking-[0.16em]"
+            style={{ color: isApex ? "rgba(234,179,8,0.55)" : "#64748b" }}
+          >
+            {isApex ? "Apex" : "Intel"}
           </span>
           <motion.span
             key={intelScore}

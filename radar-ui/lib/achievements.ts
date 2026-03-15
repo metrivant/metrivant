@@ -14,7 +14,15 @@ export type AchievementId =
   | "map_viewed"
   | "pressure_detected"
   | "subscribed_analyst"
-  | "subscribed_pro";
+  | "subscribed_pro"
+  | "gravity_shift"
+  | "singularity"
+  | "deep_field"
+  | "pattern_emergence"
+  | "the_long_game"
+  | "sentinel"
+  | "temporal_lens"
+  | "ancient_instinct";
 
 export type StrategyActionId =
   | "pricing_monitor"
@@ -109,6 +117,54 @@ export const ACHIEVEMENTS: Achievement[] = [
     name: "Full Spectrum",
     description: "Activate a Pro subscription.",
     points: 25,
+  },
+  {
+    id: "gravity_shift",
+    name: "Gravity Shift",
+    description: "Activated the Gravity Field — the market bends toward mass.",
+    points: 30,
+  },
+  {
+    id: "singularity",
+    name: "Singularity",
+    description: "A competitor reached critical mass. The field warps around them.",
+    points: 40,
+  },
+  {
+    id: "deep_field",
+    name: "Deep Field",
+    description: "Ten or more rivals visible on the radar simultaneously.",
+    points: 35,
+  },
+  {
+    id: "pattern_emergence",
+    name: "Pattern Emergence",
+    description: "A signal constellation cluster resolved — market convergence detected.",
+    points: 50,
+  },
+  {
+    id: "the_long_game",
+    name: "The Long Game",
+    description: "Returned to the radar across three separate days. Intelligence compounds.",
+    points: 60,
+  },
+  {
+    id: "sentinel",
+    name: "Sentinel",
+    description: "Five unbroken minutes watching the field. The dedicated see what others miss.",
+    points: 35,
+  },
+  {
+    id: "temporal_lens",
+    name: "Temporal Lens",
+    description: "Used every time filter — past day, past week, all time — in a single session.",
+    points: 30,
+  },
+  {
+    id: "ancient_instinct",
+    name: "Ancient Instinct",
+    description: "Fifteen rivals tracked, movement confirmed. The oldest strategy: observe, then strike.",
+    points: 75,
   },
 ];
 

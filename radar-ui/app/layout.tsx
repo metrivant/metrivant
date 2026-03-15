@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import PostHogProvider from "../components/PostHogProvider";
 import "./globals.css";
@@ -8,6 +8,12 @@ const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  minimumScale: 1,
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://metrivant.com"),

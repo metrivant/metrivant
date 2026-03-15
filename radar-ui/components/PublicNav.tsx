@@ -48,15 +48,26 @@ export default function PublicNav() {
           >
             Log in
           </Link>
+          <Link
+            href="/signup"
+            className="rounded-full px-4 py-1.5 text-[13px] font-semibold transition-all duration-200"
+            style={{
+              border:  "1px solid rgba(46,230,166,0.35)",
+              background: "rgba(46,230,166,0.07)",
+              color: "#2EE6A6",
+            }}
+          >
+            Get started
+          </Link>
         </div>
 
-        {/* Mobile nav — right side: Log in + CTA + menu trigger */}
+        {/* Mobile nav — right side: CTA + menu trigger */}
         <div className="flex items-center gap-2 md:hidden">
           <Link
-            href="/login"
-            className="rounded-full px-3 py-1.5 text-[12px] font-medium text-slate-400 transition-colors hover:text-white"
+            href="/signup"
+            className="rounded-full bg-[#2EE6A6] px-3.5 py-1.5 text-[12px] font-semibold text-black transition-opacity hover:opacity-90"
           >
-            Log in
+            Get started
           </Link>
           <button
             onClick={() => setMenuOpen((o) => !o)}
@@ -100,6 +111,13 @@ export default function PublicNav() {
               }`}
             >
               Pricing
+            </Link>
+            <Link
+              href="/login"
+              onClick={() => setMenuOpen(false)}
+              className="rounded-lg px-3 py-3 text-[14px] font-medium text-slate-500 transition-colors hover:text-slate-300"
+            >
+              Log in
             </Link>
           </div>
         </div>

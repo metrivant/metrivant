@@ -13,7 +13,7 @@
 
 const STORAGE_KEY = "mv_sound_enabled";
 
-export type SoundName = "blip" | "echo" | "swoosh" | "alert" | "success" | "achieve" | "gravity-enter" | "gravity-exit";
+export type SoundName = "blip" | "echo" | "swoosh" | "alert" | "success" | "achieve" | "gravity-enter" | "gravity-exit" | "hint";
 
 class AudioManager {
   private ctx: AudioContext | null = null;
@@ -81,6 +81,7 @@ class AudioManager {
         case "achieve":       this._achieve(ctx);        break;
         case "gravity-enter": this._gravityEnter(ctx);   break;
         case "gravity-exit":  this._gravityExit(ctx);    break;
+        case "hint":          this._hint(ctx);           break;
       }
     } catch {
       // Audio errors are never surfaced to the user
@@ -401,6 +402,52 @@ class AudioManager {
     gain2.connect(ctx.destination);
     osc2.start(t + 0.08);
     osc2.stop(t + 0.35);
+  }
+
+  /**
+   * HINT — tutorial panel appears.
+   * Soft high-reverb shimmer: two gentle sine partials fading in slowly.
+   * Implies discovery without demanding attention.
+   */
+  private _hint(ctx: AudioContext): void {
+    const t = ctx.currentTime;
+    [{ f: 740, delay: 0 }, { f: 988, delay: 0.08 }].forEach(({ f, delay }) => {
+      const osc  = ctx.createOscillator();
+      const filt = ctx.createBiquadFilter();
+      const gain = ctx.createGain();
+      const wet  = ctx.createGain();
+      const s    = t + delay;
+
+      osc.type = "sine";
+      osc.frequency.value = f;
+
+      filt.type = "lowpass";
+      filt.frequency.value = 2200;
+      filt.Q.value = 0.5;
+
+      gain.gain.setValueAtTime(0, s);
+      gain.gain.linearRampToValueAtTime(0.038, s + 0.10);
+      gain.gain.exponentialRampToValueAtTime(0.0001, s + 1.4);
+
+      const echo   = ctx.createDelay(0.4);
+      const fbGain = ctx.createGain();
+      echo.delayTime.value = 0.18;
+      fbGain.gain.setValueAtTime(0.18, s);
+      fbGain.gain.exponentialRampToValueAtTime(0.0001, s + 1.2);
+      wet.gain.value = 0.22;
+
+      osc.connect(filt);
+      filt.connect(gain);
+      gain.connect(ctx.destination);
+      gain.connect(echo);
+      echo.connect(fbGain);
+      fbGain.connect(echo);
+      echo.connect(wet);
+      wet.connect(ctx.destination);
+
+      osc.start(s);
+      osc.stop(s + 1.5);
+    });
   }
 }
 

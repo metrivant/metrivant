@@ -23,6 +23,8 @@ import MobileNav from "../../components/MobileNav";
 import AchievementsButton from "../../components/AchievementsButton";
 import SoundToggleButton from "../../components/SoundToggleButton";
 import InitBanner from "../../components/InitBanner";
+import TutorialHint from "../../components/TutorialHint";
+import HistoricalCapsule from "../../components/HistoricalCapsule";
 import { getRadarFeed } from "../../lib/api";
 import { createClient } from "../../lib/supabase/server";
 import { getSubscriptionState } from "../../lib/subscription";
@@ -368,6 +370,12 @@ export default async function Page() {
       {/* Fires once on mount: checks Stripe for an active sub the webhook missed. */}
       {/* On success: router.refresh() re-renders the page, clearing the lock screen. */}
       {trialExpired && !hasActiveSub && <SyncSubscription />}
+
+      {/* ── Time-based feature discovery hints ──────────────────────────── */}
+      {!trialExpired && <TutorialHint />}
+
+      {/* ── Historical trade capsules — periodic ambient intelligence ────── */}
+      {!trialExpired && <HistoricalCapsule />}
 
       {/* ── Mobile bottom navigation — md:hidden inside component ─────────── */}
       <MobileNav />

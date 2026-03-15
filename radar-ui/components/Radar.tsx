@@ -1190,6 +1190,15 @@ export default function Radar({
 
   // ── Gravity Field mode ───────────────────────────────────────────────────
   const [gravityMode, setGravityMode] = useState(false);
+  const gravityEverRef = useRef(false);
+
+  // Dispatch gravity_shift achievement on first activation
+  useEffect(() => {
+    if (gravityMode && !gravityEverRef.current) {
+      gravityEverRef.current = true;
+      window.dispatchEvent(new CustomEvent("mv:achieve", { detail: "gravity_shift" }));
+    }
+  }, [gravityMode]);
 
   // Positions are computed once per sorted set — memoized, deterministic, ~1ms
   const gravityPositions = useMemo(
@@ -1296,9 +1305,18 @@ export default function Radar({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [temporalFilter, setTemporalFilter] = useState<"24h" | "7d" | "all">("all");
+  const usedFiltersRef = useRef(new Set<string>(["all"]));
   const zoomCanvasRef = useRef<HTMLDivElement>(null);
   const panStartRef = useRef({ screenX: 0, screenY: 0, panX: 0, panY: 0 });
   const touchDistRef = useRef(0);
+
+  // Dispatch temporal_lens when all 3 filters used in a session
+  useEffect(() => {
+    usedFiltersRef.current.add(temporalFilter);
+    if (usedFiltersRef.current.size >= 3) {
+      window.dispatchEvent(new CustomEvent("mv:achieve", { detail: "temporal_lens" }));
+    }
+  }, [temporalFilter]);
 
   // Reset view and temporal filter when exiting isolation
   useEffect(() => {
@@ -1627,7 +1645,7 @@ export default function Radar({
   }
 
   return (
-    <div className="grid h-full gap-3 grid-cols-1 md:grid-cols-[1fr_360px] xl:grid-cols-[1fr_420px]">
+    <div className="grid h-full gap-3 grid-cols-1 md:grid-cols-[1fr_320px] xl:grid-cols-[1fr_370px]">
       {/* ── Radar panel ─────────────────────────────────────────── */}
       <section
         className={`flex min-h-0 flex-1 flex-col overflow-hidden${isolated ? "" : " rounded-[20px]"}`}

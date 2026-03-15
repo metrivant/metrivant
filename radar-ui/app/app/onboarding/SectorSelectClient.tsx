@@ -4,17 +4,135 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 const SECTOR_OPTIONS = [
-  { value: "saas",              label: "SaaS" },
-  { value: "cybersecurity",     label: "Cybersecurity" },
-  { value: "energy",            label: "Energy" },
-  { value: "defense",           label: "Defense" },
-  { value: "fintech",           label: "Fintech" },
-  { value: "ai-infrastructure", label: "AI Infrastructure" },
-  { value: "devtools",          label: "DevTools" },
-  { value: "healthcare",        label: "Healthcare" },
-  { value: "consumer-tech",     label: "Consumer Tech" },
-  { value: "custom",            label: "Custom" },
+  {
+    value: "saas",
+    label: "SaaS",
+    desc: "Software, analytics, CRM, developer tools",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <rect x="2" y="4" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.2" />
+        <line x1="2" y1="7.5" x2="16" y2="7.5" stroke="currentColor" strokeWidth="0.9" strokeOpacity="0.55" />
+        <circle cx="4.5" cy="6" r="0.8" fill="currentColor" fillOpacity="0.55" />
+        <circle cx="7"   cy="6" r="0.8" fill="currentColor" fillOpacity="0.38" />
+      </svg>
+    ),
+  },
+  {
+    value: "ai-infrastructure",
+    label: "AI Infrastructure",
+    desc: "AI platforms, compute, model providers",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <circle cx="9"  cy="9"  r="2"   stroke="currentColor" strokeWidth="1.2" />
+        <circle cx="3"  cy="9"  r="1.2" fill="currentColor" fillOpacity="0.55" />
+        <circle cx="15" cy="9"  r="1.2" fill="currentColor" fillOpacity="0.55" />
+        <circle cx="9"  cy="3"  r="1.2" fill="currentColor" fillOpacity="0.55" />
+        <circle cx="9"  cy="15" r="1.2" fill="currentColor" fillOpacity="0.55" />
+        <line x1="4.2" y1="9" x2="7"   y2="9" stroke="currentColor" strokeWidth="0.9" />
+        <line x1="11"  y1="9" x2="13.8" y2="9" stroke="currentColor" strokeWidth="0.9" />
+        <line x1="9"   y1="4.2" x2="9" y2="7"   stroke="currentColor" strokeWidth="0.9" />
+        <line x1="9"   y1="11"  x2="9" y2="13.8" stroke="currentColor" strokeWidth="0.9" />
+      </svg>
+    ),
+  },
+  {
+    value: "cybersecurity",
+    label: "Cybersecurity",
+    desc: "Security platforms and threat intelligence",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <path d="M9 2L15 4.5V9C15 12.5 12 15.5 9 16.5C6 15.5 3 12.5 3 9V4.5L9 2Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+        <path d="M6.5 9l2 2 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
+    value: "fintech",
+    label: "Fintech",
+    desc: "Payments, banking, financial services",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <polyline points="2,14 6,9 9,11 13,6 16,4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+        <polyline points="13,4 16,4 16,7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
+    value: "energy",
+    label: "Energy",
+    desc: "Oil, gas, renewables, energy services",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <path d="M10.5 2L6 10h5l-3.5 6L14 7H9l1.5-5Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
+    value: "defense",
+    label: "Defense",
+    desc: "Defense contractors and aerospace",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.2" />
+        <line x1="9" y1="2"  x2="9"  y2="4.5"  stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+        <line x1="9" y1="13.5" x2="9" y2="16" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+        <line x1="2" y1="9"  x2="4.5" y2="9"  stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+        <line x1="13.5" y1="9" x2="16" y2="9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+        <circle cx="9" cy="9" r="2.2" stroke="currentColor" strokeWidth="1.1" />
+      </svg>
+    ),
+  },
+  {
+    value: "devtools",
+    label: "DevTools",
+    desc: "Developer tooling, CI/CD, IDE platforms",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <polyline points="5,6 2,9 5,12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+        <polyline points="13,6 16,9 13,12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+        <line x1="11" y1="4" x2="7" y2="14" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeOpacity="0.70" />
+      </svg>
+    ),
+  },
+  {
+    value: "healthcare",
+    label: "Healthcare",
+    desc: "Health tech and digital health platforms",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <rect x="2" y="2" width="14" height="14" rx="3" stroke="currentColor" strokeWidth="1.2" />
+        <line x1="9" y1="5.5" x2="9"   y2="12.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+        <line x1="5.5" y1="9" x2="12.5" y2="9"   stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    value: "consumer-tech",
+    label: "Consumer Tech",
+    desc: "Consumer electronics and digital products",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <rect x="3" y="2.5" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+        <line x1="6" y1="15.5" x2="12" y2="15.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+        <line x1="9" y1="12.5" x2="9"  y2="15.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    value: "custom",
+    label: "Custom",
+    desc: "Start empty — add rivals manually",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.2" strokeDasharray="2.5 2" />
+        <line x1="9" y1="5.5" x2="9"   y2="12.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+        <line x1="5.5" y1="9" x2="12.5" y2="9"   stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      </svg>
+    ),
+  },
 ] as const;
+
+type SectorValue = typeof SECTOR_OPTIONS[number]["value"];
 
 const LOADING_PHASES = [
   "Adding rivals to your radar…",
@@ -24,10 +142,10 @@ const LOADING_PHASES = [
 
 export default function SectorSelectClient() {
   const router = useRouter();
-  const [sector, setSector]           = useState<string>("");
-  const [loading, setLoading]         = useState(false);
+  const [sector, setSector]             = useState<SectorValue | "">("");
+  const [loading, setLoading]           = useState(false);
   const [loadingPhase, setLoadingPhase] = useState(0);
-  const [error, setError]             = useState<string | null>(null);
+  const [error, setError]               = useState<string | null>(null);
 
   // Cycle loading message every 5s to signal real progress
   useEffect(() => {
@@ -65,7 +183,6 @@ export default function SectorSelectClient() {
       body = await res.json();
     } catch { /* non-fatal */ }
 
-    // Write init data for the radar banner — read once on radar mount then cleared
     try {
       sessionStorage.setItem("radar_init", JSON.stringify({
         seeded:    body.seeded    ?? 0,
@@ -74,7 +191,7 @@ export default function SectorSelectClient() {
         sector,
         custom:    body.custom    ?? sector === "custom",
       }));
-    } catch { /* sessionStorage unavailable — banner simply won't show */ }
+    } catch { /* sessionStorage unavailable */ }
 
     router.push("/app");
   }
@@ -82,7 +199,7 @@ export default function SectorSelectClient() {
   const isCustom = sector === "custom";
 
   return (
-    <div className="flex h-screen w-full flex-col items-center justify-center bg-[#000000] text-white">
+    <div className="flex h-screen w-full flex-col items-center justify-center bg-[#000000] px-4 text-white">
 
       {/* Dot grid */}
       <div
@@ -102,7 +219,7 @@ export default function SectorSelectClient() {
       />
 
       {/* Wordmark */}
-      <div className="relative mb-12 flex flex-col items-center gap-1">
+      <div className="relative mb-10 flex flex-col items-center gap-1">
         <svg width="40" height="40" viewBox="0 0 46 46" fill="none" aria-hidden="true" className="mb-3">
           <circle cx="23" cy="23" r="21.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.50" />
           <circle cx="23" cy="23" r="13"   stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.28" />
@@ -111,57 +228,60 @@ export default function SectorSelectClient() {
           <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.80" />
           <circle cx="23" cy="23" r="2.5" fill="#2EE6A6" />
         </svg>
-        <div
-          className="text-[10px] font-medium uppercase tracking-[0.34em]"
-          style={{ color: "rgba(46,230,166,0.55)" }}
-        >
+        <div className="text-[10px] font-medium uppercase tracking-[0.34em]" style={{ color: "rgba(46,230,166,0.55)" }}>
           Competitive Intelligence Radar
         </div>
-        <div
-          className="text-[28px] font-bold leading-none text-white"
-          style={{ letterSpacing: "0.09em" }}
-        >
+        <div className="text-[28px] font-bold leading-none text-white" style={{ letterSpacing: "0.09em" }}>
           METRIVANT
         </div>
       </div>
 
-      {/* Sector selection card */}
-      <form
-        onSubmit={handleSubmit}
-        className="relative w-full max-w-sm"
-      >
+      {/* Sector selection */}
+      <form onSubmit={handleSubmit} className="relative w-full max-w-lg">
         <div className="flex flex-col gap-5">
 
-          <p className="text-center text-[15px] text-slate-300">
-            Select the sector you want to monitor
-          </p>
+          <div className="text-center">
+            <p className="text-[15px] font-medium text-slate-300">
+              Which market are you monitoring?
+            </p>
+            <p className="mt-1 text-[12px] text-slate-600">
+              We&apos;ll pre-populate your radar with relevant rivals.
+            </p>
+          </div>
 
-          {/* Dropdown */}
-          <div className="relative">
-            <select
-              value={sector}
-              onChange={(e) => setSector(e.target.value)}
-              required
-              disabled={loading}
-              className="w-full appearance-none rounded-[12px] border border-[#1a3020] bg-[#070d07] px-4 py-3 text-[14px] text-white outline-none transition-colors focus:border-[#2EE6A6]/35 focus:ring-1 focus:ring-[#2EE6A6]/20 disabled:opacity-50"
-              style={{ colorScheme: "dark" }}
-            >
-              <option value="" disabled style={{ color: "#475569" }}>
-                Choose a sector…
-              </option>
-              {SECTOR_OPTIONS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-
-            {/* Chevron */}
-            <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <path d="M2 4.5L6 8.5L10 4.5" stroke="#475569" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
+          {/* Sector card grid */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
+            {SECTOR_OPTIONS.map((s) => {
+              const selected = sector === s.value;
+              return (
+                <button
+                  key={s.value}
+                  type="button"
+                  onClick={() => setSector(s.value)}
+                  disabled={loading}
+                  className="flex flex-col items-start rounded-[12px] border px-3 py-2.5 text-left transition-all duration-150 disabled:pointer-events-none disabled:opacity-40"
+                  style={{
+                    borderColor: selected ? "rgba(46,230,166,0.40)" : "rgba(26,42,26,0.9)",
+                    background:  selected ? "rgba(3,12,3,0.95)" : "rgba(5,10,5,0.80)",
+                    boxShadow:   selected ? "0 0 0 1px rgba(46,230,166,0.08), inset 0 1px 0 rgba(46,230,166,0.05)" : "none",
+                    color:       selected ? "#2EE6A6" : "rgba(100,116,139,0.80)",
+                  }}
+                >
+                  <div className="mb-1.5" style={{ color: selected ? "#2EE6A6" : "rgba(71,85,105,0.80)" }}>
+                    {s.icon}
+                  </div>
+                  <div
+                    className="text-[12px] font-semibold leading-snug"
+                    style={{ color: selected ? "rgba(255,255,255,0.92)" : "rgba(148,163,184,0.80)" }}
+                  >
+                    {s.label}
+                  </div>
+                  <div className="mt-0.5 text-[10px] leading-relaxed" style={{ color: selected ? "rgba(46,230,166,0.50)" : "rgba(71,85,105,0.70)" }}>
+                    {s.desc}
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
           {/* Custom sector note */}
@@ -195,7 +315,7 @@ export default function SectorSelectClient() {
         </div>
       </form>
 
-      {/* Skip — hidden during load to prevent race */}
+      {/* Skip */}
       {!loading && (
         <button
           type="button"

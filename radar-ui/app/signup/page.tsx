@@ -14,9 +14,12 @@ function SignupForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
 
   useEffect(() => {
     capture("signup_started", { plan });
@@ -43,7 +46,6 @@ function SignupForm() {
       return;
     }
 
-    // Fire signup_completed — client-side identity capture + server-side PostHog + Resend
     capture("signup_completed", { plan });
     void fetch("/api/events/signup", {
       method: "POST",
@@ -53,6 +55,17 @@ function SignupForm() {
 
     setDone(true);
     setLoading(false);
+  }
+
+  async function handleResend() {
+    setResending(true);
+    try {
+      const supabase = createClient();
+      await supabase.auth.resend({ type: "signup", email });
+      setResent(true);
+      setTimeout(() => setResent(false), 5000);
+    } catch { /* non-fatal */ }
+    setResending(false);
   }
 
   if (done) {
@@ -69,10 +82,19 @@ function SignupForm() {
         <div>
           <p className="text-[15px] font-semibold text-white">Check your email</p>
           <p className="mt-1 text-[13px] text-slate-500">
-            We sent a confirmation link to <span className="text-slate-300">{email}</span>
+            We sent a confirmation link to{" "}
+            <span className="text-slate-300">{email}</span>
           </p>
         </div>
-        <Link href="/login" className="mt-2 text-[13px] text-[#2EE6A6] hover:underline">
+        <button
+          onClick={handleResend}
+          disabled={resending || resent}
+          className="mt-1 text-[12px] transition-colors disabled:opacity-50"
+          style={{ color: resent ? "rgba(46,230,166,0.70)" : "#64748b" }}
+        >
+          {resent ? "Email sent ✓" : resending ? "Sending…" : "Didn't receive it? Resend"}
+        </button>
+        <Link href="/login" className="mt-1 text-[13px] text-[#2EE6A6] hover:underline">
           Back to login
         </Link>
       </div>
@@ -106,6 +128,7 @@ function SignupForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
+          autoFocus
           autoComplete="email"
           className="rounded-[10px] border border-[#0d2010] bg-[#030c03] px-4 py-2.5 text-[14px] text-white placeholder-slate-700 outline-none transition-colors focus:border-[#2EE6A6]/30 focus:ring-1 focus:ring-[#2EE6A6]/20"
           placeholder="you@company.com"
@@ -116,16 +139,36 @@ function SignupForm() {
         <label className="text-[12px] font-medium uppercase tracking-[0.15em] text-slate-500">
           Password
         </label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={8}
-          autoComplete="new-password"
-          className="rounded-[10px] border border-[#0d2010] bg-[#030c03] px-4 py-2.5 text-[14px] text-white placeholder-slate-700 outline-none transition-colors focus:border-[#2EE6A6]/30 focus:ring-1 focus:ring-[#2EE6A6]/20"
-          placeholder="Min. 8 characters"
-        />
+        <div className="relative">
+          <input
+            type={showPassword ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={8}
+            autoComplete="new-password"
+            className="w-full rounded-[10px] border border-[#0d2010] bg-[#030c03] px-4 py-2.5 pr-10 text-[14px] text-white placeholder-slate-700 outline-none transition-colors focus:border-[#2EE6A6]/30 focus:ring-1 focus:ring-[#2EE6A6]/20"
+            placeholder="Min. 8 characters"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            className="absolute inset-y-0 right-3 flex items-center text-slate-600 transition-colors hover:text-slate-400"
+            aria-label={showPassword ? "Hide password" : "Show password"}
+            tabIndex={-1}
+          >
+            {showPassword ? (
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M2 2l12 12M6.5 6.7A2 2 0 0 0 9.3 9.5M4.3 4.5C2.8 5.5 1.6 6.8 1 8c1.2 2.4 3.8 4 7 4 1.2 0 2.3-.3 3.3-.7M6.5 3.1C7 3 7.5 3 8 3c3.2 0 5.8 1.6 7 4-.5 1-1.3 1.9-2.3 2.7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <ellipse cx="8" cy="8" rx="3" ry="2" stroke="currentColor" strokeWidth="1.3" />
+                <path d="M1 8c1.2-2.4 3.8-4 7-4s5.8 1.6 7 4c-1.2 2.4-3.8 4-7 4S2.2 10.4 1 8Z" stroke="currentColor" strokeWidth="1.3" />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
 
       <button
@@ -133,7 +176,7 @@ function SignupForm() {
         disabled={loading}
         className="mt-2 rounded-full bg-[#2EE6A6] py-2.5 text-[14px] font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-50"
       >
-        {loading ? "Creating account…" : "Create account"}
+        {loading ? "Creating account…" : "Start free trial"}
       </button>
 
       <p className="text-center text-[11px] text-slate-600">
@@ -162,7 +205,7 @@ export default function SignupPage() {
         }}
       />
 
-      <div className="relative w-full max-w-sm">
+      <div className="page-enter relative w-full max-w-sm">
         {/* Logo */}
         <div className="mb-8 flex flex-col items-center">
           <Link href="/" className="flex items-center gap-3">

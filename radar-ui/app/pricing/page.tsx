@@ -105,7 +105,7 @@ export default function PricingPage() {
             All the intelligence.<br className="hidden md:block" /> None of the enterprise price.
           </h1>
           <p className="mt-4 text-[15px] text-slate-500">
-            Free trial included. Cancel anytime.
+            3-day free trial. No credit card required. Cancel anytime.
           </p>
         </div>
 
@@ -209,7 +209,7 @@ export default function PricingPage() {
 
         {/* Trust line */}
         <p className="mt-6 text-center text-[11px] text-slate-700">
-          No contracts · No setup fees · Cancel anytime
+          No contracts · No setup fees · Cancel anytime · First signals within hours of setup
         </p>
       </section>
     </div>
