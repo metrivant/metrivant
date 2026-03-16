@@ -25,6 +25,24 @@ function severityWeight(severity: "low" | "medium" | "high"): number {
   return 1;
 }
 
+// Time-weighted velocity: signals in the last 3 days carry full weight,
+// 3–7d carry 0.7, 7–14d carry 0.4. This makes velocity reflect acceleration
+// (a recent burst) rather than a flat average over the full detection window.
+function computeVelocity(signals: SignalRow[]): number {
+  const now = Date.now();
+  let weightedSum = 0;
+  let timeWeightSum = 0;
+
+  for (const s of signals) {
+    const ageDays = (now - new Date(s.detected_at).getTime()) / (24 * 60 * 60 * 1000);
+    const timeWeight = ageDays <= 3 ? 1.0 : ageDays <= 7 ? 0.7 : 0.4;
+    weightedSum  += severityWeight(s.severity) * timeWeight;
+    timeWeightSum += timeWeight;
+  }
+
+  return timeWeightSum > 0 ? parseFloat((weightedSum / timeWeightSum).toFixed(3)) : 0;
+}
+
 function inferMovementTypes(signalTypes: string[]): string[] {
   const set = new Set(signalTypes);
   const movements: string[] = [];
@@ -41,12 +59,12 @@ function inferMovementTypes(signalTypes: string[]): string[] {
     movements.push("market_reposition");
   }
 
-  // content_change is the fallback for unclassified section types.
-  // Map to ecosystem_expansion only when no specific movement was inferred —
-  // avoids inflating product_expansion with low-signal generic changes.
-  if (set.has("content_change") && movements.length === 0) {
-    movements.push("ecosystem_expansion");
-  }
+  // content_change is the fallback for unclassified section types. A cluster
+  // of *only* content_change signals carries no real strategic intelligence —
+  // skip movement declaration entirely. The competitor still appears on the
+  // radar via momentum_score from their signals_7d count.
+  // (Previously mapped to ecosystem_expansion, which polluted the movement layer
+  // with low-signal noise.)
 
   return movements;
 }
@@ -56,10 +74,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   const startedAt = Date.now();
 
-  Sentry.captureCheckIn({
-    monitorSlug: "detect-movements",
-    status: "in_progress",
-  });
+  Sentry.captureCheckIn({ monitorSlug: "detect-movements", status: "in_progress" });
 
   try {
     // 14-day window: tighter than 30d to surface active movements rather than
@@ -79,8 +94,6 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     const signalRows = (signals ?? []) as SignalRow[];
 
-    // Log when the safety cap is reached — silent truncation would make movement
-    // detection non-deterministic without any visibility into the truncation.
     if (signalRows.length >= 1000) {
       Sentry.addBreadcrumb({
         message: "detect-movements: signal query hit limit(1000) — some signals may be excluded",
@@ -88,6 +101,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         data: { count: signalRows.length },
       });
     }
+
     const monitoredPageIds = [...new Set(signalRows.map((s) => s.monitored_page_id))];
 
     const { data: pages, error: pagesError } = await supabase
@@ -107,18 +121,37 @@ async function handler(req: ApiReq, res: ApiRes) {
     for (const signal of signalRows) {
       const page = pageMap.get(signal.monitored_page_id);
       if (!page) continue;
-
-      const key = page.competitor_id;
-      const arr = grouped.get(key) ?? [];
+      const arr = grouped.get(page.competitor_id) ?? [];
       arr.push(signal);
-      grouped.set(key, arr);
+      grouped.set(page.competitor_id, arr);
     }
 
-    let rowsClaimed = grouped.size;
+    // ── Batch-load interpretation summaries ───────────────────────────────────
+    // Used to populate movement.summary with real AI-generated intelligence
+    // instead of a mechanical movement_type label. One bulk query for all
+    // signal IDs — no per-competitor round-trip.
+    const allSignalIds = signalRows.map((s) => s.id);
+    const interpretationMap = new Map<string, string>(); // signal_id → strategic_implication
+
+    if (allSignalIds.length > 0) {
+      const { data: interpretations } = await supabase
+        .from("interpretations")
+        .select("signal_id, strategic_implication")
+        .in("signal_id", allSignalIds);
+
+      for (const row of (interpretations ?? []) as { signal_id: string; strategic_implication: string }[]) {
+        if (row.strategic_implication) {
+          interpretationMap.set(row.signal_id, row.strategic_implication);
+        }
+      }
+    }
+
+    const rowsClaimed = grouped.size;
     let rowsProcessed = 0;
     let rowsSucceeded = 0;
     let rowsFailed = 0;
     let movementsCreated = 0;
+    let movementsSkippedNoType = 0;
 
     for (const [competitorId, competitorSignals] of grouped.entries()) {
       rowsProcessed += 1;
@@ -126,8 +159,6 @@ async function handler(req: ApiReq, res: ApiRes) {
       try {
         const signalCount = competitorSignals.length;
 
-        // Require at least 2 signals to form a movement — a single signal is
-        // not enough evidence to declare a strategic direction.
         if (signalCount < 2) {
           rowsSucceeded += 1;
           continue;
@@ -136,47 +167,69 @@ async function handler(req: ApiReq, res: ApiRes) {
         const signalTypes = competitorSignals.map((s) => s.signal_type);
         const movementTypes = inferMovementTypes(signalTypes);
 
-        const velocity =
-          competitorSignals.reduce(
-            (sum, s) => sum + severityWeight(s.severity),
-            0
-          ) / Math.max(signalCount, 1);
+        // No declarable movement type — all signals are content_change fallback.
+        // Skip movement creation; competitor is still visible on radar via momentum_score.
+        if (movementTypes.length === 0) {
+          movementsSkippedNoType += 1;
+          rowsSucceeded += 1;
+          continue;
+        }
+
+        const velocity = computeVelocity(competitorSignals);
 
         const firstSeenAt = competitorSignals[0].detected_at;
-        const lastSeenAt = competitorSignals[competitorSignals.length - 1].detected_at;
+        const lastSeenAt  = competitorSignals[competitorSignals.length - 1].detected_at;
 
-        // Confidence-weighted formula: rewards both signal quality (avgConf) and
-        // signal volume (count), with diminishing returns above 6 signals.
-        const confidenceScores = competitorSignals
-          .map((s) => s.confidence_score ?? 0.5);
-        const avgConf =
-          confidenceScores.reduce((a, b) => a + b, 0) / confidenceScores.length;
+        const confidenceScores = competitorSignals.map((s) => s.confidence_score ?? 0.5);
+        const avgConf = confidenceScores.reduce((a, b) => a + b, 0) / confidenceScores.length;
         const movementConfidence = Math.min(0.95, avgConf * 0.65 + Math.min(signalCount, 6) * 0.06);
 
-        for (const movementType of movementTypes) {
-          const confidence = movementConfidence;
+        // ── Rich summary from interpretation layer ────────────────────────────
+        // Use the strategic_implication from the most recent interpreted signal
+        // in this cluster. Falls back to the movement_type label if unavailable.
+        const mostRecentSignal = competitorSignals[competitorSignals.length - 1];
+        const richSummary =
+          interpretationMap.get(mostRecentSignal.id) ??
+          movementTypes[0].replace(/_/g, " ");
 
-          // Upsert on (competitor_id, movement_type) to prevent unbounded duplicate rows
-          // across cron cycles. first_seen_at is included on insert; on conflict it is
-          // overwritten with the oldest signal in the current 30-day detection window,
-          // which correctly reflects the active signal cluster.
+        for (const movementType of movementTypes) {
+          // ── Preserve first_seen_at on update ─────────────────────────────────
+          // Step 1: upsert with ignoreDuplicates=true — inserts new rows (setting
+          // first_seen_at) and does nothing on conflict (preserving it).
+          // Step 2: update mutable fields unconditionally — never touches first_seen_at.
+          // This replaces a plain upsert which overwrote first_seen_at every cycle.
           const { error: upsertError } = await supabase
             .from("strategic_movements")
             .upsert(
               {
                 competitor_id: competitorId,
                 movement_type: movementType,
-                confidence,
-                signal_count: signalCount,
+                confidence:    movementConfidence,
+                signal_count:  signalCount,
                 velocity,
                 first_seen_at: firstSeenAt,
-                last_seen_at: lastSeenAt,
-                summary: movementType.replace(/_/g, " "),
+                last_seen_at:  lastSeenAt,
+                summary:       richSummary,
               },
-              { onConflict: "competitor_id,movement_type" }
+              { onConflict: "competitor_id,movement_type", ignoreDuplicates: true }
             );
 
           if (upsertError) throw upsertError;
+
+          const { error: updateError } = await supabase
+            .from("strategic_movements")
+            .update({
+              confidence:   movementConfidence,
+              signal_count: signalCount,
+              velocity,
+              last_seen_at: lastSeenAt,
+              summary:      richSummary,
+            })
+            .eq("competitor_id", competitorId)
+            .eq("movement_type", movementType);
+
+          if (updateError) throw updateError;
+
           movementsCreated += 1;
         }
 
@@ -197,14 +250,11 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsSucceeded,
       rowsFailed,
       movementsCreated,
+      movementsSkippedNoType,
       runtimeDurationMs,
     });
 
-    Sentry.captureCheckIn({
-      monitorSlug: "detect-movements",
-      status: "ok",
-    });
-
+    Sentry.captureCheckIn({ monitorSlug: "detect-movements", status: "ok" });
     await Sentry.flush(2000);
 
     res.status(200).json({
@@ -215,16 +265,12 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsSucceeded,
       rowsFailed,
       movementsCreated,
+      movementsSkippedNoType,
       runtimeDurationMs,
     });
   } catch (error) {
     Sentry.captureException(error);
-
-    Sentry.captureCheckIn({
-      monitorSlug: "detect-movements",
-      status: "error",
-    });
-
+    Sentry.captureCheckIn({ monitorSlug: "detect-movements", status: "error" });
     await Sentry.flush(2000);
     throw error;
   }
