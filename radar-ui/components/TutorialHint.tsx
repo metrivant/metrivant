@@ -45,24 +45,21 @@ const HINTS: Hint[] = [
     ),
   },
   {
-    id: "hint_constellation",
-    tag: "Signal Constellation",
+    id: "hint_telescope",
+    tag: "Telescope",
     tagColor: "#2EE6A6",
-    headline: "Convergence has a shape.",
-    body: "The Signal Constellation in the sidebar detects when multiple rivals move in the same direction simultaneously. When that happens, the constellation lights up — market convergence made visible.",
+    headline: "The market has a sky.",
+    body: "The Telescope in the sidebar renders the competitive environment as a cosmic scene — from Starfield (quiet observation) to Supernova (dramatic market event). Click to advance the scene.",
     delayMs: 120_000,
     icon: (
       <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-        <line x1="11" y1="3"  x2="18" y2="9"  stroke="#2EE6A6" strokeWidth="0.7" strokeOpacity="0.35" />
-        <line x1="11" y1="3"  x2="4"  y2="9"  stroke="#2EE6A6" strokeWidth="0.7" strokeOpacity="0.35" />
-        <line x1="18" y1="9"  x2="16" y2="18" stroke="#2EE6A6" strokeWidth="0.7" strokeOpacity="0.35" />
-        <line x1="4"  y1="9"  x2="6"  y2="18" stroke="#2EE6A6" strokeWidth="0.7" strokeOpacity="0.35" />
-        <line x1="6"  y1="18" x2="16" y2="18" stroke="#2EE6A6" strokeWidth="0.7" strokeOpacity="0.35" />
-        <circle cx="11" cy="3"  r="1.8" fill="#2EE6A6" fillOpacity="0.85" />
-        <circle cx="18" cy="9"  r="1.4" fill="#2EE6A6" fillOpacity="0.60" />
-        <circle cx="4"  cy="9"  r="1.4" fill="#2EE6A6" fillOpacity="0.60" />
-        <circle cx="16" cy="18" r="1.4" fill="#2EE6A6" fillOpacity="0.60" />
-        <circle cx="6"  cy="18" r="1.4" fill="#2EE6A6" fillOpacity="0.60" />
+        <circle cx="11" cy="8"  r="4.5" stroke="#2EE6A6" strokeWidth="0.8" strokeOpacity="0.55" fill="none" />
+        <circle cx="11" cy="8"  r="1.5" fill="#2EE6A6" fillOpacity="0.80" />
+        <line   x1="11" y1="12.5" x2="11" y2="19" stroke="#2EE6A6" strokeWidth="0.9" strokeLinecap="round" strokeOpacity="0.50" />
+        <line   x1="8"  y1="19"   x2="14" y2="19" stroke="#2EE6A6" strokeWidth="0.9" strokeLinecap="round" strokeOpacity="0.40" />
+        <circle cx="16" cy="5"  r="0.9" fill="#2EE6A6" fillOpacity="0.55" />
+        <circle cx="6"  cy="4"  r="0.7" fill="#C084FC" fillOpacity="0.65" />
+        <circle cx="18" cy="10" r="0.6" fill="#FFD700" fillOpacity="0.60" />
       </svg>
     ),
   },

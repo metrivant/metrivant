@@ -284,9 +284,9 @@ const FEATURES = [
   },
   {
     Icon: IconConstellation,
-    tag: "Signal Constellation",
-    headline: "Every rival's signal history, mapped across time.",
-    body: "The Signal Constellation renders each competitor as a star field — brightness encoding recency, density encoding activity volume. A dim, sparse field means silence. A bright, dense cluster means acceleration. See at a glance which rivals are generating the most intelligence and when they last moved.",
+    tag: "Telescope",
+    headline: "The competitive environment, rendered as sky.",
+    body: "The Telescope in the sidebar cycles through cosmic scenes that mirror market states — Starfield for baseline observation, Nebula for slow emerging trends, Supernova for dramatic market events. Click to advance the scene.",
   },
   {
     Icon: IconGravity,
