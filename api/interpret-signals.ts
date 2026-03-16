@@ -6,7 +6,9 @@ import { openai } from "../lib/openai";
 import { verifyCronSecret } from "../lib/withCronAuth";
 import { createHash } from "crypto";
 
-const BATCH_SIZE = 5;
+const BATCH_SIZE        = 15;  // raised from 5 — gpt-4o-mini cost is negligible; bottleneck was artificial
+const CONCURRENCY       = 4;   // parallel OpenAI calls — keeps total runtime ~8-10s for 15 signals
+const WALL_CLOCK_GUARD_MS = 25_000; // stop claiming new work past this elapsed time (Vercel ceiling = 30s)
 // Stuck-signal reset window — how long a signal can sit in 'in_progress' before
 // being released back to 'pending' for retry.
 //
@@ -123,12 +125,34 @@ async function callOpenAI(userPrompt: string): Promise<InterpretationResult> {
     throw new Error("OpenAI response missing required fields: " + content);
   }
 
+  if (!parsed.summary.trim() || !parsed.strategic_implication.trim()) {
+    throw new Error("OpenAI response has empty summary or strategic_implication: " + content);
+  }
+
   return {
     summary: parsed.summary,
     strategic_implication: parsed.strategic_implication,
     recommended_action: parsed.recommended_action,
     urgency: Math.round(Math.min(5, Math.max(1, parsed.urgency))),
     confidence: Math.min(1, Math.max(0, parsed.confidence)),
+  };
+}
+
+// Minimal semaphore for bounded concurrent OpenAI calls.
+function createSemaphore(max: number) {
+  let running = 0;
+  const queue: Array<() => void> = [];
+  return function acquire<T>(fn: () => Promise<T>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const run = () => {
+        running++;
+        fn().then(
+          (v) => { running--; if (queue.length) queue.shift()!(); resolve(v); },
+          (e) => { running--; if (queue.length) queue.shift()!(); reject(e); }
+        );
+      };
+      if (running < max) run(); else queue.push(run);
+    });
   };
 }
 
@@ -241,95 +265,117 @@ async function handler(req: ApiReq, res: ApiRes) {
         });
       }
 
-      for (const claimed of claimedSignals as Array<{ id: string; signal_type?: string; retry_count?: number }>) {
-        rowsProcessed += 1;
+      const sem = createSemaphore(CONCURRENCY);
 
-        const signal: SignalDetail = detailMap.get(claimed.id) ?? {
-          id: claimed.id,
-          signal_type: claimed.signal_type ?? "content_change",
-          signal_data: null,
-          severity: "low",
-          monitored_page_id: "",
-          retry_count: claimed.retry_count ?? 0,
-          competitor_name: "Unknown",
-          page_type: "unknown",
-          page_url: "",
-        };
+      const signalResults = await Promise.allSettled(
+        (claimedSignals as Array<{ id: string; signal_type?: string; retry_count?: number }>).map(
+          (claimed) => sem(async () => {
+            const signal: SignalDetail = detailMap.get(claimed.id) ?? {
+              id: claimed.id,
+              signal_type: claimed.signal_type ?? "content_change",
+              signal_data: null,
+              severity: "low",
+              monitored_page_id: "",
+              retry_count: claimed.retry_count ?? 0,
+              competitor_name: "Unknown",
+              page_type: "unknown",
+              page_url: "",
+            };
 
-        try {
-          // Identical excerpts mean the diff was noise that slipped through
-          // (formatting deploy, transient whitespace). Suppress without calling OpenAI.
-          const prev = signal.signal_data?.previous_excerpt ?? "";
-          const curr = signal.signal_data?.current_excerpt ?? "";
-          if (prev && curr && prev === curr) {
-            await supabase
+            // Wall-clock guard: stop launching OpenAI calls near the Vercel ceiling.
+            // Signals not started here stay in_progress and will be reset on the
+            // next run by reset_stuck_signals — no data loss.
+            if (Date.now() - startedAt > WALL_CLOCK_GUARD_MS) {
+              throw new Error("wall_clock_guard: skipping to avoid Vercel timeout");
+            }
+
+            // Identical excerpts = noise that slipped through. Suppress without OpenAI.
+            const prev = signal.signal_data?.previous_excerpt ?? "";
+            const curr = signal.signal_data?.current_excerpt ?? "";
+            if (prev && curr && prev === curr) {
+              await supabase
+                .from("signals")
+                .update({ interpreted: true, interpreted_at: new Date().toISOString(), status: "interpreted" })
+                .eq("id", signal.id);
+              return { succeeded: true };
+            }
+
+            const userPrompt = buildUserPrompt(signal);
+            const promptHash = hashPrompt(userPrompt);
+            const interpretation = await callOpenAI(userPrompt);
+
+            const { error: upsertError } = await supabase
+              .from("interpretations")
+              .upsert(
+                {
+                  signal_id:            signal.id,
+                  model_used:           MODEL_USED,
+                  prompt_version:       PROMPT_VERSION,
+                  prompt_hash:          promptHash,
+                  change_type:          signal.signal_type,
+                  summary:              interpretation.summary,
+                  strategic_implication: interpretation.strategic_implication,
+                  recommended_action:   interpretation.recommended_action,
+                  urgency:              interpretation.urgency,
+                  confidence:           interpretation.confidence,
+                  old_content:          signal.signal_data?.previous_excerpt ?? null,
+                  new_content:          signal.signal_data?.current_excerpt ?? null,
+                },
+                { onConflict: "signal_id" }
+              );
+
+            if (upsertError) throw upsertError;
+
+            // Guard with status='in_progress' so a late response from a prior worker
+            // cannot overwrite a fresher state.
+            const { error: updateError } = await supabase
               .from("signals")
-              .update({ interpreted: true, interpreted_at: new Date().toISOString(), status: "interpreted" })
-              .eq("id", signal.id);
-            rowsSucceeded += 1;
-            continue;
-          }
+              .update({
+                interpreted:     true,
+                interpreted_at:  new Date().toISOString(),
+                status:          "interpreted",
+                last_error:      null,
+              })
+              .eq("id", signal.id)
+              .eq("status", "in_progress");
 
-          const userPrompt = buildUserPrompt(signal);
-          const promptHash = hashPrompt(userPrompt);
-          const interpretation = await callOpenAI(userPrompt);
+            if (updateError) throw updateError;
 
-          const { error: upsertError } = await supabase
-            .from("interpretations")
-            .upsert(
-              {
-                signal_id: signal.id,
-                model_used: MODEL_USED,
-                prompt_version: PROMPT_VERSION,
-                prompt_hash: promptHash,
-                change_type: signal.signal_type,
-                summary: interpretation.summary,
-                strategic_implication: interpretation.strategic_implication,
-                recommended_action: interpretation.recommended_action,
-                urgency: interpretation.urgency,
-                confidence: interpretation.confidence,
-                old_content: signal.signal_data?.previous_excerpt ?? null,
-                new_content: signal.signal_data?.current_excerpt ?? null,
-              },
-              { onConflict: "signal_id" }
-            );
+            return { succeeded: true };
+          })
+        )
+      );
 
-          if (upsertError) throw upsertError;
+      for (let i = 0; i < signalResults.length; i++) {
+        rowsProcessed += 1;
+        const result = signalResults[i];
+        const claimed = (claimedSignals as Array<{ id: string; retry_count?: number }>)[i];
 
-          // Guard with status = 'in_progress' so a late response from a prior
-          // worker (after the 30-minute stuck reset) cannot overwrite a fresher state.
-          const { error: updateError } = await supabase
-            .from("signals")
-            .update({
-              interpreted: true,
-              interpreted_at: new Date().toISOString(),
-              status: "interpreted",
-              last_error: null,
-            })
-            .eq("id", signal.id)
-            .eq("status", "in_progress");
-
-          if (updateError) throw updateError;
-
+        if (result.status === "fulfilled") {
           rowsSucceeded += 1;
-        } catch (error: unknown) {
+        } else {
           rowsFailed += 1;
+          const err = result.reason;
+          const isWallClockGuard = err instanceof Error && err.message.startsWith("wall_clock_guard");
 
-          // Status guard: only reset to pending if we still own the in_progress slot.
-          // Prevents a failed late response from overwriting a state set by a fresher worker.
-          const { error: retryError } = await supabase
-            .from("signals")
-            .update({
-              status: "pending",
-              retry_count: (signal.retry_count ?? 0) + 1,
-              last_error: error instanceof Error ? error.message : String(error),
-            })
-            .eq("id", signal.id)
-            .eq("status", "in_progress");
+          if (!isWallClockGuard) {
+            // Reset to pending only if we still own the in_progress slot.
+            const signal = detailMap.get(claimed.id);
+            const { error: retryError } = await supabase
+              .from("signals")
+              .update({
+                status:      "pending",
+                retry_count: (signal?.retry_count ?? claimed.retry_count ?? 0) + 1,
+                last_error:  err instanceof Error ? err.message : String(err),
+              })
+              .eq("id", claimed.id)
+              .eq("status", "in_progress");
 
-          if (retryError) Sentry.captureException(retryError);
-
-          Sentry.captureException(error);
+            if (retryError) Sentry.captureException(retryError);
+            Sentry.captureException(err);
+          }
+          // Wall-clock guard skips are silent — the signal stays in_progress and
+          // reset_stuck_signals will requeue it on the next interpret-signals run.
         }
       }
     }
