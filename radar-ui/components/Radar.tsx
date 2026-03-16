@@ -295,185 +295,155 @@ function getNodeSize(momentum: number): number {
   return 16 + Math.sqrt(Math.max(momentum, 0)) * 3.2;
 }
 
-// ─── Spacetime grid ───────────────────────────────────────────────────────────
-// Computes a gravitationally-warped grid for Gravity Field mode.
-// High-momentum nodes act as point masses — bending nearby grid lines toward them
-// in the same way mass warps spacetime in general relativity.
-// Returns row + column polyline point-strings for SVG <polyline> rendering.
-// GRID_N lines per axis × GRID_PTS sample points per line = smooth curves.
-function computeSpacetimeGrid(
+// ─── Gravity Field: field functions ──────────────────────────────────────────
+// Mass model: momentum (primary) + ambient pressure bonus (secondary).
+function getNodeMass(c: RadarCompetitor): number {
+  return Math.max(0, Number(c.momentum_score ?? 0) + Number(c.pressure_index ?? 0) * 0.15);
+}
+
+// Converts sampled closed-curve points to a smooth SVG cubic bezier path.
+// Uses Catmull-Rom tangents for C1 continuity across all segments.
+function ptsToSmoothPath(pts: Point[]): string {
+  const n = pts.length;
+  if (n < 3) return "";
+  const ALPHA = 1 / 6; // standard Catmull-Rom tension
+  const parts: string[] = [`M ${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`];
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[(i - 1 + n) % n];
+    const p1 = pts[i];
+    const p2 = pts[(i + 1) % n];
+    const p3 = pts[(i + 2) % n];
+    const cp1x = p1.x + (p2.x - p0.x) * ALPHA;
+    const cp1y = p1.y + (p2.y - p0.y) * ALPHA;
+    const cp2x = p2.x - (p3.x - p1.x) * ALPHA;
+    const cp2y = p2.y - (p3.y - p1.y) * ALPHA;
+    parts.push(`C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`);
+  }
+  parts.push("Z");
+  return parts.join(" ");
+}
+
+// Computes deformed contour rings for the Gravity Field.
+// Each ring is a smooth closed curve displaced toward nearby node masses.
+// Scalar field: influence = mass / (dist^P_EXP + EPSILON) summed across all masses.
+// Inner rings deform more (higher MAX_DISP); outer rings fade gracefully.
+// Returns SVG path d-strings (11 rings, innermost to outermost).
+function computeGravityContours(
   competitors: RadarCompetitor[],
   gravPositions: Map<string, Point>,
-): { rows: string[]; cols: string[] } {
-  const GRID_N     = 13; // lines per axis
-  const GRID_PTS   = 14; // sample points per line (for smooth warping)
-  const GRID_RANGE = OUTER_RADIUS * 0.84;
-  const SCALE      = 900; // deflection strength — tuned so warping is legible but subtle
-  const MAX_DEF    = 32;  // max pixel deflection (prevents fold-over at high momentum)
+): string[] {
+  const N_RINGS  = 11;
+  const N_PTS    = 60;   // sample points per ring — enough for smooth curves
+  const R_MIN    = 36;   // innermost ring radius (px)
+  const R_MAX    = OUTER_RADIUS * 0.83;
+  const EPSILON  = 2800; // distance² softening — prevents singularity at node center
+  const P_EXP    = 1.4;  // falloff exponent: > 1 = more localised deformation
+  const MAX_DISP = 42;   // max displacement (inner ring); scales down for outer rings
 
   const masses = competitors
-    .filter((c) => Number(c.momentum_score ?? 0) >= 2)
-    .map((c) => ({ pos: gravPositions.get(c.competitor_id), mass: Number(c.momentum_score ?? 0) }))
-    .filter((m): m is { pos: Point; mass: number } => m.pos !== undefined);
+    .map((c) => ({ pos: gravPositions.get(c.competitor_id), mass: getNodeMass(c) }))
+    .filter((m): m is { pos: Point; mass: number } => m.pos !== undefined && m.mass > 0.5);
 
-  if (masses.length === 0) return { rows: [], cols: [] };
+  if (masses.length === 0) return [];
 
-  function deflect(bx: number, by: number): Point {
-    let dx = 0, dy = 0;
-    for (const { pos, mass } of masses) {
-      const ddx = pos.x - bx;
-      const ddy = pos.y - by;
-      const dist2 = Math.max(ddx * ddx + ddy * ddy, 2500); // floor: 50px min dist
-      const f = (mass * SCALE) / dist2;
-      dx += ddx * f;
-      dy += ddy * f;
-    }
-    const mag = Math.sqrt(dx * dx + dy * dy);
-    if (mag > MAX_DEF) { dx = (dx / mag) * MAX_DEF; dy = (dy / mag) * MAX_DEF; }
-    return { x: bx + dx, y: by + dy };
-  }
+  return Array.from({ length: N_RINGS }, (_, ri) => {
+    const t = ri / (N_RINGS - 1);
+    // Log-spacing: inner rings denser, showing tighter curvature near masses
+    const r0 = R_MIN * Math.pow(R_MAX / R_MIN, t);
+    const ringMaxDisp = MAX_DISP * (1 - t * 0.45);
 
-  const step   = (GRID_RANGE * 2) / (GRID_N - 1);
-  const startX = CENTER - GRID_RANGE;
-  const startY = CENTER - GRID_RANGE;
+    const pts: Point[] = Array.from({ length: N_PTS }, (_, pi) => {
+      const angle = (pi / N_PTS) * Math.PI * 2;
+      const bx = CENTER + r0 * Math.cos(angle);
+      const by = CENTER + r0 * Math.sin(angle);
+      let dx = 0, dy = 0;
+      for (const { pos, mass } of masses) {
+        const ddx = pos.x - bx;
+        const ddy = pos.y - by;
+        const dist2 = ddx * ddx + ddy * ddy;
+        const f = mass / (Math.pow(dist2, P_EXP / 2) + EPSILON);
+        dx += ddx * f;
+        dy += ddy * f;
+      }
+      const mag = Math.sqrt(dx * dx + dy * dy);
+      if (mag > ringMaxDisp) { dx = (dx / mag) * ringMaxDisp; dy = (dy / mag) * ringMaxDisp; }
+      return { x: bx + dx, y: by + dy };
+    });
 
-  const rows: string[] = [];
-  const cols: string[] = [];
-
-  for (let r = 0; r < GRID_N; r++) {
-    const by = startY + r * step;
-    const pts: string[] = [];
-    for (let s = 0; s < GRID_PTS; s++) {
-      const bx = startX + (s / (GRID_PTS - 1)) * GRID_RANGE * 2;
-      const p = deflect(bx, by);
-      pts.push(`${p.x.toFixed(1)},${p.y.toFixed(1)}`);
-    }
-    rows.push(pts.join(" "));
-  }
-
-  for (let c = 0; c < GRID_N; c++) {
-    const bx = startX + c * step;
-    const pts: string[] = [];
-    for (let s = 0; s < GRID_PTS; s++) {
-      const by = startY + (s / (GRID_PTS - 1)) * GRID_RANGE * 2;
-      const p = deflect(bx, by);
-      pts.push(`${p.x.toFixed(1)},${p.y.toFixed(1)}`);
-    }
-    cols.push(pts.join(" "));
-  }
-
-  return { rows, cols };
+    return ptsToSmoothPath(pts);
+  });
 }
 
 // ─── Gravity Field layout ─────────────────────────────────────────────────────
-// Computes similarity between two competitors based on observable data only.
-// movement_type match is the dominant signal (0.50); signals_7d and momentum
-// proximity each contribute up to 0.25 for a max similarity of 1.0.
-function computeSimilarity(
-  a: RadarCompetitor,
-  b: RadarCompetitor,
-  maxSignals: number,
-  maxMomentum: number,
-): number {
-  const typeMatch =
-    a.latest_movement_type != null &&
-    a.latest_movement_type === b.latest_movement_type
-      ? 0.5
-      : 0;
-  const signalSim =
-    1 - Math.abs((a.signals_7d ?? 0) - (b.signals_7d ?? 0)) / Math.max(maxSignals, 1);
-  const momentumSim =
-    1 -
-    Math.abs(Number(a.momentum_score ?? 0) - Number(b.momentum_score ?? 0)) /
-      Math.max(maxMomentum, 1);
-  return typeMatch + signalSim * 0.25 + momentumSim * 0.25;
-}
-
-// Runs a simplified spring-based force layout (80 iterations, deterministic).
-// Similar competitors attract; all pairs repel to prevent overlap.
-// Returns a Map<competitor_id, Point> of final positions.
+// Deterministic orbital band placement.
+// Competitors sorted into 4 bands by momentum score (outer = dormant, inner = dominant).
+// Within each band nodes are evenly distributed by angle with a per-band offset.
+// Guarantees: no spring simulation jitter, same input → same layout every time.
 function computeGravityPositions(
   competitors: RadarCompetitor[],
 ): Map<string, Point> {
   if (competitors.length === 0) return new Map();
-  const n = competitors.length;
-  const MAX_R = OUTER_RADIUS * 0.76;
-  const maxSignals = Math.max(...competitors.map((c) => c.signals_7d ?? 0), 1);
-  const maxMomentum = Math.max(
-    ...competitors.map((c) => Number(c.momentum_score ?? 0)),
-    1,
-  );
 
-  // Similarity matrix — O(n²) but n ≤ 50, so fine as a one-time memoized call
-  const sim: number[][] = Array.from({ length: n }, (_, i) =>
-    Array.from({ length: n }, (_, j) =>
-      i === j
-        ? 1
-        : computeSimilarity(competitors[i], competitors[j], maxSignals, maxMomentum),
-    ),
-  );
+  // Orbital radii — dormant in outer band so low-activity nodes are visible, not central
+  const BAND_RADII = [
+    OUTER_RADIUS * 0.81, // band 0: dormant   (score < 1.5)
+    OUTER_RADIUS * 0.62, // band 1: stable    (1.5–3)
+    OUTER_RADIUS * 0.43, // band 2: rising    (3–5)
+    OUTER_RADIUS * 0.25, // band 3: accelerating (≥5)
+  ] as const;
 
-  // Initial positions evenly distributed on a medium circle
-  const positions: Point[] = competitors.map((_, i) => {
-    const angle = (i / n) * 2 * Math.PI;
-    const r = MAX_R * 0.52;
-    return { x: CENTER + r * Math.cos(angle), y: CENTER + r * Math.sin(angle) };
-  });
+  const bands: RadarCompetitor[][] = [[], [], [], []];
+  for (const c of competitors) {
+    const m = Number(c.momentum_score ?? 0);
+    bands[m >= 5 ? 3 : m >= 3 ? 2 : m >= 1.5 ? 1 : 0].push(c);
+  }
 
-  const K_SPRING = MAX_R * 0.4; // ideal separation for fully dissimilar pair
-  const MIN_DIST  = 40;          // hard minimum separation
-  const STIFFNESS = 0.014;
-  const REPEL     = 0.9;
-  const ITERS     = 80;
+  const result = new Map<string, Point>();
+  const GOLDEN = 2.39996322972865332; // irrational per-band angle offset
 
-  for (let iter = 0; iter < ITERS; iter++) {
-    const forces: Point[] = Array.from({ length: n }, () => ({ x: 0, y: 0 }));
+  for (let b = 0; b < 4; b++) {
+    const group = bands[b];
+    if (!group.length) continue;
+    const n = group.length;
+    const r = BAND_RADII[b];
 
     for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j < n; j++) {
-        const dx = positions[j].x - positions[i].x;
-        const dy = positions[j].y - positions[i].y;
-        const dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
-        const ux = dx / dist;
-        const uy = dy / dist;
-        const s = sim[i][j];
-
-        // Spring toward ideal separation (closer for similar, farther for dissimilar)
-        const idealDist = K_SPRING * (1 - s * 0.68);
-        const springF = (dist - idealDist) * STIFFNESS;
-        forces[i].x += ux * springF;
-        forces[i].y += uy * springF;
-        forces[j].x -= ux * springF;
-        forces[j].y -= uy * springF;
-
-        // Hard repulsion below minimum distance
-        if (dist < MIN_DIST) {
-          const repelF = (MIN_DIST - dist) * REPEL;
-          forces[i].x -= ux * repelF;
-          forces[i].y -= uy * repelF;
-          forces[j].x += ux * repelF;
-          forces[j].y += uy * repelF;
-        }
-      }
+      const baseAngle = (i / n) * Math.PI * 2 + b * GOLDEN;
+      // Deterministic radial nudge (±10% of band radius) for visual variety
+      const nudge = (idHash(group[i].competitor_id) - 0.5) * r * 0.10;
+      const finalR = Math.max(BAND_RADII[3] * 0.75, Math.min(OUTER_RADIUS * 0.87, r + nudge));
+      result.set(group[i].competitor_id, {
+        x: CENTER + finalR * Math.cos(baseAngle),
+        y: CENTER + finalR * Math.sin(baseAngle),
+      });
     }
+  }
 
-    // Apply forces; clamp within boundary
-    for (let i = 0; i < n; i++) {
-      positions[i].x += forces[i].x;
-      positions[i].y += forces[i].y;
-      const dx = positions[i].x - CENTER;
-      const dy = positions[i].y - CENTER;
-      const r = Math.sqrt(dx * dx + dy * dy);
-      if (r > MAX_R) {
-        const s = MAX_R / r;
-        positions[i].x = CENTER + dx * s;
-        positions[i].y = CENTER + dy * s;
+  // Collision resolution — 3 passes nudge overlapping pairs apart
+  const MIN_DIST = 48;
+  const INNER_MIN = BAND_RADII[3] * 0.65;
+  const OUTER_MAX = OUTER_RADIUS * 0.90;
+  const nodes = [...result.entries()];
+  for (let iter = 0; iter < 3; iter++) {
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const pi = nodes[i][1], pj = nodes[j][1];
+        const dx = pj.x - pi.x, dy = pj.y - pi.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+        if (dist >= MIN_DIST) continue;
+        const push = (MIN_DIST - dist) * 0.5;
+        const ux = dx / dist, uy = dy / dist;
+        pi.x -= ux * push; pi.y -= uy * push;
+        pj.x += ux * push; pj.y += uy * push;
+        for (const p of [pi, pj]) {
+          const dr = Math.sqrt((p.x - CENTER) ** 2 + (p.y - CENTER) ** 2);
+          if (dr > OUTER_MAX) { const s = OUTER_MAX / dr; p.x = CENTER + (p.x - CENTER) * s; p.y = CENTER + (p.y - CENTER) * s; }
+          if (dr < INNER_MIN) { const s = INNER_MIN / dr; p.x = CENTER + (p.x - CENTER) * s; p.y = CENTER + (p.y - CENTER) * s; }
+        }
       }
     }
   }
 
-  const result = new Map<string, Point>();
-  competitors.forEach((c, i) => result.set(c.competitor_id, positions[i]));
   return result;
 }
 
@@ -901,9 +871,22 @@ const BlipNode = memo(function BlipNode({
       {/* Label — hidden for dormant nodes by default; shown on hover or selection */}
       {(!isDormantNode || isSelected || hovered) && (
         <text
-          x={x}
-          y={y + nodeSize + 14}
-          textAnchor="middle"
+          x={(() => {
+            if (!gravityMode) return x;
+            const nx = (x - CENTER) / (Math.sqrt((x - CENTER) ** 2 + (y - CENTER) ** 2) || 1);
+            return x + nx * (nodeSize + 13);
+          })()}
+          y={(() => {
+            if (!gravityMode) return y + nodeSize + 14;
+            const dy = y - CENTER;
+            const ny = dy / (Math.sqrt((x - CENTER) ** 2 + dy ** 2) || 1);
+            return y + ny * (nodeSize + 13) + 4;
+          })()}
+          textAnchor={(() => {
+            if (!gravityMode) return "middle";
+            const nx = (x - CENTER) / (Math.sqrt((x - CENTER) ** 2 + (y - CENTER) ** 2) || 1);
+            return nx > 0.3 ? "start" : nx < -0.3 ? "end" : "middle";
+          })()}
           fill={
             isSelected
               ? "#f0fff4"
@@ -1230,9 +1213,9 @@ export default function Radar({
   }, [gravityMode, gravityPositions, sorted]);
 
   // Spacetime grid — warped mesh showing gravitational influence of high-momentum nodes
-  const spacetimeGrid = useMemo(() => {
-    if (!gravityMode || gravityPositions.size === 0) return { rows: [], cols: [] };
-    return computeSpacetimeGrid(sorted, gravityPositions);
+  const gravityContours = useMemo(() => {
+    if (!gravityMode || gravityPositions.size === 0) return [];
+    return computeGravityContours(sorted, gravityPositions);
   }, [gravityMode, sorted, gravityPositions]);
 
   // Standard-mode node positions: zone-aware, ID-anchored placement.
@@ -2137,40 +2120,32 @@ export default function Radar({
               {gravityMode && (
                 <g style={{ opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.55s ease" }}>
 
-                  {/* ── Spacetime grid — GR warped mesh ──────────────────────── */}
-                  {/* Grid lines curve toward high-momentum nodes (mass bends spacetime).  */}
-                  {/* Faint indigo so warping is visible without distracting from nodes.   */}
-                  {spacetimeGrid.rows.length > 0 && (
+                  {/* ── Gravity field contours ─────────────────────────────────── */}
+                  {/* Concentric rings deformed toward node masses via scalar field.  */}
+                  {/* Inner rings compress tighter around heavy nodes; outer rings    */}
+                  {/* show broad field curvature. strokeOpacity fades outward.       */}
+                  {gravityContours.length > 0 && (
                     <g style={{ pointerEvents: "none" }}>
-                      {[...spacetimeGrid.rows, ...spacetimeGrid.cols].map((pts, i) => (
-                        <polyline
-                          key={`stg-${i}`}
-                          points={pts}
-                          fill="none"
-                          stroke="rgba(129,140,248,0.052)"
-                          strokeWidth="0.55"
-                        />
-                      ))}
+                      {gravityContours.map((d, i) => {
+                        const t = i / (gravityContours.length - 1);
+                        return (
+                          <path
+                            key={`gc-${i}`}
+                            d={d}
+                            fill="none"
+                            stroke={G.primary}
+                            strokeWidth={0.65 - t * 0.22}
+                            strokeOpacity={0.10 - t * 0.055}
+                          />
+                        );
+                      })}
                     </g>
                   )}
 
-                  {/* ── Gravity Well ─────────────────────────────────────────── */}
-                  {/* Concentric rotating field-rings — simulate gravitational contours */}
-                  {([180, 130, 85, 48] as const).map((r, i) => (
-                    <motion.circle
-                      key={`well-ring-${i}`}
-                      cx={500} cy={500} r={r}
-                      fill="none"
-                      stroke={G.primary}
-                      strokeWidth={0.7 - i * 0.12}
-                      strokeOpacity={0.07 + i * 0.045}
-                      strokeDasharray={`${3 + i} ${14 - i * 2}`}
-                      animate={{ rotate: i % 2 === 0 ? 360 : -360 }}
-                      transition={{ duration: 44 - i * 7, repeat: Infinity, ease: "linear" }}
-                      style={{ transformOrigin: "500px 500px" }}
-                    />
-                  ))}
-                  {/* Outer diffuse fill — gravitational influence zone */}
+                  {/* ── Singularity core ──────────────────────────────────────── */}
+                  {/* The field contour rings above replace the old decorative well  */}
+                  {/* rings. Only the singularity anchor remains at the origin.      */}
+                  {/* Outer diffuse fill — gravitational origin marker */}
                   <circle cx={500} cy={500} r={32}
                     fill={G.core} fillOpacity={0.15}
                     stroke={G.primary} strokeWidth={1.0} strokeOpacity={0.35}
