@@ -41,8 +41,12 @@ interface PageSectionHashRow {
   section_hash: string;
 }
 
-const SECTION_SCAN_LIMIT = 500;
+const SECTION_SCAN_LIMIT    = 500;
 const MAX_OBSERVATION_COUNT = 5;
+// Only consider sections created within this window. Prevents stale sections
+// (from days/weeks ago) crowding out fresh ones in the top-N scan and ensures
+// detect-diffs always reflects the current pipeline state.
+const SECTION_RECENCY_HOURS = 48;
 
 function makeSectionKey(monitoredPageId: string, sectionType: string): string {
   return monitoredPageId + "::" + sectionType;
@@ -59,12 +63,17 @@ async function handler(req: ApiReq, res: ApiRes) {
   });
 
   try {
+    const sectionSince = new Date(
+      Date.now() - SECTION_RECENCY_HOURS * 60 * 60 * 1000
+    ).toISOString();
+
     const { data: recentSections, error: sectionsError } = await supabase
       .from("page_sections")
       .select(
         "id, monitored_page_id, snapshot_id, section_type, section_hash, section_text, created_at, validation_status"
       )
       .eq("validation_status", "valid")
+      .gte("created_at", sectionSince)
       .order("created_at", { ascending: false })
       .limit(SECTION_SCAN_LIMIT);
 
@@ -269,6 +278,8 @@ async function handler(req: ApiReq, res: ApiRes) {
           // Diff stability warning: a diff re-observed MAX times without a signal
           // indicates consistent suppression — normalization mismatch, confidence
           // floor, or unstable extraction producing valid-but-un-signalable content.
+          // Force signal_detected=true to clear it from the queue; the warning flags
+          // it for investigation. Without this, these accumulate as phantom diffBacklog.
           if (
             nextCount >= MAX_OBSERVATION_COUNT &&
             existingDiff.signal_detected !== true
@@ -283,6 +294,12 @@ async function handler(req: ApiReq, res: ApiRes) {
               },
             });
             diffStabilityWarnings += 1;
+
+            // Clear from queue — detect-signals will no longer re-evaluate this diff.
+            await supabase
+              .from("section_diffs")
+              .update({ signal_detected: true })
+              .eq("id", existingDiff.id);
           }
 
           continue;
