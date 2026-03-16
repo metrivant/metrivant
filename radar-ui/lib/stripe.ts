@@ -20,7 +20,10 @@ export function getPriceId(plan: "analyst" | "pro"): string {
     if (!id) throw new Error("STRIPE_PRO_PRICE_ID is not set");
     return id;
   }
-  // STRIPE_ANALYST_PRICE_ID — also accept legacy typo'd name as fallback
+  // STRIPE_ANALYST_PRICE_ID is the canonical env var name.
+  // STRIP_ANALYST_PRICE_ID (missing the E) is a legacy typo from early deployments.
+  // Keep this fallback until all production environments are confirmed migrated to STRIPE_.
+  // Do not remove without verifying no active deployment uses the typo'd name.
   const id = (process.env.STRIPE_ANALYST_PRICE_ID ?? process.env.STRIP_ANALYST_PRICE_ID ?? "").trim();
   if (!id) throw new Error("STRIPE_ANALYST_PRICE_ID is not set");
   return id;

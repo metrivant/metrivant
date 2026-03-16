@@ -345,7 +345,7 @@ export default async function Page() {
         {/* Desktop: flex-1 overflow-hidden p-3 (fixed viewport height)       */}
         {/* Mobile:  p-3 pb-[76px] — extra bottom padding clears mobile nav   */}
         <div className="relative z-10 flex flex-1 flex-col overflow-hidden p-3 pb-[76px] md:pb-3">
-          <RadarViewedTracker />
+          <RadarViewedTracker orgId={orgId} competitorCount={competitors.length} hasActiveAlerts={hasCriticalAlert} />
           <Radar competitors={competitors} sector={sector} orgId={orgId} />
         </div>
 

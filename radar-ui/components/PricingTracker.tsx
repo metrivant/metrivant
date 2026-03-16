@@ -6,7 +6,7 @@ import { capture } from "../lib/posthog";
 // Fires pricing_viewed on mount — keeps the pricing page a server component.
 export default function PricingTracker() {
   useEffect(() => {
-    capture("pricing_viewed");
+    capture("pricing_viewed", { source: "/pricing" });
   }, []);
 
   return null;

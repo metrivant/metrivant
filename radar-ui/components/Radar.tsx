@@ -1459,7 +1459,7 @@ export default function Radar({
     setVisitedIds((prev) => { const next = new Set(prev); next.add(id); return next; });
     setSelectedId((prev) => {
       if (prev !== id) {
-        capture("competitor_selected", { competitor_id: id });
+        capture("competitor_selected", { competitor_id: id, source: "radar" });
         capture("radar_node_activated", { competitor_id: id });
       }
       return prev === id ? null : id;
