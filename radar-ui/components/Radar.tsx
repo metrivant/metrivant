@@ -3327,7 +3327,7 @@ export default function Radar({
                   </p>
                 ) : (
                   <p className="text-sm leading-6 text-slate-500">
-                    Analysing…
+                    Analyzing…
                   </p>
                 )}
                 </div>
@@ -3542,7 +3542,7 @@ export default function Radar({
                     Evidence
                   </div>
                   <div className="text-[11px] uppercase tracking-[0.16em] text-slate-600">
-                    Live captures
+                    Captured changes
                   </div>
                 </div>
 
@@ -3603,17 +3603,19 @@ export default function Radar({
                             </span>
                           </div>
 
-                          {signal.summary && (
+                          {/* Lead with strategic_implication; fall back to summary */}
+                          {signal.strategic_implication ? (
+                            <p className="mb-2 text-[13px] leading-relaxed text-slate-300">
+                              {signal.strategic_implication}
+                            </p>
+                          ) : signal.summary ? (
                             <p className="mb-2 text-xs leading-5 text-slate-400">
                               {signal.summary}
                             </p>
-                          )}
+                          ) : null}
 
                           {signal.previous_excerpt && signal.current_excerpt && (
                             <div className="space-y-1">
-                              <div className="mb-1 text-[10px] text-slate-600" style={{ letterSpacing: "0.08em" }}>
-                                {getPageTypeLabel(signal.page_type)} · {formatRelative(signal.detected_at)}
-                              </div>
                               <div className="rounded-[8px] bg-[#040a04] px-3 py-2">
                                 <span className="text-[10px] uppercase tracking-[0.12em] text-slate-600">
                                   Was

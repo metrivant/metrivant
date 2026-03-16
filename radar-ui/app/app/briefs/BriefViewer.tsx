@@ -506,8 +506,15 @@ export default function BriefViewer({
         {brief.major_moves.length === 0 &&
           brief.strategic_implications.length === 0 &&
           brief.recommended_actions.length === 0 && (
-            <div className="py-8 text-center text-[13px] text-slate-700">
-              No significant competitive activity detected this week.
+            <div className="py-10 text-center">
+              <div className="text-[13px] font-medium text-slate-500">
+                Quiet week
+              </div>
+              <div className="mt-1.5 text-[12px] leading-relaxed text-slate-700">
+                No significant movements detected across your monitored competitors.
+                <br />
+                The system continues to watch.
+              </div>
             </div>
           )}
 

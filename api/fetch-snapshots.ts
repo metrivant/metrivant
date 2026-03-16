@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
 import crypto from "crypto";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "../lib/rate-limit";
+import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
 
 const FETCH_TIMEOUT_MS          = 6500;
 const GLOBAL_CONCURRENCY        = 8;
@@ -97,10 +98,10 @@ async function fetchWithTimeout(url: string): Promise<string> {
       throw new Error(`Fetch failed: ${response.status} ${response.statusText}`);
     }
 
-    const html = await response.text();
+    let html = await response.text();
 
     if (html.length > MAX_HTML_SIZE) {
-      throw new Error(`HTML exceeds size limit for ${url}`);
+      html = html.slice(0, MAX_HTML_SIZE);
     }
 
     return html;
@@ -117,7 +118,8 @@ async function processUrl(
   groupedPages: MonitoredPage[],
   invocationStart: number,
   domainFailureCounts: Map<string, number>,
-  latestHashMap: Map<string, string>  // pre-batched: page_id → latest content_hash
+  latestHashMap: Map<string, string>,  // pre-batched: page_id → latest content_hash
+  runId: string,
 ): Promise<UrlResult> {
   const empty: UrlResult = {
     succeeded: false, failed: false, inserted: 0, skippedDuplicates: 0,
@@ -134,6 +136,8 @@ async function processUrl(
   }
 
   await sleep(randomInt(JITTER_MIN_MS, JITTER_MAX_MS));
+
+  const elapsed = startTimer();
 
   try {
     const rawHtml = await fetchWithTimeout(url);
@@ -179,6 +183,7 @@ async function processUrl(
 
       if (isDuplicate) {
         skippedDuplicates += 1;
+        void recordEvent({ run_id: runId, stage: "snapshot", status: "skipped", monitored_page_id: page.id, duration_ms: elapsed(), metadata: { http_status: 200, content_length: rawHtml.length } });
         continue;
       }
 
@@ -201,6 +206,7 @@ async function processUrl(
         // Concurrent run inserted the same hash first — safe to skip.
         if ((insertError as { code?: string }).code === "23505") {
           skippedDuplicates += 1;
+          void recordEvent({ run_id: runId, stage: "snapshot", status: "skipped", monitored_page_id: page.id, duration_ms: elapsed(), metadata: { http_status: 200, content_length: rawHtml.length } });
           continue;
         }
         throw insertError;
@@ -208,6 +214,7 @@ async function processUrl(
 
       inserted += 1;
       if (fetchQuality !== "full") nonFullPageIds.push(page.id);
+      void recordEvent({ run_id: runId, stage: "snapshot", status: "success", monitored_page_id: page.id, duration_ms: elapsed(), metadata: { http_status: 200, content_length: rawHtml.length, fetch_quality: fetchQuality } });
     }
 
     return { ...empty, succeeded: true, inserted, skippedDuplicates, nonFullPageIds };
@@ -239,6 +246,11 @@ async function processUrl(
       domainFailureCounts.set(hostname, (domainFailureCounts.get(hostname) ?? 0) + 1);
     }
 
+    const httpStatus = msg.match(/Fetch failed: (\d{3})/)?.[1];
+    for (const page of groupedPages) {
+      void recordEvent({ run_id: runId, stage: "snapshot", status: "failure", monitored_page_id: page.id, duration_ms: elapsed(), metadata: { http_status: httpStatus ? parseInt(httpStatus, 10) : null } });
+    }
+
     return { ...empty, failed: true, triggeredCooldown: triggersCooldown };
   }
 }
@@ -254,6 +266,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   }
 
   const startedAt = Date.now();
+  const runId = (req.headers as Record<string, string | undefined>)?.["x-vercel-id"] ?? generateRunId();
 
   const pageClass =
     typeof req.query?.page_class === "string" ? req.query.page_class : null;
@@ -339,7 +352,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
         return globalSem(() =>
           domainSem(() =>
-            processUrl(url, hostname, groupedPages, startedAt, domainFailureCounts, latestHashMap)
+            processUrl(url, hostname, groupedPages, startedAt, domainFailureCounts, latestHashMap, runId)
           )
         );
       })
@@ -380,7 +393,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         .filter(([, count]) => count >= DOMAIN_COOLDOWN_THRESHOLD)
         .map(([domain]) => domain);
       Sentry.captureMessage("fetch_domain_cooldown", {
-        level: "warning",
+        level: "info",
         extra: { rowsSkippedCooldown, cooledDomains },
       });
     }

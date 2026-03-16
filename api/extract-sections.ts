@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
 import crypto from "crypto";
 import * as cheerio from "cheerio";
+import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
 
 interface SnapshotRow {
   id: string;
@@ -125,6 +126,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   if (!verifyCronSecret(req, res)) return;
 
   const startedAt = Date.now();
+  const runId = (req.headers as Record<string, string | undefined>)?.["x-vercel-id"] ?? generateRunId();
 
   Sentry.captureCheckIn({ monitorSlug: "extract-sections", status: "in_progress" });
 
@@ -177,6 +179,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     const results = await Promise.allSettled(
       pendingSnapshots.map((snapshot) =>
         sem(async () => {
+          const elapsed = startTimer();
           const pageRules = rulesByPage.get(snapshot.monitored_page_id) ?? [];
 
           if (pageRules.length === 0) {
@@ -190,7 +193,8 @@ async function handler(req: ApiReq, res: ApiRes) {
               })
               .eq("id", snapshot.id);
             if (skipMarkError) throw skipMarkError;
-            return { skippedNoRules: true, sectionsWritten: 0, pageId: snapshot.monitored_page_id };
+            void recordEvent({ run_id: runId, stage: "extract", status: "skipped", monitored_page_id: snapshot.monitored_page_id, snapshot_id: snapshot.id, duration_ms: elapsed(), metadata: { sections_found: 0, validation_state: "skipped", rule_count: 0 } });
+            return { skippedNoRules: true, sectionsWritten: 0, pageId: snapshot.monitored_page_id, snapshotId: snapshot.id };
           }
 
           // ── Parse HTML once per snapshot ─────────────────────────────────────
@@ -247,20 +251,30 @@ async function handler(req: ApiReq, res: ApiRes) {
 
           if (markError) throw markError;
 
+          const worstValidation =
+            sectionRows.some((r) => r.validation_status === "failed") ? "failed" :
+            sectionRows.some((r) => r.validation_status === "suspect") ? "suspect" : "valid";
+
+          void recordEvent({ run_id: runId, stage: "extract", status: "success", monitored_page_id: snapshot.monitored_page_id, snapshot_id: snapshot.id, duration_ms: elapsed(), metadata: { sections_found: sectionRows.length, validation_state: worstValidation, rule_count: pageRules.length } });
+
           return {
             skippedNoRules: false,
             sectionsWritten: sectionRows.length,
             pageId: snapshot.monitored_page_id,
+            snapshotId: snapshot.id,
           };
         })
       )
     );
 
-    for (const result of results) {
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      const snap   = pendingSnapshots[i];
       rowsProcessed += 1;
       if (result.status === "rejected") {
         rowsFailed += 1;
         Sentry.captureException(result.reason);
+        void recordEvent({ run_id: runId, stage: "extract", status: "failure", monitored_page_id: snap.monitored_page_id, snapshot_id: snap.id, metadata: { sections_found: 0, validation_state: "failed", rule_count: rulesByPage.get(snap.monitored_page_id)?.length ?? 0 } });
       } else {
         rowsSucceeded += 1;
         if (result.value.skippedNoRules) {

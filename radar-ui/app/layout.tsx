@@ -22,29 +22,40 @@ export const metadata: Metadata = {
     template: "%s — Metrivant",
   },
   description:
-    "Detect competitor moves before they matter. Metrivant monitors pricing, product changes, and strategy signals in real time.",
+    "Track competitor pricing, product launches, hiring signals, and strategic movements before they affect your market.",
   openGraph: {
     type:        "website",
     siteName:    "Metrivant",
     title:       "Metrivant — Competitive Intelligence Radar",
-    description: "See competitor moves before the market does.",
+    description: "Track competitor pricing, product launches, hiring signals, and strategic movements before they affect your market.",
     url:         "https://metrivant.com",
-    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Metrivant — Competitive Intelligence Radar" }],
+    images: [{ url: "/opengraph-image.png", width: 1200, height: 630, alt: "Metrivant — Competitive Intelligence Radar" }],
   },
   twitter: {
     card:        "summary_large_image",
     title:       "Metrivant — Competitive Intelligence Radar",
-    description: "Detect competitor moves before they matter.",
-    images:      ["/og-image.png"],
+    description: "Track competitor pricing, product launches, hiring signals, and strategic movements before they affect your market.",
+    images:      ["/opengraph-image.png"],
   },
   icons: {
     icon:  [{ url: "/favicon.ico" }],
-    apple: [{ url: "/apple-touch-icon.png" }],
+    apple: [{ url: "/apple-icon.png" }],
   },
   robots: {
     index:  true,
     follow: true,
   },
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Metrivant",
+  url: "https://metrivant.com",
+  description:
+    "Track competitor pricing, product launches, hiring signals, and strategic movements before they affect your market.",
+  logo: "https://metrivant.com/opengraph-image.png",
+  sameAs: [],
 };
 
 export default function RootLayout({
@@ -55,6 +66,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} font-[family-name:var(--font-inter)] antialiased`}>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         <PostHogProvider>{children}</PostHogProvider>
       </body>
     </html>

@@ -1,4 +1,5 @@
 import type { RadarCompetitor } from "./api";
+import type { ClusterResult } from "./brief/cluster-signals";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -75,7 +76,8 @@ Rules:
 
 export function buildBriefUserPrompt(
   competitors: RadarCompetitor[],
-  weekLabel: string
+  weekLabel: string,
+  clusters?: ClusterResult
 ): string {
   const lines: string[] = [
     `Week of ${weekLabel}`,
@@ -104,6 +106,43 @@ export function buildBriefUserPrompt(
     lines.push("");
   });
 
+  // Append clustered signal detail when available — organises raw signal
+  // evidence by strategic theme so the model can reason about intent rather
+  // than listing diffs.
+  if (clusters && clusters.clusters.length > 0) {
+    lines.push("Signal themes (clustered by strategic area):", "");
+
+    // Group clusters by theme_key so the same theme across competitors reads
+    // together (e.g., all "Pricing Strategy" entries in one block).
+    const byTheme = new Map<string, typeof clusters.clusters>();
+    for (const cluster of clusters.clusters) {
+      const existing = byTheme.get(cluster.theme_key) ?? [];
+      existing.push(cluster);
+      byTheme.set(cluster.theme_key, existing);
+    }
+
+    for (const [, themeClusters] of byTheme) {
+      const label = themeClusters[0].theme_label;
+      lines.push(`${label.toUpperCase()}`);
+
+      for (const cluster of themeClusters) {
+        const signalCount = cluster.signals.length;
+        const interpretations = cluster.signals
+          .filter((s) => s.interpretation)
+          .slice(0, 2)
+          .map((s) => `"${s.interpretation!}"`)
+          .join("; ");
+        const detail = interpretations ? ` — ${interpretations}` : "";
+        lines.push(`  ${cluster.competitor_name}: ${signalCount} signal${signalCount !== 1 ? "s" : ""}${detail}`);
+      }
+      lines.push("");
+    }
+
+    if (clusters.unclustered.length > 0) {
+      lines.push(`Other activity: ${clusters.unclustered.length} additional signal${clusters.unclustered.length !== 1 ? "s" : ""} (uncategorised)`, "");
+    }
+  }
+
   lines.push("Generate the weekly intelligence brief.");
   return lines.join("\n");
 }
@@ -113,9 +152,10 @@ export function buildBriefUserPrompt(
 export async function generateBrief(
   apiKey: string,
   competitors: RadarCompetitor[],
-  weekLabel: string
+  weekLabel: string,
+  clusters?: ClusterResult
 ): Promise<BriefContent> {
-  const userPrompt = buildBriefUserPrompt(competitors, weekLabel);
+  const userPrompt = buildBriefUserPrompt(competitors, weekLabel, clusters);
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",

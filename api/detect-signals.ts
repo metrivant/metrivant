@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
 import { createHash } from "crypto";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "../lib/rate-limit";
+import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
 
 // ── Signal weight constants ───────────────────────────────────────────────────
 // Base confidence contribution by section type.
@@ -215,6 +216,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   }
 
   const startedAt = Date.now();
+  const runId = (req.headers as Record<string, string | undefined>)?.["x-vercel-id"] ?? generateRunId();
 
   let rowsClaimed               = 0;
   let rowsProcessed             = 0;
@@ -370,6 +372,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     for (const diff of eligibleDiffs) {
       rowsProcessed += 1;
+      const elapsed = startTimer();
 
       try {
         const competitorId = diff.monitored_pages?.competitor_id;
@@ -404,6 +407,7 @@ async function handler(req: ApiReq, res: ApiRes) {
           suppressedByNoise += 1;
           signalsSuppressed += 1;
           rowsSucceeded += 1;
+          void recordEvent({ run_id: runId, stage: "signal", status: "skipped", section_diff_id: diff.id, monitored_page_id: diff.monitored_page_id, duration_ms: elapsed(), metadata: { signal_count: 0, signal_types: [], suppressed_by: "whitespace_only" } });
           continue;
         }
 
@@ -420,6 +424,7 @@ async function handler(req: ApiReq, res: ApiRes) {
           suppressedByNoise += 1;
           signalsSuppressed += 1;
           rowsSucceeded += 1;
+          void recordEvent({ run_id: runId, stage: "signal", status: "skipped", section_diff_id: diff.id, monitored_page_id: diff.monitored_page_id, duration_ms: elapsed(), metadata: { signal_count: 0, signal_types: [], suppressed_by: "dynamic_content_only" } });
           continue;
         }
 
@@ -461,6 +466,7 @@ async function handler(req: ApiReq, res: ApiRes) {
           suppressedByLowConfidence += 1;
           signalsSuppressed += 1;
           rowsSucceeded += 1;
+          void recordEvent({ run_id: runId, stage: "signal", status: "skipped", section_diff_id: diff.id, monitored_page_id: diff.monitored_page_id, duration_ms: elapsed(), metadata: { signal_count: 0, signal_types: [], suppressed_by: "low_confidence" } });
           continue;
         }
 
@@ -483,6 +489,7 @@ async function handler(req: ApiReq, res: ApiRes) {
           cStats.suppressedByDuplicate += 1;
           signalsDeduplicated += 1;
           rowsSucceeded += 1;
+          void recordEvent({ run_id: runId, stage: "signal", status: "skipped", section_diff_id: diff.id, monitored_page_id: diff.monitored_page_id, duration_ms: elapsed(), metadata: { signal_count: 0, signal_types: [], suppressed_by: "duplicate_hash" } });
           continue;
         }
 
@@ -537,9 +544,11 @@ async function handler(req: ApiReq, res: ApiRes) {
           cStats.pendingReviewCreated += 1;
         }
         rowsSucceeded += 1;
+        void recordEvent({ run_id: runId, stage: "signal", status: "success", section_diff_id: diff.id, monitored_page_id: diff.monitored_page_id, duration_ms: elapsed(), metadata: { signal_count: 1, signal_types: [signal.signal_type] } });
       } catch (error) {
         rowsFailed += 1;
         Sentry.captureException(error);
+        void recordEvent({ run_id: runId, stage: "signal", status: "failure", section_diff_id: diff.id, monitored_page_id: diff.monitored_page_id, duration_ms: elapsed(), metadata: { signal_count: 0, signal_types: [] } });
       }
     }
 

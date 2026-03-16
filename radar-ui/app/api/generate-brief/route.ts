@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getRadarFeed } from "../../../lib/api";
 import { generateBrief, buildBriefEmailHtml } from "../../../lib/brief";
+import { clusterSignals, type Signal } from "../../../lib/brief/cluster-signals";
+import { enrichClusterThemes } from "../../../lib/brief/enrich-cluster-themes";
 import { sendEmail, FROM_BRIEFS } from "../../../lib/email";
 import { createServiceClient } from "../../../lib/supabase/service";
 import { captureException } from "../../../lib/sentry";
@@ -80,8 +82,82 @@ async function runGeneration(): Promise<NextResponse> {
       const signalCount = active.reduce((sum, c) => sum + (c.signals_7d ?? 0), 0);
       totalSignals += signalCount;
 
+      // ── Fetch raw signals for clustering ─────────────────────────────────
+      // Build a richer prompt by clustering raw signals into strategic themes.
+      // This step is best-effort — brief generation continues without clusters
+      // if the query fails or returns no rows.
+      const activeIds = active.map((c) => c.competitor_id);
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const competitorNameById = new Map(active.map((c) => [c.competitor_id, c.competitor_name]));
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sb = supabase as any;
+
+      let clusters = undefined;
+      try {
+        // Fetch signals with their monitored_page (for section_type) and first interpretation
+        const { data: rawRows } = await sb
+          .from("signals")
+          .select("id, competitor_id, signal_type, monitored_page_id, monitored_pages(page_type), interpretations(summary)")
+          .in("competitor_id", activeIds)
+          .gte("detected_at", sevenDaysAgo)
+          .order("detected_at", { ascending: false })
+          .limit(200);
+
+        if (rawRows && rawRows.length > 0) {
+          // Identify noise-marked signals and exclude them
+          const allIds = (rawRows as { id: string }[]).map((r) => r.id);
+          let noiseIds = new Set<string>();
+          try {
+            const { data: feedbackRows } = await sb
+              .from("signal_feedback")
+              .select("signal_id")
+              .in("signal_id", allIds)
+              .eq("verdict", "noise");
+            noiseIds = new Set(
+              ((feedbackRows ?? []) as { signal_id: string }[]).map((r) => r.signal_id)
+            );
+          } catch {
+            // signal_feedback table may not exist in all environments — safe to skip
+          }
+
+          const signals: Signal[] = (rawRows as {
+            id: string;
+            competitor_id: string;
+            signal_type: string | null;
+            monitored_pages: { page_type: string } | null;
+            interpretations: Array<{ summary: string }>;
+          }[])
+            .filter((r) => !noiseIds.has(r.id))
+            .map((r) => ({
+              id:              r.id,
+              competitor_id:   r.competitor_id,
+              competitor_name: competitorNameById.get(r.competitor_id) ?? r.competitor_id,
+              section_type:    r.monitored_pages?.page_type ?? null,
+              signal_type:     r.signal_type,
+              interpretation:  r.interpretations?.[0]?.summary ?? null,
+            }));
+
+          const rawClusters = clusterSignals(signals);
+
+          // Enrich cluster labels with gpt-4o-mini when there are ≤8 clusters
+          // to keep per-org latency bounded.
+          if (rawClusters.clusters.length > 0 && rawClusters.clusters.length <= 8) {
+            clusters = await enrichClusterThemes(rawClusters, openaiKey);
+          } else {
+            clusters = rawClusters;
+          }
+        }
+      } catch (clusterErr) {
+        captureException(
+          clusterErr instanceof Error ? clusterErr : new Error(String(clusterErr)),
+          { route: "generate-brief", step: "cluster_signals", org_id: org.id }
+        );
+        // Non-fatal — proceed without clusters
+      }
+
       // Generate brief with OpenAI
-      const briefContent = await generateBrief(openaiKey, active, week);
+      const briefContent = await generateBrief(openaiKey, active, week, clusters);
 
       // Persist to Supabase scoped to this org
       const { data: briefRow, error: insertError } = await supabase

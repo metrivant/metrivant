@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase";
 import { openai } from "../lib/openai";
 import { verifyCronSecret } from "../lib/withCronAuth";
 import { createHash } from "crypto";
+import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
 
 const BATCH_SIZE        = 15;  // raised from 5 — gpt-4o-mini cost is negligible; bottleneck was artificial
 const CONCURRENCY       = 4;   // parallel OpenAI calls — keeps total runtime ~8-10s for 15 signals
@@ -95,7 +96,13 @@ function hashPrompt(prompt: string): string {
   return createHash("sha256").update(prompt).digest("hex").slice(0, 16);
 }
 
-async function callOpenAI(userPrompt: string): Promise<InterpretationResult> {
+interface OpenAICallResult {
+  result: InterpretationResult;
+  promptTokens?: number;
+  completionTokens?: number;
+}
+
+async function callOpenAI(userPrompt: string): Promise<OpenAICallResult> {
   const response = await openai.chat.completions.create({
     model: MODEL_USED,
     temperature: 0,
@@ -130,11 +137,15 @@ async function callOpenAI(userPrompt: string): Promise<InterpretationResult> {
   }
 
   return {
-    summary: parsed.summary,
-    strategic_implication: parsed.strategic_implication,
-    recommended_action: parsed.recommended_action,
-    urgency: Math.round(Math.min(5, Math.max(1, parsed.urgency))),
-    confidence: Math.min(1, Math.max(0, parsed.confidence)),
+    result: {
+      summary: parsed.summary,
+      strategic_implication: parsed.strategic_implication,
+      recommended_action: parsed.recommended_action,
+      urgency: Math.round(Math.min(5, Math.max(1, parsed.urgency))),
+      confidence: Math.min(1, Math.max(0, parsed.confidence)),
+    },
+    promptTokens:     response.usage?.prompt_tokens,
+    completionTokens: response.usage?.completion_tokens,
   };
 }
 
@@ -160,6 +171,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   if (!verifyCronSecret(req, res)) return;
 
   const startedAt = Date.now();
+  const runId = (req.headers as Record<string, string | undefined>)?.["x-vercel-id"] ?? generateRunId();
 
   Sentry.captureCheckIn({
     monitorSlug: "interpret-signals",
@@ -270,6 +282,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       const signalResults = await Promise.allSettled(
         (claimedSignals as Array<{ id: string; signal_type?: string; retry_count?: number }>).map(
           (claimed) => sem(async () => {
+            const elapsed = startTimer();
             const signal: SignalDetail = detailMap.get(claimed.id) ?? {
               id: claimed.id,
               signal_type: claimed.signal_type ?? "content_change",
@@ -297,12 +310,13 @@ async function handler(req: ApiReq, res: ApiRes) {
                 .from("signals")
                 .update({ interpreted: true, interpreted_at: new Date().toISOString(), status: "interpreted" })
                 .eq("id", signal.id);
+              void recordEvent({ run_id: runId, stage: "interpret", status: "skipped", duration_ms: elapsed(), metadata: { model: MODEL_USED, signals_interpreted: 0 } });
               return { succeeded: true };
             }
 
             const userPrompt = buildUserPrompt(signal);
             const promptHash = hashPrompt(userPrompt);
-            const interpretation = await callOpenAI(userPrompt);
+            const { result: interpretation, promptTokens, completionTokens } = await callOpenAI(userPrompt);
 
             const { error: upsertError } = await supabase
               .from("interpretations")
@@ -341,6 +355,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
             if (updateError) throw updateError;
 
+            void recordEvent({ run_id: runId, stage: "interpret", status: "success", duration_ms: elapsed(), metadata: { model: MODEL_USED, prompt_tokens: promptTokens, completion_tokens: completionTokens, signals_interpreted: 1 } });
             return { succeeded: true };
           })
         )
@@ -373,6 +388,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
             if (retryError) Sentry.captureException(retryError);
             Sentry.captureException(err);
+            void recordEvent({ run_id: runId, stage: "interpret", status: "failure", metadata: { model: MODEL_USED, signals_interpreted: 0 } });
           }
           // Wall-clock guard skips are silent — the signal stays in_progress and
           // reset_stuck_signals will requeue it on the next interpret-signals run.

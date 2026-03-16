@@ -3,6 +3,7 @@ import { withSentry, ApiReq, ApiRes } from "../lib/withSentry";
 import { Sentry } from "../lib/sentry";
 import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
+import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
 
 interface SectionRow {
   id: string;
@@ -56,6 +57,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   if (!verifyCronSecret(req, res)) return;
 
   const startedAt = Date.now();
+  const runId = (req.headers as Record<string, string | undefined>)?.["x-vercel-id"] ?? generateRunId();
 
   Sentry.captureCheckIn({
     monitorSlug: "detect-diffs",
@@ -128,6 +130,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
       if (!baseline || !baseline.source_section_id) {
         sectionsSkippedNoBaseline += 1;
+        void recordEvent({ run_id: runId, stage: "compare", status: "skipped", monitored_page_id: section.monitored_page_id, snapshot_id: section.snapshot_id, metadata: { changed: false, section_type: section.section_type, confirmation_window_state: "no_baseline" } });
         continue;
       }
 
@@ -136,10 +139,12 @@ async function handler(req: ApiReq, res: ApiRes) {
         section.section_hash === baseline.section_hash
       ) {
         sectionsSkippedStable += 1;
+        void recordEvent({ run_id: runId, stage: "compare", status: "skipped", monitored_page_id: section.monitored_page_id, snapshot_id: section.snapshot_id, metadata: { changed: false, section_type: section.section_type, confirmation_window_state: "stable" } });
         continue;
       }
 
       changedSections.push(section);
+      void recordEvent({ run_id: runId, stage: "compare", status: "success", monitored_page_id: section.monitored_page_id, snapshot_id: section.snapshot_id, metadata: { changed: true, section_type: section.section_type, confirmation_window_state: "changed" } });
     }
 
     const changedPageIds = [...new Set(changedSections.map((s) => s.monitored_page_id))];
@@ -213,6 +218,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     for (const section of changedSections) {
       rowsProcessed += 1;
+      const elapsed = startTimer();
 
       try {
         const key = makeSectionKey(section.monitored_page_id, section.section_type);
@@ -270,6 +276,7 @@ async function handler(req: ApiReq, res: ApiRes) {
           }
 
           rowsSucceeded += 1;
+          void recordEvent({ run_id: runId, stage: "diff", status: "success", monitored_page_id: section.monitored_page_id, section_diff_id: existingDiff.id, duration_ms: elapsed(), metadata: { diff_size_chars: section.section_text.length, section_type: section.section_type } });
 
           if (confirmed) {
             diffsConfirmed += 1;
@@ -350,9 +357,11 @@ async function handler(req: ApiReq, res: ApiRes) {
 
         rowsSucceeded += 1;
         diffsCreated += 1;
+        void recordEvent({ run_id: runId, stage: "diff", status: "success", monitored_page_id: section.monitored_page_id, duration_ms: elapsed(), metadata: { diff_size_chars: section.section_text.length, section_type: section.section_type } });
       } catch (error) {
         rowsFailed += 1;
         Sentry.captureException(error);
+        void recordEvent({ run_id: runId, stage: "diff", status: "failure", monitored_page_id: section.monitored_page_id, duration_ms: elapsed(), metadata: { section_type: section.section_type } });
       }
     }
 

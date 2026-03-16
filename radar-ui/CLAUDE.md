@@ -131,7 +131,7 @@ Output: Visual radar instrument.
 
 ### Downstream analysis layers (derived from radar_feed, not in the main pipeline)
 
-**briefs** — Weekly intelligence reports. GPT-4o summarizes movement patterns into digest emails. Triggered by Vercel cron or manually.
+**briefs** — Weekly intelligence reports. GPT-4o summarizes movement patterns into digest emails. Triggered by Vercel cron or manually. Before generation, raw signals are clustered into strategic themes (pricing/product/positioning/enterprise/ecosystem/hiring/comms) via `lib/brief/cluster-signals.ts`; cluster labels are enriched by gpt-4o-mini via `lib/brief/enrich-cluster-themes.ts`. Noise signals (signal_feedback.verdict='noise') are excluded. Clusters are injected into the GPT-4o prompt for analyst-quality output.
 
 **strategic_analysis** — Cross-competitor pattern detection. GPT-4o identifies convergence, pricing competition, enterprise shift, etc. across competitors showing similar movement types. Max 5 insights, min 2 competitors per pattern.
 

@@ -38,6 +38,24 @@ Key schema additions (migrations 008–012):
 - competitors.last_signal_at        denormalized, kept by trigger
 - activity_events                   ambient intelligence table (30-day retention)
 
+Key schema additions (migrations 026–028):
+- pipeline_events                   observability log for all pipeline stages (90-day retention); lib/pipeline-metrics.ts
+- signal_feedback                   operator quality labels per signal (verdict, noise_category); unique per signal_id
+- retention functions               4 idempotent Postgres RPC functions: retention_null_raw_html, retention_delete_sections, retention_delete_diffs, retention_delete_pipeline_events
+
+Retention policy (lib/retention-config.ts):
+  RAW_HTML           7d  — null raw_html on processed snapshots (sections_extracted=true)
+  EXTRACTED_SECTIONS 90d — delete page_sections, skip rows referenced by baselines/diffs
+  DIFFS             180d — delete section_diffs where signal_detected=true, skip rows referenced by signals
+  PIPELINE_EVENTS    90d — delete unconditionally (pure telemetry)
+  Cron: /api/retention daily at 03:00 UTC
+
+Brief clustering (lib/brief/cluster-signals.ts + enrich-cluster-themes.ts):
+  Before brief generation, raw signals are fetched and grouped by (competitor_id, theme_key).
+  Theme resolution: THEME_MAP matches section_type + signal_type → pricing/product/positioning/enterprise/ecosystem/hiring/comms.
+  Cluster labels are enriched via gpt-4o-mini (≤8 clusters per org). Clusters injected into brief prompt.
+  Noise signals excluded via signal_feedback.verdict = 'noise'.
+
 Confidence model (v4.0):
   base             = SECTION_WEIGHTS[section_type]   (0.25–0.85)
   recency_bonus    = 0.05 / 0.10 / 0.15
