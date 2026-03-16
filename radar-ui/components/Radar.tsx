@@ -3749,6 +3749,7 @@ export default function Radar({
               <ActivityTimeline
                 signals={detail?.signals ?? []}
                 loading={detailLoading}
+                competitorId={selected?.competitor_id}
               />
             </motion.div>
           ) : (
