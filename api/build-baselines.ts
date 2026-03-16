@@ -9,24 +9,15 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   const startedAt = Date.now();
 
-  Sentry.captureCheckIn({
-    monitorSlug: "build-baselines",
-    status: "in_progress",
-  });
+  Sentry.captureCheckIn({ monitorSlug: "build-baselines", status: "in_progress" });
 
   try {
-
     const { data, error } = await supabase.rpc("build_section_baselines");
-
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     // ── Baseline churn monitoring ──────────────────────────────────────────────
-    // Baselines are immutable after creation (migration 006). "Churn" here means
-    // new section_types appearing for a page within a 7-day window — an indicator
-    // of unstable extraction or a page that is continuously changing structure.
-    // More than 5 new baselines for the same page per week is anomalous.
+    // More than 5 new baselines for the same page in 7 days indicates unstable
+    // extraction or a continuously restructuring page.
     let baselineChurnWarnings = 0;
     try {
       const churnWindow = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -45,55 +36,111 @@ async function handler(req: ApiReq, res: ApiRes) {
           if (count > 5) {
             Sentry.captureMessage("baseline_instability_warning", {
               level: "warning",
-              extra: {
-                monitored_page_id: pageId,
-                new_baselines_last_7d: count,
-              },
+              extra: { monitored_page_id: pageId, new_baselines_last_7d: count },
             });
             baselineChurnWarnings += 1;
           }
         }
       }
     } catch (churnError) {
-      // Non-fatal — churn check must never block pipeline output.
       Sentry.captureException(churnError);
+    }
+
+    // ── Coverage gap detection ─────────────────────────────────────────────────
+    // Active pages that have at least one valid section but no baseline entry are
+    // dark — they will never produce diffs or signals. This can happen when:
+    //   - a new competitor was onboarded but build_section_baselines RPC skipped it
+    //   - extraction produced sections but the baseline RPC has a selection gap
+    //   - the page was reactivated after being deactivated
+    // Emit one warning per offending page so the operator can investigate.
+    let coverageGapWarnings = 0;
+    let pagesWithBaselines = 0;
+    try {
+      // Pages that have at least one valid section (extraction is working).
+      const { data: pagesWithSections } = await supabase
+        .from("page_sections")
+        .select("monitored_page_id")
+        .eq("validation_status", "valid")
+        .limit(500);
+
+      const pagesWithSectionIds = [
+        ...new Set(
+          ((pagesWithSections ?? []) as { monitored_page_id: string }[]).map(
+            (r) => r.monitored_page_id
+          )
+        ),
+      ];
+
+      if (pagesWithSectionIds.length > 0) {
+        // Pages that already have at least one baseline.
+        const { data: baselinedPages } = await supabase
+          .from("section_baselines")
+          .select("monitored_page_id")
+          .in("monitored_page_id", pagesWithSectionIds);
+
+        const baselinedSet = new Set(
+          ((baselinedPages ?? []) as { monitored_page_id: string }[]).map(
+            (r) => r.monitored_page_id
+          )
+        );
+
+        pagesWithBaselines = baselinedSet.size;
+
+        // Active pages with valid sections but no baseline = coverage gap.
+        const { data: activePages } = await supabase
+          .from("monitored_pages")
+          .select("id")
+          .in("id", pagesWithSectionIds)
+          .eq("active", true);
+
+        const activeWithSections = ((activePages ?? []) as { id: string }[]).map((r) => r.id);
+        const gapPageIds = activeWithSections.filter((id) => !baselinedSet.has(id));
+
+        if (gapPageIds.length > 0) {
+          Sentry.captureMessage("baseline_coverage_gap", {
+            level: "warning",
+            extra: {
+              gap_count:    gapPageIds.length,
+              gap_page_ids: gapPageIds,
+              note:         "Active pages with valid sections but no section_baselines entry — diffs and signals will never fire for these pages",
+            },
+          });
+          coverageGapWarnings = gapPageIds.length;
+        }
+      }
+    } catch (coverageError) {
+      // Non-fatal — coverage check must never block pipeline output.
+      Sentry.captureException(coverageError);
     }
 
     const runtimeDurationMs = Date.now() - startedAt;
 
     Sentry.setContext("run_metrics", {
-      stage_name: "build-baselines",
-      baselinesCreated: data,
+      stage_name:            "build-baselines",
+      baselinesCreated:      data,
+      pagesWithBaselines,
       baselineChurnWarnings,
+      coverageGapWarnings,
       runtimeDurationMs,
     });
 
-    Sentry.captureCheckIn({
-      monitorSlug: "build-baselines",
-      status: "ok",
-    });
-
+    Sentry.captureCheckIn({ monitorSlug: "build-baselines", status: "ok" });
     await Sentry.flush(2000);
 
     res.status(200).json({
       ok: true,
       job: "build-baselines",
-      baselinesCreated: data,
+      baselinesCreated:      data,
+      pagesWithBaselines,
       baselineChurnWarnings,
-      runtimeDurationMs
+      coverageGapWarnings,
+      runtimeDurationMs,
     });
 
   } catch (error) {
-
     Sentry.captureException(error);
-
-    Sentry.captureCheckIn({
-      monitorSlug: "build-baselines",
-      status: "error",
-    });
-
+    Sentry.captureCheckIn({ monitorSlug: "build-baselines", status: "error" });
     await Sentry.flush(2000);
-
     throw error;
   }
 }
