@@ -32,6 +32,16 @@ const CONFIDENCE_INTERPRET = 0.65; // at or above: status='pending' → sent to 
 //                                    between these: status='pending_review'
 //                                    → skipped by AI until pressure_index promotes them
 
+// Batch: high_value diffs are claimed first (pricing/changelog/newsroom),
+// then standard fills the remaining slots. Ensures the highest-value intelligence
+// reaches the radar first within each cron cycle.
+const BATCH_HIGH_VALUE = 60;
+const BATCH_TOTAL      = 100;
+
+// Threshold for pending_review cluster warning — competitor with this many
+// pending_review signals and zero pending in one run may never reach the radar.
+const PENDING_REVIEW_CLUSTER_WARN = 3;
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface DiffRow {
@@ -100,11 +110,18 @@ function computeSignalHash(
 }
 
 // Normalize machine-generated dynamic tokens before semantic comparison.
-// Strips ISO 8601 timestamps and tracking query parameters — these rotate
-// on every page load and create false diffs with no competitive intelligence.
+// Strips ISO 8601 timestamps, tracking query parameters, and relative time
+// strings — these rotate on every page load and create false diffs with no
+// competitive intelligence.
 function normalizeForComparison(text: string): string {
+  // ISO 8601 timestamps (2024-01-15T12:00:00Z)
   let t = text.replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/g, "");
+  // Tracking query parameters
   t = t.replace(/[?&](?:utm_[a-z_]+|fbclid|gclid|msclkid|_ga)=[^&\s"']*/gi, "");
+  // Relative time strings: "2 hours ago", "Updated 3 days ago", "just now", etc.
+  t = t.replace(/\b(?:just now|moments? ago|\d+\s+(?:second|minute|hour|day|week|month|year)s?\s+ago)\b/gi, "");
+  // "Updated X ago" / "Published X ago" prefixes common in press and changelog feeds
+  t = t.replace(/\b(?:updated|published|posted|modified)\s+\d+\s+\w+\s+ago\b/gi, "");
   return t.replace(/\s+/g, " ").trim();
 }
 
@@ -143,29 +160,31 @@ function classifySignal(
   sectionType: string,
   previousText: string,
   currentText: string
-): { signal_type: string; severity: string; signal_data: Record<string, string> } {
+): { signal_type: string; severity: string; signal_data: Record<string, string>; fallback: boolean } {
   const excerpts = buildExcerpts(previousText, currentText);
 
   switch (sectionType) {
     case "pricing_plans":
     case "pricing_references":
-      return { signal_type: "price_point_change", severity: "high",   signal_data: excerpts };
+      return { signal_type: "price_point_change", severity: "high",   signal_data: excerpts, fallback: false };
 
     case "hero":
     case "headline":
     case "nav_links":
     case "cta_blocks":
-      return { signal_type: "positioning_shift",  severity: "medium", signal_data: excerpts };
+      return { signal_type: "positioning_shift",  severity: "medium", signal_data: excerpts, fallback: false };
 
     case "release_feed":
     case "announcements":
     case "features_overview":
     case "press_feed":
     case "product_mentions":
-      return { signal_type: "feature_launch",     severity: "medium", signal_data: excerpts };
+      return { signal_type: "feature_launch",     severity: "medium", signal_data: excerpts, fallback: false };
 
     default:
-      return { signal_type: "content_change",     severity: "low",    signal_data: excerpts };
+      // Unrecognised section_type — likely a new extraction rule added without
+      // updating detect-signals. Signal fires but caller should emit a warning.
+      return { signal_type: "content_change",     severity: "low",    signal_data: excerpts, fallback: true };
   }
 }
 
@@ -177,6 +196,7 @@ interface CompetitorRunStats {
   suppressedByLowConfidence: number;
   suppressedByDuplicate:     number;
   signalsCreated:            number;
+  pendingReviewCreated:      number; // signals stuck below interpretation threshold
 }
 
 // Suppression ratio threshold above which a competitor triggers an anomaly alert.
@@ -212,7 +232,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   const getOrInitStats = (id: string): CompetitorRunStats => {
     let s = perCompetitorStats.get(id);
     if (!s) {
-      s = { candidateDiffs: 0, suppressedByNoise: 0, suppressedByLowConfidence: 0, suppressedByDuplicate: 0, signalsCreated: 0 };
+      s = { candidateDiffs: 0, suppressedByNoise: 0, suppressedByLowConfidence: 0, suppressedByDuplicate: 0, signalsCreated: 0, pendingReviewCreated: 0 };
       perCompetitorStats.set(id, s);
     }
     return s;
@@ -251,33 +271,50 @@ async function handler(req: ApiReq, res: ApiRes) {
       }
     }
 
-    // Join monitored_pages to get page_class and competitor_id.
-    // Ambient pages are handled by detect-ambient-activity and are excluded here.
-    const { data: diffs, error } = await supabase
-      .from("section_diffs")
-      .select(`
-        id,
-        previous_section_id,
-        current_section_id,
-        section_type,
-        monitored_page_id,
-        last_seen_at,
-        observation_count,
-        page_class,
-        monitored_pages!inner ( competitor_id )
-      `)
-      .eq("confirmed", true)
-      .eq("signal_detected", false)
-      .eq("is_noise", false)
-      .neq("page_class", "ambient")
-      .order("last_seen_at", { ascending: true })
-      .limit(50);
+    // ── Two-tier prioritised diff fetch ───────────────────────────────────────
+    // high_value pages (pricing, changelog, newsroom) are claimed first — up to
+    // BATCH_HIGH_VALUE slots. Standard pages fill remaining slots up to BATCH_TOTAL.
+    // This ensures a pricing change never waits behind a generic homepage update.
+    // PostgREST cannot CASE-ORDER BY page_class, so two queries are merged in-process.
+    const diffSelectFields = `
+      id,
+      previous_section_id,
+      current_section_id,
+      section_type,
+      monitored_page_id,
+      last_seen_at,
+      observation_count,
+      page_class,
+      monitored_pages!inner ( competitor_id )
+    `;
+    const [highValueResult, standardResult] = await Promise.all([
+      supabase
+        .from("section_diffs")
+        .select(diffSelectFields)
+        .eq("confirmed", true)
+        .eq("signal_detected", false)
+        .eq("is_noise", false)
+        .eq("page_class", "high_value")
+        .order("last_seen_at", { ascending: true })
+        .limit(BATCH_HIGH_VALUE),
+      supabase
+        .from("section_diffs")
+        .select(diffSelectFields)
+        .eq("confirmed", true)
+        .eq("signal_detected", false)
+        .eq("is_noise", false)
+        .eq("page_class", "standard")
+        .order("last_seen_at", { ascending: true })
+        .limit(BATCH_TOTAL),
+    ]);
 
-    if (error) throw error;
+    if (highValueResult.error) throw highValueResult.error;
+    if (standardResult.error)  throw standardResult.error;
 
-    // page_class filter is applied at the DB layer via .neq("page_class","ambient").
-    // The partial index idx_section_diffs_non_ambient_pending covers this exactly.
-    const eligibleDiffs = (diffs ?? []) as unknown as DiffRow[];
+    const hvDiffs    = (highValueResult.data ?? []) as unknown as DiffRow[];
+    const stdDiffs   = (standardResult.data  ?? []) as unknown as DiffRow[];
+    const remaining  = Math.max(0, BATCH_TOTAL - hvDiffs.length);
+    const eligibleDiffs = [...hvDiffs, ...stdDiffs.slice(0, remaining)];
 
     rowsClaimed = eligibleDiffs.length;
 
@@ -392,6 +429,20 @@ async function handler(req: ApiReq, res: ApiRes) {
           current.section_text
         );
 
+        // Unrecognised section_type fell through to content_change fallback.
+        // Likely a new extraction rule added without updating classifySignal.
+        if (signal.fallback) {
+          Sentry.captureMessage("signal_type_fallback", {
+            level: "warning",
+            extra: {
+              section_type:     diff.section_type,
+              diff_id:          diff.id,
+              competitor_id:    competitorId,
+              note: "section_type not mapped in classifySignal — signal filed as content_change/low",
+            },
+          });
+        }
+
         // ── Confidence gate ───────────────────────────────────────────────────
         const confidenceScore = computeConfidence(
           diff.section_type,
@@ -481,7 +532,10 @@ async function handler(req: ApiReq, res: ApiRes) {
 
         cStats.signalsCreated += 1;
         signalsCreated += 1;
-        if (signalStatus === "pending_review") signalsPendingReview += 1;
+        if (signalStatus === "pending_review") {
+          signalsPendingReview += 1;
+          cStats.pendingReviewCreated += 1;
+        }
         rowsSucceeded += 1;
       } catch (error) {
         rowsFailed += 1;
@@ -490,6 +544,26 @@ async function handler(req: ApiReq, res: ApiRes) {
     }
 
     const runtimeDurationMs = Date.now() - startedAt;
+
+    // ── Pending-review cluster warning ────────────────────────────────────────
+    // A competitor with ≥3 pending_review signals and 0 pending in this run is
+    // consistently below the interpretation threshold. pressure_index promotion
+    // is the only path to the radar — alert so calibration can be investigated.
+    for (const [cid, s] of perCompetitorStats) {
+      if (
+        s.pendingReviewCreated >= PENDING_REVIEW_CLUSTER_WARN &&
+        (s.signalsCreated - s.pendingReviewCreated) === 0
+      ) {
+        Sentry.captureMessage("pending_review_cluster", {
+          level: "warning",
+          extra: {
+            competitor_id:         cid,
+            pending_review_count:  s.pendingReviewCreated,
+            note: "All signals this run landed in pending_review — competitor may never reach the radar without pressure_index promotion",
+          },
+        });
+      }
+    }
 
     // ── Suppression anomaly detection ─────────────────────────────────────────
     // If a competitor has ≥5 candidate diffs and ≥98% were suppressed, emit a
