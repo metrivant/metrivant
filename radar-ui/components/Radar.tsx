@@ -3346,7 +3346,9 @@ export default function Radar({
                   </p>
 ) : detail?.signals && detail.signals.length === 0 ? (
                   <p className="text-sm leading-6 text-slate-500">
-                    Monitoring active — no signals yet.
+                    {(selected.signals_pending ?? 0) > 0
+                      ? `${selected.signals_pending} signal${selected.signals_pending === 1 ? "" : "s"} in analysis — results arriving shortly.`
+                      : "Monitoring active — no signals yet."}
                   </p>
                 ) : (
                   <p className="text-sm leading-6 text-slate-500">
@@ -3402,10 +3404,23 @@ export default function Radar({
                 </div>
                 <div className="rounded-[14px] border border-[#0f1c0f] bg-[#040904] p-4">
                   <div className="text-[11px] uppercase tracking-[0.18em] text-slate-600">
-                    Signals
+                    Pressure
                   </div>
-                  <div className="mt-2 text-xl font-bold tabular-nums leading-none text-slate-200">
-                    {formatNumber(selected.latest_movement_signal_count, 0)}
+                  <div
+                    className="mt-2 text-xl font-bold tabular-nums leading-none"
+                    style={{
+                      color:
+                        (selected.pressure_index ?? 0) >= 6
+                          ? "#ef4444"
+                          : (selected.pressure_index ?? 0) >= 3
+                          ? "#f59e0b"
+                          : "#475569",
+                    }}
+                  >
+                    {formatNumber(selected.pressure_index ?? 0, 1)}
+                  </div>
+                  <div className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-slate-700">
+                    index
                   </div>
                 </div>
               </div>
@@ -3649,8 +3664,22 @@ export default function Radar({
                 ) : (
                   <div className="rounded-[12px] border border-[#152415] bg-[#071507] px-4 py-3 text-center">
                     <p className="text-sm text-slate-500">
-                      No changes detected yet
+                      {(selected.signals_pending ?? 0) > 0
+                        ? `${selected.signals_pending} signal${selected.signals_pending === 1 ? "" : "s"} in analysis`
+                        : "No changes detected yet"}
                     </p>
+                  </div>
+                )}
+                {/* Pending signals pill — shows after evidence list when interpretation queue is non-empty */}
+                {(selected.signals_pending ?? 0) > 0 && sortedSignals.length > 0 && (
+                  <div className="mt-2 flex items-center gap-1.5 px-1">
+                    <div
+                      className="h-1.5 w-1.5 animate-pulse rounded-full"
+                      style={{ background: "rgba(245,158,11,0.7)" }}
+                    />
+                    <span className="text-[11px] text-slate-500">
+                      {selected.signals_pending} more in analysis
+                    </span>
                   </div>
                 )}
               </div>

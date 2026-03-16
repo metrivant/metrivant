@@ -3,8 +3,10 @@ export type RadarCompetitor = {
   competitor_name: string;
   website_url: string | null;
   signals_7d: number;
+  signals_pending: number;
   weighted_velocity_7d: number;
   last_signal_at: string | null;
+  pressure_index: number;
   latest_movement_type: string | null;
   latest_movement_confidence: number | null;
   latest_movement_signal_count: number | null;
