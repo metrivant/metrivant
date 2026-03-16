@@ -49,6 +49,7 @@ interface CompetitorRow {
   name: string;
   website_url: string | null;
   last_signal_at: string | null;
+  pressure_index: number | null;
 }
 
 interface MovementRow {
@@ -66,7 +67,8 @@ function computeMomentumScore(
   signals7d: number,
   weightedVelocity7d: number,
   movementConfidence: number | null,
-  movementLastSeenAt: string | null
+  movementLastSeenAt: string | null,
+  pressureIndex: number | null
 ): number {
   // Base score from signal density and velocity
   const signalComponent = signals7d * 0.4;
@@ -78,13 +80,19 @@ function computeMomentumScore(
     const ageMs = Date.now() - new Date(movementLastSeenAt).getTime();
     const ageDays = ageMs / (24 * 60 * 60 * 1000);
     if (ageDays <= 14) {
-      // Decay the movement bonus as it ages: full bonus at 0d, half at 7d, zero at 14d
       const decayFactor = Math.max(0, 1 - ageDays / 14);
       movementBonus = movementConfidence * 2.5 * decayFactor;
     }
   }
 
-  return Math.min(10, signalComponent + velocityComponent + movementBonus);
+  // Pressure bonus: ambient activity (blog posts, hiring, press) that hasn't
+  // yet produced interpreted signals still contributes up to +1.0 point.
+  // Dampened heavily so pressure alone never dominates — it's an early-warning
+  // signal, not a primary driver. Keeps nodes with genuine ambient activity
+  // from appearing completely dead while the interpretation queue catches up.
+  const pressureBonus = Math.min(1.0, (pressureIndex ?? 0) * 0.1);
+
+  return Math.min(10, signalComponent + velocityComponent + movementBonus + pressureBonus);
 }
 
 async function handler(req: ApiReq, res: ApiRes) {
@@ -149,7 +157,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     const { data: competitorRows, error: compError } = await supabase
       .from("competitors")
-      .select("id, name, website_url, last_signal_at")
+      .select("id, name, website_url, last_signal_at, pressure_index")
       .in("id", trackedIds);
 
     if (compError) throw compError;
@@ -234,7 +242,30 @@ async function handler(req: ApiReq, res: ApiRes) {
       }
     }
 
-    // ── Step 4: Load latest strategic movement per competitor ─────────────────
+    // ── Step 4: Count pending + pending_review signals per competitor ─────────
+    // Not used in momentum_score (radar reflects confirmed intelligence only)
+    // but surfaced in the payload so the UI can show a subtle "processing"
+    // indicator on nodes with queued signals that haven't reached the radar yet.
+    const pendingCountMap = new Map<string, number>(); // competitor_id → pending count
+
+    if (allPageIds.length > 0) {
+      const { data: pendingRows, error: pendingError } = await supabase
+        .from("signals")
+        .select("monitored_page_id")
+        .in("monitored_page_id", allPageIds)
+        .in("status", ["pending", "pending_review"])
+        .eq("interpreted", false);
+
+      if (pendingError) throw pendingError;
+
+      for (const row of (pendingRows ?? []) as { monitored_page_id: string }[]) {
+        const cid = pageToCompetitor.get(row.monitored_page_id);
+        if (!cid) continue;
+        pendingCountMap.set(cid, (pendingCountMap.get(cid) ?? 0) + 1);
+      }
+    }
+
+    // ── Step 6: Load latest strategic movement per competitor ─────────────────
     const latestMovementMap = new Map<string, MovementRow>();
 
     const { data: movementRows, error: movementsError } = await supabase
@@ -255,7 +286,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       }
     }
 
-    // ── Step 5: Assemble the radar feed rows ──────────────────────────────────
+    // ── Step 7: Assemble the radar feed rows ──────────────────────────────────
     const feedRows = competitors.map((c) => {
       const agg = signalAggMap.get(c.id);
       const movement = latestMovementMap.get(c.id) ?? null;
@@ -267,12 +298,15 @@ async function handler(req: ApiReq, res: ApiRes) {
       // fall back to the 7d aggregation result for freshness.
       const lastSignalAt = c.last_signal_at ?? agg?.last_signal_at ?? null;
 
+      const pressureIndex = c.pressure_index ?? 0;
+
       const momentumScore = parseFloat(
         computeMomentumScore(
           signals7d,
           weightedVelocity7d,
           movement?.confidence ?? null,
-          movement?.last_seen_at ?? null
+          movement?.last_seen_at ?? null,
+          pressureIndex
         ).toFixed(3)
       );
 
@@ -281,8 +315,10 @@ async function handler(req: ApiReq, res: ApiRes) {
         competitor_name:               c.name,
         website_url:                   c.website_url ?? null,
         signals_7d:                    signals7d,
+        signals_pending:               pendingCountMap.get(c.id) ?? 0,
         weighted_velocity_7d:          weightedVelocity7d,
         last_signal_at:                lastSignalAt,
+        pressure_index:                pressureIndex,
         latest_movement_type:          movement?.movement_type ?? null,
         latest_movement_confidence:    movement?.confidence ?? null,
         latest_movement_signal_count:  movement?.signal_count ?? null,
@@ -295,12 +331,13 @@ async function handler(req: ApiReq, res: ApiRes) {
       };
     });
 
-    // Sort by momentum_score DESC, then weighted_velocity_7d DESC
+    // Sort: momentum_score DESC → weighted_velocity_7d DESC → pressure_index DESC
+    // pressure_index as tiebreaker surfaces actively-monitored competitors with
+    // ambient activity over completely quiet ones with identical signal scores.
     feedRows.sort((a, b) => {
-      if (b.momentum_score !== a.momentum_score) {
-        return b.momentum_score - a.momentum_score;
-      }
-      return b.weighted_velocity_7d - a.weighted_velocity_7d;
+      if (b.momentum_score !== a.momentum_score) return b.momentum_score - a.momentum_score;
+      if (b.weighted_velocity_7d !== a.weighted_velocity_7d) return b.weighted_velocity_7d - a.weighted_velocity_7d;
+      return (b.pressure_index ?? 0) - (a.pressure_index ?? 0);
     });
 
     const paginatedRows = feedRows.slice(0, limit);
