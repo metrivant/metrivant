@@ -127,15 +127,20 @@ async function handler(req: ApiReq, res: ApiRes) {
       movementsByCompetitor.set(m.competitor_id, arr);
     }
 
-    // ── Step 6: Org sector (best-effort) ──────────────────────────────────────
-    let orgSector = "custom";
+    // ── Step 6: Sector per competitor (via tracked_competitors → organizations) ──
+    // Resolves sector per competitor to handle multi-org deployments correctly.
+    const competitorSectorMap = new Map<string, string>();
     try {
-      const { data: orgRow } = await sb
-        .from("organizations")
-        .select("sector")
-        .limit(1)
-        .maybeSingle();
-      if (orgRow?.sector) orgSector = orgRow.sector as string;
+      const { data: tcRows } = await sb
+        .from("tracked_competitors")
+        .select("competitor_id, organizations(sector)")
+        .in("competitor_id", trackedIds);
+      for (const row of (tcRows ?? []) as { competitor_id: string; organizations: { sector: string | null } | null }[]) {
+        const sector = row.organizations?.sector;
+        if (sector && !competitorSectorMap.has(row.competitor_id)) {
+          competitorSectorMap.set(row.competitor_id, sector);
+        }
+      }
     } catch { /* non-fatal */ }
 
     // ── Step 7: Determine which competitors need new narratives ───────────────
@@ -199,11 +204,21 @@ async function handler(req: ApiReq, res: ApiRes) {
       return respond(res, startedAt, candidatesChecked, 0, 0);
     }
 
-    // ── Step 8: Batch-load interpretations for all needed signals ─────────────
+    // ── Step 8: Batch-load interpretations for selected signals ──────────────
+    // Pre-select using selectSignalsForNarrative (page_class priority order)
+    // so interpretations are fetched for the signals that will actually be used.
     const neededSignalIds = new Set<string>();
     for (const competitorId of toGenerate) {
-      const signals = signalsByCompetitor.get(competitorId) ?? [];
-      for (const s of signals.slice(0, 5)) neededSignalIds.add(s.id);
+      const rawSigs = signalsByCompetitor.get(competitorId) ?? [];
+      const preSelected = selectSignalsForNarrative(rawSigs.map((s) => ({
+        signal_id:               s.id,
+        page_class:              s.monitored_pages?.page_class ?? "standard",
+        section_type:            s.monitored_pages?.page_type  ?? "unknown",
+        summary:                 null,
+        changed_content_snippet: null,
+        detected_at:             s.detected_at,
+      })));
+      for (const s of preSelected) neededSignalIds.add(s.signal_id);
     }
 
     const { data: interpRows } = await supabase
@@ -237,9 +252,10 @@ async function handler(req: ApiReq, res: ApiRes) {
       if (selected.length === 0) continue;
 
       // Call GPT-4o-mini
+      const competitorSector = competitorSectorMap.get(competitorId) ?? "custom";
       const result = await generateRadarNarrative(
         comp.name,
-        orgSector,
+        competitorSector,
         comp.pressure_index,
         selected
       ).catch(() => null);

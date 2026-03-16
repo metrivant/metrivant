@@ -346,12 +346,16 @@ async function handler(req: ApiReq, res: ApiRes) {
 
           relevanceMap.set(id, result.relevance_level);
 
-          // Persist relevance to signals table (fire-and-forget)
+          // Persist relevance to signals table (fire-and-forget, errors captured)
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           void (supabase as any)
             .from("signals")
             .update({ relevance_level: result.relevance_level, relevance_rationale: result.rationale })
-            .eq("id", id);
+            .eq("id", id)
+            .then(
+              ({ error }: { error: unknown }) => { if (error) Sentry.captureException(error); },
+              (err: unknown) => Sentry.captureException(err)
+            );
         })
       );
 

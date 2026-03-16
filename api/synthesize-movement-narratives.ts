@@ -87,16 +87,22 @@ async function handler(req: ApiReq, res: ApiRes) {
       return;
     }
 
-    // 2 — Fetch org sector once (best-effort)
-    let orgSector = "custom";
+    // 2 — Sector per competitor (via tracked_competitors → organizations join)
+    // Resolves sector per competitor to handle multi-org deployments correctly.
+    const competitorSectorMap = new Map<string, string>();
     try {
+      const movementCompetitorIds = (movements as MovementRow[]).map((m) => m.competitor_id);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: orgRow } = await (supabase as any)
-        .from("organizations")
-        .select("sector")
-        .limit(1)
-        .maybeSingle();
-      if (orgRow?.sector) orgSector = orgRow.sector as string;
+      const { data: tcRows } = await (supabase as any)
+        .from("tracked_competitors")
+        .select("competitor_id, organizations(sector)")
+        .in("competitor_id", movementCompetitorIds);
+      for (const row of (tcRows ?? []) as { competitor_id: string; organizations: { sector: string | null } | null }[]) {
+        const sector = row.organizations?.sector;
+        if (sector && !competitorSectorMap.has(row.competitor_id)) {
+          competitorSectorMap.set(row.competitor_id, sector);
+        }
+      }
     } catch { /* non-fatal */ }
 
     const since = new Date(Date.now() - SINCE_DAYS * 24 * 60 * 60 * 1000).toISOString();
@@ -170,10 +176,11 @@ async function handler(req: ApiReq, res: ApiRes) {
         }
 
         // 7 — GPT-4o synthesis
+        const movementSector = competitorSectorMap.get(movement.competitor_id) ?? "custom";
         const synthesis = await synthesizeMovement(
           competitorName,
           movement.movement_type,
-          orgSector,
+          movementSector,
           signalsForSynthesis
         ).catch(() => null);
 

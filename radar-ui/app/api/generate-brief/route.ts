@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { generateBrief, buildBriefEmailHtml, type BriefContent } from "../../../lib/brief";
 import { sendEmail, FROM_BRIEFS } from "../../../lib/email";
 import { createServiceClient } from "../../../lib/supabase/service";
-import { captureException } from "../../../lib/sentry";
+import { captureException, captureCheckIn } from "../../../lib/sentry";
 import { writeCronHeartbeat } from "../../../lib/cronHeartbeat";
 
 // ── Artifact types ─────────────────────────────────────────────────────────────
@@ -131,11 +131,14 @@ function buildArtifactPrompt(
 async function runGeneration(): Promise<NextResponse> {
   const openaiKey = process.env.OPENAI_API_KEY;
   if (!openaiKey) {
+    captureCheckIn({ monitorSlug: "generate-brief", status: "error" });
     return NextResponse.json(
       { error: "OPENAI_API_KEY not configured" },
       { status: 500 }
     );
   }
+
+  captureCheckIn({ monitorSlug: "generate-brief", status: "in_progress" });
 
   const runStart  = Date.now();
   const siteUrl   = process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
@@ -152,6 +155,7 @@ async function runGeneration(): Promise<NextResponse> {
 
   if (orgsError) {
     captureException(orgsError, { route: "generate-brief", step: "fetch_orgs" });
+    captureCheckIn({ monitorSlug: "generate-brief", status: "error" });
     return NextResponse.json({ error: "Failed to fetch organizations" }, { status: 500 });
   }
 
@@ -367,6 +371,7 @@ async function runGeneration(): Promise<NextResponse> {
   }
 
   await writeCronHeartbeat(supabase, "/api/generate-brief", "ok", Date.now() - runStart, emailsSent);
+  captureCheckIn({ monitorSlug: "generate-brief", status: "ok" });
 
   return NextResponse.json({
     ok:               true,

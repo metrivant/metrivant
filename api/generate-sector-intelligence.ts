@@ -90,6 +90,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
         // ── Signals in analysis window ───────────────────────────────────────
         // Join to monitored_pages for page_class and page_type (section_type).
+        const signalQueryLimit = competitorIds.length * 15;
         const { data: signalRows } = await sb
           .from("signals")
           .select("id, competitor_id, detected_at, monitored_pages(page_class, page_type)")
@@ -98,7 +99,15 @@ async function handler(req: ApiReq, res: ApiRes) {
           .eq("interpreted", true)
           .or("confidence_score.is.null,confidence_score.gte.0.40")
           .order("detected_at", { ascending: false })
-          .limit(competitorIds.length * 15); // headroom for selection
+          .limit(signalQueryLimit);
+
+        if (signalRows && signalRows.length >= signalQueryLimit) {
+          Sentry.addBreadcrumb({
+            message: "sector_intelligence_signal_query_capped",
+            level:   "warning",
+            data:    { org_id: org.id, limit: signalQueryLimit, actual: signalRows.length },
+          });
+        }
 
         if (!signalRows || signalRows.length === 0) {
           orgsSkipped++;
