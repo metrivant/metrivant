@@ -4,7 +4,7 @@
   "crons": [
     {
       "path": "/api/generate-brief",
-      "schedule": "0 8 * * 1"
+      "schedule": "0 10 * * 1"
     },
     {
       "path": "/api/check-signals",

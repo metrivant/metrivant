@@ -266,6 +266,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     }
 
     // ── Step 6: Load latest strategic movement per competitor ─────────────────
+    // (Step 7: narratives loaded below, Step 8: assembly)
     const latestMovementMap = new Map<string, MovementRow>();
 
     const { data: movementRows, error: movementsError } = await supabase
@@ -286,7 +287,32 @@ async function handler(req: ApiReq, res: ApiRes) {
       }
     }
 
-    // ── Step 7: Assemble the radar feed rows ──────────────────────────────────
+    // ── Step 7: Load latest narrative per competitor ──────────────────────────
+    // radar_narratives is append-only. We bulk-fetch ordered by created_at DESC
+    // and take the first row per competitor in code.
+    const narrativeMap = new Map<string, { narrative: string; signal_count: number }>();
+
+    if (competitorIds.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: narrativeRows } = await (supabase as any)
+        .from("radar_narratives")
+        .select("competitor_id, narrative, signal_count, created_at")
+        .in("competitor_id", competitorIds)
+        .order("created_at", { ascending: false })
+        .limit(competitorIds.length * 2); // 2 most recent per competitor is sufficient
+
+      for (const n of (narrativeRows ?? []) as {
+        competitor_id: string;
+        narrative:     string;
+        signal_count:  number;
+      }[]) {
+        if (!narrativeMap.has(n.competitor_id)) {
+          narrativeMap.set(n.competitor_id, { narrative: n.narrative, signal_count: n.signal_count });
+        }
+      }
+    }
+
+    // ── Step 8: Assemble the radar feed rows ──────────────────────────────────
     const feedRows = competitors.map((c) => {
       const agg = signalAggMap.get(c.id);
       const movement = latestMovementMap.get(c.id) ?? null;
@@ -328,6 +354,8 @@ async function handler(req: ApiReq, res: ApiRes) {
         latest_movement_summary:       movement?.summary ?? null,
         latest_signal_type:            agg?.latest_signal_type ?? null,
         momentum_score:                momentumScore,
+        radar_narrative:               narrativeMap.get(c.id)?.narrative       ?? null,
+        radar_narrative_signal_count:  narrativeMap.get(c.id)?.signal_count    ?? null,
       };
     });
 

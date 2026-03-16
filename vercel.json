@@ -13,8 +13,12 @@
     { "path": "/api/interpret-signals",                      "schedule": "28 * * * *"    },
     { "path": "/api/update-signal-velocity",                 "schedule": "50 * * * *"    },
     { "path": "/api/detect-movements",                       "schedule": "55 * * * *"    },
+    { "path": "/api/synthesize-movement-narratives",         "schedule": "30 * * * *"    },
+    { "path": "/api/generate-radar-narratives",              "schedule": "45 * * * *"    },
+    { "path": "/api/generate-sector-intelligence",           "schedule": "0 7 * * 1"     },
     { "path": "/api/generate-brief",                         "schedule": "0 9 * * 1"     },
     { "path": "/api/promote-baselines",                      "schedule": "0 2 * * *"     },
-    { "path": "/api/retention",                              "schedule": "0 3 * * *"     }
+    { "path": "/api/retention",                              "schedule": "0 3 * * *"     },
+    { "path": "/api/suggest-selector-repairs",               "schedule": "0 4 * * *"     }
   ]
 }

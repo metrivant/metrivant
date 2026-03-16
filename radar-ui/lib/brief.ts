@@ -21,15 +21,24 @@ export type BriefAction = {
   priority: BriefSeverity;
 };
 
+export type PositioningDrift = {
+  competitor_name: string;
+  section_type:    "hero" | "headline";
+  previous_text:   string;
+  current_text:    string;
+  detected_at:     string;
+};
+
 export type BriefContent = {
-  headline: string;
-  competitors_analyzed: string[];
-  major_moves: BriefMove[];
+  headline:               string;
+  competitors_analyzed:   string[];
+  major_moves:            BriefMove[];
   strategic_implications: BriefImplication[];
-  recommended_actions: BriefAction[];
-  model?: string;
-  prompt_tokens?: number;
-  completion_tokens?: number;
+  recommended_actions:    BriefAction[];
+  sector_positioning_drift?: string;
+  model?:                 string;
+  prompt_tokens?:         number;
+  completion_tokens?:     number;
 };
 
 // ── Prompt ────────────────────────────────────────────────────────────────────
@@ -75,9 +84,10 @@ Rules:
 - If no significant activity occurred, return empty arrays and a factual headline`;
 
 export function buildBriefUserPrompt(
-  competitors: RadarCompetitor[],
-  weekLabel: string,
-  clusters?: ClusterResult
+  competitors:      RadarCompetitor[],
+  weekLabel:        string,
+  clusters?:        ClusterResult,
+  positioningDrift?: PositioningDrift[]
 ): string {
   const lines: string[] = [
     `Week of ${weekLabel}`,
@@ -143,6 +153,21 @@ export function buildBriefUserPrompt(
     }
   }
 
+  // Sector positioning drift — homepage messaging changes across competitors
+  if (positioningDrift && positioningDrift.length > 0) {
+    lines.push("Sector positioning drift (homepage messaging changes, last 30 days):", "");
+    for (const d of positioningDrift.slice(0, 10)) {
+      lines.push(`${d.competitor_name} [${d.section_type}]:`);
+      lines.push(`  Was: ${d.previous_text.slice(0, 120)}`);
+      lines.push(`  Now: ${d.current_text.slice(0, 120)}`);
+      lines.push("");
+    }
+    lines.push(
+      "If messaging trends are detectable across competitors, include a brief 'Sector Positioning Drift' observation.",
+      ""
+    );
+  }
+
   lines.push("Generate the weekly intelligence brief.");
   return lines.join("\n");
 }
@@ -150,12 +175,13 @@ export function buildBriefUserPrompt(
 // ── OpenAI call ───────────────────────────────────────────────────────────────
 
 export async function generateBrief(
-  apiKey: string,
-  competitors: RadarCompetitor[],
-  weekLabel: string,
-  clusters?: ClusterResult
+  apiKey:           string,
+  competitors:      RadarCompetitor[],
+  weekLabel:        string,
+  clusters?:        ClusterResult,
+  positioningDrift?: PositioningDrift[]
 ): Promise<BriefContent> {
-  const userPrompt = buildBriefUserPrompt(competitors, weekLabel, clusters);
+  const userPrompt = buildBriefUserPrompt(competitors, weekLabel, clusters, positioningDrift);
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",

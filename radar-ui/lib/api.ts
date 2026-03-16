@@ -16,6 +16,8 @@ export type RadarCompetitor = {
   latest_movement_summary: string | null;
   latest_signal_type: string | null;
   momentum_score: number;
+  radar_narrative: string | null;
+  radar_narrative_signal_count: number | null;
 };
 
 type RadarFeedResponse = {

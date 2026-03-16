@@ -131,7 +131,15 @@ Output: Visual radar instrument.
 
 ### Downstream analysis layers (derived from radar_feed, not in the main pipeline)
 
-**briefs** — Weekly intelligence reports. GPT-4o summarizes movement patterns into digest emails. Triggered by Vercel cron or manually. Before generation, raw signals are clustered into strategic themes (pricing/product/positioning/enterprise/ecosystem/hiring/comms) via `lib/brief/cluster-signals.ts`; cluster labels are enriched by gpt-4o-mini via `lib/brief/enrich-cluster-themes.ts`. Noise signals (signal_feedback.verdict='noise') are excluded. Clusters are injected into the GPT-4o prompt for analyst-quality output.
+**briefs** — Weekly intelligence reports. Cron: Monday 10:00 UTC. Assembles from pre-generated artifacts (sector_intelligence, strategic_movements.movement_summary, radar_narratives) — does NOT re-analyze raw signals. GPT-4o assembles BriefContent JSON from artifact prompt. Stores content (UI), sector_summary, movements JSONB, activity JSONB, brief_markdown. Sends email via Resend.
+
+**movement_narratives** — Decoupled AI synthesis for strategic_movements. Cron: :30 past each hour. Selects movements where movement_summary IS NULL, generates 2-3 sentence analyst narrative + strategic_implication + confidence_level (high|medium|low) + confidence_reason via gpt-4o. Writes to strategic_movements. Fallback: deterministic summary on LLM failure. Handler: `api/synthesize-movement-narratives.ts`, lib: `lib/movement-synthesis.ts`.
+
+**radar_narratives** — Per-competitor activity explanations. Cron: :45 past each hour. 4 triggers: new movement, >=2 signals in 7d since last narrative, pressure +1.5, high_value override. 12h rate limit (bypassed by high_value). gpt-4o-mini, max 5 evidence signals. Append-only table. Joined by radar-feed Step 7. Handler: `api/generate-radar-narratives.ts`, lib: `lib/radar-narrative.ts`.
+
+**sector_intelligence** — Weekly cross-competitor sector analysis. Cron: Monday 07:00 UTC. Per org: signals section-pivoted by section_type, all tracked competitors, 30d window. GPT-4o returns sector_trends[], divergences[], summary. Evidence signal IDs attached deterministically post-LLM. Org-scoped append-only table. Handler: `api/generate-sector-intelligence.ts`, lib: `lib/sector-intelligence.ts`.
+
+**selector_repair_suggestions** — Automated CSS selector health. Cron: daily 04:00 UTC. Detects 3 consecutive suspect validations within 72h per (page, section). Re-fetches live HTML, proposes new selector via gpt-4o-mini, validates with Cheerio. Stores in selector_repair_suggestions for operator review — never auto-applied. Handler: `api/suggest-selector-repairs.ts`, lib: `lib/selector-repair.ts`.
 
 **strategic_analysis** — Cross-competitor pattern detection. GPT-4o identifies convergence, pricing competition, enterprise shift, etc. across competitors showing similar movement types. Max 5 insights, min 2 competitors per pattern.
 
@@ -170,7 +178,9 @@ Supabase is the state machine. It owns: competitors, organizations, monitored_pa
 
 The backend runtime (`metrivant-runtime.vercel.app`) owns the crawl-and-pipeline execution. The UI calls it via `/api/radar-feed` and `/api/competitor-detail`. The UI does not run pipeline logic.
 
-Vercel cron jobs trigger: signal checking (`/api/check-signals`), brief generation (`/api/generate-brief`), strategic analysis (`/api/strategic-analysis`), positioning updates (`/api/update-positioning`).
+Vercel cron jobs (radar-ui): signal checking (`/api/check-signals` — hourly), brief generation (`/api/generate-brief` — Monday 10:00 UTC), strategic analysis (`/api/strategic-analysis` — daily 08:00 UTC), positioning updates (`/api/update-positioning` — daily 09:00 UTC).
+
+Vercel cron jobs (metrivant-runtime): fetch-snapshots (ambient 0,30min / high_value 2min / standard every 3h), extract-sections (15,45min), build-baselines (17,47min), detect-diffs (19,49min), detect-signals (21,51min), detect-ambient-activity (23,53min), update-pressure-index (25,55min), interpret-signals (28min), update-signal-velocity (50min), detect-movements (55min), synthesize-movement-narratives (30min), generate-radar-narratives (45min), generate-sector-intelligence (Monday 07:00 UTC), generate-brief on runtime side n/a, promote-baselines (daily 02:00 UTC), retention (daily 03:00 UTC), suggest-selector-repairs (daily 04:00 UTC).
 
 ### Data flow (UI perspective)
 

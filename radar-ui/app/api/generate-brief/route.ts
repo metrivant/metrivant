@@ -1,12 +1,28 @@
 import { NextResponse } from "next/server";
-import { getRadarFeed } from "../../../lib/api";
-import { generateBrief, buildBriefEmailHtml } from "../../../lib/brief";
-import { clusterSignals, type Signal } from "../../../lib/brief/cluster-signals";
-import { enrichClusterThemes } from "../../../lib/brief/enrich-cluster-themes";
+import { generateBrief, buildBriefEmailHtml, type BriefContent } from "../../../lib/brief";
 import { sendEmail, FROM_BRIEFS } from "../../../lib/email";
 import { createServiceClient } from "../../../lib/supabase/service";
 import { captureException } from "../../../lib/sentry";
 import { writeCronHeartbeat } from "../../../lib/cronHeartbeat";
+
+// ── Artifact types ─────────────────────────────────────────────────────────────
+
+type MovementArtifact = {
+  competitor_name:      string;
+  movement_type:        string;
+  movement_summary:     string;
+  strategic_implication: string | null;
+  confidence_level:     string | null;
+  confidence:           number;
+};
+
+type ActivityArtifact = {
+  competitor_name: string;
+  narrative:       string;
+  signal_count:    number;
+};
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
 function weekLabel(date: Date): string {
   return date.toLocaleDateString("en-US", {
@@ -23,6 +39,95 @@ function isAuthorized(request: Request): boolean {
   return auth === `Bearer ${secret}`;
 }
 
+/**
+ * Builds a markdown rendering of BriefContent for email plain-text fallback
+ * and the brief_markdown column. Purely deterministic — no LLM.
+ */
+function buildBriefMarkdown(brief: BriefContent, weekLabel: string): string {
+  const lines: string[] = [
+    `# Intelligence Brief — ${weekLabel}`,
+    ``,
+    brief.headline,
+    ``,
+  ];
+
+  if (brief.major_moves.length > 0) {
+    lines.push(`## Major Moves`, ``);
+    for (const m of brief.major_moves) {
+      lines.push(`**${m.competitor}** [${m.severity.toUpperCase()}]`);
+      lines.push(m.move);
+      lines.push(``);
+    }
+  }
+
+  if (brief.strategic_implications.length > 0) {
+    lines.push(`## Strategic Implications`, ``);
+    for (const imp of brief.strategic_implications) {
+      lines.push(`**${imp.theme}**`);
+      lines.push(imp.implication);
+      lines.push(``);
+    }
+  }
+
+  if (brief.recommended_actions.length > 0) {
+    lines.push(`## Recommended Actions`, ``);
+    for (const a of brief.recommended_actions) {
+      lines.push(`- [${a.priority.toUpperCase()}] ${a.action}`);
+    }
+    lines.push(``);
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Builds the GPT-4o user prompt from pre-generated artifacts.
+ * No raw signals — only sector_intelligence, movement narratives, radar narratives.
+ */
+function buildArtifactPrompt(
+  weekLabel:      string,
+  sectorSummary:  string | null,
+  movements:      MovementArtifact[],
+  activity:       ActivityArtifact[]
+): string {
+  const lines: string[] = [
+    `Week of ${weekLabel}`,
+    ``,
+  ];
+
+  if (sectorSummary) {
+    lines.push(`Sector Intelligence (cross-competitor analysis):`, ``);
+    lines.push(sectorSummary);
+    lines.push(``);
+  }
+
+  if (movements.length > 0) {
+    lines.push(`Competitor Movements (last 7 days, ordered by confidence):`, ``);
+    movements.forEach((m, i) => {
+      const confLabel = m.confidence_level ?? `${Math.round(m.confidence * 100)}%`;
+      lines.push(`${i + 1}. ${m.competitor_name} — ${m.movement_type} [${confLabel}]`);
+      lines.push(`   Movement: ${m.movement_summary}`);
+      if (m.strategic_implication) {
+        lines.push(`   Implication: ${m.strategic_implication}`);
+      }
+      lines.push(``);
+    });
+  }
+
+  if (activity.length > 0) {
+    lines.push(`Competitor Activity Summaries:`, ``);
+    for (const a of activity) {
+      lines.push(`- ${a.competitor_name} (${a.signal_count} signal${a.signal_count !== 1 ? "s" : ""}): ${a.narrative}`);
+    }
+    lines.push(``);
+  }
+
+  lines.push(`Generate the weekly intelligence brief based only on the above synthesized intelligence.`);
+  return lines.join("\n");
+}
+
+// ── Core generation ────────────────────────────────────────────────────────────
+
 async function runGeneration(): Promise<NextResponse> {
   const openaiKey = process.env.OPENAI_API_KEY;
   if (!openaiKey) {
@@ -37,10 +142,13 @@ async function runGeneration(): Promise<NextResponse> {
   const week      = weekLabel(new Date());
   const supabase  = createServiceClient();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabase as any;
+
   // 1 — Load all organisations
-  const { data: orgs, error: orgsError } = await supabase
+  const { data: orgs, error: orgsError } = await sb
     .from("organizations")
-    .select("id, owner_id");
+    .select("id, owner_id, sector");
 
   if (orgsError) {
     captureException(orgsError, { route: "generate-brief", step: "fetch_orgs" });
@@ -71,102 +179,134 @@ async function runGeneration(): Promise<NextResponse> {
   let emailsSent      = 0;
   let totalSignals    = 0;
 
-  for (const org of orgs as { id: string; owner_id: string }[]) {
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  for (const org of orgs as { id: string; owner_id: string; sector: string | null }[]) {
     try {
-      // Fetch this org's tracked competitor set (same source as Radar + Market Map)
-      const allCompetitors = await getRadarFeed(50, org.id);
-      const active = allCompetitors.filter((c) => c.signals_7d > 0);
 
-      if (active.length === 0) continue; // no signal data — skip this org
+      // ── Tracked competitor IDs ────────────────────────────────────────────
+      const { data: trackedRows } = await sb
+        .from("tracked_competitors")
+        .select("competitor_id")
+        .eq("org_id", org.id)
+        .not("competitor_id", "is", null);
 
-      const signalCount = active.reduce((sum, c) => sum + (c.signals_7d ?? 0), 0);
+      const competitorIds = [...new Set(
+        ((trackedRows ?? []) as { competitor_id: string }[]).map((r) => r.competitor_id)
+      )];
+
+      if (competitorIds.length === 0) continue;
+
+      // ── Competitor names ──────────────────────────────────────────────────
+      const { data: compRows } = await supabase
+        .from("competitors")
+        .select("id, name")
+        .in("id", competitorIds);
+
+      const nameById = new Map<string, string>(
+        ((compRows ?? []) as { id: string; name: string }[]).map((c) => [c.id, c.name])
+      );
+
+      // ── Sector intelligence (latest row within 7 days for this org) ───────
+      let sectorSummary: string | null = null;
+      try {
+        const { data: siRows } = await sb
+          .from("sector_intelligence")
+          .select("summary")
+          .eq("org_id", org.id)
+          .gte("created_at", sevenDaysAgo)
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        sectorSummary = (siRows?.[0]?.summary as string | undefined) ?? null;
+      } catch { /* Non-fatal */ }
+
+      // ── Movement artifacts (movement_summary populated, last 7d, LIMIT 10) ─
+      const movements: MovementArtifact[] = [];
+      try {
+        const { data: movRows } = await sb
+          .from("strategic_movements")
+          .select("competitor_id, movement_type, movement_summary, strategic_implication, confidence_level, confidence")
+          .in("competitor_id", competitorIds)
+          .not("movement_summary", "is", null)
+          .gte("last_seen_at", sevenDaysAgo)
+          .order("confidence", { ascending: false })
+          .limit(10);
+
+        for (const r of (movRows ?? []) as {
+          competitor_id:        string;
+          movement_type:        string;
+          movement_summary:     string | null;
+          strategic_implication: string | null;
+          confidence_level:     string | null;
+          confidence:           number;
+        }[]) {
+          if (!r.movement_summary) continue;
+          movements.push({
+            competitor_name:      nameById.get(r.competitor_id) ?? r.competitor_id,
+            movement_type:        r.movement_type,
+            movement_summary:     r.movement_summary,
+            strategic_implication: r.strategic_implication,
+            confidence_level:     r.confidence_level,
+            confidence:           r.confidence,
+          });
+        }
+      } catch { /* Non-fatal */ }
+
+      // ── Activity artifacts (latest radar_narrative per competitor) ────────
+      const activity: ActivityArtifact[] = [];
+      try {
+        const { data: narRows } = await sb
+          .from("radar_narratives")
+          .select("competitor_id, narrative, signal_count, created_at")
+          .in("competitor_id", competitorIds)
+          .order("created_at", { ascending: false })
+          .limit(competitorIds.length * 2); // dedup in code
+
+        const seenNarr = new Set<string>();
+        for (const n of (narRows ?? []) as {
+          competitor_id: string;
+          narrative:     string;
+          signal_count:  number;
+        }[]) {
+          if (seenNarr.has(n.competitor_id)) continue;
+          seenNarr.add(n.competitor_id);
+          activity.push({
+            competitor_name: nameById.get(n.competitor_id) ?? n.competitor_id,
+            narrative:       n.narrative,
+            signal_count:    n.signal_count,
+          });
+        }
+      } catch { /* Non-fatal */ }
+
+      // Skip if no artifacts to synthesize
+      if (!sectorSummary && movements.length === 0 && activity.length === 0) continue;
+
+      const signalCount = activity.reduce((sum, a) => sum + a.signal_count, 0);
       totalSignals += signalCount;
 
-      // ── Fetch raw signals for clustering ─────────────────────────────────
-      // Build a richer prompt by clustering raw signals into strategic themes.
-      // This step is best-effort — brief generation continues without clusters
-      // if the query fails or returns no rows.
-      const activeIds = active.map((c) => c.competitor_id);
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const competitorNameById = new Map(active.map((c) => [c.competitor_id, c.competitor_name]));
+      // ── Build competitor list for generateBrief (minimal — names + movements) ──
+      // We pass a lightweight RadarCompetitor-compatible array derived from artifacts.
+      // The AI prompt is built from artifacts via the overridden user prompt path.
+      // generateBrief is called directly with a pre-built prompt.
+      const userPrompt = buildArtifactPrompt(week, sectorSummary, movements, activity);
+      const briefContent = await generateBriefFromArtifacts(openaiKey, userPrompt);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sb = supabase as any;
+      // ── Deterministic markdown rendering ──────────────────────────────────
+      const briefMarkdown = buildBriefMarkdown(briefContent, week);
 
-      let clusters = undefined;
-      try {
-        // Fetch signals with their monitored_page (for section_type) and first interpretation
-        const { data: rawRows } = await sb
-          .from("signals")
-          .select("id, competitor_id, signal_type, monitored_page_id, monitored_pages(page_type), interpretations(summary)")
-          .in("competitor_id", activeIds)
-          .gte("detected_at", sevenDaysAgo)
-          .order("detected_at", { ascending: false })
-          .limit(200);
-
-        if (rawRows && rawRows.length > 0) {
-          // Identify noise-marked signals and exclude them
-          const allIds = (rawRows as { id: string }[]).map((r) => r.id);
-          let noiseIds = new Set<string>();
-          try {
-            const { data: feedbackRows } = await sb
-              .from("signal_feedback")
-              .select("signal_id")
-              .in("signal_id", allIds)
-              .eq("verdict", "noise");
-            noiseIds = new Set(
-              ((feedbackRows ?? []) as { signal_id: string }[]).map((r) => r.signal_id)
-            );
-          } catch {
-            // signal_feedback table may not exist in all environments — safe to skip
-          }
-
-          const signals: Signal[] = (rawRows as {
-            id: string;
-            competitor_id: string;
-            signal_type: string | null;
-            monitored_pages: { page_type: string } | null;
-            interpretations: Array<{ summary: string }>;
-          }[])
-            .filter((r) => !noiseIds.has(r.id))
-            .map((r) => ({
-              id:              r.id,
-              competitor_id:   r.competitor_id,
-              competitor_name: competitorNameById.get(r.competitor_id) ?? r.competitor_id,
-              section_type:    r.monitored_pages?.page_type ?? null,
-              signal_type:     r.signal_type,
-              interpretation:  r.interpretations?.[0]?.summary ?? null,
-            }));
-
-          const rawClusters = clusterSignals(signals);
-
-          // Enrich cluster labels with gpt-4o-mini when there are ≤8 clusters
-          // to keep per-org latency bounded.
-          if (rawClusters.clusters.length > 0 && rawClusters.clusters.length <= 8) {
-            clusters = await enrichClusterThemes(rawClusters, openaiKey);
-          } else {
-            clusters = rawClusters;
-          }
-        }
-      } catch (clusterErr) {
-        captureException(
-          clusterErr instanceof Error ? clusterErr : new Error(String(clusterErr)),
-          { route: "generate-brief", step: "cluster_signals", org_id: org.id }
-        );
-        // Non-fatal — proceed without clusters
-      }
-
-      // Generate brief with OpenAI
-      const briefContent = await generateBrief(openaiKey, active, week, clusters);
-
-      // Persist to Supabase scoped to this org
-      const { data: briefRow, error: insertError } = await supabase
+      // ── Persist to Supabase ───────────────────────────────────────────────
+      const { data: briefRow, error: insertError } = await sb
         .from("weekly_briefs")
         .insert({
-          org_id:       org.id,
-          content:      briefContent,
-          signal_count: signalCount,
-          generated_at: new Date().toISOString(),
+          org_id:         org.id,
+          content:        briefContent,
+          signal_count:   signalCount,
+          generated_at:   new Date().toISOString(),
+          sector_summary: sectorSummary,
+          movements:      movements,
+          activity:       activity,
+          brief_markdown: briefMarkdown,
         })
         .select("id")
         .single();
@@ -180,10 +320,10 @@ async function runGeneration(): Promise<NextResponse> {
         // Non-fatal — continue to next org
       } else {
         briefsGenerated++;
-        void briefRow; // referenced in PostHog below if needed
+        void briefRow;
       }
 
-      // Send email to this org's owner
+      // ── Send email to org owner ───────────────────────────────────────────
       const ownerEmail = userEmailById.get(org.owner_id);
       if (ownerEmail) {
         const emailHtml = buildBriefEmailHtml(briefContent, week, siteUrl);
@@ -216,7 +356,7 @@ async function runGeneration(): Promise<NextResponse> {
         event:       "brief_generated",
         distinct_id: "system",
         properties:  {
-          orgs_processed:  orgs.length,
+          orgs_processed:   orgs.length,
           briefs_generated: briefsGenerated,
           emails_sent:      emailsSent,
           total_signals:    totalSignals,
@@ -237,6 +377,101 @@ async function runGeneration(): Promise<NextResponse> {
     total_signals:    totalSignals,
   });
 }
+
+// ── OpenAI call — artifact-based prompt ───────────────────────────────────────
+
+const SYSTEM_PROMPT = `\
+You are a senior competitive intelligence analyst producing a precise, actionable weekly brief.
+Your job: turn synthesized competitor intelligence into grounded, specific analysis — not general commentary.
+
+Return valid JSON matching this exact schema — nothing else:
+{
+  "headline": "One sentence naming the dominant competitive development this week — specific companies and actions, no hedging",
+  "competitors_analyzed": ["array of competitor names that had meaningful activity"],
+  "major_moves": [
+    {
+      "competitor": "competitor name",
+      "move": "one sentence stating exactly what changed and why it matters — name the product, price, or market change specifically",
+      "severity": "high | medium | low"
+    }
+  ],
+  "strategic_implications": [
+    {
+      "theme": "2–4 word theme label",
+      "implication": "1–2 sentences of precise causal reasoning — what this move signals about the competitor's intent and what it means for your position"
+    }
+  ],
+  "recommended_actions": [
+    {
+      "action": "one concrete action sentence — name the specific thing to build, change, accelerate, or stop",
+      "priority": "high | medium | low"
+    }
+  ]
+}
+
+Rules:
+- Max 5 items in major_moves
+- Max 3 items in strategic_implications
+- Max 3 items in recommended_actions
+- high = act this week, medium = act this month, low = awareness only
+- Write only from the intelligence provided — do not apply general knowledge about these companies' histories
+- Write like a practitioner, not a consultant — favor precise observation over hedged inference
+- Never use: "it's worth noting", "it is important to", "in conclusion", "leverage", "synergy", "holistic"
+- Never recommend "monitoring" as an action — recommend a decision or a build
+- If no significant activity occurred, return empty arrays and a factual headline`;
+
+async function generateBriefFromArtifacts(
+  apiKey:     string,
+  userPrompt: string
+): Promise<BriefContent> {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model:           "gpt-4o",
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user",   content: userPrompt },
+      ],
+      response_format: { type: "json_object" },
+      temperature:     0.25,
+      max_tokens:      1400,
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`OpenAI error ${res.status}: ${body}`);
+  }
+
+  const json = (await res.json()) as {
+    choices: Array<{ message: { content: string } }>;
+    usage?:  { prompt_tokens: number; completion_tokens: number };
+  };
+
+  let parsed: Partial<BriefContent>;
+  try {
+    parsed = JSON.parse(json.choices[0].message.content) as Partial<BriefContent>;
+  } catch {
+    throw new Error("OpenAI returned non-JSON content");
+  }
+
+  return {
+    headline:               parsed.headline ?? "No significant competitive activity detected this week.",
+    competitors_analyzed:   parsed.competitors_analyzed   ?? [],
+    major_moves:            parsed.major_moves            ?? [],
+    strategic_implications: parsed.strategic_implications ?? [],
+    recommended_actions:    parsed.recommended_actions    ?? [],
+    model:                  "gpt-4o",
+    prompt_tokens:          json.usage?.prompt_tokens,
+    completion_tokens:      json.usage?.completion_tokens,
+  };
+}
+
+// ── Route handlers ─────────────────────────────────────────────────────────────
 
 // GET — called by Vercel cron (Authorization: Bearer {CRON_SECRET} injected automatically)
 export async function GET(request: Request): Promise<NextResponse> {

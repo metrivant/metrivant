@@ -10,6 +10,59 @@ import { createServiceClient } from "../../../lib/supabase/service";
 import { captureException } from "../../../lib/sentry";
 import { writeCronHeartbeat } from "../../../lib/cronHeartbeat";
 
+// ── Alert synthesis via GPT-4o ─────────────────────────────────────────────────
+// Generates a concise (≤40 word) analyst-quality alert message.
+// Falls back to the signal's existing summary if synthesis fails.
+
+async function synthesizeAlertMessage(
+  competitorName:      string,
+  signalType:          string,
+  summary:             string | null,
+  pressureIndex:       number | null,
+  recentSignalsCount:  number,
+  openaiKey:           string
+): Promise<string | null> {
+  const prompt = `You are writing a competitive intelligence alert.
+Competitor: ${competitorName}
+Signal: ${signalType.replace(/_/g, " ")}
+Recent signals (7d): ${recentSignalsCount}
+${pressureIndex != null ? `Pressure index: ${pressureIndex.toFixed(1)}/10` : ""}
+Evidence: ${summary ?? "(no interpretation available)"}
+
+Write ONE alert message. Max 40 words. Explain what happened and why it matters.
+No fluff. No hedging. Write like an analyst, not a notification template.
+Return only the message text — no JSON, no labels.`;
+
+  try {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 6000);
+
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method:  "POST",
+      signal:  controller.signal,
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${openaiKey}` },
+      body: JSON.stringify({
+        model:       "gpt-4o",
+        messages:    [{ role: "user", content: prompt }],
+        max_tokens:  80,
+        temperature: 0.1,
+      }),
+    });
+
+    if (!res.ok) return null;
+
+    const data    = await res.json() as { choices: Array<{ message: { content: string } }> };
+    const message = data.choices?.[0]?.message?.content?.trim();
+    if (!message) return null;
+
+    // Hard cap at 40 words
+    const words = message.split(/\s+/);
+    return words.length > 40 ? words.slice(0, 40).join(" ") + "…" : message;
+  } catch {
+    return null;
+  }
+}
+
 function isAuthorized(request: Request): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
@@ -108,17 +161,38 @@ async function runCheck(): Promise<NextResponse> {
     return NextResponse.json({ ok: true, signalsFound: 0, alertsCreated: 0 });
   }
 
-  // 5 — Insert alerts for each org (deduped by UNIQUE constraint)
+  // 5 — Synthesize alert messages via GPT-4o (best-effort, parallel)
+  const openaiKey = process.env.OPENAI_API_KEY;
+
+  type QualifyingSignalWithMessage = QualifyingSignal & { synthesized_message: string | null };
+  const qualifyingWithMessages: QualifyingSignalWithMessage[] = await Promise.all(
+    qualifying.map(async (q) => {
+      if (!openaiKey) return { ...q, synthesized_message: null };
+      const recentSignals = active.find(c => c.competitor_name === q.competitor_name)?.signals_7d ?? 1;
+      const pressureIndex = active.find(c => c.competitor_name === q.competitor_name)?.pressure_index ?? null;
+      const message = await synthesizeAlertMessage(
+        q.competitor_name,
+        q.signal_type,
+        q.summary,
+        pressureIndex as number | null,
+        recentSignals,
+        openaiKey
+      ).catch(() => null);
+      return { ...q, synthesized_message: message };
+    })
+  );
+
+  // Insert alerts for each org (deduped by UNIQUE constraint)
   let alertsCreated = 0;
   const newAlertsByOrg = new Map<string, AlertRow[]>();
 
   for (const org of orgs as Array<{ id: string; owner_id: string }>) {
-    const payload = qualifying.map((q) => ({
+    const payload = qualifyingWithMessages.map((q) => ({
       org_id:          org.id,
       signal_id:       q.signal_id,
       competitor_name: q.competitor_name,
       signal_type:     q.signal_type,
-      summary:         q.summary,
+      summary:         q.synthesized_message ?? q.summary,
       urgency:         q.urgency,
       severity:        q.severity,
     }));

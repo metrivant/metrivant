@@ -126,11 +126,11 @@ async function handler(req: ApiReq, res: ApiRes) {
       grouped.set(page.competitor_id, arr);
     }
 
-    // ── Batch-load interpretation summaries ───────────────────────────────────
-    // Used to populate movement.summary with real AI-generated intelligence
-    // instead of a mechanical movement_type label. One bulk query for all
-    // signal IDs — no per-competitor round-trip.
-    const allSignalIds = signalRows.map((s) => s.id);
+    // ── Batch-load interpretation strategic implications ──────────────────────
+    // Used to populate the deterministic movement summary with the most recent
+    // signal's strategic implication rather than a raw movement_type label.
+    // One bulk query for all signal IDs — no per-competitor round-trip.
+    const allSignalIds      = signalRows.map((s) => s.id);
     const interpretationMap = new Map<string, string>(); // signal_id → strategic_implication
 
     if (allSignalIds.length > 0) {
@@ -140,9 +140,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         .in("signal_id", allSignalIds);
 
       for (const row of (interpretations ?? []) as { signal_id: string; strategic_implication: string }[]) {
-        if (row.strategic_implication) {
-          interpretationMap.set(row.signal_id, row.strategic_implication);
-        }
+        if (row.strategic_implication) interpretationMap.set(row.signal_id, row.strategic_implication);
       }
     }
 
@@ -184,11 +182,12 @@ async function handler(req: ApiReq, res: ApiRes) {
         const avgConf = confidenceScores.reduce((a, b) => a + b, 0) / confidenceScores.length;
         const movementConfidence = Math.min(0.95, avgConf * 0.65 + Math.min(signalCount, 6) * 0.06);
 
-        // ── Rich summary from interpretation layer ────────────────────────────
-        // Use the strategic_implication from the most recent interpreted signal
-        // in this cluster. Falls back to the movement_type label if unavailable.
+        // ── Deterministic summary ─────────────────────────────────────────────
+        // Uses the most recent signal's strategic implication when available,
+        // otherwise falls back to the movement_type label.
+        // AI narrative synthesis runs separately in synthesize-movement-narratives.
         const mostRecentSignal = competitorSignals[competitorSignals.length - 1];
-        const richSummary =
+        const deterministicSummary =
           interpretationMap.get(mostRecentSignal.id) ??
           movementTypes[0].replace(/_/g, " ");
 
@@ -209,7 +208,7 @@ async function handler(req: ApiReq, res: ApiRes) {
                 velocity,
                 first_seen_at: firstSeenAt,
                 last_seen_at:  lastSeenAt,
-                summary:       richSummary,
+                summary:       deterministicSummary,
               },
               { onConflict: "competitor_id,movement_type", ignoreDuplicates: true }
             );
@@ -223,7 +222,7 @@ async function handler(req: ApiReq, res: ApiRes) {
               signal_count: signalCount,
               velocity,
               last_seen_at: lastSeenAt,
-              summary:      richSummary,
+              summary:      deterministicSummary,
             })
             .eq("competitor_id", competitorId)
             .eq("movement_type", movementType);

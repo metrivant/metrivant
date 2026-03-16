@@ -43,6 +43,15 @@ Key schema additions (migrations 026–028):
 - signal_feedback                   operator quality labels per signal (verdict, noise_category); unique per signal_id
 - retention functions               4 idempotent Postgres RPC functions: retention_null_raw_html, retention_delete_sections, retention_delete_diffs, retention_delete_pipeline_events
 
+Key schema additions (migrations 030–035) — AI Intelligence Stack:
+- signals.relevance_level           gpt-4o-mini pre-classification (high|medium|low); low skips interpretation
+- signals.relevance_rationale       one-sentence rationale from relevance classifier
+- strategic_movements (032):        movement_summary, strategic_implication, confidence_level, confidence_reason, narrative_generated_at
+- selector_repair_suggestions (031) AI-proposed CSS selector fixes; operator review only; never auto-applied
+- radar_narratives (033)            append-only per-competitor activity narratives; joined by radar-feed Step 7
+- sector_intelligence (034)         weekly cross-competitor GPT-4o analysis per org; sector_trends + divergences JSONB
+- weekly_briefs (035):              sector_summary, movements JSONB, activity JSONB, brief_markdown columns added
+
 Retention policy (lib/retention-config.ts):
   RAW_HTML           7d  — null raw_html on processed snapshots (sections_extracted=true)
   EXTRACTED_SECTIONS 90d — delete page_sections, skip rows referenced by baselines/diffs
@@ -50,11 +59,15 @@ Retention policy (lib/retention-config.ts):
   PIPELINE_EVENTS    90d — delete unconditionally (pure telemetry)
   Cron: /api/retention daily at 03:00 UTC
 
-Brief clustering (lib/brief/cluster-signals.ts + enrich-cluster-themes.ts):
-  Before brief generation, raw signals are fetched and grouped by (competitor_id, theme_key).
-  Theme resolution: THEME_MAP matches section_type + signal_type → pricing/product/positioning/enterprise/ecosystem/hiring/comms.
-  Cluster labels are enriched via gpt-4o-mini (≤8 clusters per org). Clusters injected into brief prompt.
-  Noise signals excluded via signal_feedback.verdict = 'noise'.
+Brief generation (radar-ui/app/api/generate-brief/route.ts — Monday 10:00 UTC):
+  Assembles intelligence from pre-generated artifacts — does NOT re-analyze raw signals.
+  Artifact sources per org:
+    1. sector_intelligence.summary   (latest row within 7d)
+    2. strategic_movements           (movement_summary IS NOT NULL, last 7d, ORDER BY confidence DESC, LIMIT 10)
+    3. radar_narratives              (latest per competitor)
+  GPT-4o assembles BriefContent JSON from artifact prompt. Stored in weekly_briefs.content for UI.
+  Also stores: sector_summary, movements JSONB, activity JSONB, brief_markdown (deterministic markdown).
+  Fallback: skips org if no artifacts exist (no LLM call).
 
 Confidence model (v4.0):
   base             = SECTION_WEIGHTS[section_type]   (0.25–0.85)
