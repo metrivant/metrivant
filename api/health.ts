@@ -4,7 +4,7 @@ import { Sentry } from "../lib/sentry";
 import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
 
-const STUCK_SIGNAL_MINUTES  = 30;
+const STUCK_SIGNAL_MINUTES  = 240; // 4h — aligns with interpret-signals STALE_MINUTES (1440m); Vercel functions can't run >4h so anything stuck this long is genuinely broken
 const RECENT_SIGNAL_DAYS    = 7;
 const FETCH_STALE_HOURS     = 12;
 
@@ -69,7 +69,8 @@ export default async function handler(req: ApiReq, res: ApiRes) {
       supabase
         .from("snapshots")
         .select("*", { count: "exact", head: true })
-        .eq("sections_extracted", false),
+        .eq("sections_extracted", false)
+        .eq("fetch_quality", "full"),
 
       supabase
         .from("section_diffs")

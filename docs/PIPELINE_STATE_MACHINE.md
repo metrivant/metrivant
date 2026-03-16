@@ -120,11 +120,12 @@ Confidence gates:
 0.35 – 0.64   → status = 'pending_review'
 >= 0.65        → status = 'pending'
 
-Deduplication:
+Deduplication (v4.1):
 
-signal_hash = sha256(competitor_id:signal_type:YYYY-MM-DD)[:32]
+signal_hash = sha256(competitor_id:signal_type:section_type:diff_id)[:32]
 UNIQUE INDEX on signal_hash (partial: WHERE signal_hash IS NOT NULL)
-One signal per (competitor, type) per UTC calendar day.
+One signal per diff — anchored to the specific diff_id, not a calendar day.
+Allows multiple real events on the same competitor+section+type within one day.
 
 Ambient routing:
 
