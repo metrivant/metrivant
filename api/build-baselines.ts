@@ -24,7 +24,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       const { data: recentBaselines } = await supabase
         .from("section_baselines")
         .select("monitored_page_id")
-        .gte("created_at", churnWindow);
+        .gte("established_at", churnWindow);
 
       if (recentBaselines && recentBaselines.length > 0) {
         const churnByPage = new Map<string, number>();
@@ -86,14 +86,30 @@ async function handler(req: ApiReq, res: ApiRes) {
 
         pagesWithBaselines = baselinedSet.size;
 
+        // ── baseline_maturing → healthy promotion ──────────────────────────────
+        // Pages that previously had no baseline are now in baselinedSet.
+        // Promote them from baseline_maturing → healthy.
+        const baselinedIds = [...baselinedSet];
+        if (baselinedIds.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { error: promoteError } = await supabase
+            .from("monitored_pages")
+            .update({ health_state: "healthy" } as any)
+            .in("id", baselinedIds)
+            .eq("health_state", "baseline_maturing");
+          if (promoteError) Sentry.captureException(promoteError);
+        }
+
         // Active pages with valid sections but no baseline = coverage gap.
-        const { data: activePages } = await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: activePages } = await (supabase as any)
           .from("monitored_pages")
-          .select("id")
+          .select("id, health_state")
           .in("id", pagesWithSectionIds)
           .eq("active", true);
 
-        const activeWithSections = ((activePages ?? []) as { id: string }[]).map((r) => r.id);
+        const activePageRows = (activePages ?? []) as { id: string; health_state: string }[];
+        const activeWithSections = activePageRows.map((r) => r.id);
         const gapPageIds = activeWithSections.filter((id) => !baselinedSet.has(id));
 
         if (gapPageIds.length > 0) {
@@ -106,6 +122,21 @@ async function handler(req: ApiReq, res: ApiRes) {
             },
           });
           coverageGapWarnings = gapPageIds.length;
+
+          // Set baseline_maturing for gap pages that are not already in a terminal
+          // state (blocked/challenge/degraded/baseline_maturing already set).
+          const maturingCandidates = activePageRows
+            .filter((r) => gapPageIds.includes(r.id) && !["blocked", "challenge", "degraded", "baseline_maturing"].includes(r.health_state))
+            .map((r) => r.id);
+
+          if (maturingCandidates.length > 0) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { error: maturingError } = await supabase
+              .from("monitored_pages")
+              .update({ health_state: "baseline_maturing" } as any)
+              .in("id", maturingCandidates);
+            if (maturingError) Sentry.captureException(maturingError);
+          }
         }
       }
     } catch (coverageError) {

@@ -152,12 +152,24 @@ export function buildSectionPivot(
   return sections.slice(0, 8);
 }
 
+// ── Types: narrative context ──────────────────────────────────────────────────
+
+export interface SectorNarrativeContext {
+  theme_label:      string;
+  keywords:         string[];
+  source_count:     number;
+  article_count:    number;
+  confidence_score: number;
+  last_detected_at: string;
+}
+
 // ── Prompt construction ───────────────────────────────────────────────────────
 
 export function buildPromptInput(
   sector:      string,
   windowDays:  number,
-  sections:    SectionGroup[]
+  sections:    SectionGroup[],
+  narratives?: SectorNarrativeContext[]
 ): string {
   const lines: string[] = [
     `Sector: ${sector}`,
@@ -179,6 +191,20 @@ export function buildPromptInput(
           lines.push(`- ${comp.competitor_name}: ${evidence.slice(0, 150)} (${date})`);
         }
       }
+    }
+    lines.push(``);
+  }
+
+  // Inject active sector media narratives as background context (if provided).
+  if (narratives && narratives.length > 0) {
+    lines.push(`Active sector media narratives (${sector}, last 14 days):`);
+    for (const n of narratives) {
+      const date = n.last_detected_at.slice(0, 10);
+      lines.push(
+        `- "${n.theme_label}" — ${n.article_count} articles from ${n.source_count} sources` +
+        ` (confidence ${n.confidence_score.toFixed(2)}, last seen ${date})` +
+        ` [keywords: ${n.keywords.slice(0, 5).join(", ")}]`
+      );
     }
     lines.push(``);
   }
@@ -254,11 +280,12 @@ export async function generateSectorIntelligence(
   sector:     string,
   windowDays: number,
   sections:   SectionGroup[],
-  signals:    SignalForSector[]
+  signals:    SignalForSector[],
+  narratives?: SectorNarrativeContext[]
 ): Promise<SectorIntelligenceResult | null> {
   if (signals.length === 0) return null;
 
-  const userPrompt = buildPromptInput(sector, windowDays, sections);
+  const userPrompt = buildPromptInput(sector, windowDays, sections, narratives);
 
   try {
     const response = await openai.chat.completions.create({

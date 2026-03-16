@@ -170,6 +170,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     let driftWarnings = 0;
 
     const sectionsWrittenByPage = new Map<string, number>();
+    const allFailedPageIds = new Set<string>(); // pages where every section failed in this batch
 
     // ── Bounded concurrency across snapshots ──────────────────────────────────
     // Cheerio parsing is CPU-bound; DB writes are I/O-bound. Running 5 in parallel
@@ -257,11 +258,15 @@ async function handler(req: ApiReq, res: ApiRes) {
 
           void recordEvent({ run_id: runId, stage: "extract", status: "success", monitored_page_id: snapshot.monitored_page_id, snapshot_id: snapshot.id, duration_ms: elapsed(), metadata: { sections_found: sectionRows.length, validation_state: worstValidation, rule_count: pageRules.length } });
 
+          const allSectionsFailed =
+            sectionRows.length > 0 && sectionRows.every((r) => r.validation_status === "failed");
+
           return {
             skippedNoRules: false,
             sectionsWritten: sectionRows.length,
             pageId: snapshot.monitored_page_id,
             snapshotId: snapshot.id,
+            allSectionsFailed,
           };
         })
       )
@@ -285,6 +290,9 @@ async function handler(req: ApiReq, res: ApiRes) {
             result.value.pageId,
             (sectionsWrittenByPage.get(result.value.pageId) ?? 0) + result.value.sectionsWritten
           );
+          if (result.value.allSectionsFailed) {
+            allFailedPageIds.add(result.value.pageId);
+          }
         }
       }
     }
@@ -351,6 +359,75 @@ async function handler(req: ApiReq, res: ApiRes) {
       }
     }
 
+    // ── Degraded state detection ───────────────────────────────────────────────
+    // A page is degraded when fetch succeeds but section extraction repeatedly fails.
+    // Gate: all sections failed in this batch AND ≥2 of the last 3 prior snapshot
+    // batches for the same page also had all-failed sections.
+    // Only downgrades pages currently 'healthy' — never overwrites blocked/challenge.
+    let pagesDegradedCount = 0;
+    if (allFailedPageIds.size > 0) {
+      try {
+        const failedIds = [...allFailedPageIds];
+        const currentBatchSnapshotIdSet = new Set(pendingSnapshots.map((s) => s.id));
+
+        // Fetch recent section history for failed pages.
+        // 15 rows per page provides enough headroom for 3 prior snapshots × 5 sections.
+        const { data: historyRows } = await supabase
+          .from("page_sections")
+          .select("monitored_page_id, snapshot_id, validation_status")
+          .in("monitored_page_id", failedIds)
+          .order("created_at", { ascending: false })
+          .limit(failedIds.length * 15);
+
+        // Group by page → snapshot → [validation_statuses], excluding current batch.
+        const sectionsByPageSnap = new Map<string, Map<string, string[]>>();
+        for (const row of (historyRows ?? [])) {
+          const r = row as { monitored_page_id: string; snapshot_id: string; validation_status: string };
+          if (currentBatchSnapshotIdSet.has(r.snapshot_id)) continue;
+          if (!sectionsByPageSnap.has(r.monitored_page_id)) {
+            sectionsByPageSnap.set(r.monitored_page_id, new Map());
+          }
+          const snapMap = sectionsByPageSnap.get(r.monitored_page_id)!;
+          if (!snapMap.has(r.snapshot_id)) snapMap.set(r.snapshot_id, []);
+          snapMap.get(r.snapshot_id)!.push(r.validation_status);
+        }
+
+        const degradePageIds: string[] = [];
+        for (const pageId of failedIds) {
+          const snapMap = sectionsByPageSnap.get(pageId);
+          if (!snapMap || snapMap.size === 0) continue; // no prior history yet
+
+          // Check last 3 prior snapshots: count how many were all-failed.
+          const priorSnapshots = [...snapMap.entries()].slice(0, 3);
+          const allFailedCount = priorSnapshots.filter(([, statuses]) =>
+            statuses.length > 0 && statuses.every((s) => s === "failed")
+          ).length;
+
+          if (allFailedCount >= 2) {
+            degradePageIds.push(pageId);
+          }
+        }
+
+        if (degradePageIds.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { error: degradeError } = await supabase
+            .from("monitored_pages")
+            .update({ health_state: "degraded" } as any)
+            .in("id", degradePageIds)
+            .eq("health_state", "healthy"); // only downgrade from healthy — never touch blocked/challenge
+
+          if (degradeError) {
+            Sentry.captureException(degradeError);
+          } else {
+            pagesDegradedCount = degradePageIds.length;
+          }
+        }
+      } catch (degradedError) {
+        // Non-fatal — degraded detection must never block pipeline output.
+        Sentry.captureException(degradedError);
+      }
+    }
+
     const runtimeDurationMs = Date.now() - startedAt;
 
     Sentry.setContext("run_metrics", {
@@ -363,6 +440,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsSkippedNoRules,
       sectionsWritten,
       driftWarnings,
+      pagesDegradedCount,
       runtimeDurationMs,
     });
 
@@ -379,6 +457,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsSkippedNoRules,
       sectionsWritten,
       driftWarnings,
+      pagesDegradedCount,
       runtimeDurationMs,
     });
   } catch (error) {

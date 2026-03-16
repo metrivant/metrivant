@@ -16,7 +16,7 @@ import {
   buildSectionPivot,
   generateSectorIntelligence,
 } from "../lib/sector-intelligence";
-import type { SignalForSector } from "../lib/sector-intelligence";
+import type { SignalForSector, SectorNarrativeContext } from "../lib/sector-intelligence";
 
 const DEFAULT_WINDOW_DAYS = 30;
 const MIN_COMPETITORS     = 2;  // pattern detection requires at least 2
@@ -177,13 +177,26 @@ async function handler(req: ApiReq, res: ApiRes) {
         // ── Pivot signals by section_type ─────────────────────────────────────
         const sections = buildSectionPivot(selectedSignals, competitorNames);
 
-        // ── GPT-4o sector analysis ────────────────────────────────────────────
+        // ── Load sector narratives (last 14 days, max 5, confidence DESC) ─────
         const sector = org.sector ?? "custom";
+        const narrativeCutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+        const { data: narrativeRows } = await sb
+          .from("sector_narratives")
+          .select("theme_label, keywords, source_count, article_count, confidence_score, last_detected_at")
+          .eq("sector", sector)
+          .gte("last_detected_at", narrativeCutoff)
+          .order("confidence_score", { ascending: false })
+          .limit(5);
+
+        const narratives = (narrativeRows ?? []) as SectorNarrativeContext[];
+
+        // ── GPT-4o sector analysis ────────────────────────────────────────────
         const result = await generateSectorIntelligence(
           sector,
           windowDays,
           sections,
-          selectedSignals
+          selectedSignals,
+          narratives.length > 0 ? narratives : undefined
         ).catch(() => null);
 
         if (!result) {

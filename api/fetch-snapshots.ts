@@ -10,12 +10,94 @@ import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics"
 const FETCH_TIMEOUT_MS          = 6500;
 const GLOBAL_CONCURRENCY        = 8;
 const DOMAIN_CONCURRENCY        = 1;
-const INVOCATION_BUDGET_MS      = 5000;   // lowered from 6000 — leaves 7.5s for DB writes + Sentry flush before Vercel ceiling
+const INVOCATION_BUDGET_MS      = 5000;
 const JITTER_MIN_MS             = 100;
 const JITTER_MAX_MS             = 400;
 const DOMAIN_COOLDOWN_THRESHOLD = 2;
+const DOMAIN_MIN_DELAY_MS       = 800;   // Task 3: minimum gap between requests to the same domain
 const MAX_HTML_SIZE             = 1024 * 1024;
-const CONSECUTIVE_BAD_THRESHOLD = 5;      // deactivate page after N consecutive non-full fetches
+const CONSECUTIVE_BAD_THRESHOLD = 5;
+
+// ── Task 4: Browser-like User-Agent pool ──────────────────────────────────────
+// Rotates across realistic browser UAs to avoid presenting a bare Node.js
+// fingerprint. Not intended to deceive WAFs — only to avoid trivial bot blocks.
+
+const USER_AGENTS = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+];
+
+function getBrowserHeaders(): Record<string, string> {
+  const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+  return {
+    "User-Agent":                ua,
+    "Accept":                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language":           "en-US,en;q=0.9",
+    "Cache-Control":             "no-cache",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Site":            "none",
+    "Sec-Fetch-Mode":            "navigate",
+    "Sec-Fetch-Dest":            "document",
+  };
+}
+
+// ── Task 2: Fetch failure classification ──────────────────────────────────────
+
+type FetchFailureClass =
+  | "http_403"
+  | "http_429"
+  | "http_5xx"
+  | "timeout"
+  | "redirect_loop"
+  | "challenge_page"
+  | "empty_body"
+  | "soft_login_or_soft_404"
+  | "unknown_fetch_failure";
+
+type FetchOutcome =
+  | { ok: true;  html: string; httpStatus: 200 }
+  | { ok: false; httpStatus: number; failureClass: FetchFailureClass };
+
+// Task 1: Page health state set by the fetch stage
+type PageHealthState = "healthy" | "blocked" | "challenge" | "unresolved";
+
+// ── Challenge / soft-failure detection ────────────────────────────────────────
+// Scan response body for known WAF and bot-challenge signatures.
+
+const CHALLENGE_SIGNATURES = [
+  "cf-browser-verification",
+  "challenge-platform",
+  "cf_chl_opt",
+  "checking your browser",
+  "verify you are human",
+  "captcha",
+  "akamai",
+  "_akat",
+];
+
+const LOGIN_SIGNATURES = [
+  "sign in to continue",
+  "log in to view",
+  "please log in",
+  "login required",
+  "you must be signed in",
+];
+
+function detectChallengePage(html: string): boolean {
+  const lower = html.toLowerCase();
+  return CHALLENGE_SIGNATURES.some((s) => lower.includes(s));
+}
+
+function detectSoftLoginOrSoft404(html: string, visibleLength: number): boolean {
+  if (visibleLength < 300) {
+    const lower = html.toLowerCase();
+    return LOGIN_SIGNATURES.some((s) => lower.includes(s));
+  }
+  return false;
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -37,7 +119,8 @@ interface UrlResult {
   skippedBudget: boolean;
   skippedCooldown: boolean;
   triggeredCooldown: boolean;
-  nonFullPageIds: string[];   // page IDs that received a non-full quality snapshot this run
+  nonFullPageIds: string[];
+  healthStateUpdates: Array<{ pageId: string; healthState: PageHealthState }>;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -84,27 +167,57 @@ function getVisibleTextLength(html: string): number {
     .length;
 }
 
-async function fetchWithTimeout(url: string): Promise<string> {
+// ── Task 2 + Task 4: Classified fetch with browser-like headers ───────────────
+
+async function fetchWithClassification(url: string): Promise<FetchOutcome> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
     const response = await fetch(url, {
       signal: controller.signal,
-      headers: { "user-agent": "MetrivantBot/1.0" },
+      headers: getBrowserHeaders(),
+      redirect: "follow",
     });
 
     if (!response.ok) {
-      throw new Error(`Fetch failed: ${response.status} ${response.statusText}`);
+      const s = response.status;
+      const failureClass: FetchFailureClass =
+        s === 403 ? "http_403" :
+        s === 429 ? "http_429" :
+        s >= 500  ? "http_5xx" :
+        "unknown_fetch_failure";
+      return { ok: false, httpStatus: s, failureClass };
     }
 
     let html = await response.text();
+
+    if (!html || html.trim().length === 0) {
+      return { ok: false, httpStatus: 200, failureClass: "empty_body" };
+    }
 
     if (html.length > MAX_HTML_SIZE) {
       html = html.slice(0, MAX_HTML_SIZE);
     }
 
-    return html;
+    if (detectChallengePage(html)) {
+      return { ok: false, httpStatus: 200, failureClass: "challenge_page" };
+    }
+
+    const visibleLength = getVisibleTextLength(html);
+    if (detectSoftLoginOrSoft404(html, visibleLength)) {
+      return { ok: false, httpStatus: 200, failureClass: "soft_login_or_soft_404" };
+    }
+
+    return { ok: true, html, httpStatus: 200 };
+
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const failureClass: FetchFailureClass =
+      msg.includes("AbortError") || msg.includes("This operation was aborted") ? "timeout" :
+      msg.includes("redirect count exceeded") ? "redirect_loop" :
+      "unknown_fetch_failure";
+    return { ok: false, httpStatus: 0, failureClass };
   } finally {
     clearTimeout(timeout);
   }
@@ -118,13 +231,14 @@ async function processUrl(
   groupedPages: MonitoredPage[],
   invocationStart: number,
   domainFailureCounts: Map<string, number>,
-  latestHashMap: Map<string, string>,  // pre-batched: page_id → latest content_hash
+  lastFetchTimeByDomain: Map<string, number>,   // Task 3: domain pacing
+  latestHashMap: Map<string, string>,
   runId: string,
 ): Promise<UrlResult> {
   const empty: UrlResult = {
     succeeded: false, failed: false, inserted: 0, skippedDuplicates: 0,
     skippedBudget: false, skippedCooldown: false, triggeredCooldown: false,
-    nonFullPageIds: [],
+    nonFullPageIds: [], healthStateUpdates: [],
   };
 
   if (Date.now() - invocationStart > INVOCATION_BUDGET_MS) {
@@ -135,124 +249,147 @@ async function processUrl(
     return { ...empty, skippedCooldown: true };
   }
 
+  // ── Task 3: Domain minimum delay ───────────────────────────────────────────
+  // The domain semaphore ensures this runs serially per domain, so the check
+  // is race-free. Enforce at least DOMAIN_MIN_DELAY_MS between fetches.
+  const lastFetch = lastFetchTimeByDomain.get(hostname) ?? 0;
+  const sinceLastFetch = Date.now() - lastFetch;
+  if (sinceLastFetch < DOMAIN_MIN_DELAY_MS) {
+    await sleep(DOMAIN_MIN_DELAY_MS - sinceLastFetch);
+  }
+
   await sleep(randomInt(JITTER_MIN_MS, JITTER_MAX_MS));
 
   const elapsed = startTimer();
+  const outcome = await fetchWithClassification(url);
 
-  try {
-    const rawHtml = await fetchWithTimeout(url);
-    const contentHash = hashContent(rawHtml);
-    const fetchedAt = new Date().toISOString();
+  // Record when we fetched this domain for the next request's delay check.
+  lastFetchTimeByDomain.set(hostname, Date.now());
 
-    // ── Fetch quality classification ───────────────────────────────────────────
-    const textElementCount =
-      (rawHtml.match(/<\/p>/gi)?.length ?? 0) +
-      (rawHtml.match(/<\/h1>/gi)?.length ?? 0) +
-      (rawHtml.match(/<\/h2>/gi)?.length ?? 0) +
-      (rawHtml.match(/<\/li>/gi)?.length ?? 0);
-
-    const fetchQuality: "full" | "shell" | "js_rendered" =
-      textElementCount < 3                ? "shell" :
-      getVisibleTextLength(rawHtml) < 500 ? "js_rendered" :
-      "full";
-
-    if (fetchQuality !== "full") {
-      Sentry.captureMessage(
-        fetchQuality === "shell" ? "fetch_shell_detected" : "fetch_js_rendered_detected",
-        {
-          level: "warning",
-          extra: {
-            url,
-            fetch_quality: fetchQuality,
-            text_element_count: textElementCount,
-            visible_text_length: fetchQuality === "js_rendered"
-              ? getVisibleTextLength(rawHtml)
-              : undefined,
-          },
-        }
-      );
-    }
-
-    let inserted = 0;
-    let skippedDuplicates = 0;
-    const nonFullPageIds: string[] = [];
-
-    for (const page of groupedPages) {
-      // Duplicate check via pre-batched map — eliminates per-page DB query.
-      const isDuplicate = latestHashMap.get(page.id) === contentHash;
-
-      if (isDuplicate) {
-        skippedDuplicates += 1;
-        void recordEvent({ run_id: runId, stage: "snapshot", status: "skipped", monitored_page_id: page.id, duration_ms: elapsed(), metadata: { http_status: 200, content_length: rawHtml.length } });
-        continue;
-      }
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error: insertError } = await supabase
-        .from("snapshots")
-        .insert({
-          monitored_page_id: page.id,
-          fetched_at: fetchedAt,
-          raw_html: rawHtml,
-          extracted_text: null,
-          content_hash: contentHash,
-          status: "fetched",
-          sections_extracted: false,
-          is_duplicate: false,
-          fetch_quality: fetchQuality,
-        } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
-
-      if (insertError) {
-        // Concurrent run inserted the same hash first — safe to skip.
-        if ((insertError as { code?: string }).code === "23505") {
-          skippedDuplicates += 1;
-          void recordEvent({ run_id: runId, stage: "snapshot", status: "skipped", monitored_page_id: page.id, duration_ms: elapsed(), metadata: { http_status: 200, content_length: rawHtml.length } });
-          continue;
-        }
-        throw insertError;
-      }
-
-      inserted += 1;
-      if (fetchQuality !== "full") nonFullPageIds.push(page.id);
-      void recordEvent({ run_id: runId, stage: "snapshot", status: "success", monitored_page_id: page.id, duration_ms: elapsed(), metadata: { http_status: 200, content_length: rawHtml.length, fetch_quality: fetchQuality } });
-    }
-
-    return { ...empty, succeeded: true, inserted, skippedDuplicates, nonFullPageIds };
-
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    const errCode = (error as { code?: string })?.code;
-
-    const isExpectedFailure =
-      msg.startsWith("Fetch failed:") ||
-      msg.includes("AbortError") ||
-      msg.includes("This operation was aborted") ||
-      msg.includes("redirect count exceeded") ||
-      msg.includes("HTML exceeds size limit") ||
-      (error instanceof TypeError && msg === "fetch failed") ||
-      errCode === "23505";
-
-    if (!isExpectedFailure) {
-      Sentry.captureException(error);
-    }
+  // ── Failure path ───────────────────────────────────────────────────────────
+  if (!outcome.ok) {
+    const { failureClass, httpStatus } = outcome;
 
     const triggersCooldown =
-      msg.includes("Fetch failed: 403") ||
-      msg.includes("Fetch failed: 429") ||
-      msg.includes("AbortError") ||
-      msg.includes("This operation was aborted");
+      failureClass === "http_403" ||
+      failureClass === "http_429" ||
+      failureClass === "challenge_page" ||
+      failureClass === "timeout";
 
     if (triggersCooldown) {
       domainFailureCounts.set(hostname, (domainFailureCounts.get(hostname) ?? 0) + 1);
     }
 
-    const httpStatus = msg.match(/Fetch failed: (\d{3})/)?.[1];
+    // Task 1: map failure class to health state
+    const healthState: PageHealthState =
+      failureClass === "http_403" || failureClass === "http_429" ? "blocked" :
+      failureClass === "challenge_page" ? "challenge" :
+      "unresolved";
+
+    const healthStateUpdates = groupedPages.map((page) => ({ pageId: page.id, healthState }));
+
     for (const page of groupedPages) {
-      void recordEvent({ run_id: runId, stage: "snapshot", status: "failure", monitored_page_id: page.id, duration_ms: elapsed(), metadata: { http_status: httpStatus ? parseInt(httpStatus, 10) : null } });
+      void recordEvent({
+        run_id: runId, stage: "snapshot", status: "failure",
+        monitored_page_id: page.id, duration_ms: elapsed(),
+        metadata: { http_status: httpStatus, failure_class: failureClass },
+      });
     }
 
-    return { ...empty, failed: true, triggeredCooldown: triggersCooldown };
+    const isExpectedFailure =
+      failureClass !== "unknown_fetch_failure";
+
+    if (!isExpectedFailure) {
+      Sentry.captureMessage("unexpected_fetch_failure", {
+        level: "warning",
+        extra: { url, failureClass, httpStatus },
+      });
+    }
+
+    return { ...empty, failed: true, triggeredCooldown: triggersCooldown, healthStateUpdates };
   }
+
+  // ── Success path ───────────────────────────────────────────────────────────
+  const { html: rawHtml } = outcome;
+
+  const textElementCount =
+    (rawHtml.match(/<\/p>/gi)?.length ?? 0) +
+    (rawHtml.match(/<\/h1>/gi)?.length ?? 0) +
+    (rawHtml.match(/<\/h2>/gi)?.length ?? 0) +
+    (rawHtml.match(/<\/li>/gi)?.length ?? 0);
+
+  const fetchQuality: "full" | "shell" | "js_rendered" =
+    textElementCount < 3                ? "shell" :
+    getVisibleTextLength(rawHtml) < 500 ? "js_rendered" :
+    "full";
+
+  if (fetchQuality !== "full") {
+    Sentry.captureMessage(
+      fetchQuality === "shell" ? "fetch_shell_detected" : "fetch_js_rendered_detected",
+      {
+        level: "warning",
+        extra: {
+          url,
+          fetch_quality: fetchQuality,
+          text_element_count: textElementCount,
+          visible_text_length: fetchQuality === "js_rendered"
+            ? getVisibleTextLength(rawHtml)
+            : undefined,
+        },
+      }
+    );
+  }
+
+  const contentHash = hashContent(rawHtml);
+  const fetchedAt   = new Date().toISOString();
+
+  let inserted = 0;
+  let skippedDuplicates = 0;
+  const nonFullPageIds: string[] = [];
+  const healthStateUpdates: Array<{ pageId: string; healthState: PageHealthState }> = [];
+
+  for (const page of groupedPages) {
+    const isDuplicate = latestHashMap.get(page.id) === contentHash;
+
+    if (isDuplicate) {
+      skippedDuplicates += 1;
+      // Don't update health_state for unchanged pages — preserve their current state.
+      void recordEvent({ run_id: runId, stage: "snapshot", status: "skipped", monitored_page_id: page.id, duration_ms: elapsed(), metadata: { http_status: 200, content_length: rawHtml.length } });
+      continue;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: insertError } = await supabase
+      .from("snapshots")
+      .insert({
+        monitored_page_id: page.id,
+        fetched_at: fetchedAt,
+        raw_html: rawHtml,
+        extracted_text: null,
+        content_hash: contentHash,
+        status: "fetched",
+        sections_extracted: false,
+        is_duplicate: false,
+        fetch_quality: fetchQuality,
+      } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+
+    if (insertError) {
+      if ((insertError as { code?: string }).code === "23505") {
+        skippedDuplicates += 1;
+        void recordEvent({ run_id: runId, stage: "snapshot", status: "skipped", monitored_page_id: page.id, duration_ms: elapsed(), metadata: { http_status: 200, content_length: rawHtml.length } });
+        continue;
+      }
+      throw insertError;
+    }
+
+    inserted += 1;
+    if (fetchQuality !== "full") nonFullPageIds.push(page.id);
+    // Task 1: fetch succeeded → optimistically mark healthy (extraction may downgrade later)
+    healthStateUpdates.push({ pageId: page.id, healthState: "healthy" });
+    void recordEvent({ run_id: runId, stage: "snapshot", status: "success", monitored_page_id: page.id, duration_ms: elapsed(), metadata: { http_status: 200, content_length: rawHtml.length, fetch_quality: fetchQuality } });
+  }
+
+  return { ...empty, succeeded: true, inserted, skippedDuplicates, nonFullPageIds, healthStateUpdates };
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -280,7 +417,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   try {
     let pageQuery = supabase
       .from("monitored_pages")
-      .select("id, url")   // competitor join removed — name not needed in core fetch path
+      .select("id, url")
       .eq("active", true);
 
     if (pageClass) {
@@ -295,7 +432,6 @@ async function handler(req: ApiReq, res: ApiRes) {
       url: r.url,
     }));
 
-    // Deduplicate URLs — multiple monitored_pages can share a URL.
     const pagesByUrl = new Map<string, MonitoredPage[]>();
     for (const page of pages) {
       const existing = pagesByUrl.get(page.url) ?? [];
@@ -306,10 +442,8 @@ async function handler(req: ApiReq, res: ApiRes) {
     const rowsClaimed = pagesByUrl.size;
 
     // ── Pre-batch duplicate check ──────────────────────────────────────────────
-    // Replaces per-page N+1 queries inside processUrl. Load latest content_hash
-    // for every active page in one bulk query; processUrl uses map lookups (O(1)).
     const allPageIds = pages.map((p) => p.id);
-    const latestHashMap = new Map<string, string>(); // page_id → latest content_hash
+    const latestHashMap = new Map<string, string>();
 
     if (allPageIds.length > 0) {
       const { data: recentSnapshots } = await supabase
@@ -317,7 +451,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         .select("monitored_page_id, content_hash")
         .in("monitored_page_id", allPageIds)
         .order("fetched_at", { ascending: false })
-        .limit(allPageIds.length * 5); // generous cap — first occurrence per page = latest
+        .limit(allPageIds.length * 5);
 
       for (const row of (recentSnapshots ?? []) as { monitored_page_id: string; content_hash: string }[]) {
         if (!latestHashMap.has(row.monitored_page_id)) {
@@ -330,6 +464,8 @@ async function handler(req: ApiReq, res: ApiRes) {
     const globalSem = createSemaphore(GLOBAL_CONCURRENCY);
     const domainSems = new Map<string, ReturnType<typeof createSemaphore>>();
     const domainFailureCounts = new Map<string, number>();
+    // Task 3: shared across all processUrl calls — domain semaphore ensures serial access per domain
+    const lastFetchTimeByDomain = new Map<string, number>();
 
     const getDomainSem = (hostname: string) => {
       if (!domainSems.has(hostname)) {
@@ -352,7 +488,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
         return globalSem(() =>
           domainSem(() =>
-            processUrl(url, hostname, groupedPages, startedAt, domainFailureCounts, latestHashMap, runId)
+            processUrl(url, hostname, groupedPages, startedAt, domainFailureCounts, lastFetchTimeByDomain, latestHashMap, runId)
           )
         );
       })
@@ -367,6 +503,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     let rowsSkippedBudget     = 0;
     let rowsSkippedCooldown   = 0;
     const allNonFullPageIds: string[] = [];
+    const allHealthUpdates: Array<{ pageId: string; healthState: PageHealthState }> = [];
 
     for (const result of settled) {
       if (result.status === "rejected") {
@@ -383,8 +520,37 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsInserted          += r.inserted;
       rowsSkippedDuplicates += r.skippedDuplicates;
       allNonFullPageIds.push(...r.nonFullPageIds);
+      allHealthUpdates.push(...r.healthStateUpdates);
       if (r.succeeded) rowsSucceeded += 1;
       if (r.failed)    rowsFailed    += 1;
+    }
+
+    // ── Task 1: Batch health state updates ────────────────────────────────────
+    // Group page IDs by target state; one UPDATE per state bucket.
+    // Non-fatal — must never block pipeline output.
+    let pagesHealthUpdated = 0;
+    if (allHealthUpdates.length > 0) {
+      try {
+        const byState = new Map<PageHealthState, string[]>();
+        for (const { pageId, healthState } of allHealthUpdates) {
+          const arr = byState.get(healthState) ?? [];
+          arr.push(pageId);
+          byState.set(healthState, arr);
+        }
+
+        for (const [healthState, pageIds] of byState) {
+          const { error: hsError } = await supabase
+            .from("monitored_pages")
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .update({ health_state: healthState } as any)
+            .in("id", pageIds);
+          if (hsError) throw hsError;
+          pagesHealthUpdated += pageIds.length;
+        }
+      } catch (hsError) {
+        // Non-fatal
+        Sentry.captureException(hsError);
+      }
     }
 
     // ── Domain cooldown warning ────────────────────────────────────────────────
@@ -399,9 +565,6 @@ async function handler(req: ApiReq, res: ApiRes) {
     }
 
     // ── Auto-deactivation: consecutive bad-quality pages ──────────────────────
-    // After CONSECUTIVE_BAD_THRESHOLD consecutive non-full fetches, deactivate the
-    // page. Stops wasting crawl budget on JS-rendered SPAs or bot-walled domains
-    // that will never yield extractable content. Non-fatal — must not block output.
     let pagesAutoDeactivated = 0;
     if (allNonFullPageIds.length > 0) {
       try {
@@ -414,7 +577,6 @@ async function handler(req: ApiReq, res: ApiRes) {
           .order("fetched_at", { ascending: false })
           .limit(uniqueNonFullIds.length * CONSECUTIVE_BAD_THRESHOLD);
 
-        // Group qualities per page (DESC order — first = most recent).
         const qualityByPage = new Map<string, string[]>();
         for (const row of (recentQuality ?? []) as unknown as { monitored_page_id: string; fetch_quality: string }[]) {
           const arr = qualityByPage.get(row.monitored_page_id) ?? [];
@@ -432,7 +594,7 @@ async function handler(req: ApiReq, res: ApiRes) {
             .from("monitored_pages")
             .update({ active: false })
             .eq("id", pageId)
-            .eq("active", true); // guard: only update if still active
+            .eq("active", true);
 
           if (deactivateError) {
             Sentry.captureException(deactivateError);
@@ -449,7 +611,6 @@ async function handler(req: ApiReq, res: ApiRes) {
           }
         }
       } catch (deactivateError) {
-        // Non-fatal — deactivation must never block pipeline output.
         Sentry.captureException(deactivateError);
       }
     }
@@ -469,6 +630,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsSkippedBudget,
       rowsSkippedCooldown,
       pagesAutoDeactivated,
+      pagesHealthUpdated,
       runtimeDurationMs,
     });
 
@@ -488,6 +650,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsSkippedBudget,
       rowsSkippedCooldown,
       pagesAutoDeactivated,
+      pagesHealthUpdated,
       runtimeDurationMs,
     });
 

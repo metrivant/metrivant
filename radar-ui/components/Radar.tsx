@@ -102,17 +102,17 @@ type Point = { x: number; y: number };
 function getMovementColor(movementType: string | null): string {
   switch (movementType) {
     case "pricing_strategy_shift":
-      return "#ff3b3b";
+      return "#FF2AD4";
     case "product_expansion":
-      return "#00e5ff";
+      return "#00F5FF";
     case "market_reposition":
-      return "#ffcc00";
+      return "#FF7A00";
     case "enterprise_push":
-      return "#9b5cff";
+      return "#9B5CFF";
     case "ecosystem_expansion":
-      return "#9b5cff";
+      return "#9B5CFF";
     default:
-      return "#94a3b8";
+      return "#4A6FA5";
   }
 }
 
@@ -1075,6 +1075,61 @@ export default function Radar({
 
   const alertActive = criticalAlert !== null && !alertDismissed;
 
+  // ── Signal arrival pulse rings ────────────────────────────────────────────
+  // Detects competitors whose last_signal_at advanced since the previous
+  // competitors prop (i.e. a real new signal, not just initial load).
+  // One active pulse per node; dormant nodes are excluded.
+  const [pulsing, setPulsing] = useState<Map<string, { color: string; key: string }>>(new Map());
+  const prevSignalAtRef    = useRef<Map<string, string>>(new Map());
+  const signalPulseInitRef = useRef(false);
+
+  useEffect(() => {
+    if (competitors.length === 0) return;
+
+    if (!signalPulseInitRef.current) {
+      // Record baseline on first load — do not fire any pulses yet
+      competitors.forEach((c) => {
+        if (c.last_signal_at) prevSignalAtRef.current.set(c.competitor_id, c.last_signal_at);
+      });
+      signalPulseInitRef.current = true;
+      return;
+    }
+
+    const toAdd: [string, { color: string; key: string }][] = [];
+    competitors.forEach((c) => {
+      if (!c.last_signal_at || !c.latest_movement_type) return; // dormant = no pulse
+      const prev = prevSignalAtRef.current.get(c.competitor_id);
+      if (!prev || c.last_signal_at > prev) {
+        toAdd.push([
+          c.competitor_id,
+          {
+            color: getMovementColor(c.latest_movement_type),
+            key: `pulse-${c.competitor_id}-${c.last_signal_at}`,
+          },
+        ]);
+      }
+      prevSignalAtRef.current.set(c.competitor_id, c.last_signal_at);
+    });
+
+    if (toAdd.length > 0) {
+      setPulsing((prev) => {
+        const next = new Map(prev);
+        toAdd.forEach(([id, val]) => {
+          if (!next.has(id)) next.set(id, val); // max 1 active pulse per node
+        });
+        return next;
+      });
+    }
+  }, [competitors]);
+
+  function clearPulse(competitorId: string) {
+    setPulsing((prev) => {
+      const next = new Map(prev);
+      next.delete(competitorId);
+      return next;
+    });
+  }
+
   function handleAlertDismiss() {
     if (!criticalAlert) return;
     sessionStorage.setItem(`alert_dismissed__${criticalAlert.alertKey}`, "1");
@@ -1239,6 +1294,31 @@ export default function Radar({
     }
     return map;
   }, [sorted]);
+
+  // ── Record positions for temporal trails ─────────────────────────────────
+  // Fire-and-forget POST after each layout. Server dedup prevents more than
+  // ~4 inserts per day per org. Visualization-only — failures are non-fatal.
+  useEffect(() => {
+    if (!orgId || sorted.length === 0 || standardPositions.size === 0) return;
+    const rows = sorted
+      .map((c) => {
+        const pos = standardPositions.get(c.competitor_id);
+        if (!pos) return null;
+        return {
+          competitor_id: c.competitor_id,
+          x: Math.round(pos.x),
+          y: Math.round(pos.y),
+          pressure_index: c.pressure_index ?? 0,
+        };
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null);
+    if (rows.length === 0) return;
+    fetch("/api/record-positions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ positions: rows }),
+    }).catch(() => {});
+  }, [orgId, standardPositions]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Pressure zones: movement-type clusters with 2+ nodes in standard mode
   const pressureZones = useMemo(() => {
@@ -2466,6 +2546,117 @@ export default function Radar({
                 </g>
               )}
 
+              {/* ── Temporal movement trails — rendered behind blips ──────── */}
+              {/* Shows each competitor's historical SVG positions as a fading   */}
+              {/* line, newest-to-oldest, with a directional arrowhead.          */}
+              {!gravityMode && entryPhase >= 2 && sorted.some((c) => (c.trail ?? []).length > 0) && (
+                <g style={{ pointerEvents: "none" }} aria-hidden>
+                  {sorted.map((competitor) => {
+                    const trail = competitor.trail ?? [];
+                    if (trail.length === 0) return null;
+                    const pos = standardPositions.get(competitor.competitor_id);
+                    if (!pos) return null;
+
+                    // Dimmed nodes lose their trails to avoid visual noise
+                    if (selectedId !== null && competitor.competitor_id !== selectedId) return null;
+
+                    const color = competitor.latest_movement_type
+                      ? getMovementColor(competitor.latest_movement_type)
+                      : competitor.latest_signal_type
+                        ? getSignalColor(competitor.latest_signal_type)
+                        : getMovementColor(null);
+
+                    // Density control: reduce opacity when many competitors are visible
+                    const baseOpacity = sorted.length > 12 ? 0.45 : 1.0;
+
+                    // Points: current position + up to 7 historical
+                    const pts = [{ x: pos.x, y: pos.y }, ...trail.slice(0, 7)];
+
+                    // Fading segments from current toward oldest
+                    const momentum = Number(competitor.momentum_score ?? 0);
+                    const nodeSize = getNodeSize(momentum);
+
+                    // Direction arrow: from trail[0] → current pos, just outside node edge
+                    let arrow: React.ReactNode = null;
+                    if (pts.length >= 2) {
+                      const dx = pts[0].x - pts[1].x;
+                      const dy = pts[0].y - pts[1].y;
+                      const len = Math.sqrt(dx * dx + dy * dy);
+                      if (len > nodeSize + 6) {
+                        const ux = dx / len;
+                        const uy = dy / len;
+                        // Arrowhead tip just outside node radius
+                        const tipX = pts[0].x - ux * (nodeSize + 2);
+                        const tipY = pts[0].y - uy * (nodeSize + 2);
+                        const sz = 5.5;
+                        const b1x = tipX - ux * sz - uy * sz * 0.55;
+                        const b1y = tipY - uy * sz + ux * sz * 0.55;
+                        const b2x = tipX - ux * sz + uy * sz * 0.55;
+                        const b2y = tipY - uy * sz - ux * sz * 0.55;
+                        arrow = (
+                          <polygon
+                            points={`${tipX.toFixed(1)},${tipY.toFixed(1)} ${b1x.toFixed(1)},${b1y.toFixed(1)} ${b2x.toFixed(1)},${b2y.toFixed(1)}`}
+                            fill={color}
+                            fillOpacity={0.50 * baseOpacity}
+                          />
+                        );
+                      }
+                    }
+
+                    return (
+                      <g key={`trail-${competitor.competitor_id}`}>
+                        {pts.slice(0, -1).map((pt, i) => {
+                          const next = pts[i + 1];
+                          const opacity = 0.52 * Math.pow(0.62, i) * baseOpacity;
+                          const sw = Math.max(0.4, 1.6 - i * 0.20);
+                          return (
+                            <line
+                              key={i}
+                              x1={pt.x} y1={pt.y}
+                              x2={next.x} y2={next.y}
+                              stroke={color}
+                              strokeWidth={sw}
+                              strokeOpacity={opacity}
+                              strokeLinecap="round"
+                            />
+                          );
+                        })}
+                        {arrow}
+                      </g>
+                    );
+                  })}
+                </g>
+              )}
+
+              {/* ── Signal arrival pulse rings ─────────────────────────── */}
+              {/* Expand from node center outward when a fresh signal lands. */}
+              {/* One ring per competitor, auto-cleaned after animation.    */}
+              {entryPhase >= 2 && pulsing.size > 0 && (
+                <g style={{ pointerEvents: "none" }} aria-hidden>
+                  {[...pulsing.entries()].map(([competitorId, { color, key }]) => {
+                    const pos = standardPositions.get(competitorId);
+                    if (!pos) return null;
+                    const c = sorted.find((sc) => sc.competitor_id === competitorId);
+                    const r0 = getNodeSize(Number(c?.momentum_score ?? 0));
+                    return (
+                      <motion.circle
+                        key={key}
+                        cx={pos.x}
+                        cy={pos.y}
+                        r={r0}
+                        fill="none"
+                        stroke={color}
+                        strokeWidth={1.4}
+                        initial={{ r: r0, opacity: 0.70, scale: 1 }}
+                        animate={{ r: r0 + 90, opacity: 0, scale: 1 }}
+                        transition={{ duration: 1.05, ease: "easeOut" }}
+                        onAnimationComplete={() => clearPulse(competitorId)}
+                      />
+                    );
+                  })}
+                </g>
+              )}
+
               {/* ── Competitor blips — revealed at entry phase 2 ──────── */}
               <g style={{ opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.4s ease" }}>
               {sorted.map((competitor, index) => (
@@ -2937,11 +3128,11 @@ export default function Radar({
                     </div>
                     {(
                       [
-                        { color: "#ff3b3b", label: "Pricing" },
-                        { color: "#00e5ff", label: "Product" },
-                        { color: "#ffcc00", label: "Market" },
-                        { color: "#9b5cff", label: "Enterprise" },
-                        { color: "#94a3b8", label: "Dormant" },
+                        { color: "#FF2AD4", label: "Pricing" },
+                        { color: "#00F5FF", label: "Product" },
+                        { color: "#FF7A00", label: "Market" },
+                        { color: "#9B5CFF", label: "Enterprise" },
+                        { color: "#4A6FA5", label: "Dormant" },
                       ] as { color: string; label: string }[]
                     ).map(({ color, label }) => (
                       <span key={label} className="flex items-center gap-2">
@@ -3014,11 +3205,11 @@ export default function Radar({
             <div className="flex items-center justify-center gap-5 px-4 py-2.5">
               {(
                 [
-                  { color: "#ff3b3b", label: "Pricing" },
-                  { color: "#00e5ff", label: "Product" },
-                  { color: "#ffcc00", label: "Market" },
-                  { color: "#9b5cff", label: "Enterprise" },
-                  { color: "#94a3b8", label: "Dormant" },
+                  { color: "#FF2AD4", label: "Pricing" },
+                  { color: "#00F5FF", label: "Product" },
+                  { color: "#FF7A00", label: "Market" },
+                  { color: "#9B5CFF", label: "Enterprise" },
+                  { color: "#4A6FA5", label: "Dormant" },
                 ] as { color: string; label: string }[]
               ).map(({ color, label }) => (
                 <span key={label} className="flex items-center gap-1.5">
@@ -3094,7 +3285,7 @@ export default function Radar({
       {/* Observatory (isolated): floating right panel over the fullscreen radar. */}
       <aside
         className={isolated && selected
-          ? "fixed right-0 top-0 z-[60] h-full w-[360px] xl:w-[400px] overflow-y-auto rounded-l-[20px] border p-6"
+          ? "fixed right-4 top-4 z-[60] h-[min(88vh,740px)] w-[320px] xl:w-[360px] overflow-y-auto rounded-[16px] border p-5"
           : `border bg-[#000000] p-6 lg:static lg:block lg:inset-auto lg:z-auto lg:min-h-0 lg:max-h-none lg:overflow-y-auto lg:rounded-[20px]${
             selected
               ? sheetState === "full"
@@ -3108,12 +3299,11 @@ export default function Radar({
         onTouchStart={handleSheetTouchStart}
         onTouchEnd={handleSheetTouchEnd}
         style={isolated && selected ? {
-          background: "rgba(0, 2, 0, 0.93)",
-          backdropFilter: "blur(16px)",
-          WebkitBackdropFilter: "blur(16px)",
-          borderColor: `${selectedColor}35`,
-          borderLeft: `2px solid ${selectedColor}55`,
-          boxShadow: `-24px 0 80px rgba(0,0,0,0.85), inset 1px 0 0 ${selectedColor}12`,
+          background: "rgba(0, 2, 0, 0.92)",
+          backdropFilter: "blur(18px)",
+          WebkitBackdropFilter: "blur(18px)",
+          borderColor: `${selectedColor}30`,
+          boxShadow: `0 20px 60px rgba(0,0,0,0.90), 0 0 0 1px ${selectedColor}15, inset 0 1px 0 ${selectedColor}10`,
           opacity: 1,
           transition: "border-color 0.5s ease",
         } : {

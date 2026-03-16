@@ -9,6 +9,11 @@ import { discoverCandidates } from "../lib/url-discovery";
 import { scoreAndRank } from "../lib/url-scorer";
 import { classifyWithLLM } from "../lib/url-classifier";
 import { validateUrl } from "../lib/url-validator";
+import { discoverFeed } from "../lib/feed-discovery";
+import { discoverAts } from "../lib/ats-discovery";
+import { discoverInvestorFeed } from "../lib/investor-feed-discovery";
+import { discoverProductFeed } from "../lib/product-feed-discovery";
+import { discoverEdgarFeed } from "../lib/edgar-discovery";
 import type { Category } from "../lib/url-scorer";
 
 type CandidatePage = {
@@ -283,7 +288,8 @@ async function handler(req: ApiReq, res: ApiRes) {
     const createdPages: InsertedPage[] = [];
 
     for (const page of pages) {
-      const { data: insertedPage, error: pageError } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: insertedPage, error: pageError } = await (supabase as any)
         .from("monitored_pages")
         .upsert(
           {
@@ -292,6 +298,7 @@ async function handler(req: ApiReq, res: ApiRes) {
             page_type:     page.page_type,
             page_class:    page.page_class,
             active:        true,
+            health_state:  "healthy", // URL passed onboarding validation — safe starting state
           },
           { onConflict: "url" }
         )
@@ -326,15 +333,320 @@ async function handler(req: ApiReq, res: ApiRes) {
       }
     }
 
+    /*
+      4. Discover and store newsroom feed URL (best-effort — non-fatal on failure)
+    */
+
+    let feedDiscoveryStatus: "found" | "unavailable" | "error" = "error";
+    try {
+      // Pass the newsroom page URL to the HTML alternate-link strategy.
+      // Path probing runs in parallel regardless (independent strategies).
+      const newsroomPage = pages.find((p) => p.page_type === "newsroom");
+      const feedResult   = await discoverFeed(baseUrl, newsroomPage?.url);
+      feedDiscoveryStatus = feedResult.found ? "found" : "unavailable";
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any)
+        .from("competitor_feeds")
+        .upsert(
+          {
+            competitor_id:     competitorId,
+            pool_type:         "newsroom",
+            feed_url:          feedResult.found ? feedResult.url       : null,
+            source_type:       feedResult.found ? feedResult.source_type : "rss",
+            discovery_status:  feedResult.found ? "active" : "feed_unavailable",
+            discovered_at:     new Date().toISOString(),
+            updated_at:        new Date().toISOString(),
+          },
+          { onConflict: "competitor_id,pool_type" }
+        );
+    } catch (feedErr) {
+      // Non-fatal: onboarding succeeds even when feed discovery fails.
+      Sentry.captureException(feedErr);
+    }
+
+    /*
+      5. Discover and store ATS endpoint URL (best-effort — non-fatal on failure)
+    */
+
+    let atsDiscoveryStatus: "found" | "unavailable" | "error" = "error";
+    try {
+      const careersPage = pages.find((p) => p.page_type === "careers");
+      const atsResult   = await discoverAts(domain, careersPage?.url);
+      atsDiscoveryStatus = atsResult.found ? "found" : "unavailable";
+
+      if (atsResult.found) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any)
+          .from("competitor_feeds")
+          .upsert(
+            {
+              competitor_id:     competitorId,
+              pool_type:         "careers",
+              feed_url:          atsResult.endpointUrl,
+              source_type:       atsResult.atsType,
+              discovery_status:  "active",
+              discovered_at:     new Date().toISOString(),
+              updated_at:        new Date().toISOString(),
+            },
+            { onConflict: "competitor_id,pool_type" }
+          );
+      } else {
+        // Record that we attempted discovery and it was unavailable.
+        // Don't overwrite an existing active careers feed if one was already configured.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: existingCareersFeed } = await (supabase as any)
+          .from("competitor_feeds")
+          .select("id, discovery_status")
+          .eq("competitor_id", competitorId)
+          .eq("pool_type", "careers")
+          .maybeSingle();
+
+        if (!existingCareersFeed) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase as any)
+            .from("competitor_feeds")
+            .insert({
+              competitor_id:    competitorId,
+              pool_type:        "careers",
+              feed_url:         null,
+              source_type:      "greenhouse", // placeholder; updated if discovered later
+              discovery_status: "feed_unavailable",
+              discovered_at:    new Date().toISOString(),
+              updated_at:       new Date().toISOString(),
+            });
+        }
+      }
+    } catch (atsErr) {
+      // Non-fatal: onboarding succeeds even when ATS discovery fails.
+      Sentry.captureException(atsErr);
+    }
+
+    /*
+      6. Discover and store investor feed URL (best-effort — non-fatal on failure)
+    */
+
+    let investorDiscoveryStatus: "found" | "unavailable" | "error" = "error";
+    try {
+      const investorResult = await discoverInvestorFeed(baseUrl, domain);
+      investorDiscoveryStatus = investorResult.found ? "found" : "unavailable";
+
+      // Don't overwrite an existing active investor feed.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: existingInvestorFeed } = await (supabase as any)
+        .from("competitor_feeds")
+        .select("id, discovery_status")
+        .eq("competitor_id", competitorId)
+        .eq("pool_type", "investor")
+        .maybeSingle();
+
+      if (!existingInvestorFeed || existingInvestorFeed.discovery_status !== "active") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any)
+          .from("competitor_feeds")
+          .upsert(
+            {
+              competitor_id:     competitorId,
+              pool_type:         "investor",
+              feed_url:          investorResult.found ? investorResult.url       : null,
+              source_type:       investorResult.found ? investorResult.source_type : "investor_rss",
+              discovery_status:  investorResult.found ? "active" : "feed_unavailable",
+              discovered_at:     new Date().toISOString(),
+              updated_at:        new Date().toISOString(),
+            },
+            { onConflict: "competitor_id,pool_type" }
+          );
+      }
+    } catch (investorErr) {
+      // Non-fatal: onboarding succeeds even when investor feed discovery fails.
+      Sentry.captureException(investorErr);
+    }
+
+    /*
+      7. Discover and store product / changelog feed URL (best-effort — non-fatal on failure)
+    */
+
+    let productDiscoveryStatus: "found" | "unavailable" | "error" = "error";
+    try {
+      // Pass the changelog/blog page URL if one was resolved (gives HTML alternate-link
+      // discovery the most targeted page to inspect for <link rel="alternate">).
+      const changelogPage = pages.find((p) => p.page_type === "changelog");
+      const blogPage      = pages.find((p) => p.page_type === "blog");
+      const productPageUrl = (changelogPage ?? blogPage)?.url;
+
+      const productResult = await discoverProductFeed(baseUrl, domain, productPageUrl);
+      productDiscoveryStatus = productResult.found ? "found" : "unavailable";
+
+      // Don't overwrite an existing active product feed.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: existingProductFeed } = await (supabase as any)
+        .from("competitor_feeds")
+        .select("id, discovery_status")
+        .eq("competitor_id", competitorId)
+        .eq("pool_type", "product")
+        .maybeSingle();
+
+      if (!existingProductFeed || existingProductFeed.discovery_status !== "active") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any)
+          .from("competitor_feeds")
+          .upsert(
+            {
+              competitor_id:     competitorId,
+              pool_type:         "product",
+              feed_url:          productResult.found ? productResult.url        : null,
+              source_type:       productResult.found ? productResult.source_type : "changelog_feed",
+              discovery_status:  productResult.found ? "active" : "feed_unavailable",
+              discovered_at:     new Date().toISOString(),
+              updated_at:        new Date().toISOString(),
+            },
+            { onConflict: "competitor_id,pool_type" }
+          );
+      }
+    } catch (productErr) {
+      // Non-fatal: onboarding succeeds even when product feed discovery fails.
+      Sentry.captureException(productErr);
+    }
+
+    /*
+      8. Probe for competitor-scoped procurement / awards feed (best-effort — non-fatal on failure)
+         Checks common RSS/Atom paths on the competitor's own site.
+         Sector-scoped external procurement sources (government portals) are configured
+         separately in the procurement_sources table — not part of onboarding.
+    */
+
+    const PROCUREMENT_FEED_PATHS = [
+      "/contracts/feed",
+      "/contracts/feed.xml",
+      "/contracts/rss",
+      "/awards/feed",
+      "/awards/feed.xml",
+      "/awards/rss",
+      "/procurement/feed",
+      "/procurement/feed.xml",
+      "/procurement/rss",
+    ];
+
+    let procurementDiscoveryStatus: "found" | "unavailable" | "error" = "error";
+    try {
+      let procurementFeedUrl:    string | null = null;
+      let procurementSourceType: string        = "procurement_feed";
+
+      for (const path of PROCUREMENT_FEED_PATHS) {
+        try {
+          const probeUrl = baseUrl + path;
+          const resp = await fetch(probeUrl, {
+            method:  "GET",
+            headers: { Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml" },
+            signal:  AbortSignal.timeout(5000),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any);
+
+          if (resp.ok) {
+            const ct = resp.headers.get("content-type") ?? "";
+            if (ct.includes("xml") || ct.includes("rss") || ct.includes("atom")) {
+              procurementFeedUrl    = probeUrl;
+              procurementSourceType = ct.includes("atom") ? "award_feed" : "procurement_feed";
+              break;
+            }
+          }
+        } catch {
+          // Individual path probe failed — try next
+        }
+      }
+
+      procurementDiscoveryStatus = procurementFeedUrl ? "found" : "unavailable";
+
+      // Don't overwrite an existing active procurement feed.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: existingProcurementFeed } = await (supabase as any)
+        .from("competitor_feeds")
+        .select("id, discovery_status")
+        .eq("competitor_id", competitorId)
+        .eq("pool_type", "procurement")
+        .maybeSingle();
+
+      if (!existingProcurementFeed || existingProcurementFeed.discovery_status !== "active") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any)
+          .from("competitor_feeds")
+          .upsert(
+            {
+              competitor_id:     competitorId,
+              pool_type:         "procurement",
+              feed_url:          procurementFeedUrl,
+              source_type:       procurementFeedUrl ? procurementSourceType : "procurement_feed",
+              discovery_status:  procurementFeedUrl ? "active" : "feed_unavailable",
+              discovered_at:     new Date().toISOString(),
+              updated_at:        new Date().toISOString(),
+            },
+            { onConflict: "competitor_id,pool_type" }
+          );
+      }
+    } catch (procurementErr) {
+      // Non-fatal: onboarding succeeds even when procurement feed discovery fails.
+      Sentry.captureException(procurementErr);
+    }
+
+    /*
+      9. Discover and store SEC EDGAR feed URL (best-effort — non-fatal on failure)
+         Searches EDGAR by company name, extracts CIK, constructs Atom feed URL.
+         Only succeeds for US-listed public companies.
+         Sector-scoped regulatory sources (FDA, FERC, etc.) are operator-configured
+         separately in the regulatory_sources table.
+    */
+
+    let regulatoryDiscoveryStatus: "found" | "unavailable" | "error" = "error";
+    try {
+      const edgarResult = await discoverEdgarFeed(name, domain);
+      regulatoryDiscoveryStatus = edgarResult.found ? "found" : "unavailable";
+
+      // Don't overwrite an existing active regulatory feed.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: existingRegulatoryFeed } = await (supabase as any)
+        .from("competitor_feeds")
+        .select("id, discovery_status")
+        .eq("competitor_id", competitorId)
+        .eq("pool_type", "regulatory")
+        .maybeSingle();
+
+      if (!existingRegulatoryFeed || existingRegulatoryFeed.discovery_status !== "active") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any)
+          .from("competitor_feeds")
+          .upsert(
+            {
+              competitor_id:     competitorId,
+              pool_type:         "regulatory",
+              feed_url:          edgarResult.found ? edgarResult.feedUrl    : null,
+              source_type:       edgarResult.found ? edgarResult.source_type : "sec_feed",
+              discovery_status:  edgarResult.found ? "active" : "feed_unavailable",
+              discovered_at:     new Date().toISOString(),
+              updated_at:        new Date().toISOString(),
+            },
+            { onConflict: "competitor_id,pool_type" }
+          );
+      }
+    } catch (edgarErr) {
+      // Non-fatal: onboarding succeeds even when EDGAR discovery fails.
+      Sentry.captureException(edgarErr);
+    }
+
     const runtimeDurationMs = Date.now() - startedAt;
 
     Sentry.setContext("onboarding", {
-      competitor_id:   competitorId,
+      competitor_id:            competitorId,
       sector,
-      pages_created:   createdPages.length,
-      pages_resolved:  resolved,
-      pages_unresolved: unresolved.length,
-      unresolved_categories: unresolved,
+      pages_created:            createdPages.length,
+      pages_resolved:           resolved,
+      pages_unresolved:         unresolved.length,
+      unresolved_categories:    unresolved,
+      feed_discovery:           feedDiscoveryStatus,
+      ats_discovery:            atsDiscoveryStatus,
+      investor_discovery:       investorDiscoveryStatus,
+      product_discovery:        productDiscoveryStatus,
+      procurement_discovery:    procurementDiscoveryStatus,
+      regulatory_discovery:     regulatoryDiscoveryStatus,
       runtimeDurationMs,
     });
 
@@ -342,11 +654,17 @@ async function handler(req: ApiReq, res: ApiRes) {
     await Sentry.flush(2000);
 
     return res.status(200).json({
-      ok:                   true,
-      competitor_id:        competitorId,
-      pages_created:        createdPages.length,
-      pages_resolved:       resolved,
-      unresolved_categories: unresolved,
+      ok:                       true,
+      competitor_id:            competitorId,
+      pages_created:            createdPages.length,
+      pages_resolved:           resolved,
+      unresolved_categories:    unresolved,
+      feed_discovery:           feedDiscoveryStatus,
+      ats_discovery:            atsDiscoveryStatus,
+      investor_discovery:       investorDiscoveryStatus,
+      product_discovery:        productDiscoveryStatus,
+      procurement_discovery:    procurementDiscoveryStatus,
+      regulatory_discovery:     regulatoryDiscoveryStatus,
       runtimeDurationMs,
     });
 

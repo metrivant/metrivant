@@ -25,6 +25,7 @@ import SoundToggleButton from "../../components/SoundToggleButton";
 import InitBanner from "../../components/InitBanner";
 import TutorialHint from "../../components/TutorialHint";
 import HistoricalCapsule from "../../components/HistoricalCapsule";
+import FeatureDiscoveryPanel from "../../components/FeatureDiscoveryPanel";
 import { getRadarFeed } from "../../lib/api";
 import { createClient } from "../../lib/supabase/server";
 import { getSubscriptionState } from "../../lib/subscription";
@@ -185,6 +186,22 @@ export default async function Page() {
   // Sector news — fetched server-side, cached 1 hour. Non-blocking; falls back to [].
   const newsItems = await fetchSectorNews(sector);
 
+  // Strategic insights — check if any patterns exist for this org.
+  let hasStrategyContent = false;
+  if (orgId) {
+    try {
+      const supabase = await createClient();
+      const { count } = await supabase
+        .from("strategic_insights")
+        .select("id", { count: "exact", head: true })
+        .eq("org_id", orgId)
+        .limit(1);
+      hasStrategyContent = (count ?? 0) > 0;
+    } catch {
+      // Non-fatal
+    }
+  }
+
   return (
     <main className="page-enter flex h-dvh w-full flex-col overflow-hidden bg-black text-white">
 
@@ -256,6 +273,7 @@ export default async function Page() {
               hasAccelerating={hasAccelerating}
               planType={plan as "analyst" | "pro"}
               hasActiveSub={hasActiveSub}
+              hasStrategyContent={hasStrategyContent}
             />
             {/* SectorSwitcher (with built-in clean slate X) — desktop only */}
             <div className="hidden md:flex items-center gap-2">
@@ -338,7 +356,7 @@ export default async function Page() {
           className="hidden w-[190px] shrink-0 flex-col overflow-hidden border-r border-[#0e2210] bg-[rgba(0,0,0,0.98)] md:flex xl:w-[240px]"
           aria-label="App navigation"
         >
-          <SidebarNav plan={plan} competitors={competitors} />
+          <SidebarNav plan={plan} />
         </nav>
 
         {/* ── Radar content area ─────────────────────────────────────────── */}
@@ -376,6 +394,9 @@ export default async function Page() {
 
       {/* ── Historical trade capsules — periodic ambient intelligence ────── */}
       {!trialExpired && <HistoricalCapsule />}
+
+      {/* ── Feature discovery panels — periodic product education ──────── */}
+      {!trialExpired && <FeatureDiscoveryPanel />}
 
       {/* ── Mobile bottom navigation — md:hidden inside component ─────────── */}
       <MobileNav />

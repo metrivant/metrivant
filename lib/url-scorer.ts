@@ -23,12 +23,17 @@ export type ScoredCategories = Record<Category, ScoredCandidate[]>;
 
 const CATEGORY_VOCAB: Record<Category, string[]> = {
   newsroom: [
-    "news", "newsroom", "media", "press", "press-releases",
-    "press_releases", "updates", "announcements", "media-center",
+    "news", "newsroom", "media", "press", "press-releases", "press_releases",
+    "pressroom", "press-room", "press-center", "press_center",
+    "updates", "announcements", "media-center", "media_center",
+    "investor-relations", "investor_relations", "investors", "investor",
+    "corporate-news", "corporate_news", "communications", "media-relations",
   ],
   capabilities_or_features: [
     "capabilities", "what-we-do", "what_we_do", "solutions", "products",
     "platforms", "features", "offerings", "services", "programs", "technology",
+    "our-business", "our_business", "divisions", "segments",
+    "business-areas", "business_areas", "explore",
   ],
   careers: [
     "careers", "jobs", "join-us", "join_us", "work-with-us",
@@ -60,8 +65,8 @@ const SECTOR_BOOSTS: Partial<Record<string, Partial<Record<Category, string[]>>>
     blog_or_articles:          ["insights", "resources"],
   },
   energy: {
-    capabilities_or_features: ["solutions", "what-we-do", "services"],
-    newsroom:                  ["news", "media"],
+    capabilities_or_features: ["solutions", "what-we-do", "services", "our-business", "divisions", "segments", "exploration", "production"],
+    newsroom:                  ["news", "media", "investors", "investor-relations", "pressroom", "press-room"],
   },
   finance: {
     blog_or_articles:          ["insights", "research", "perspectives"],

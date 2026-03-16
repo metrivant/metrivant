@@ -10,6 +10,8 @@
     { "path": "/api/detect-signals",                         "schedule": "21,51 * * * *" },
     { "path": "/api/detect-ambient-activity",                "schedule": "23,53 * * * *" },
     { "path": "/api/update-pressure-index",                  "schedule": "25,55 * * * *" },
+    { "path": "/api/ingest-feeds",                           "schedule": "10 * * * *"    },
+    { "path": "/api/promote-feed-signals",                   "schedule": "12 * * * *"    },
     { "path": "/api/interpret-signals",                      "schedule": "28 * * * *"    },
     { "path": "/api/update-signal-velocity",                 "schedule": "50 * * * *"    },
     { "path": "/api/detect-movements",                       "schedule": "55 * * * *"    },

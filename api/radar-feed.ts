@@ -168,9 +168,11 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     // ── Step 2: Load all monitored pages for these competitors ────────────────
     // Needed to map signals (keyed by monitored_page_id) to competitors.
-    const { data: pageRows, error: pagesError } = await supabase
+    // health_state is included to compute the coverage summary.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: pageRows, error: pagesError } = await (supabase as any)
       .from("monitored_pages")
-      .select("id, competitor_id")
+      .select("id, competitor_id, health_state")
       .in("competitor_id", competitorIds)
       .eq("active", true);
 
@@ -178,12 +180,23 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     const pageToCompetitor = new Map<string, string>();
     const competitorPageIds = new Map<string, string[]>();
-    for (const p of (pageRows ?? []) as { id: string; competitor_id: string }[]) {
+
+    // Coverage counts — aggregated from all active monitored pages in scope.
+    const coverageCounts: Record<string, number> = {
+      healthy: 0, blocked: 0, challenge: 0,
+      degraded: 0, baseline_maturing: 0, unresolved: 0,
+    };
+
+    for (const p of (pageRows ?? []) as { id: string; competitor_id: string; health_state: string }[]) {
       pageToCompetitor.set(p.id, p.competitor_id);
       const arr = competitorPageIds.get(p.competitor_id) ?? [];
       arr.push(p.id);
       competitorPageIds.set(p.competitor_id, arr);
+      const hs = p.health_state ?? "unresolved";
+      coverageCounts[hs] = (coverageCounts[hs] ?? 0) + 1;
     }
+
+    const coverageTotal = Object.values(coverageCounts).reduce((a, b) => a + b, 0);
 
     const allPageIds = [...pageToCompetitor.keys()];
 
@@ -312,6 +325,38 @@ async function handler(req: ApiReq, res: ApiRes) {
       }
     }
 
+    // ── Step 7.5: Load trail positions per competitor ─────────────────────────
+    // Reads up to 7 historical SVG position snapshots per competitor (last 28d).
+    // Recorded by radar-ui after each layout computation (max ~4 snapshots/day per org).
+    // Only runs when orgId is present — legacy/no-org mode returns empty trails.
+    const trailMap = new Map<string, Array<{ x: number; y: number; created_at: string }>>();
+
+    if (orgId && competitorIds.length > 0) {
+      const since28d = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: trailRows } = await (supabase as any)
+        .from("radar_positions")
+        .select("competitor_id, x, y, created_at")
+        .eq("org_id", orgId)
+        .in("competitor_id", competitorIds)
+        .gte("created_at", since28d)
+        .order("created_at", { ascending: false })
+        .limit(competitorIds.length * 8); // ceiling: 8 rows × N competitors
+
+      for (const row of (trailRows ?? []) as {
+        competitor_id: string;
+        x: number;
+        y: number;
+        created_at: string;
+      }[]) {
+        const pts = trailMap.get(row.competitor_id) ?? [];
+        if (pts.length < 7) {
+          pts.push({ x: Number(row.x), y: Number(row.y), created_at: row.created_at });
+          trailMap.set(row.competitor_id, pts);
+        }
+      }
+    }
+
     // ── Step 8: Assemble the radar feed rows ──────────────────────────────────
     const feedRows = competitors.map((c) => {
       const agg = signalAggMap.get(c.id);
@@ -356,6 +401,11 @@ async function handler(req: ApiReq, res: ApiRes) {
         momentum_score:                momentumScore,
         radar_narrative:               narrativeMap.get(c.id)?.narrative       ?? null,
         radar_narrative_signal_count:  narrativeMap.get(c.id)?.signal_count    ?? null,
+        trail: (trailMap.get(c.id) ?? []).map((r) => ({
+          x: r.x,
+          y: r.y,
+          timestamp: r.created_at,
+        })),
       };
     });
 
@@ -406,6 +456,15 @@ async function handler(req: ApiReq, res: ApiRes) {
       job: "radar-feed",
       rowsReturned: paginatedRows.length,
       runtimeDurationMs,
+      coverage: {
+        total:            coverageTotal,
+        healthy:          coverageCounts.healthy,
+        blocked:          coverageCounts.blocked,
+        challenge:        coverageCounts.challenge,
+        degraded:         coverageCounts.degraded,
+        baseline_maturing: coverageCounts.baseline_maturing,
+        unresolved:       coverageCounts.unresolved,
+      },
       data: paginatedRows,
     });
   } catch (error) {

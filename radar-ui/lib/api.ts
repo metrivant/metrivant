@@ -1,3 +1,10 @@
+/** A single historical position snapshot for trail rendering. */
+export type TrailPoint = {
+  x: number;         // SVG user units [0, 1000]
+  y: number;         // SVG user units [0, 1000]
+  timestamp: string; // ISO 8601 — newest first
+};
+
 export type RadarCompetitor = {
   competitor_id: string;
   competitor_name: string;
@@ -18,6 +25,8 @@ export type RadarCompetitor = {
   momentum_score: number;
   radar_narrative: string | null;
   radar_narrative_signal_count: number | null;
+  /** Up to 7 historical SVG positions, newest first. Empty array until trail records accumulate. */
+  trail: TrailPoint[];
 };
 
 type RadarFeedResponse = {

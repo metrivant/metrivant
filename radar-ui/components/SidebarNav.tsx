@@ -4,8 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import type { RadarCompetitor } from "../lib/api";
-import SignalConstellation from "./SignalConstellation";
+import TelescopePanel from "./TelescopePanel";
 
 const NAV_ITEMS: { href: string; label: string; icon: ReactNode; overlayKey?: string }[] = [
   {
@@ -137,10 +136,8 @@ function NavLink({
 
 export default function SidebarNav({
   plan,
-  competitors = [],
 }: {
   plan: string;
-  competitors?: RadarCompetitor[];
 }) {
   const pathname = usePathname();
 
@@ -200,8 +197,10 @@ export default function SidebarNav({
         />
       </div>
 
-      {/* Signal Constellation */}
-      <SignalConstellation competitors={competitors} />
+      {/* Telescope — rotating astronomical visual slides */}
+      <div className="px-3 pb-2">
+        <TelescopePanel />
+      </div>
 
       {/* Plan / billing */}
       <div className="mt-auto border-t border-[#0e2210] px-3 pb-2 pt-2">

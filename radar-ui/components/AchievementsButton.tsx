@@ -6,13 +6,13 @@ import { createClient } from "../lib/supabase/client";
 import {
   ACHIEVEMENTS,
   STRATEGY_ACTIONS,
-  DIFFICULTY_COLOR,
   computeIntelScore,
   MAX_INTEL_SCORE,
   type AchievementId,
   type StrategyActionId,
 } from "../lib/achievements";
 import { getAudioManager } from "../lib/audio";
+import MilestoneOverlay from "./MilestoneOverlay";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -32,6 +32,8 @@ type Props = {
   planType?: "analyst" | "pro" | null;
   /** Whether the user has an active (paid) subscription */
   hasActiveSub?: boolean;
+  /** Whether the Strategy page has real cross-competitor insights to act on */
+  hasStrategyContent?: boolean;
 };
 
 // ── Achievement icons (24×24 inline SVG, brand-themed) ────────────────────────
@@ -352,12 +354,14 @@ function AchievementsDropdown({
   intelScore,
   loading,
   onCompleteAction,
+  hasStrategyContent,
 }: {
   unlockedIds: Set<string>;
   completedActionIds: Set<string>;
   intelScore: number;
   loading: boolean;
   onCompleteAction: (id: StrategyActionId) => void;
+  hasStrategyContent: boolean;
 }) {
   const unlockedCount = ACHIEVEMENTS.filter((a) => unlockedIds.has(a.id)).length;
   const progressPct   = MAX_INTEL_SCORE > 0 ? Math.round((intelScore / MAX_INTEL_SCORE) * 100) : 0;
@@ -534,72 +538,31 @@ function AchievementsDropdown({
               </div>
             </div>
 
-            {STRATEGY_ACTIONS.map((action) => {
-              const done = completedActionIds.has(action.id);
-              return (
-                <div
-                  key={action.id}
-                  className="flex items-center gap-3 rounded-[10px] px-3 py-2.5 transition-all duration-150"
-                  style={{
-                    background: done ? "rgba(46,230,166,0.03)" : "transparent",
-                    opacity:    done ? 0.55 : 1,
-                  }}
-                >
-                  {/* Checkbox */}
-                  <button
-                    onClick={() => !done && onCompleteAction(action.id as StrategyActionId)}
-                    disabled={done}
-                    className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded border transition-all duration-150"
-                    style={{
-                      width: "18px",
-                      height: "18px",
-                      borderColor: done ? "#2EE6A6" : "rgba(46,230,166,0.22)",
-                      background:  done ? "rgba(46,230,166,0.16)" : "transparent",
-                      cursor:      done ? "default" : "pointer",
-                    }}
-                    aria-label={done ? "Completed" : `Complete: ${action.name}`}
-                  >
-                    {done && (
-                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-                        <path d="M2 5.5L4.2 7.8L8 3" stroke="#2EE6A6" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
-                  </button>
-
-                  {/* Label */}
-                  <div className="flex-1 min-w-0">
-                    <div
-                      className="text-[11px] font-medium leading-snug"
-                      style={{
-                        color: done ? "#475569" : "rgba(255,255,255,0.78)",
-                        textDecoration: done ? "line-through" : "none",
-                      }}
-                    >
-                      {action.name}
-                    </div>
+            {hasStrategyContent ? (
+              <a
+                href="/app/strategy"
+                className="flex items-center justify-between rounded-[10px] px-3 py-2.5 transition-all duration-150 group"
+                style={{ background: "rgba(46,230,166,0.03)" }}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] font-medium leading-snug" style={{ color: "rgba(255,255,255,0.78)" }}>
+                    View strategic patterns
                   </div>
-
-                  {/* Difficulty + points */}
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <span
-                      className="rounded-full px-1.5 py-0.5 text-[8px] font-semibold"
-                      style={{
-                        color:      done ? "#475569" : DIFFICULTY_COLOR[action.difficulty],
-                        background: done ? "rgba(255,255,255,0.04)" : `${DIFFICULTY_COLOR[action.difficulty]}18`,
-                      }}
-                    >
-                      {action.difficulty}
-                    </span>
-                    <span
-                      className="text-[10px] tabular-nums font-semibold"
-                      style={{ color: done ? "#334155" : "#2EE6A6" }}
-                    >
-                      +{action.points}
-                    </span>
+                  <div className="text-[10px] mt-0.5" style={{ color: "#475569" }}>
+                    Cross-competitor analysis is ready
                   </div>
                 </div>
-              );
-            })}
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" className="shrink-0 ml-2 opacity-40 group-hover:opacity-70 transition-opacity">
+                  <path d="M2.5 6H9.5M6.5 3L9.5 6L6.5 9" stroke="#2EE6A6" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </a>
+            ) : (
+              <div className="px-3 py-2.5">
+                <div className="text-[10px] leading-relaxed" style={{ color: "#334155" }}>
+                  Pattern analysis runs after your rivals generate enough signals. Check back after more activity is detected.
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -627,6 +590,7 @@ export default function AchievementsButton({
   hasAccelerating,
   planType = null,
   hasActiveSub = false,
+  hasStrategyContent = false,
 }: Props) {
   const [open, setOpen]                             = useState(false);
   const [userId, setUserId]                         = useState<string | null>(null);
@@ -636,9 +600,13 @@ export default function AchievementsButton({
   const [toasts, setToasts]                         = useState<Toast[]>([]);
   const [hasNew, setHasNew]                         = useState(false);
 
-  const attemptedRef = useRef(new Set<string>());
-  const openRef      = useRef(open);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [milestoneOverlay, setMilestoneOverlay] = useState<0 | 10 | 20>(0);
+
+  const attemptedRef      = useRef(new Set<string>());
+  const openRef           = useRef(open);
+  const containerRef      = useRef<HTMLDivElement>(null);
+  // Tracks unlockedIds.size across renders so we only fire overlays on transitions
+  const prevAchCountRef   = useRef<number | null>(null);
 
   useEffect(() => { openRef.current = open; }, [open]);
 
@@ -804,6 +772,30 @@ export default function AchievementsButton({
     return () => window.removeEventListener("mv:achieve", handler);
   }, [unlock]);
 
+  // ── Milestone overlay detection — fires only on threshold crossings ───────────
+  // On initial load we record the current count without showing any overlay,
+  // so pre-existing achievements never re-trigger the celebration.
+  useEffect(() => {
+    if (!loaded) return;
+    const count = ACHIEVEMENTS.filter((a) => unlockedIds.has(a.id)).length;
+
+    if (prevAchCountRef.current === null) {
+      // First render after load — record baseline, do not show overlay
+      prevAchCountRef.current = count;
+      return;
+    }
+
+    const prev = prevAchCountRef.current;
+    if (count >= 20 && prev < 20 && !localStorage.getItem("mv_milestone_20")) {
+      localStorage.setItem("mv_milestone_20", "1");
+      setMilestoneOverlay(20);
+    } else if (count >= 10 && prev < 10 && !localStorage.getItem("mv_milestone_10")) {
+      localStorage.setItem("mv_milestone_10", "1");
+      setMilestoneOverlay(10);
+    }
+    prevAchCountRef.current = count;
+  }, [loaded, unlockedIds]);
+
   // ── Keyboard shortcut: I = Intel ─────────────────────────────────────────────
   useEffect(() => {
     function handler(e: KeyboardEvent) {
@@ -900,6 +892,7 @@ export default function AchievementsButton({
               intelScore={intelScore}
               loading={!loaded}
               onCompleteAction={completeAction}
+              hasStrategyContent={hasStrategyContent}
             />
           )}
         </AnimatePresence>
@@ -918,6 +911,16 @@ export default function AchievementsButton({
           ))}
         </AnimatePresence>
       </div>
+
+      {/* ── Milestone celebration overlay ───────────────────────────────────── */}
+      <AnimatePresence>
+        {milestoneOverlay !== 0 && (
+          <MilestoneOverlay
+            tier={milestoneOverlay as 10 | 20}
+            onDismiss={() => setMilestoneOverlay(0)}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }

@@ -248,8 +248,15 @@ export default function DiscoverClient({
   const visible  = filtered.slice(0, page * PAGE_SIZE);
   const hasMore  = filtered.length > page * PAGE_SIZE;
 
+  const COMPETITOR_LIMIT = 25;
+  const atLimit = tracked.size >= COMPETITOR_LIMIT;
+
   async function trackCompetitor(entry: CatalogEntry) {
     if (tracked.has(entry.domain) || loadingDomain === entry.domain) return;
+    if (atLimit) {
+      setTrackError("limit");
+      return;
+    }
     setLoadingDomain(entry.domain);
     setTrackError(null);
 
@@ -268,7 +275,7 @@ export default function DiscoverClient({
         setTracked((prev) => new Set([...prev, entry.domain]));
         router.refresh();
       } else if (res.status === 403) {
-        router.push("/app/billing?limit=1");
+        setTrackError("limit");
       } else {
         const data = await res.json() as { error?: string };
         setTrackError(data.error ?? "Failed to track competitor");
@@ -498,12 +505,35 @@ export default function DiscoverClient({
         )}
       </div>
 
-      {/* ── Error toast ──────────────────────────────────────────────── */}
+      {/* ── Error / limit banner ─────────────────────────────────────── */}
       {trackError && (
-        <div className="mb-5 rounded-[10px] border border-red-900/30 bg-red-950/20 px-4 py-3 text-[13px] text-red-400">
-          {trackError}
-          <button onClick={() => setTrackError(null)} className="ml-3 text-red-600 hover:text-red-400">✕</button>
-        </div>
+        trackError === "limit" ? (
+          <div
+            className="mb-5 rounded-[10px] border px-4 py-3 text-[13px]"
+            style={{
+              borderColor: "rgba(245,158,11,0.25)",
+              background:  "rgba(245,158,11,0.06)",
+              color:       "#f59e0b",
+            }}
+          >
+            <span className="font-semibold">⚠ Competitor limit reached</span>
+            <span className="ml-2 opacity-80">
+              Maximum of {COMPETITOR_LIMIT} competitors allowed. Remove a competitor to add another.
+            </span>
+            <button
+              onClick={() => setTrackError(null)}
+              className="ml-3 opacity-50 hover:opacity-90"
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        ) : (
+          <div className="mb-5 rounded-[10px] border border-red-900/30 bg-red-950/20 px-4 py-3 text-[13px] text-red-400">
+            {trackError}
+            <button onClick={() => setTrackError(null)} className="ml-3 text-red-600 hover:text-red-400">✕</button>
+          </div>
+        )
       )}
 
       {/* ── Results ──────────────────────────────────────────────────── */}
@@ -589,10 +619,11 @@ export default function DiscoverClient({
                 ) : (
                   <button
                     onClick={() => trackCompetitor(entry)}
-                    disabled={isLoading}
+                    disabled={isLoading || atLimit}
+                    title={atLimit ? "Competitor limit reached — remove one to add another" : undefined}
                     className={`mt-auto w-full rounded-[10px] py-2 text-[12px] font-semibold transition-all ${
-                      isLoading
-                        ? "border border-[#0d2010] text-slate-600 opacity-60"
+                      isLoading || atLimit
+                        ? "border border-[#0d2010] text-slate-600 opacity-50 cursor-not-allowed"
                         : "border border-[#152a15] text-slate-400 hover:border-[#2EE6A6]/22 hover:text-[#2EE6A6]"
                     }`}
                   >

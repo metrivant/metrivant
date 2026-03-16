@@ -63,6 +63,9 @@ interface SignalWithJoins {
   monitored_page_id: string;
   retry_count:       number;
   confidence_score:  number | null;
+  // Direct competitor join via signals.competitor_id — primary source for pool-agnostic signals.
+  // Populated for all signal source types including feed signals where monitored_page_id is null.
+  direct_competitor: { id: string; name: string } | null;
   monitored_pages: {
     page_type:   string;
     url:         string;
@@ -295,12 +298,21 @@ async function handler(req: ApiReq, res: ApiRes) {
     if (rowsClaimed > 0) {
       const signalIds = (claimedSignals as Array<{ id: string }>).map(s => s.id);
 
-      // Fetch full signal details — includes page_class for model routing
-      const { data: detailRows, error: detailError } = await supabase
+      // Fetch full signal details — includes page_class for model routing.
+      // Left joins (no !inner) so feed-sourced signals with null monitored_page_id
+      // are included in detailRows.
+      //
+      // Competitor resolution order (pool-agnostic):
+      //   1. direct_competitor (signals.competitor_id FK) — always populated for all pools
+      //   2. monitored_pages → competitors               — fallback for page-diff signals
+      //   3. "" / "Unknown"                              — only if both joins are null
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: detailRows, error: detailError } = await (supabase as any)
         .from("signals")
         .select(
           `id, signal_type, signal_data, severity, monitored_page_id, retry_count, confidence_score,
-           monitored_pages!inner ( page_type, url, page_class, competitors!inner ( id, name ) )`
+           direct_competitor:competitors!signals_competitor_id_fkey ( id, name ),
+           monitored_pages ( page_type, url, page_class, competitors ( id, name ) )`
         )
         .in("id", signalIds);
 
@@ -316,8 +328,8 @@ async function handler(req: ApiReq, res: ApiRes) {
           monitored_page_id: row.monitored_page_id,
           retry_count:       row.retry_count ?? 0,
           confidence_score:  row.confidence_score ?? 0.5,
-          competitor_id:     row.monitored_pages?.competitors?.id   ?? "",
-          competitor_name:   row.monitored_pages?.competitors?.name ?? "Unknown",
+          competitor_id:     row.direct_competitor?.id   ?? row.monitored_pages?.competitors?.id   ?? "",
+          competitor_name:   row.direct_competitor?.name ?? row.monitored_pages?.competitors?.name ?? "Unknown",
           page_type:         row.monitored_pages?.page_type ?? "unknown",
           page_url:          row.monitored_pages?.url       ?? "",
           page_class:        row.monitored_pages?.page_class ?? "standard",
