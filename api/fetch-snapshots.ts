@@ -6,43 +6,28 @@ import { verifyCronSecret } from "../lib/withCronAuth";
 import crypto from "crypto";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "../lib/rate-limit";
 
-// ── Concurrency / timing constants ───────────────────────────────────────────
-// global: max simultaneous in-flight fetches across all domains.
-// domain: max simultaneous fetches against the same hostname (CDN-safe).
-// budget: stop launching new work after this many ms of wall-clock elapsed.
-//         Keeps the Vercel function well inside its 10s ceiling.
-// jitter: random pre-fetch delay per URL to avoid CDN burst patterns.
-// cooldown: after this many consecutive 403/429/timeout failures from the same
-//           domain, skip remaining URLs on that domain for this invocation.
-
-const FETCH_TIMEOUT_MS         = 6500;    // per-URL hard abort
-const GLOBAL_CONCURRENCY       = 8;       // total parallel fetches
-const DOMAIN_CONCURRENCY       = 1;       // per-hostname concurrency
-const INVOCATION_BUDGET_MS     = 6000;    // wall-clock ceiling for new work
-const JITTER_MIN_MS            = 100;
-const JITTER_MAX_MS            = 400;
-const DOMAIN_COOLDOWN_THRESHOLD = 2;      // failures before domain is skipped
-const MAX_HTML_SIZE            = 1024 * 1024; // 1 MB
+const FETCH_TIMEOUT_MS          = 6500;
+const GLOBAL_CONCURRENCY        = 8;
+const DOMAIN_CONCURRENCY        = 1;
+const INVOCATION_BUDGET_MS      = 5000;   // lowered from 6000 — leaves 7.5s for DB writes + Sentry flush before Vercel ceiling
+const JITTER_MIN_MS             = 100;
+const JITTER_MAX_MS             = 400;
+const DOMAIN_COOLDOWN_THRESHOLD = 2;
+const MAX_HTML_SIZE             = 1024 * 1024;
+const CONSECUTIVE_BAD_THRESHOLD = 5;      // deactivate page after N consecutive non-full fetches
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface MonitoredPage {
   id: string;
   url: string;
-  competitor_name: string | null;
 }
 
 interface MonitoredPageRow {
   id: string;
   url: string;
-  competitors: { name: string } | null;
 }
 
-interface LatestSnapshot {
-  content_hash: string;
-}
-
-// Per-URL result returned from the parallel worker function.
 interface UrlResult {
   succeeded: boolean;
   failed: boolean;
@@ -50,7 +35,8 @@ interface UrlResult {
   skippedDuplicates: number;
   skippedBudget: boolean;
   skippedCooldown: boolean;
-  triggeredCooldown: boolean; // this URL's failure incremented the domain failure count
+  triggeredCooldown: boolean;
+  nonFullPageIds: string[];   // page IDs that received a non-full quality snapshot this run
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -67,8 +53,6 @@ function randomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-// Minimal semaphore — no external dependency.
-// acquire(fn) waits for a slot, runs fn, releases the slot.
 function createSemaphore(max: number) {
   let running = 0;
   const queue: Array<() => void> = [];
@@ -89,9 +73,6 @@ function createSemaphore(max: number) {
   };
 }
 
-// Estimate visible text length by stripping script/style blocks and HTML tags.
-// Used to distinguish JS-rendered shells (structural HTML, no text content)
-// from real pages. No parse needed — regex is sufficient for a rough count.
 function getVisibleTextLength(html: string): number {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, "")
@@ -109,9 +90,7 @@ async function fetchWithTimeout(url: string): Promise<string> {
   try {
     const response = await fetch(url, {
       signal: controller.signal,
-      headers: {
-        "user-agent": "MetrivantBot/1.0",
-      },
+      headers: { "user-agent": "MetrivantBot/1.0" },
     });
 
     if (!response.ok) {
@@ -131,31 +110,29 @@ async function fetchWithTimeout(url: string): Promise<string> {
 }
 
 // ── Per-URL processor ─────────────────────────────────────────────────────────
-// Extracted from the loop so it can be called concurrently via Promise.allSettled.
 
 async function processUrl(
   url: string,
   hostname: string,
   groupedPages: MonitoredPage[],
   invocationStart: number,
-  domainFailureCounts: Map<string, number>
+  domainFailureCounts: Map<string, number>,
+  latestHashMap: Map<string, string>  // pre-batched: page_id → latest content_hash
 ): Promise<UrlResult> {
-  const empty: UrlResult = { succeeded: false, failed: false, inserted: 0, skippedDuplicates: 0, skippedBudget: false, skippedCooldown: false, triggeredCooldown: false };
+  const empty: UrlResult = {
+    succeeded: false, failed: false, inserted: 0, skippedDuplicates: 0,
+    skippedBudget: false, skippedCooldown: false, triggeredCooldown: false,
+    nonFullPageIds: [],
+  };
 
-  // Budget check: do not start new work if we are past the wall-clock ceiling.
-  // Leaves time for the Supabase writes and Sentry flush before the function exits.
   if (Date.now() - invocationStart > INVOCATION_BUDGET_MS) {
     return { ...empty, skippedBudget: true };
   }
 
-  // Domain cooldown check: if this hostname has already hit the failure threshold
-  // during this invocation, skip without fetching. Per-domain semaphore ensures
-  // requests are serialised per hostname, so this check is race-free.
   if ((domainFailureCounts.get(hostname) ?? 0) >= DOMAIN_COOLDOWN_THRESHOLD) {
     return { ...empty, skippedCooldown: true };
   }
 
-  // Per-URL random jitter — staggers burst patterns against CDNs.
   await sleep(randomInt(JITTER_MIN_MS, JITTER_MAX_MS));
 
   try {
@@ -163,20 +140,7 @@ async function processUrl(
     const contentHash = hashContent(rawHtml);
     const fetchedAt = new Date().toISOString();
 
-    // ── Fetch quality classification ──────────────────────────────────────
-    // Three tiers — extract-sections only processes 'full' snapshots.
-    //
-    // 'shell'       — bot wall / anti-scrape response: < 3 text-bearing
-    //                 structural elements. Site actively blocked the fetch.
-    //
-    // 'js_rendered' — SPA / client-side rendered page: structural elements
-    //                 present but visible text < 500 chars. Content is loaded
-    //                 by JavaScript which the static fetcher cannot execute.
-    //
-    // 'full'        — normal static or SSR page with extractable text content.
-    //
-    // Both non-full tiers are stored (for diagnostics and the auto-deactivation
-    // trigger) but skipped by extract-sections.
+    // ── Fetch quality classification ───────────────────────────────────────────
     const textElementCount =
       (rawHtml.match(/<\/p>/gi)?.length ?? 0) +
       (rawHtml.match(/<\/h1>/gi)?.length ?? 0) +
@@ -184,18 +148,16 @@ async function processUrl(
       (rawHtml.match(/<\/li>/gi)?.length ?? 0);
 
     const fetchQuality: "full" | "shell" | "js_rendered" =
-      textElementCount < 3           ? "shell" :
+      textElementCount < 3                ? "shell" :
       getVisibleTextLength(rawHtml) < 500 ? "js_rendered" :
       "full";
 
     if (fetchQuality !== "full") {
-      const representativeName = groupedPages[0]?.competitor_name ?? "unknown";
       Sentry.captureMessage(
         fetchQuality === "shell" ? "fetch_shell_detected" : "fetch_js_rendered_detected",
         {
           level: "warning",
           extra: {
-            competitor_name: representativeName,
             url,
             fetch_quality: fetchQuality,
             text_element_count: textElementCount,
@@ -209,22 +171,11 @@ async function processUrl(
 
     let inserted = 0;
     let skippedDuplicates = 0;
+    const nonFullPageIds: string[] = [];
 
     for (const page of groupedPages) {
-      const { data: latestSnapshot, error: latestSnapshotError } = await supabase
-        .from("snapshots")
-        .select("content_hash")
-        .eq("monitored_page_id", page.id)
-        .order("fetched_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (latestSnapshotError) {
-        throw latestSnapshotError;
-      }
-
-      const latest = latestSnapshot as LatestSnapshot | null;
-      const isDuplicate = latest?.content_hash === contentHash;
+      // Duplicate check via pre-batched map — eliminates per-page DB query.
+      const isDuplicate = latestHashMap.get(page.id) === contentHash;
 
       if (isDuplicate) {
         skippedDuplicates += 1;
@@ -256,33 +207,28 @@ async function processUrl(
       }
 
       inserted += 1;
+      if (fetchQuality !== "full") nonFullPageIds.push(page.id);
     }
 
-    return { ...empty, succeeded: true, inserted, skippedDuplicates };
+    return { ...empty, succeeded: true, inserted, skippedDuplicates, nonFullPageIds };
 
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     const errCode = (error as { code?: string })?.code;
 
     const isExpectedFailure =
-      // Any HTTP-level failure from a competitor site (4xx, 5xx) is expected.
       msg.startsWith("Fetch failed:") ||
       msg.includes("AbortError") ||
       msg.includes("This operation was aborted") ||
       msg.includes("redirect count exceeded") ||
       msg.includes("HTML exceeds size limit") ||
-      // Node undici generic network error (DNS failure, connection reset, TLS error).
       (error instanceof TypeError && msg === "fetch failed") ||
-      errCode === "23505"; // unique constraint violation — concurrent run race
+      errCode === "23505";
 
     if (!isExpectedFailure) {
       Sentry.captureException(error);
     }
 
-    // Domain cooldown: track 403/429 and timeouts. After DOMAIN_COOLDOWN_THRESHOLD
-    // failures on the same hostname in one invocation, remaining URLs on that domain
-    // are skipped. The per-domain semaphore (concurrency=1) ensures this is safe
-    // to update without locks — only one request per domain runs at a time.
     const triggersCooldown =
       msg.includes("Fetch failed: 403") ||
       msg.includes("Fetch failed: 429") ||
@@ -309,11 +255,6 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   const startedAt = Date.now();
 
-  // page_class filter — passed as query param by the three cron entries:
-  //   ?page_class=ambient     → every 30 min (blog, careers, feeds)
-  //   ?page_class=high_value  → every 60 min (pricing, changelog, newsroom)
-  //   ?page_class=standard    → every 3 hours (homepage, features, solutions)
-  // When absent (manual invocation), all active pages are fetched.
   const pageClass =
     typeof req.query?.page_class === "string" ? req.query.page_class : null;
 
@@ -326,7 +267,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   try {
     let pageQuery = supabase
       .from("monitored_pages")
-      .select("id, url, competitors ( name )")
+      .select("id, url")   // competitor join removed — name not needed in core fetch path
       .eq("active", true);
 
     if (pageClass) {
@@ -339,7 +280,6 @@ async function handler(req: ApiReq, res: ApiRes) {
     const pages: MonitoredPage[] = ((monitoredPages ?? []) as MonitoredPageRow[]).map((r) => ({
       id: r.id,
       url: r.url,
-      competitor_name: r.competitors?.name ?? null,
     }));
 
     // Deduplicate URLs — multiple monitored_pages can share a URL.
@@ -352,18 +292,30 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     const rowsClaimed = pagesByUrl.size;
 
-    // ── Concurrent fetch execution ─────────────────────────────────────────
-    // Global semaphore (8): total simultaneous in-flight HTTP fetches.
-    // Per-domain semaphore (1): at most one concurrent fetch per hostname,
-    //   preventing CDN burst patterns that trigger rate-limiting or blocks.
-    // Budget guard: each URL checks wall-clock elapsed before starting;
-    //   stops launching new work after INVOCATION_BUDGET_MS to leave headroom
-    //   for Supabase writes and Sentry flush before the function ceiling.
+    // ── Pre-batch duplicate check ──────────────────────────────────────────────
+    // Replaces per-page N+1 queries inside processUrl. Load latest content_hash
+    // for every active page in one bulk query; processUrl uses map lookups (O(1)).
+    const allPageIds = pages.map((p) => p.id);
+    const latestHashMap = new Map<string, string>(); // page_id → latest content_hash
 
+    if (allPageIds.length > 0) {
+      const { data: recentSnapshots } = await supabase
+        .from("snapshots")
+        .select("monitored_page_id, content_hash")
+        .in("monitored_page_id", allPageIds)
+        .order("fetched_at", { ascending: false })
+        .limit(allPageIds.length * 5); // generous cap — first occurrence per page = latest
+
+      for (const row of (recentSnapshots ?? []) as { monitored_page_id: string; content_hash: string }[]) {
+        if (!latestHashMap.has(row.monitored_page_id)) {
+          latestHashMap.set(row.monitored_page_id, row.content_hash);
+        }
+      }
+    }
+
+    // ── Concurrent fetch execution ─────────────────────────────────────────────
     const globalSem = createSemaphore(GLOBAL_CONCURRENCY);
     const domainSems = new Map<string, ReturnType<typeof createSemaphore>>();
-    // Shared mutable failure counter per hostname. Safe without locks because
-    // per-domain semaphore (concurrency=1) serialises access per hostname.
     const domainFailureCounts = new Map<string, number>();
 
     const getDomainSem = (hostname: string) => {
@@ -381,19 +333,19 @@ async function handler(req: ApiReq, res: ApiRes) {
         try {
           hostname = new URL(url).hostname;
         } catch {
-          hostname = url; // malformed URL — use raw string as key
+          hostname = url;
         }
         const domainSem = getDomainSem(hostname);
 
         return globalSem(() =>
           domainSem(() =>
-            processUrl(url, hostname, groupedPages, startedAt, domainFailureCounts)
+            processUrl(url, hostname, groupedPages, startedAt, domainFailureCounts, latestHashMap)
           )
         );
       })
     );
 
-    // ── Aggregate metrics ──────────────────────────────────────────────────
+    // ── Aggregate metrics ──────────────────────────────────────────────────────
     let rowsProcessed         = 0;
     let rowsSucceeded         = 0;
     let rowsFailed            = 0;
@@ -401,10 +353,10 @@ async function handler(req: ApiReq, res: ApiRes) {
     let rowsSkippedDuplicates = 0;
     let rowsSkippedBudget     = 0;
     let rowsSkippedCooldown   = 0;
+    const allNonFullPageIds: string[] = [];
 
     for (const result of settled) {
       if (result.status === "rejected") {
-        // Unexpected — processUrl has its own internal catch. Should never reach here.
         rowsFailed += 1;
         Sentry.captureException(result.reason);
         continue;
@@ -417,12 +369,12 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsProcessed         += 1;
       rowsInserted          += r.inserted;
       rowsSkippedDuplicates += r.skippedDuplicates;
+      allNonFullPageIds.push(...r.nonFullPageIds);
       if (r.succeeded) rowsSucceeded += 1;
       if (r.failed)    rowsFailed    += 1;
     }
 
-    // Emit a warning when domain cooldowns materially reduce coverage.
-    // This indicates a CDN blocking pattern that warrants investigation.
+    // ── Domain cooldown warning ────────────────────────────────────────────────
     if (rowsSkippedCooldown > 0) {
       const cooledDomains = [...domainFailureCounts.entries()]
         .filter(([, count]) => count >= DOMAIN_COOLDOWN_THRESHOLD)
@@ -431,6 +383,62 @@ async function handler(req: ApiReq, res: ApiRes) {
         level: "warning",
         extra: { rowsSkippedCooldown, cooledDomains },
       });
+    }
+
+    // ── Auto-deactivation: consecutive bad-quality pages ──────────────────────
+    // After CONSECUTIVE_BAD_THRESHOLD consecutive non-full fetches, deactivate the
+    // page. Stops wasting crawl budget on JS-rendered SPAs or bot-walled domains
+    // that will never yield extractable content. Non-fatal — must not block output.
+    let pagesAutoDeactivated = 0;
+    if (allNonFullPageIds.length > 0) {
+      try {
+        const uniqueNonFullIds = [...new Set(allNonFullPageIds)];
+
+        const { data: recentQuality } = await supabase
+          .from("snapshots")
+          .select("monitored_page_id, fetch_quality")
+          .in("monitored_page_id", uniqueNonFullIds)
+          .order("fetched_at", { ascending: false })
+          .limit(uniqueNonFullIds.length * CONSECUTIVE_BAD_THRESHOLD);
+
+        // Group qualities per page (DESC order — first = most recent).
+        const qualityByPage = new Map<string, string[]>();
+        for (const row of (recentQuality ?? []) as unknown as { monitored_page_id: string; fetch_quality: string }[]) {
+          const arr = qualityByPage.get(row.monitored_page_id) ?? [];
+          arr.push(row.fetch_quality);
+          qualityByPage.set(row.monitored_page_id, arr);
+        }
+
+        for (const pageId of uniqueNonFullIds) {
+          const qualities = qualityByPage.get(pageId) ?? [];
+          if (qualities.length < CONSECUTIVE_BAD_THRESHOLD) continue;
+          const lastN = qualities.slice(0, CONSECUTIVE_BAD_THRESHOLD);
+          if (!lastN.every((q) => q !== "full")) continue;
+
+          const { error: deactivateError } = await supabase
+            .from("monitored_pages")
+            .update({ active: false })
+            .eq("id", pageId)
+            .eq("active", true); // guard: only update if still active
+
+          if (deactivateError) {
+            Sentry.captureException(deactivateError);
+          } else {
+            pagesAutoDeactivated += 1;
+            Sentry.captureMessage("page_auto_deactivated", {
+              level: "warning",
+              extra: {
+                monitored_page_id: pageId,
+                consecutive_non_full: CONSECUTIVE_BAD_THRESHOLD,
+                last_qualities: lastN,
+              },
+            });
+          }
+        }
+      } catch (deactivateError) {
+        // Non-fatal — deactivation must never block pipeline output.
+        Sentry.captureException(deactivateError);
+      }
     }
 
     const runtimeDurationMs = Date.now() - startedAt;
@@ -447,6 +455,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsSkippedDuplicates,
       rowsSkippedBudget,
       rowsSkippedCooldown,
+      pagesAutoDeactivated,
       runtimeDurationMs,
     });
 
@@ -465,6 +474,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsSkippedDuplicates,
       rowsSkippedBudget,
       rowsSkippedCooldown,
+      pagesAutoDeactivated,
       runtimeDurationMs,
     });
 
