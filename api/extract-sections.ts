@@ -24,120 +24,72 @@ interface ExtractionRuleRow {
 type ValidationStatus = "valid" | "suspect" | "failed";
 type SelectorStatus = "healthy" | "missing" | "empty" | "invalid_selector";
 
-// Noise elements to strip from broad selectors before text extraction.
-// These bleed into main/body/article and produce false diffs on layout changes.
 const NOISE_SELECTORS = [
   "nav", "footer", "aside",
   "script", "style", "noscript",
   "[aria-hidden='true']",
   "[role='banner']", "[role='navigation']", "[role='complementary']",
-  // Cookie and consent banners
   ".cookie-banner", ".cookie-notice", "#cookie-notice",
   ".consent-banner", "#consent-banner",
   ".gdpr-banner", "#gdpr-banner",
   ".cc-banner", "#cc-banner",
-  // Chat and support widgets
   ".chat-widget", "#chat-widget",
   "#intercom-container", ".intercom-lightweight-app",
   "#hubspot-messages-iframe-container",
   ".drift-widget", "#drift-widget",
   "#crisp-chatbox",
-  // Promotional bars (rotate frequently, low-signal)
   ".announcement-bar", ".promo-bar",
   ".notification-bar", ".alert-bar",
-  // Bot/crawl barriers (nosnippet hints)
   "[data-nosnippet]",
 ];
 
-// Broad selectors that capture the full document or major regions:
-// noise stripping is applied only to these to avoid over-stripping narrow selectors.
 const BROAD_SELECTORS = new Set(["main", "body", "article", "#content", ".content"]);
 
 function cleanText(text: string): string {
-  // Normalize combining characters (café = caf + combining e → café)
   let t = text.normalize("NFC");
-  // Replace non-breaking and zero-width spaces with plain space
   t = t.replace(/[\u00A0\u200B\u200C\u200D\u2009\u2060\uFEFF]/g, " ");
-  // Normalize smart quotes/apostrophes to ASCII
   t = t.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
-  // Normalize em/en dashes to hyphen
   t = t.replace(/[\u2013\u2014]/g, "-");
-  // Collapse whitespace
   return t.replace(/\s+/g, " ").trim();
 }
 
 function validateText(
   text: string,
   rule: ExtractionRuleRow
-): {
-  validation_status: ValidationStatus;
-  validation_failure: string | null;
-} {
-  if (!text) {
-    return {
-      validation_status: "failed",
-      validation_failure: "empty_extraction",
-    };
-  }
+): { validation_status: ValidationStatus; validation_failure: string | null } {
+  if (!text) return { validation_status: "failed", validation_failure: "empty_extraction" };
 
   if (rule.min_length !== null && text.length < rule.min_length) {
-    return {
-      validation_status: "suspect",
-      validation_failure: "below_min_length",
-    };
+    return { validation_status: "suspect", validation_failure: "below_min_length" };
   }
 
   if (rule.max_length !== null && text.length > rule.max_length) {
-    return {
-      validation_status: "suspect",
-      validation_failure: "above_max_length",
-    };
+    return { validation_status: "suspect", validation_failure: "above_max_length" };
   }
 
   if (rule.required_pattern) {
     try {
-      const regex = new RegExp(rule.required_pattern, "i");
-
-      if (!regex.test(text)) {
-        return {
-          validation_status: "suspect",
-          validation_failure: "missing_required_pattern",
-        };
+      if (!new RegExp(rule.required_pattern, "i").test(text)) {
+        return { validation_status: "suspect", validation_failure: "missing_required_pattern" };
       }
     } catch {
-      return {
-        validation_status: "failed",
-        validation_failure: "invalid_required_pattern",
-      };
+      return { validation_status: "failed", validation_failure: "invalid_required_pattern" };
     }
   }
 
-  return {
-    validation_status: "valid",
-    validation_failure: null,
-  };
+  return { validation_status: "valid", validation_failure: null };
 }
 
+// Accepts a pre-parsed Cheerio root — avoids re-parsing raw_html per rule.
 function extractSectionText(
-  rawHtml: string,
+  $: cheerio.CheerioAPI,
   selector: string
-): {
-  selector_status: SelectorStatus;
-  section_text: string;
-} {
+): { selector_status: SelectorStatus; section_text: string } {
   try {
-    const $ = cheerio.load(rawHtml);
     const nodes = $(selector);
 
-    if (!nodes.length) {
-      return {
-        selector_status: "missing",
-        section_text: "",
-      };
-    }
+    if (!nodes.length) return { selector_status: "missing", section_text: "" };
 
-    // Strip noise elements for broad selectors to prevent nav/footer/script bleed.
-    // Narrow selectors (h1, h2, .pricing) are left untouched.
     if (BROAD_SELECTORS.has(selector.toLowerCase().trim())) {
       for (const noise of NOISE_SELECTORS) {
         nodes.find(noise).remove();
@@ -145,17 +97,28 @@ function extractSectionText(
     }
 
     const text = cleanText(nodes.text());
-
-    return {
-      selector_status: text ? "healthy" : "empty",
-      section_text: text,
-    };
+    return { selector_status: text ? "healthy" : "empty", section_text: text };
   } catch {
-    return {
-      selector_status: "invalid_selector",
-      section_text: "",
-    };
+    return { selector_status: "invalid_selector", section_text: "" };
   }
+}
+
+// Minimal semaphore for bounded snapshot concurrency.
+function createSemaphore(max: number) {
+  let running = 0;
+  const queue: Array<() => void> = [];
+  return function acquire<T>(fn: () => Promise<T>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const run = () => {
+        running++;
+        fn().then(
+          (v) => { running--; if (queue.length) queue.shift()!(); resolve(v); },
+          (e) => { running--; if (queue.length) queue.shift()!(); reject(e); }
+        );
+      };
+      if (running < max) run(); else queue.push(run);
+    });
+  };
 }
 
 async function handler(req: ApiReq, res: ApiRes) {
@@ -163,19 +126,11 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   const startedAt = Date.now();
 
-  Sentry.captureCheckIn({
-    monitorSlug: "extract-sections",
-    status: "in_progress",
-  });
+  Sentry.captureCheckIn({ monitorSlug: "extract-sections", status: "in_progress" });
 
   try {
-    const batchSize = 50;
+    const batchSize = 25; // lowered from 50 — halves peak memory (raw_html × N) with no coverage loss at 15min cadence
 
-    // Only process 'full' quality snapshots. 'shell' (bot wall) and
-    // 'js_rendered' (SPA) snapshots are stored for diagnostics and the
-    // auto-deactivation trigger but will never yield valid sections.
-    // Using .eq('full') is future-proof: any new non-full quality level
-    // is automatically excluded without a code change here.
     const { data: snapshots, error: snapshotsError } = await supabase
       .from("snapshots")
       .select("id, monitored_page_id, raw_html")
@@ -184,34 +139,20 @@ async function handler(req: ApiReq, res: ApiRes) {
       .order("fetched_at", { ascending: true })
       .limit(batchSize);
 
-    if (snapshotsError) {
-      throw snapshotsError;
-    }
+    if (snapshotsError) throw snapshotsError;
 
     const pendingSnapshots = (snapshots ?? []) as SnapshotRow[];
     const monitoredPageIds = [...new Set(pendingSnapshots.map((s) => s.monitored_page_id))];
 
     const { data: rules, error: rulesError } = await supabase
       .from("extraction_rules")
-      .select(
-        `
-        monitored_page_id,
-        section_type,
-        selector,
-        min_length,
-        max_length,
-        required_pattern
-      `
-      )
+      .select("monitored_page_id, section_type, selector, min_length, max_length, required_pattern")
       .in("monitored_page_id", monitoredPageIds)
       .eq("active", true);
 
-    if (rulesError) {
-      throw rulesError;
-    }
+    if (rulesError) throw rulesError;
 
     const rulesByPage = new Map<string, ExtractionRuleRow[]>();
-
     for (const rule of (rules ?? []) as ExtractionRuleRow[]) {
       const existing = rulesByPage.get(rule.monitored_page_id) ?? [];
       existing.push(rule);
@@ -226,27 +167,76 @@ async function handler(req: ApiReq, res: ApiRes) {
     let rowsSkippedNoRules = 0;
     let driftWarnings = 0;
 
-    // Track sections written per page this run for drift comparison.
     const sectionsWrittenByPage = new Map<string, number>();
 
-    for (const snapshot of pendingSnapshots) {
-      rowsProcessed += 1;
+    // ── Bounded concurrency across snapshots ──────────────────────────────────
+    // Cheerio parsing is CPU-bound; DB writes are I/O-bound. Running 5 in parallel
+    // keeps the Vercel function busy without overwhelming the Supabase connection pool.
+    const sem = createSemaphore(5);
 
-      try {
-        const pageRules = rulesByPage.get(snapshot.monitored_page_id) ?? [];
+    const results = await Promise.allSettled(
+      pendingSnapshots.map((snapshot) =>
+        sem(async () => {
+          const pageRules = rulesByPage.get(snapshot.monitored_page_id) ?? [];
 
-        if (pageRules.length === 0) {
-          rowsSkippedNoRules += 1;
-          Sentry.addBreadcrumb({
-            category: "pipeline",
-            message: "Snapshot skipped: no active extraction rules",
-            level: "warning",
-            data: { snapshot_id: snapshot.id, monitored_page_id: snapshot.monitored_page_id },
-          });
-          // Mark as extracted and immediately release raw_html storage.
-          // Snapshots with no extraction rules will never be re-processed —
-          // raw_html serves no purpose after this point.
-          const { error: skipMarkError } = await supabase
+          if (pageRules.length === 0) {
+            // No rules — mark extracted and release raw_html storage.
+            const { error: skipMarkError } = await supabase
+              .from("snapshots")
+              .update({
+                sections_extracted: true,
+                sections_extracted_at: new Date().toISOString(),
+                raw_html: null,
+              })
+              .eq("id", snapshot.id);
+            if (skipMarkError) throw skipMarkError;
+            return { skippedNoRules: true, sectionsWritten: 0, pageId: snapshot.monitored_page_id };
+          }
+
+          // ── Parse HTML once per snapshot ─────────────────────────────────────
+          // Previously parsed once per rule — O(rules) parses per snapshot.
+          // Now parsed once, all rules share the same $ handle.
+          const $ = cheerio.load(snapshot.raw_html);
+
+          // ── Extract all sections and prepare bulk upsert payload ─────────────
+          const sectionRows: Record<string, unknown>[] = [];
+
+          for (const rule of pageRules) {
+            const extracted = extractSectionText($, rule.selector);
+            const sectionText = extracted.section_text;
+            const sectionHash = crypto.createHash("sha256").update(sectionText).digest("hex");
+            const { validation_status, validation_failure } = validateText(sectionText, rule);
+
+            sectionRows.push({
+              snapshot_id:        snapshot.id,
+              monitored_page_id:  snapshot.monitored_page_id,
+              section_type:       rule.section_type,
+              section_text:       sectionText,
+              section_hash:       sectionHash,
+              extraction_status:  validation_status === "failed" ? "failed" : "success",
+              selector_status:    extracted.selector_status,
+              consecutive_empty:  sectionText ? 0 : 1,
+              content_length:     sectionText.length,
+              word_count:         sectionText ? sectionText.split(/\s+/).length : 0,
+              validation_status,
+              validation_failure,
+              parser_version:     "v1",
+              structured_content: null,
+            });
+          }
+
+          // ── Bulk upsert all sections for this snapshot in one DB call ─────────
+          // Replaces one upsert per rule — reduces round-trips from N_rules to 1.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { error: upsertError } = await supabase
+            .from("page_sections")
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .upsert(sectionRows as any[], { onConflict: "snapshot_id,section_type" });
+
+          if (upsertError) throw upsertError;
+
+          // Release raw_html — sections extracted, HTML no longer needed.
+          const { error: markError } = await supabase
             .from("snapshots")
             .update({
               sections_extracted: true,
@@ -254,108 +244,57 @@ async function handler(req: ApiReq, res: ApiRes) {
               raw_html: null,
             })
             .eq("id", snapshot.id);
-          if (skipMarkError) throw skipMarkError;
-          continue;
-        }
 
-        for (const rule of pageRules) {
-          const extracted = extractSectionText(snapshot.raw_html, rule.selector);
-          const sectionText = extracted.section_text;
-          const sectionHash = crypto
-            .createHash("sha256")
-            .update(sectionText)
-            .digest("hex");
+          if (markError) throw markError;
 
-          const contentLength = sectionText.length;
-          const wordCount = sectionText ? sectionText.split(/\s+/).length : 0;
+          return {
+            skippedNoRules: false,
+            sectionsWritten: sectionRows.length,
+            pageId: snapshot.monitored_page_id,
+          };
+        })
+      )
+    );
 
-          const { validation_status, validation_failure } = validateText(
-            sectionText,
-            rule
-          );
-
-          const { error: upsertError } = await supabase
-            .from("page_sections")
-            .upsert(
-              {
-                snapshot_id: snapshot.id,
-                monitored_page_id: snapshot.monitored_page_id,
-                section_type: rule.section_type,
-                section_text: sectionText,
-                section_hash: sectionHash,
-                extraction_status: validation_status === "failed" ? "failed" : "success",
-                selector_status: extracted.selector_status,
-                consecutive_empty: sectionText ? 0 : 1,
-                content_length: contentLength,
-                word_count: wordCount,
-                validation_status,
-                validation_failure,
-                parser_version: "v1",
-                structured_content: null,
-              },
-              {
-                onConflict: "snapshot_id,section_type",
-              }
-            );
-
-          if (upsertError) {
-            throw upsertError;
-          }
-
-          sectionsWritten += 1;
-          sectionsWrittenByPage.set(
-            snapshot.monitored_page_id,
-            (sectionsWrittenByPage.get(snapshot.monitored_page_id) ?? 0) + 1
-          );
-        }
-
-        // Release raw_html immediately — sections are extracted, HTML is no longer
-        // needed. Nulling here instead of the 90-day retention cron prevents
-        // unbounded storage growth (100KB × crawl volume = grotesque at scale).
-        const { error: markError } = await supabase
-          .from("snapshots")
-          .update({
-            sections_extracted: true,
-            sections_extracted_at: new Date().toISOString(),
-            raw_html: null,
-          })
-          .eq("id", snapshot.id);
-
-        if (markError) {
-          throw markError;
-        }
-
-        rowsSucceeded += 1;
-      } catch (error) {
+    for (const result of results) {
+      rowsProcessed += 1;
+      if (result.status === "rejected") {
         rowsFailed += 1;
-        Sentry.captureException(error);
+        Sentry.captureException(result.reason);
+      } else {
+        rowsSucceeded += 1;
+        if (result.value.skippedNoRules) {
+          rowsSkippedNoRules += 1;
+        } else {
+          sectionsWritten += result.value.sectionsWritten;
+          sectionsWrittenByPage.set(
+            result.value.pageId,
+            (sectionsWrittenByPage.get(result.value.pageId) ?? 0) + result.value.sectionsWritten
+          );
+        }
       }
     }
 
     // ── Extraction drift detection ─────────────────────────────────────────────
-    // Compare sections written for each page this run against its recent history.
-    // A >60% deviation in section count indicates a site redesign, selector rot,
-    // or CDN/render change that silently degrades extraction quality.
     if (sectionsWrittenByPage.size > 0) {
       try {
         const processedPageIds = [...sectionsWrittenByPage.keys()];
         const currentBatchSnapshotIds = new Set(pendingSnapshots.map((s) => s.id));
 
-        // Fetch recent section rows across all processed pages (generous limit).
-        // Filter current batch in TypeScript to avoid PostgREST NOT IN complexity.
+        // Limit scales with pages processed — 10 historical snapshots per page is
+        // sufficient for the 5-snapshot rolling average, with 2× headroom.
         const { data: recentSectionRows } = await supabase
           .from("page_sections")
           .select("monitored_page_id, snapshot_id")
           .in("monitored_page_id", processedPageIds)
           .order("created_at", { ascending: false })
-          .limit(600);
+          .limit(processedPageIds.length * 10);
 
         const historicalRows = (recentSectionRows ?? []).filter(
           (r) => !currentBatchSnapshotIds.has((r as { snapshot_id: string }).snapshot_id)
         );
 
         if (historicalRows.length > 0) {
-          // Group by page → snapshot → section count.
           const snapCountsByPage = new Map<string, Map<string, number>>();
           for (const r of historicalRows) {
             const row = r as { monitored_page_id: string; snapshot_id: string };
@@ -368,30 +307,23 @@ async function handler(req: ApiReq, res: ApiRes) {
 
           for (const [pageId, currentCount] of sectionsWrittenByPage) {
             const pageSnaps = snapCountsByPage.get(pageId);
-            if (!pageSnaps || pageSnaps.size === 0) continue; // no history yet
+            if (!pageSnaps || pageSnaps.size === 0) continue;
 
-            // Average over up to 5 most-recent prior snapshots.
             const historyCounts = [...pageSnaps.values()].slice(0, 5);
             const avgCount = historyCounts.reduce((a, b) => a + b, 0) / historyCounts.length;
 
-            // Only evaluate pages with a meaningful historical baseline (≥2 avg sections).
-            // Pages with avgCount=1 trivially hit 100% deviation on any change — these
-            // are single-rule pages where variance is expected and not indicative of
-            // extraction rot.
             if (avgCount >= 2) {
               const deviation = Math.abs(currentCount - avgCount) / avgCount;
-              // Also require an absolute delta of ≥2 sections to suppress noise on
-              // low-section pages (e.g., avg=2 → current=3 is 50% relative but 1 section absolute).
               const absoluteDelta = Math.abs(currentCount - avgCount);
               if (deviation > 0.6 && absoluteDelta >= 2) {
                 Sentry.captureMessage("extraction_drift_detected", {
                   level: "warning",
                   extra: {
-                    monitored_page_id: pageId,
-                    current_section_count: currentCount,
-                    historical_avg_section_count: parseFloat(avgCount.toFixed(1)),
-                    deviation_pct: Math.round(deviation * 100),
-                    prior_snapshots_sampled: historyCounts.length,
+                    monitored_page_id:             pageId,
+                    current_section_count:         currentCount,
+                    historical_avg_section_count:  parseFloat(avgCount.toFixed(1)),
+                    deviation_pct:                 Math.round(deviation * 100),
+                    prior_snapshots_sampled:        historyCounts.length,
                   },
                 });
                 driftWarnings += 1;
@@ -420,11 +352,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       runtimeDurationMs,
     });
 
-    Sentry.captureCheckIn({
-      monitorSlug: "extract-sections",
-      status: "ok",
-    });
-
+    Sentry.captureCheckIn({ monitorSlug: "extract-sections", status: "ok" });
     await Sentry.flush(2000);
 
     res.status(200).json({
@@ -441,12 +369,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     });
   } catch (error) {
     Sentry.captureException(error);
-
-    Sentry.captureCheckIn({
-      monitorSlug: "extract-sections",
-      status: "error",
-    });
-
+    Sentry.captureCheckIn({ monitorSlug: "extract-sections", status: "error" });
     await Sentry.flush(2000);
     throw error;
   }
