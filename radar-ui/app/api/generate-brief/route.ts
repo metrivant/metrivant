@@ -2,7 +2,17 @@ import { NextResponse } from "next/server";
 import { generateBrief, buildBriefEmailHtml, type BriefContent } from "../../../lib/brief";
 import { sendEmail, FROM_BRIEFS } from "../../../lib/email";
 import { createServiceClient } from "../../../lib/supabase/service";
-import { captureException, captureCheckIn } from "../../../lib/sentry";
+import { captureException } from "../../../lib/sentry";
+
+// captureCheckIn is server-only in @sentry/nextjs and must not live in lib/sentry.ts
+// (which is also client-bundled via app/app/error.tsx). API routes are server-only, so
+// the direct SDK import here is safe from Turbopack's client-bundle static analysis.
+function captureCheckIn(status: "in_progress" | "ok" | "error"): void {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (require("@sentry/nextjs") as any).captureCheckIn?.({ monitorSlug: "generate-brief", status });
+  } catch { /* non-fatal */ }
+}
 import { writeCronHeartbeat } from "../../../lib/cronHeartbeat";
 
 // ── Artifact types ─────────────────────────────────────────────────────────────
@@ -131,14 +141,14 @@ function buildArtifactPrompt(
 async function runGeneration(): Promise<NextResponse> {
   const openaiKey = process.env.OPENAI_API_KEY;
   if (!openaiKey) {
-    captureCheckIn({ monitorSlug: "generate-brief", status: "error" });
+    captureCheckIn("error");
     return NextResponse.json(
       { error: "OPENAI_API_KEY not configured" },
       { status: 500 }
     );
   }
 
-  captureCheckIn({ monitorSlug: "generate-brief", status: "in_progress" });
+  captureCheckIn("in_progress");
 
   const runStart  = Date.now();
   const siteUrl   = process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
@@ -155,7 +165,7 @@ async function runGeneration(): Promise<NextResponse> {
 
   if (orgsError) {
     captureException(orgsError, { route: "generate-brief", step: "fetch_orgs" });
-    captureCheckIn({ monitorSlug: "generate-brief", status: "error" });
+    captureCheckIn("error");
     return NextResponse.json({ error: "Failed to fetch organizations" }, { status: 500 });
   }
 
@@ -371,7 +381,7 @@ async function runGeneration(): Promise<NextResponse> {
   }
 
   await writeCronHeartbeat(supabase, "/api/generate-brief", "ok", Date.now() - runStart, emailsSent);
-  captureCheckIn({ monitorSlug: "generate-brief", status: "ok" });
+  captureCheckIn("ok");
 
   return NextResponse.json({
     ok:               true,

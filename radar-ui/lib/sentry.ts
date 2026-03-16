@@ -36,19 +36,6 @@ export function captureException(
   }
 }
 
-/** Capture a cron monitor check-in. Fire-and-forget. */
-export function captureCheckIn(
-  options: { monitorSlug: string; status: "in_progress" | "ok" | "error" }
-): void {
-  try {
-    init();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    SentrySDK.captureCheckIn(options as any);
-  } catch {
-    // Never let Sentry errors surface to callers.
-  }
-}
-
 /**
  * Capture a non-exception message (e.g. unexpected empty state, config warning).
  * level defaults to "warning". Fire-and-forget.
