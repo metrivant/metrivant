@@ -81,10 +81,10 @@ export default function ActivityTimeline({
       .gte("detected_at", since30d)
       .order("detected_at", { ascending: false })
       .limit(15)
-      .then(({ data }) => {
-        setAmbientEvents((data ?? []) as ActivityEvent[]);
-      })
-      .catch(() => { /* non-fatal — ambient events are supplemental */ });
+      .then(
+        ({ data }) => { setAmbientEvents((data ?? []) as ActivityEvent[]); },
+        () => { /* non-fatal — ambient events are supplemental */ }
+      );
 
     return () => { setAmbientEvents([]); };
   }, [competitorId]);
