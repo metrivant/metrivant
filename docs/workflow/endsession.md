@@ -125,6 +125,22 @@ Use this order for diagnose sessions. Stop at the level that answers the questio
 Never read source files before checking health + pipeline_events first.
 Never use specific column names in REST queries before doing `limit=1&select=*` to learn the schema.
 
+**Bulk delete order for non-CASCADE tables (competitor cleanup):**
+```
+1. signal_feedback          (references signals)
+2. interpretations          (references signals)
+3. signals                  (references section_diffs)
+4. section_diffs            (references page_sections)
+5. page_sections            (references snapshots)
+6. section_baselines        (references monitored_pages)
+7. snapshots                (references monitored_pages)
+8. monitored_pages          (references competitors)
+9. strategic_movements      (references competitors — no CASCADE)
+10. tracked_competitors     (references competitors)
+11. competitors             (root row)
+```
+Batch ≤50 IDs per REST call to avoid Supabase 8-second statement timeout (error 57014).
+
 ---
 
 ## TOKEN EFFICIENCY RULES
@@ -153,6 +169,20 @@ Never use specific column names in REST queries before doing `limit=1&select=*` 
 
 - `challenge_page` snapshot failures are normal — anti-bot walls on some competitor pages.
 
+- Pool 1 `competitor_feeds` rows with `discovery_status = feed_unavailable` and `feed_url = null` are NOT a
+  code bug — auto-discovery found no RSS feeds. Pool 1 is dormant until RSS URLs are manually supplied.
+
+- `pipeline_events` stage names are short codes, NOT endpoint names:
+  `snapshot` | `extract` | `compare` | `diff` — use these in SQL queries, not full endpoint paths.
+
+- The runtime pipeline processes ALL competitors unconditionally — `tracked_competitors` is a radar-ui
+  overlay only. Ghost competitors with no org tracking still run through every cron stage.
+
+- Core pipeline tables (competitors, monitored_pages, snapshots, page_sections, section_baselines,
+  section_diffs, signals) were created directly in Supabase before migrations. Migration 013 ran
+  `CREATE TABLE IF NOT EXISTS` and skipped them — so these original tables lack ON DELETE CASCADE FKs.
+  Deleting a competitor requires manually deleting child rows in dependency order first.
+
 ---
 
 ## MODE INFERENCE RULE
@@ -176,3 +206,7 @@ State the inferred mode at the start of the session. Stop and ask only if genuin
 - Report findings before proposing fixes. In diagnose mode, findings first, fix proposal second.
 - When a fix is approved: state the plan (1–3 lines), list the file(s), implement, type-check, commit, push.
 - Do not summarise what was done after a commit — the diff speaks for itself. Skip trailing summaries.
+- "pipeline audit" = diagnose mode, both surfaces. Proceed stage-by-stage, one stage per turn.
+- "comprehensive report" with open questions = document mode. Generate the report to a file in docs/, commit it. List the open questions to the user at the end — do not guess answers.
+- When Supabase REST returns error 57014 (statement timeout): switch to batched deletes ≤50 rows per call.
+  Never retry the same large delete — it will time out again.
