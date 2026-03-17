@@ -51,6 +51,7 @@ interface CompetitorRow {
 interface PageRow {
   id: string;
   competitor_id: string;
+  page_class: string;
 }
 
 interface SignalRow {
@@ -84,6 +85,7 @@ interface BootstrapCandidateRow {
   id: string;
   competitor_id: string;
   confidence_score: number;
+  monitored_page_id: string;
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -129,7 +131,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     // ── 2. Load all active monitored pages for these competitors (bulk) ────────
     const { data: pages, error: pagesError } = await supabase
       .from("monitored_pages")
-      .select("id, competitor_id")
+      .select("id, competitor_id, page_class")
       .in("competitor_id", competitorIds)
       .eq("active", true);
 
@@ -142,6 +144,12 @@ async function handler(req: ApiReq, res: ApiRes) {
     const pageToCompetitor = new Map<string, string>();
     for (const p of pageRows) {
       pageToCompetitor.set(p.id, p.competitor_id);
+    }
+
+    // Map: page_id → page_class for bootstrap candidate preference.
+    const pageClassById = new Map<string, string>();
+    for (const p of pageRows) {
+      pageClassById.set(p.id, p.page_class);
     }
 
     // Map: competitor_id → page_ids[].
@@ -205,7 +213,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: bootstrapRows, error: bootstrapRowsError } = await (supabase as any)
       .from("signals")
-      .select("id, competitor_id, confidence_score")
+      .select("id, competitor_id, confidence_score, monitored_page_id")
       .in("competitor_id", competitorIds)
       .eq("status", "pending_review")
       .gte("confidence_score", BOOTSTRAP_CONFIDENCE_FLOOR)
@@ -213,12 +221,24 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     if (bootstrapRowsError) throw bootstrapRowsError;
 
-    // One candidate per competitor — first occurrence = highest confidence.
-    const bootstrapCandidates = new Map<string, BootstrapCandidateRow>();
+    // One candidate per competitor — prefer high_value page signals, then highest confidence.
+    // A high_value page (pricing, newsroom) pending_review signal at 0.50 is more
+    // strategically meaningful than an ambient page signal at 0.62.
+    const bootstrapByCompetitor = new Map<string, BootstrapCandidateRow[]>();
     for (const row of (bootstrapRows ?? []) as BootstrapCandidateRow[]) {
-      if (!bootstrapCandidates.has(row.competitor_id)) {
-        bootstrapCandidates.set(row.competitor_id, row);
-      }
+      const arr = bootstrapByCompetitor.get(row.competitor_id) ?? [];
+      arr.push(row);
+      bootstrapByCompetitor.set(row.competitor_id, arr);
+    }
+
+    const bootstrapCandidates = new Map<string, BootstrapCandidateRow>();
+    for (const [cid, candidates] of bootstrapByCompetitor) {
+      const highValue = candidates.filter(
+        (c) => pageClassById.get(c.monitored_page_id) === "high_value"
+      );
+      const pool = highValue.length > 0 ? highValue : candidates;
+      const best = pool.reduce((a, b) => b.confidence_score > a.confidence_score ? b : a);
+      bootstrapCandidates.set(cid, best);
     }
 
     // ── 5. Aggregate in-memory per competitor ─────────────────────────────────

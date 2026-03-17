@@ -10,7 +10,7 @@ import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics"
 const FETCH_TIMEOUT_MS          = 6500;
 const GLOBAL_CONCURRENCY        = 8;
 const DOMAIN_CONCURRENCY        = 1;
-const INVOCATION_BUDGET_MS      = 5000;
+const INVOCATION_BUDGET_MS      = 25000;
 const JITTER_MIN_MS             = 100;
 const JITTER_MAX_MS             = 400;
 const DOMAIN_COOLDOWN_THRESHOLD = 2;
@@ -123,6 +123,7 @@ interface UrlResult {
   triggeredCooldown: boolean;
   nonFullPageIds: string[];
   healthStateUpdates: Array<{ pageId: string; healthState: PageHealthState }>;
+  lastFetchedPageIds: string[];
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -240,10 +241,13 @@ async function processUrl(
   const empty: UrlResult = {
     succeeded: false, failed: false, inserted: 0, skippedDuplicates: 0,
     skippedBudget: false, skippedCooldown: false, triggeredCooldown: false,
-    nonFullPageIds: [], healthStateUpdates: [],
+    nonFullPageIds: [], healthStateUpdates: [], lastFetchedPageIds: [],
   };
 
   if (Date.now() - invocationStart > INVOCATION_BUDGET_MS) {
+    for (const page of groupedPages) {
+      void recordEvent({ run_id: runId, stage: "snapshot", status: "skipped", monitored_page_id: page.id, duration_ms: 0, metadata: { skip_reason: "budget_exhausted" } });
+    }
     return { ...empty, skippedBudget: true };
   }
 
@@ -349,12 +353,14 @@ async function processUrl(
   let skippedDuplicates = 0;
   const nonFullPageIds: string[] = [];
   const healthStateUpdates: Array<{ pageId: string; healthState: PageHealthState }> = [];
+  const lastFetchedPageIds: string[] = [];
 
   for (const page of groupedPages) {
     const isDuplicate = latestHashMap.get(page.id) === contentHash;
 
     if (isDuplicate) {
       skippedDuplicates += 1;
+      lastFetchedPageIds.push(page.id);
       // Don't update health_state for unchanged pages — preserve their current state.
       // Exception: if the page is stuck in "unresolved" (e.g. a prior health update was
       // lost), a successful fetch proves it's reachable — heal it now.
@@ -390,13 +396,14 @@ async function processUrl(
     }
 
     inserted += 1;
+    lastFetchedPageIds.push(page.id);
     if (fetchQuality !== "full") nonFullPageIds.push(page.id);
     // Task 1: fetch succeeded → optimistically mark healthy (extraction may downgrade later)
     healthStateUpdates.push({ pageId: page.id, healthState: "healthy" });
     void recordEvent({ run_id: runId, stage: "snapshot", status: "success", monitored_page_id: page.id, duration_ms: elapsed(), metadata: { http_status: 200, content_length: rawHtml.length, fetch_quality: fetchQuality } });
   }
 
-  return { ...empty, succeeded: true, inserted, skippedDuplicates, nonFullPageIds, healthStateUpdates };
+  return { ...empty, succeeded: true, inserted, skippedDuplicates, nonFullPageIds, healthStateUpdates, lastFetchedPageIds };
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -517,6 +524,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     let rowsSkippedCooldown   = 0;
     const allNonFullPageIds: string[] = [];
     const allHealthUpdates: Array<{ pageId: string; healthState: PageHealthState }> = [];
+    const allLastFetchedPageIds: string[] = [];
 
     for (const result of settled) {
       if (result.status === "rejected") {
@@ -534,6 +542,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsSkippedDuplicates += r.skippedDuplicates;
       allNonFullPageIds.push(...r.nonFullPageIds);
       allHealthUpdates.push(...r.healthStateUpdates);
+      allLastFetchedPageIds.push(...r.lastFetchedPageIds);
       if (r.succeeded) rowsSucceeded += 1;
       if (r.failed)    rowsFailed    += 1;
     }
@@ -563,6 +572,24 @@ async function handler(req: ApiReq, res: ApiRes) {
       } catch (hsError) {
         // Non-fatal
         Sentry.captureException(hsError);
+      }
+    }
+
+    // ── Batch update last_fetched_at ──────────────────────────────────────────
+    // Non-fatal. Stamped on every page whose URL was successfully fetched,
+    // regardless of whether content changed, enabling freshness queries without
+    // a full join through snapshots.
+    if (allLastFetchedPageIds.length > 0) {
+      try {
+        const uniqueIds = [...new Set(allLastFetchedPageIds)];
+        const { error: lfError } = await supabase
+          .from("monitored_pages")
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .update({ last_fetched_at: new Date().toISOString() } as any)
+          .in("id", uniqueIds);
+        if (lfError) Sentry.captureException(lfError);
+      } catch (lfError) {
+        Sentry.captureException(lfError);
       }
     }
 

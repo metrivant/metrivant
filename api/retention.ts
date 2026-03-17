@@ -86,8 +86,60 @@ async function handler(req: ApiReq, res: ApiRes) {
     }
   })();
 
+  // ── Tier 6: Expire stale pending_review signals ───────────────────────────
+  // pending_review signals (0.35–0.64 confidence) that never promoted within
+  // STALE_PENDING_REVIEW days are past the competitive moment — delete them.
+  // Signals with operator feedback (signal_feedback rows) are always preserved.
+  const t6 = await (async (): Promise<TierResult> => {
+    try {
+      const cutoff = new Date(
+        Date.now() - RETENTION_DAYS.STALE_PENDING_REVIEW * 24 * 60 * 60 * 1000
+      ).toISOString();
+
+      // Fetch candidate stale signal IDs (batch ≤500 to stay within REST limits).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: staleRows, error: staleError } = await (supabase as any)
+        .from("signals")
+        .select("id")
+        .eq("status", "pending_review")
+        .lt("detected_at", cutoff)
+        .limit(500);
+      if (staleError) throw staleError;
+
+      const staleIds: string[] = (staleRows ?? []).map((r: { id: string }) => r.id);
+      if (staleIds.length === 0) return { affected: 0, error: null };
+
+      // Exclude any with operator feedback — preserve labelled signals indefinitely.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: feedbackRows, error: feedbackError } = await (supabase as any)
+        .from("signal_feedback")
+        .select("signal_id")
+        .in("signal_id", staleIds);
+      if (feedbackError) throw feedbackError;
+
+      const protectedIds = new Set<string>(
+        (feedbackRows ?? []).map((r: { signal_id: string }) => r.signal_id)
+      );
+      const deleteIds = staleIds.filter((id) => !protectedIds.has(id));
+      if (deleteIds.length === 0) return { affected: 0, error: null };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error, count } = await (supabase as any)
+        .from("signals")
+        .delete({ count: "exact" })
+        .in("id", deleteIds);
+      if (error) throw error;
+
+      return { affected: count ?? 0, error: null };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      Sentry.captureException(err, { tags: { retention_tier: "stale_pending_review" } });
+      return { affected: 0, error: msg };
+    }
+  })();
+
   const runtimeDurationMs = Date.now() - startedAt;
-  const anyError = t1.error ?? t2.error ?? t3.error ?? t4.error ?? t5.error ?? null;
+  const anyError = t1.error ?? t2.error ?? t3.error ?? t4.error ?? t5.error ?? t6.error ?? null;
   const overallStatus = anyError ? "partial" : "ok";
 
   // ── Record retention event to pipeline_events ─────────────────────────────
@@ -96,33 +148,37 @@ async function handler(req: ApiReq, res: ApiRes) {
     stage:    "retention",
     status:   anyError ? "failure" : "success",
     metadata: {
-      raw_html_nulled:            t1.affected,
-      sections_deleted:           t2.affected,
-      diffs_deleted:              t3.affected,
-      events_deleted:             t4.affected,
-      media_observations_deleted: t5.affected,
+      raw_html_nulled:               t1.affected,
+      sections_deleted:              t2.affected,
+      diffs_deleted:                 t3.affected,
+      events_deleted:                t4.affected,
+      media_observations_deleted:    t5.affected,
+      stale_pending_review_deleted:  t6.affected,
       tier_errors: {
-        raw_html:           t1.error,
-        sections:           t2.error,
-        diffs:              t3.error,
-        events:             t4.error,
-        media_observations: t5.error,
+        raw_html:            t1.error,
+        sections:            t2.error,
+        diffs:               t3.error,
+        events:              t4.error,
+        media_observations:  t5.error,
+        stale_pending_review: t6.error,
       },
     },
   });
 
   Sentry.setContext("run_metrics", {
-    stage_name:                 "retention",
-    raw_html_nulled:            t1.affected,
-    sections_deleted:           t2.affected,
-    diffs_deleted:              t3.affected,
-    events_deleted:             t4.affected,
-    media_observations_deleted: t5.affected,
-    tier1_error:                t1.error,
-    tier2_error:                t2.error,
-    tier3_error:                t3.error,
-    tier4_error:                t4.error,
-    tier5_error:                t5.error,
+    stage_name:                    "retention",
+    raw_html_nulled:               t1.affected,
+    sections_deleted:              t2.affected,
+    diffs_deleted:                 t3.affected,
+    events_deleted:                t4.affected,
+    media_observations_deleted:    t5.affected,
+    stale_pending_review_deleted:  t6.affected,
+    tier1_error:                   t1.error,
+    tier2_error:                   t2.error,
+    tier3_error:                   t3.error,
+    tier4_error:                   t4.error,
+    tier5_error:                   t5.error,
+    tier6_error:                   t6.error,
     runtimeDurationMs,
   });
 
@@ -138,11 +194,12 @@ async function handler(req: ApiReq, res: ApiRes) {
     job:    "retention",
     status: overallStatus,
     tiers: {
-      raw_html:           t1,
-      sections:           t2,
-      diffs:              t3,
-      events:             t4,
-      media_observations: t5,
+      raw_html:            t1,
+      sections:            t2,
+      diffs:               t3,
+      events:              t4,
+      media_observations:  t5,
+      stale_pending_review: t6,
     },
     retention_days: RETENTION_DAYS,
     runtimeDurationMs,
