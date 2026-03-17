@@ -356,7 +356,7 @@ export default async function Page() {
           className="hidden w-[190px] shrink-0 flex-col overflow-hidden border-r border-[#0e2210] bg-[rgba(0,0,0,0.98)] md:flex xl:w-[240px]"
           aria-label="App navigation"
         >
-          <SidebarNav plan={plan} />
+          <SidebarNav />
         </nav>
 
         {/* ── Radar content area ─────────────────────────────────────────── */}
