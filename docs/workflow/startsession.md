@@ -294,8 +294,11 @@ Batch ≤50 IDs per REST call to avoid Supabase 8-second statement timeout (erro
 
 - Core pipeline tables (competitors, monitored_pages, snapshots, page_sections, section_baselines,
   section_diffs, signals) were created directly in Supabase before migrations. Migration 013 ran
-  `CREATE TABLE IF NOT EXISTS` and skipped them — so these original tables lack ON DELETE CASCADE FKs.
-  Deleting a competitor requires manually deleting child rows in dependency order first.
+  `CREATE TABLE IF NOT EXISTS` and skipped them — so these original tables originally lacked ON DELETE
+  CASCADE FKs. Migration 049 adds CASCADE to the 7 safe relationships. Until 049 is applied, deleting
+  a competitor still requires the manual bulk-delete order in DIAGNOSTIC EFFICIENCY PROTOCOL above.
+  After 049: `DELETE FROM competitors WHERE id = '...'` cascades automatically (except signals,
+  interpretations, signal_feedback — those are intentionally RESTRICT).
 
 - `pending_review` signals on fresh competitors create a bootstrap deadlock: no signals → low pressure →
   no promotion → no signals. Bootstrap fix applied (2026-03-17) in `update-pressure-index.ts`: if a
