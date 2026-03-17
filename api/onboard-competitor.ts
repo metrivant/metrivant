@@ -9,6 +9,7 @@ import { discoverCandidates } from "../lib/url-discovery";
 import { scoreAndRank } from "../lib/url-scorer";
 import { classifyWithLLM } from "../lib/url-classifier";
 import { validateUrl } from "../lib/url-validator";
+import { rejectPageUrl } from "../lib/url-guard";
 import { discoverFeed } from "../lib/feed-discovery";
 import { discoverAts } from "../lib/ats-discovery";
 import { discoverInvestorFeed } from "../lib/investor-feed-discovery";
@@ -91,65 +92,16 @@ function rulesForPage(pageType: string): ExtractionRule[] {
   }
 }
 
-// ── URL content-pattern gate ───────────────────────────────────────────────────
-//
-// Applied after HTTP validation passes, before committing a URL to monitored_pages.
-// Catches egregious misclassifications that return HTTP 200 but are the wrong kind
-// of page: sitemaps, legal pages, single articles, product tools, homepage variants.
-//
-// Returns a rejection reason string, or null if the URL is acceptable.
-// Pure string matching — no extra HTTP calls.
-
-function rejectPageUrl(url: string, category: string): string | null {
-  // File-type URLs (sitemaps, feeds, JSON) — not HTML pages
-  if (/\.(xml|json)(\?.*)?$/i.test(url)) return "file_not_page";
-
-  // Legal/compliance pages
-  if (/\/(privacy|terms|legal|cookie|gdpr|compliance)([-/]|$)/i.test(url)) return "legal_page";
-
-  // Year-in-path → likely a single dated article, not a section index
-  if (/\/\d{4}\//.test(url)) return "single_post";
-
-  // Query-string URLs — dynamic pages are unreliable for change detection
-  if (url.includes("?")) return "query_url";
-
-  // Deep blog paths — 3+ segments usually means a specific article, not an index
-  // e.g. /business/blog/rush-order-tees-affirm — 3 segments → single post
-  // e.g. /business/blog — 2 segments → acceptable index
-  if (category === "blog_or_articles") {
-    try {
-      const pathSegments = new URL(url).pathname.replace(/^\/|\/$/g, "").split("/").filter(Boolean);
-      if (pathSegments.length >= 3) return "likely_single_post";
-    } catch { /* unparseable URL already failed validateUrl */ }
-  }
-
-  // For newsroom/blog: known product-tool path patterns misclassified as content pages
-  if (category === "newsroom" || category === "blog_or_articles") {
-    if (/\/(free-tools|vc-database|investor-database|demo|calculator|tools)(\/|$)/i.test(url)) {
-      return "product_tool";
-    }
-  }
-
-  // For newsroom: locale-only path (e.g. /us/, /uk/, /en/) → homepage variant, not press
-  if (category === "newsroom") {
-    try {
-      const path = new URL(url).pathname.replace(/^\/|\/$/g, "");
-      if (path === "" || /^[a-z]{2}(-[a-z]{2})?$/i.test(path)) return "homepage_variant";
-    } catch { /* ignore */ }
-  }
-
-  return null;
-}
-
 // ── URL discovery and resolution ───────────────────────────────────────────────
 //
 // Flow:
 //   1. Discover candidates from robots.txt + homepage nav/footer
 //   2. Score candidates deterministically per category
 //   3. Refine with LLM if OpenAI key available (best-effort, gpt-4o-mini)
-//   4. Validate top candidate per category with HEAD/GET
-//   5. Apply content-pattern gate (rejectPageUrl)
-//   6. Commit only validated + pattern-clean pages
+//   4. Build a ranked candidate list per category (LLM > scored > template)
+//   5. Validate all candidates in parallel with HEAD/GET
+//   6. Per category: pick first candidate that passes HTTP + content-pattern gate
+//   7. Commit only validated + pattern-clean pages. Empty category > wrong URL.
 //
 // SaaS fallback: if discovery produces no candidate for pricing/changelog/blog,
 // try the conventional template path and validate it too.
@@ -179,9 +131,12 @@ async function resolveMonitoredPages(
     classified = await classifyWithLLM(scored, competitorName, sector, openaiKey).catch(() => null);
   }
 
-  // ── Resolve best URL per category ──────────────────────────────────────────
+  // ── Build ranked candidate list per category ───────────────────────────────
+  // Priority: LLM result (if confident) → top scored candidates → template fallback.
+  // Up to MAX_CANDIDATES per category — tried in order until one passes all gates.
   const CONFIDENCE_THRESHOLD = 0.6;
   const MIN_SCORE            = 3;
+  const MAX_CANDIDATES       = 3;
 
   const categoriesToResolve: Category[] = [
     "newsroom",
@@ -191,80 +146,114 @@ async function resolveMonitoredPages(
   ];
   if (!isEnterprise) categoriesToResolve.push("pricing");
 
-  const categoryUrls = new Map<string, string>();
+  // All categories including changelog (SaaS only)
+  const allCategories: string[] = [
+    ...categoriesToResolve,
+    ...(!isEnterprise ? ["changelog"] : []),
+  ];
+
+  const categoryRankedCandidates = new Map<string, string[]>();
 
   for (const cat of categoriesToResolve) {
-    const llmResult = classified?.[cat];
+    const queue: string[] = [];
 
+    // 1. LLM result — highest confidence source
+    const llmResult = classified?.[cat as Category];
     if (llmResult?.url && llmResult.confidence >= CONFIDENCE_THRESHOLD) {
-      categoryUrls.set(cat, llmResult.url);
-      continue;
+      queue.push(llmResult.url);
     }
 
-    const topScored = scored[cat]?.[0];
-    if (topScored && topScored.score >= MIN_SCORE) {
-      categoryUrls.set(cat, topScored.url);
-      continue;
+    // 2. Scored candidates in rank order
+    for (const candidate of scored[cat as Category] ?? []) {
+      if (queue.length >= MAX_CANDIDATES) break;
+      if (candidate.score >= MIN_SCORE && !queue.includes(candidate.url)) {
+        queue.push(candidate.url);
+      }
     }
 
-    // SaaS template fallback for discoverable categories
+    // 3. Template fallback (SaaS only)
     if (!isEnterprise) {
       const fallbacks: Partial<Record<Category, string>> = {
         pricing:          baseUrl + "/pricing",
         blog_or_articles: baseUrl + "/blog",
       };
-      const fallback = fallbacks[cat];
-      if (fallback) categoryUrls.set(cat, fallback);
+      const fallback = fallbacks[cat as Category];
+      if (fallback && !queue.includes(fallback)) queue.push(fallback);
     }
+
+    if (queue.length > 0) categoryRankedCandidates.set(cat, queue);
   }
 
-  // SaaS-only: changelog is convention-specific — template only, always validated
+  // Changelog is template-only (convention path, always validated)
   if (!isEnterprise) {
-    categoryUrls.set("changelog", baseUrl + "/changelog");
+    categoryRankedCandidates.set("changelog", [baseUrl + "/changelog"]);
   }
 
-  // ── Validate all candidates in parallel ────────────────────────────────────
-  const toValidate = Array.from(categoryUrls.entries());
-  const validations = await Promise.all(
-    toValidate.map(async ([cat, url]) => ({
-      cat,
+  // ── Validate all candidate URLs in parallel ─────────────────────────────────
+  const allCandidateUrls = new Set<string>();
+  for (const urls of categoryRankedCandidates.values()) {
+    for (const url of urls) allCandidateUrls.add(url);
+  }
+
+  const validationResults = await Promise.all(
+    Array.from(allCandidateUrls).map(async (url) => ({
       url,
       result: await validateUrl(url).catch(() => ({ ok: false, status: 0, reason: "error" })),
     }))
   );
+  const validatedUrls = new Map(validationResults.map(({ url, result }) => [url, result]));
 
-  // Track committed URLs to prevent duplicate URL conflicts
+  // ── Commit first valid candidate per category ───────────────────────────────
+  // Iterates ranked list. Empty category is preferred over a wrong URL.
   const committedUrls = new Set<string>([baseUrl]);
 
-  for (const { cat, url, result } of validations) {
-    if (!result.ok) {
-      unresolved.push(cat);
-      continue;
-    }
+  for (const cat of allCategories) {
+    const candidates = categoryRankedCandidates.get(cat) ?? [];
+    let committed = false;
 
-    // Content-pattern gate: reject URLs that returned 200 but are the wrong kind of page
-    const rejection = rejectPageUrl(url, cat);
-    if (rejection) {
-      rejections.push({ cat, url, reason: rejection });
-      unresolved.push(cat);
-      continue;
-    }
+    for (const url of candidates) {
+      const validation = validatedUrls.get(url);
+      if (!validation?.ok) continue;
 
-    // Skip if this URL was already committed under another category
-    const normalizedUrl = url.replace(/\/$/, "");
-    if (committedUrls.has(normalizedUrl)) {
-      unresolved.push(cat);
-      continue;
-    }
-    committedUrls.add(normalizedUrl);
-
-    if (cat === "changelog") {
-      pages.push({ url, page_type: "changelog", page_class: "high_value" });
-    } else {
-      const pageDef = CATEGORY_TO_PAGE[cat as Category];
-      if (pageDef) {
-        pages.push({ url, page_type: pageDef.page_type, page_class: pageDef.page_class });
+      // Content-pattern gate
+      const guardResult = rejectPageUrl(url, cat);
+      if (guardResult.reject) {
+        rejections.push({ cat, url, reason: guardResult.reason });
+        Sentry.addBreadcrumb({
+          category: "onboarding",
+          message:  "url_guard_rejected",
+          level:    "info",
+          data:     { cat, url, reason: guardResult.reason },
+        });
+        continue;
       }
+
+      // Dedup — skip if same URL committed under another category
+      const normalizedUrl = url.replace(/\/$/, "");
+      if (committedUrls.has(normalizedUrl)) continue;
+      committedUrls.add(normalizedUrl);
+
+      if (cat === "changelog") {
+        pages.push({ url, page_type: "changelog", page_class: "high_value" });
+      } else {
+        const pageDef = CATEGORY_TO_PAGE[cat as Category];
+        if (pageDef) pages.push({ url, page_type: pageDef.page_type, page_class: pageDef.page_class });
+      }
+
+      committed = true;
+      break;
+    }
+
+    if (!committed) {
+      if (candidates.length > 0 && !unresolved.includes(cat)) {
+        Sentry.addBreadcrumb({
+          category: "onboarding",
+          message:  "category_no_valid_candidate",
+          level:    "warning",
+          data:     { cat, candidatesAttempted: candidates.length },
+        });
+      }
+      if (!unresolved.includes(cat)) unresolved.push(cat);
     }
   }
 
