@@ -16,6 +16,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { FEATURE_PANELS } from "../lib/feature-panels";
 import type { FeaturePanel, DiagramKey } from "../lib/feature-panels";
 import type { FeatureExpandedContent, FeatureStep } from "../app/api/expand-feature-panel/route";
+import type { DeepContextContent, HistoricalEra } from "../app/api/deep-context-feature/route";
 import { canShowPanel, setPanelOpen, setPanelClosed, randomDelay } from "../lib/panel-coordinator";
 
 // ── Session dedup ─────────────────────────────────────────────────────────────
@@ -553,6 +554,251 @@ function rgb(hex: string): string {
   return `${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)}`;
 }
 
+// ── Tier 3 — Deep Mode sub-components ─────────────────────────────────────────
+
+function DeepSkeleton() {
+  return (
+    <div className="space-y-3 mt-3 px-1">
+      {[88, 100, 72, 92, 80, 96, 65].map((w, i) => (
+        <div key={i} className="h-1.5 rounded-full animate-pulse"
+          style={{ width: `${w}%`, background: "rgba(251,191,36,0.07)" }} />
+      ))}
+    </div>
+  );
+}
+
+function EraRow({ era, index, total }: { era: HistoricalEra; index: number; total: number }) {
+  const isLast = index === total - 1;
+  // Warm amber palette that brightens toward present
+  const opacity = 0.45 + (index / (total - 1)) * 0.55;
+  const color = `rgba(251,191,36,${opacity})`;
+
+  return (
+    <div className="flex items-start gap-3">
+      {/* Timeline spine */}
+      <div className="flex flex-col items-center shrink-0" style={{ width: 18, minHeight: 64 }}>
+        {/* Era dot */}
+        <div
+          className="w-2 h-2 rounded-full mt-0.5 shrink-0"
+          style={{
+            background: color,
+            boxShadow:  `0 0 6px rgba(251,191,36,${opacity * 0.5}), 0 0 0 1px rgba(251,191,36,${opacity * 0.3})`,
+          }}
+        />
+        {/* Connecting line */}
+        {!isLast && (
+          <div
+            className="w-px flex-1 mt-1"
+            style={{ background: "rgba(251,191,36,0.10)" }}
+          />
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="pb-5 min-w-0 flex-1">
+        {/* Era label */}
+        <div
+          className="text-[8.5px] font-bold uppercase tracking-[0.22em] mb-0.5"
+          style={{ color: "rgba(251,191,36,0.45)" }}
+        >
+          {era.era}
+        </div>
+        {/* Title */}
+        <div
+          className="text-[11px] font-semibold leading-snug mb-1"
+          style={{ color }}
+        >
+          {era.title}
+        </div>
+        {/* Story */}
+        <p
+          className="text-[10.5px] leading-relaxed mb-1.5"
+          style={{ color: "rgba(255,255,255,0.38)" }}
+        >
+          {era.story}
+        </p>
+        {/* Signal badge */}
+        <div
+          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded"
+          style={{
+            background:    "rgba(251,191,36,0.06)",
+            border:        "1px solid rgba(251,191,36,0.15)",
+          }}
+        >
+          <span style={{ color: "rgba(251,191,36,0.55)", fontSize: 8 }}>◆</span>
+          <span
+            className="text-[9px] font-mono"
+            style={{ color: "rgba(251,191,36,0.55)" }}
+          >
+            {era.signal}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeepModeView({
+  panel,
+  content,
+  loading,
+  error,
+  onBack,
+}: {
+  panel: FeaturePanel;
+  content: DeepContextContent | null;
+  loading: boolean;
+  error: boolean;
+  onBack: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 4 }}
+      transition={{ duration: 0.26 }}
+      className="flex flex-col"
+      style={{ minHeight: 0, flex: 1 }}
+    >
+      {/* Deep mode header */}
+      <div
+        className="px-4 pt-3 pb-2 flex items-center justify-between"
+        style={{
+          borderBottom: "1px solid rgba(251,191,36,0.08)",
+          flexShrink:   0,
+        }}
+      >
+        <div className="flex items-center gap-2">
+          {/* Compass icon */}
+          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
+            <circle cx="5" cy="5" r="4.5" fill="none" stroke="rgba(251,191,36,0.35)" strokeWidth="0.8" />
+            <polygon points="5,1 5.7,4.3 5,5" fill="rgba(251,191,36,0.7)" />
+            <polygon points="5,9 4.3,5.7 5,5" fill="rgba(251,191,36,0.25)" />
+          </svg>
+          <span
+            className="text-[8.5px] font-bold uppercase tracking-[0.28em]"
+            style={{ color: "rgba(251,191,36,0.45)" }}
+          >
+            Historical Context
+          </span>
+        </div>
+        <button
+          onClick={onBack}
+          className="text-[9px] transition-colors"
+          style={{ color: "rgba(255,255,255,0.25)", cursor: "pointer" }}
+        >
+          ← Feature
+        </button>
+      </div>
+
+      {/* Cartographic grid texture — subtle */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(251,191,36,0.025) 1px, transparent 1px), " +
+            "linear-gradient(90deg, rgba(251,191,36,0.025) 1px, transparent 1px)",
+          backgroundSize: "24px 24px",
+          borderRadius:   14,
+        }}
+      />
+
+      {/* Scrollable body */}
+      <div
+        className="px-4 pt-3 pb-4 relative z-10"
+        style={{ overflowY: "auto", overflowX: "hidden", flexShrink: 1, minHeight: 0 }}
+      >
+        {loading && <DeepSkeleton />}
+
+        {error && (
+          <p className="text-[10px] text-slate-700 italic mt-2">
+            Could not load historical context.
+          </p>
+        )}
+
+        {content && (
+          <div>
+            {/* Hook */}
+            <p
+              className="text-[12px] font-medium leading-relaxed mb-5 italic"
+              style={{ color: "rgba(251,191,36,0.65)" }}
+            >
+              {content.hook}
+            </p>
+
+            {/* Historical thread */}
+            <div>
+              {content.historical_thread.map((era, i) => (
+                <EraRow
+                  key={i}
+                  era={era}
+                  index={i}
+                  total={content.historical_thread.length}
+                />
+              ))}
+            </div>
+
+            {/* Pattern — the connecting thread */}
+            <div
+              className="rounded-lg p-3 mb-3 mt-1"
+              style={{
+                background:    "rgba(251,191,36,0.04)",
+                border:        "1px solid rgba(251,191,36,0.12)",
+              }}
+            >
+              <div
+                className="text-[8px] font-bold uppercase tracking-[0.26em] mb-1"
+                style={{ color: "rgba(251,191,36,0.38)" }}
+              >
+                The Pattern
+              </div>
+              <p
+                className="text-[10.5px] leading-relaxed"
+                style={{ color: "rgba(255,255,255,0.48)" }}
+              >
+                {content.pattern}
+              </p>
+            </div>
+
+            {/* Metrivant connection — bridges history to now */}
+            <div
+              className="rounded-lg p-3"
+              style={{
+                background:    `rgba(${rgb(panel.accent)},0.06)`,
+                border:        `1px solid rgba(${rgb(panel.accent)},0.18)`,
+              }}
+            >
+              <div
+                className="text-[8px] font-bold uppercase tracking-[0.26em] mb-1"
+                style={{ color: panel.accent }}
+              >
+                Today · Metrivant
+              </div>
+              <p
+                className="text-[10.5px] leading-relaxed"
+                style={{ color: `rgba(${rgb(panel.accent)},0.72)` }}
+              >
+                {content.metrivant_connection}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Back button */}
+        <div className="mt-4 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          <button
+            onClick={onBack}
+            className="text-[10px] transition-colors"
+            style={{ color: "rgba(255,255,255,0.22)", cursor: "pointer" }}
+          >
+            ← Back to feature
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function FeatureDiscoveryPanel() {
@@ -562,6 +808,10 @@ export default function FeatureDiscoveryPanel() {
   const [loading,     setLoading]     = useState(false);
   const [expandError, setExpandError] = useState(false);
   const [ready,       setReady]       = useState(false);
+  const [deepMode,    setDeepMode]    = useState(false);
+  const [deepContent, setDeepContent] = useState<DeepContextContent | null>(null);
+  const [deepLoading, setDeepLoading] = useState(false);
+  const [deepError,   setDeepError]   = useState(false);
 
   useEffect(() => { setReady(true); }, []);
 
@@ -592,8 +842,36 @@ export default function FeatureDiscoveryPanel() {
     setExpanded(false);
     setContent(null);
     setExpandError(false);
+    setDeepMode(false);
+    setDeepContent(null);
+    setDeepError(false);
     scheduleNext();
   }, [scheduleNext]);
+
+  const handleDeepMode = useCallback(async () => {
+    if (!panel) return;
+    setDeepMode(true);
+    if (deepContent) return;
+    setDeepLoading(true);
+    setDeepError(false);
+    try {
+      const res = await fetch("/api/deep-context-feature", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          panelId:     panel.id,
+          featureName: panel.feature_name,
+          prompt:      panel.historical_context_prompt,
+        }),
+      });
+      if (!res.ok) throw new Error("non-ok");
+      setDeepContent(await res.json());
+    } catch {
+      setDeepError(true);
+    } finally {
+      setDeepLoading(false);
+    }
+  }, [panel, deepContent]);
 
   const handleLearnMore = useCallback(async () => {
     if (!panel) return;
@@ -636,14 +914,14 @@ export default function FeatureDiscoveryPanel() {
           position:             "fixed",
           bottom:               28,
           right:                28,
-          width:                expanded ? 500 : 348,
+          width:                deepMode ? 560 : expanded ? 500 : 348,
           maxWidth:             "calc(100vw - 40px)",
-          maxHeight:            expanded ? "calc(100vh - 72px)" : "auto",
+          maxHeight:            (expanded || deepMode) ? "calc(100vh - 72px)" : "auto",
           zIndex:               55,
           cursor:               "grab",
           userSelect:           "none",
           borderRadius:         14,
-          background:           "rgba(4, 8, 12, 0.90)",
+          background:           deepMode ? "rgba(8, 6, 2, 0.92)" : "rgba(4, 8, 12, 0.90)",
           backdropFilter:       "blur(28px)",
           WebkitBackdropFilter: "blur(28px)",
           border:               "1px solid rgba(255,255,255,0.07)",
@@ -653,8 +931,8 @@ export default function FeatureDiscoveryPanel() {
           overflow:             "hidden",
         }}
       >
-        {/* Accent line — slightly different gradient from historical panels to signal different purpose */}
-        <div style={{ height: 2, flexShrink: 0, background: `linear-gradient(90deg, transparent, ${panel.accent}70, transparent)` }} />
+        {/* Accent line — amber in deep mode, accent color otherwise */}
+        <div style={{ height: 2, flexShrink: 0, background: deepMode ? "linear-gradient(90deg, transparent, rgba(251,191,36,0.50), transparent)" : `linear-gradient(90deg, transparent, ${panel.accent}70, transparent)` }} />
 
         {/* "How it works" system label */}
         <div
@@ -697,10 +975,24 @@ export default function FeatureDiscoveryPanel() {
           </button>
         </div>
 
-        {/* Scrollable body */}
+        {/* Deep mode — takes over the body entirely */}
+        <AnimatePresence>
+          {deepMode && (
+            <DeepModeView
+              key="deep"
+              panel={panel}
+              content={deepContent}
+              loading={deepLoading}
+              error={deepError}
+              onBack={() => setDeepMode(false)}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Scrollable body — hidden when deep mode is active */}
         <div
           className="px-4 pb-4"
-          style={{ overflowY: expanded ? "auto" : "visible", overflowX: "hidden", flexShrink: 1, minHeight: 0 }}
+          style={{ overflowY: expanded ? "auto" : "visible", overflowX: "hidden", flexShrink: 1, minHeight: 0, display: deepMode ? "none" : undefined }}
         >
           <h3 className="text-[14px] font-bold leading-snug mb-1" style={{ color: "rgba(255,255,255,0.92)" }}>
             {panel.short_title}
@@ -801,13 +1093,34 @@ export default function FeatureDiscoveryPanel() {
                 Learn More →
               </button>
             ) : (
-              <button
-                onClick={() => setExpanded(false)}
-                className="text-[10px] text-slate-600 hover:text-slate-400 transition-colors"
-                style={{ cursor: "pointer" }}
-              >
-                ↑ Collapse
-              </button>
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setExpanded(false)}
+                  className="text-[10px] text-slate-600 hover:text-slate-400 transition-colors"
+                  style={{ cursor: "pointer" }}
+                >
+                  ↑ Collapse
+                </button>
+                {panel.historical_context_prompt && (
+                  <button
+                    onClick={handleDeepMode}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all duration-200"
+                    style={{
+                      background: "rgba(251,191,36,0.08)",
+                      color:      "rgba(251,191,36,0.70)",
+                      border:     "1px solid rgba(251,191,36,0.18)",
+                      cursor:     "pointer",
+                    }}
+                  >
+                    <svg width="8" height="8" viewBox="0 0 8 8" aria-hidden>
+                      <circle cx="4" cy="4" r="3.5" fill="none" stroke="currentColor" strokeWidth="0.8" />
+                      <polygon points="4,1 4.6,3.4 4,4" fill="currentColor" />
+                      <polygon points="4,7 3.4,4.6 4,4" fill="currentColor" opacity="0.4" />
+                    </svg>
+                    Historical roots
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>
