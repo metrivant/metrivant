@@ -26,6 +26,7 @@ import InitBanner from "../../components/InitBanner";
 import TutorialHint from "../../components/TutorialHint";
 import HistoricalCapsule from "../../components/HistoricalCapsule";
 import FeatureDiscoveryPanel from "../../components/FeatureDiscoveryPanel";
+import RadarRealtimeSync from "../../components/RadarRealtimeSync";
 import { getRadarFeed } from "../../lib/api";
 import { createClient } from "../../lib/supabase/server";
 import { getSubscriptionState } from "../../lib/subscription";
@@ -204,6 +205,9 @@ export default async function Page() {
 
   return (
     <main className="page-enter flex h-dvh w-full flex-col overflow-hidden bg-black text-white">
+
+      {/* ── Realtime sync — invisible, pushes router.refresh() on pipeline events */}
+      {orgId && <RadarRealtimeSync orgId={orgId} />}
 
       {/* ── Atmospheric depth layers ─────────────────────────────────────── */}
       <div
