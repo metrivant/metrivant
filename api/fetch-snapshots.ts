@@ -104,11 +104,13 @@ function detectSoftLoginOrSoft404(html: string, visibleLength: number): boolean 
 interface MonitoredPage {
   id: string;
   url: string;
+  health_state?: string;
 }
 
 interface MonitoredPageRow {
   id: string;
   url: string;
+  health_state?: string;
 }
 
 interface UrlResult {
@@ -354,6 +356,11 @@ async function processUrl(
     if (isDuplicate) {
       skippedDuplicates += 1;
       // Don't update health_state for unchanged pages — preserve their current state.
+      // Exception: if the page is stuck in "unresolved" (e.g. a prior health update was
+      // lost), a successful fetch proves it's reachable — heal it now.
+      if (page.health_state === "unresolved") {
+        healthStateUpdates.push({ pageId: page.id, healthState: "healthy" });
+      }
       void recordEvent({ run_id: runId, stage: "snapshot", status: "skipped", monitored_page_id: page.id, duration_ms: elapsed(), metadata: { http_status: 200, content_length: rawHtml.length } });
       continue;
     }
@@ -417,7 +424,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   try {
     let pageQuery = supabase
       .from("monitored_pages")
-      .select("id, url")
+      .select("id, url, health_state")
       .eq("active", true);
 
     if (pageClass) {
@@ -427,9 +434,10 @@ async function handler(req: ApiReq, res: ApiRes) {
     const { data: monitoredPages, error: monitoredPagesError } = await pageQuery;
     if (monitoredPagesError) throw monitoredPagesError;
 
-    const pages: MonitoredPage[] = ((monitoredPages ?? []) as MonitoredPageRow[]).map((r) => ({
+    const pages: MonitoredPage[] = ((monitoredPages ?? []) as unknown as MonitoredPageRow[]).map((r) => ({
       id: r.id,
       url: r.url,
+      health_state: r.health_state,
     }));
 
     const pagesByUrl = new Map<string, MonitoredPage[]>();
@@ -475,6 +483,11 @@ async function handler(req: ApiReq, res: ApiRes) {
     };
 
     const urlEntries = [...pagesByUrl.entries()];
+    // Shuffle so that budget exhaustion doesn't always starve the same pages.
+    for (let i = urlEntries.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [urlEntries[i], urlEntries[j]] = [urlEntries[j], urlEntries[i]];
+    }
 
     const settled = await Promise.allSettled(
       urlEntries.map(([url, groupedPages]) => {
@@ -551,6 +564,14 @@ async function handler(req: ApiReq, res: ApiRes) {
         // Non-fatal
         Sentry.captureException(hsError);
       }
+    }
+
+    // ── Budget exhaustion warning ──────────────────────────────────────────────
+    if (rowsSkippedBudget > 0) {
+      Sentry.captureMessage("fetch_budget_exhausted", {
+        level: "warning",
+        extra: { rowsSkippedBudget, pageClass: pageClass ?? "all", totalPages: rowsClaimed },
+      });
     }
 
     // ── Domain cooldown warning ────────────────────────────────────────────────
