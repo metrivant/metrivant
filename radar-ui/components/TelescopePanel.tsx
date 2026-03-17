@@ -27,23 +27,34 @@ type SceneId =
   | "nebula"
   | "cosmic_calm";
 
+type StatusLevel = "QUIET" | "MODERATE" | "ACTIVE" | "HIGH" | "CRITICAL";
+
+const STATUS_COLORS: Record<StatusLevel, string> = {
+  QUIET:    "#2EE6A6",
+  MODERATE: "#7DF9FF",
+  ACTIVE:   "#F59E0B",
+  HIGH:     "#F97316",
+  CRITICAL: "#EF4444",
+};
+
 type Scene = {
   id: SceneId;
   label: string;
   caption: string;
+  status: StatusLevel;
 };
 
 const SCENES: Scene[] = [
-  { id: "starfield",     label: "Starfield",          caption: "baseline observation state"   },
-  { id: "constellation", label: "Constellation",       caption: "signals forming patterns"     },
-  { id: "spiral_galaxy", label: "Spiral Galaxy",       caption: "dense signal environment"     },
-  { id: "black_hole",    label: "Black Hole",          caption: "dominant competitive gravity"  },
-  { id: "singularity",   label: "Singularity",         caption: "rare intense activity"         },
-  { id: "rare_comet",    label: "Rare Comet",          caption: "rapid burst of activity"       },
-  { id: "binary_star",   label: "Binary System",       caption: "competitive tension"           },
-  { id: "supernova",     label: "Supernova",           caption: "dramatic market event"         },
-  { id: "nebula",        label: "Nebula",              caption: "slow emerging trend"           },
-  { id: "cosmic_calm",   label: "Cosmic Calm",         caption: "quiet competitive environment" },
+  { id: "starfield",     label: "STARFIELD",     caption: "baseline observation state",    status: "QUIET"    },
+  { id: "constellation", label: "CONSTELLATION", caption: "signals forming patterns",      status: "MODERATE" },
+  { id: "spiral_galaxy", label: "SPIRAL GALAXY", caption: "dense signal environment",      status: "ACTIVE"   },
+  { id: "black_hole",    label: "BLACK HOLE",    caption: "dominant competitive gravity",  status: "HIGH"     },
+  { id: "singularity",   label: "SINGULARITY",   caption: "rare intense activity",         status: "CRITICAL" },
+  { id: "rare_comet",    label: "RARE COMET",    caption: "rapid burst of activity",       status: "HIGH"     },
+  { id: "binary_star",   label: "BINARY SYSTEM", caption: "competitive tension",           status: "ACTIVE"   },
+  { id: "supernova",     label: "SUPERNOVA",     caption: "dramatic market event",         status: "CRITICAL" },
+  { id: "nebula",        label: "NEBULA",        caption: "slow emerging trend",           status: "MODERATE" },
+  { id: "cosmic_calm",   label: "COSMIC CALM",   caption: "quiet competitive environment", status: "QUIET"    },
 ];
 
 // Rotation: 10–20 seconds per scene (randomised per interval)
@@ -514,8 +525,9 @@ function SceneRenderer({ id }: { id: SceneId }) {
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function TelescopePanel() {
-  const [idx, setIdx]       = useState(0);
+  const [idx,     setIdx]     = useState(0);
   const [visible, setVisible] = useState(true);
+  const [started, setStarted] = useState(false);
 
   const advance = useCallback(() => {
     setVisible(false);
@@ -525,8 +537,17 @@ export default function TelescopePanel() {
     }, 400);
   }, []);
 
-  // Auto-rotation: 10–20 seconds per scene
+  const jumpTo = useCallback((targetIdx: number) => {
+    setVisible(false);
+    setTimeout(() => {
+      setIdx(targetIdx);
+      setVisible(true);
+    }, 400);
+  }, []);
+
+  // Auto-rotation: 10–20 seconds per scene — only once started
   useEffect(() => {
+    if (!started) return;
     let timer: ReturnType<typeof setTimeout>;
     function schedule() {
       timer = setTimeout(() => {
@@ -536,10 +557,130 @@ export default function TelescopePanel() {
     }
     schedule();
     return () => clearTimeout(timer);
-  }, [advance]);
+  }, [advance, started]);
 
   const scene = SCENES[idx];
+  const statusColor = STATUS_COLORS[scene.status];
 
+  // ── Intro card — shown until first click ──────────────────────────────────
+  if (!started) {
+    return (
+      <div
+        className="select-none"
+        style={{
+          borderRadius: 10,
+          overflow: "hidden",
+          border: "1px solid rgba(255,255,255,0.06)",
+          background: "#050010",
+          cursor: "pointer",
+        }}
+        onClick={() => setStarted(true)}
+      >
+        <div style={{ position: "relative", lineHeight: 0 }}>
+          <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block" }} aria-hidden>
+            <defs>
+              <radialGradient id="tsky-intro" cx="50%" cy="35%" r="65%">
+                <stop offset="0%"   stopColor="#1a0533" stopOpacity="1" />
+                <stop offset="60%"  stopColor="#0d0020" stopOpacity="1" />
+                <stop offset="100%" stopColor="#050010" stopOpacity="1" />
+              </radialGradient>
+              <filter id="glow-intro" x="-30%" y="-60%" width="160%" height="220%">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+            </defs>
+            <rect width={W} height={H} fill="url(#tsky-intro)" />
+            {/* Sparse stars */}
+            {Array.from({ length: 22 }, (_, i) => (
+              <circle
+                key={i}
+                cx={pseudoRand(i * 7.3) * W}
+                cy={pseudoRand(i * 4.1) * H}
+                r={0.5 + pseudoRand(i * 2.2) * 0.9}
+                fill="#FFF5E0"
+                opacity={0.12 + pseudoRand(i * 6.1) * 0.22}
+              />
+            ))}
+            {/* HUD corner brackets */}
+            <g stroke="rgba(192,132,252,0.22)" strokeWidth="1" fill="none">
+              <polyline points="10,22 10,10 22,10" />
+              <polyline points={`${W-22},10 ${W-10},10 ${W-10},22`} />
+              <polyline points={`10,${H-22} 10,${H-10} 22,${H-10}`} />
+              <polyline points={`${W-22},${H-10} ${W-10},${H-10} ${W-10},${H-22}`} />
+            </g>
+            {/* TELESCOPE heading */}
+            <text
+              x={CX} y={CY - 14}
+              textAnchor="middle"
+              fontSize="17"
+              fontWeight="bold"
+              fontFamily="monospace"
+              letterSpacing="5"
+              fill="white"
+              fillOpacity="0.90"
+              filter="url(#glow-intro)"
+            >
+              TELESCOPE
+            </text>
+            {/* Subtitle */}
+            <text
+              x={CX} y={CY + 4}
+              textAnchor="middle"
+              fontSize="6.5"
+              fontFamily="monospace"
+              letterSpacing="2.5"
+              fill="rgba(192,132,252,0.55)"
+            >
+              COMPETITIVE SIGNAL VIEWER
+            </text>
+            {/* Scene count hint */}
+            <text
+              x={CX} y={CY + 18}
+              textAnchor="middle"
+              fontSize="6"
+              fontFamily="monospace"
+              letterSpacing="1.5"
+              fill="rgba(255,255,255,0.18)"
+            >
+              10 OBSERVATION STATES
+            </text>
+          </svg>
+
+          {/* Pulsing click prompt — DOM overlay */}
+          <div style={{ position: "absolute", bottom: 16, left: 0, right: 0, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
+            <motion.span
+              animate={{ opacity: [0.25, 0.80, 0.25] }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+              style={{
+                fontSize: 7,
+                fontFamily: "monospace",
+                letterSpacing: "0.22em",
+                color: "rgba(255,255,255,0.65)",
+                textTransform: "uppercase",
+              }}
+            >
+              CLICK TO BEGIN OBSERVATION
+            </motion.span>
+          </div>
+        </div>
+
+        {/* Bottom strip */}
+        <div style={{
+          padding: "5px 10px 6px",
+          borderTop: "1px solid rgba(255,255,255,0.04)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}>
+          <span style={{ fontSize: 8, fontFamily: "monospace", letterSpacing: "0.18em", color: "rgba(192,132,252,0.28)" }}>
+            TELESCOPE · 10 SCENES
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Active observation view ────────────────────────────────────────────────
   return (
     <div
       className="select-none"
@@ -551,7 +692,6 @@ export default function TelescopePanel() {
         cursor: "pointer",
       }}
       onClick={advance}
-      title="Click to advance scene"
     >
       {/* Sky canvas */}
       <div style={{ position: "relative", lineHeight: 0 }}>
@@ -574,19 +714,59 @@ export default function TelescopePanel() {
                 <stop offset="60%"  stopColor="#0d0020" stopOpacity="1" />
                 <stop offset="100%" stopColor="#050010" stopOpacity="1" />
               </radialGradient>
+              {/* HUD glow filter for in-scene text */}
+              <filter id={`hud-glow-${scene.id}`} x="-10%" y="-80%" width="120%" height="260%">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="1.8" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
             </defs>
+
             <rect width={W} height={H} fill={`url(#tsky-${scene.id})`} />
             <SceneRenderer id={scene.id} />
+
             {/* Vignette edge */}
-            <radialGradient id={`tvign-${scene.id}`} cx="50%" cy="50%" r="50%">
-              <stop offset="55%" stopColor="#000000" stopOpacity="0" />
-              <stop offset="100%" stopColor="#000000" stopOpacity="0.72" />
-            </radialGradient>
+            <defs>
+              <radialGradient id={`tvign-${scene.id}`} cx="50%" cy="50%" r="50%">
+                <stop offset="55%" stopColor="#000000" stopOpacity="0" />
+                <stop offset="100%" stopColor="#000000" stopOpacity="0.72" />
+              </radialGradient>
+            </defs>
             <rect width={W} height={H} fill={`url(#tvign-${scene.id})`} />
+
+            {/* HUD corner brackets */}
+            <g stroke="rgba(255,255,255,0.10)" strokeWidth="0.8" fill="none">
+              <polyline points="8,20 8,8 20,8" />
+              <polyline points={`${W-20},8 ${W-8},8 ${W-8},20`} />
+              <polyline points={`8,${H-20} 8,${H-8} 20,${H-8}`} />
+              <polyline points={`${W-20},${H-8} ${W-8},${H-8} ${W-8},${H-20}`} />
+            </g>
+
+            {/* In-scene HUD text — bottom-left */}
+            <g filter={`url(#hud-glow-${scene.id})`}>
+              <text
+                x={10} y={H - 18}
+                fontSize="8"
+                fontWeight="bold"
+                fontFamily="monospace"
+                letterSpacing="2"
+                fill="rgba(255,255,255,0.88)"
+              >
+                {scene.label}
+              </text>
+              <text
+                x={10} y={H - 8}
+                fontSize="6"
+                fontFamily="monospace"
+                letterSpacing="1.2"
+                fill="rgba(255,255,255,0.40)"
+              >
+                {scene.caption.toUpperCase()}
+              </text>
+            </g>
           </motion.svg>
         </AnimatePresence>
 
-        {/* Eyepiece circle overlay */}
+        {/* Eyepiece overlay */}
         <div style={{
           position: "absolute",
           inset: 0,
@@ -596,10 +776,10 @@ export default function TelescopePanel() {
         }} />
       </div>
 
-      {/* Scene label */}
+      {/* Status bar */}
       <AnimatePresence mode="wait">
         <motion.div
-          key={`label-${scene.id}`}
+          key={`bar-${scene.id}`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -612,12 +792,39 @@ export default function TelescopePanel() {
             borderTop: "1px solid rgba(255,255,255,0.04)",
           }}
         >
-          <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(192,132,252,0.70)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
-            {scene.label}
+          {/* Status badge */}
+          <span style={{
+            fontSize: 7,
+            fontWeight: 700,
+            fontFamily: "monospace",
+            letterSpacing: "0.16em",
+            color: statusColor,
+            padding: "1px 5px",
+            borderRadius: 3,
+            background: `${statusColor}14`,
+            border: `1px solid ${statusColor}32`,
+          }}>
+            {scene.status}
           </span>
-          <span style={{ fontSize: 8, color: "rgba(255,255,255,0.24)", fontFamily: "monospace" }}>
-            {scene.caption}
-          </span>
+
+          {/* Progress dots */}
+          <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+            {SCENES.map((s, i) => (
+              <div
+                key={s.id}
+                onClick={(e) => { e.stopPropagation(); jumpTo(i); }}
+                style={{
+                  width:  i === idx ? 10 : 3,
+                  height: 3,
+                  borderRadius: 2,
+                  background: i === idx ? statusColor : "rgba(255,255,255,0.16)",
+                  transition: "all 0.35s ease",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+              />
+            ))}
+          </div>
         </motion.div>
       </AnimatePresence>
     </div>
