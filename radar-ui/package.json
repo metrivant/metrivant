@@ -20,6 +20,7 @@
     "posthog-js": "^1.360.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "openai": "^4",
     "stripe": "^20.4.1"
   },
   "devDependencies": {
