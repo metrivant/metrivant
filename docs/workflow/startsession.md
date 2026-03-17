@@ -327,6 +327,32 @@ Batch ≤50 IDs per REST call to avoid Supabase 8-second statement timeout (erro
 - Migrations 046 (`discovery_candidates`) and 047 (`last_fetched_at`) must be run in Supabase SQL Editor
   before their respective features activate. Both are swallowed-error non-blocking until applied.
 
+- Sentry cron monitors must be created manually in the Sentry UI — they are NOT auto-created from
+  check-in calls alone. If a handler emits `captureCheckIn` but no monitor exists, the check-in is
+  silently discarded. After any new cron handler is added, create the matching monitor in
+  Sentry UI → Crons → Create Monitor. Slug must match exactly. Use schedule type Crontab, UTC,
+  check-in margin 5 min, max runtime 10 min, failure tolerance 1, environment = production.
+  Confirmed missing on 2026-03-17: `ingest-careers` (11 * * * *) and `promote-careers-signals`
+  (13 * * * *) — created manually.
+
+- `@sentry/nextjs` in radar-ui requires `instrumentation.ts` + `sentry.server.config.ts` +
+  `sentry.edge.config.ts` for automatic server/edge error capture. Without these files, only
+  manually-instrumented call sites (captureException, captureCheckIn) report to Sentry — unhandled
+  RSC and middleware errors are silently dropped. Files added 2026-03-17.
+  `lib/sentry.ts` init guard must use `SentrySDK.getClient()` not a local `initialised` flag,
+  to prevent double-init when instrumentation.ts has already run.
+
+- Watchdog covers pipeline_events stages: snapshot, extract, diff, signal, interpret, baseline,
+  movement_synthesis (90m threshold), radar_narrative (120m threshold). It does NOT cover
+  generate-sector-intelligence (3×/week — too infrequent for freshness check), detect-movements,
+  or any once-daily/weekly cron. For those, rely on Sentry cron monitor "missed" detection.
+
+- AI-heavy runtime handlers (interpret-signals, synthesize-movement-narratives,
+  generate-radar-narratives, generate-sector-intelligence, suggest-selector-repairs) require explicit
+  `maxDuration` in vercel.json `functions` block. Without it, Vercel Pro default (15s) applies and
+  AI calls time out silently. Set 2026-03-17: interpret-signals=30s, narratives=90s, sector=90s,
+  repairs=60s. Frontend cron routes require `export const maxDuration = N` in the route file itself.
+
 ---
 
 ## PROMPT EXECUTION RULES
