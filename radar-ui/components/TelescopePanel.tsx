@@ -7,7 +7,7 @@
  * Pure decorative frontend rendering. No signal data. No API calls.
  * Scene changes every 10–20 seconds with smooth opacity crossfade.
  *
- * Color palette: vivid, surreal — Simpsons-sky purples + Courage-cartoon cosmic tones.
+ * Color palette: Metrivant brand palette — signal green, strategic blue, amber, indigo, deep sky.
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -31,7 +31,7 @@ type StatusLevel = "QUIET" | "MODERATE" | "ACTIVE" | "HIGH" | "CRITICAL";
 
 const STATUS_COLORS: Record<StatusLevel, string> = {
   QUIET:    "#2EE6A6",
-  MODERATE: "#7DF9FF",
+  MODERATE: "#57a6ff",
   ACTIVE:   "#F59E0B",
   HIGH:     "#F97316",
   CRITICAL: "#EF4444",
@@ -62,9 +62,25 @@ function nextDelay(): number {
   return 10_000 + Math.random() * 10_000;
 }
 
+// ── Brand palette ─────────────────────────────────────────────────────────────
+// All scene colors pulled from Metrivant's design system.
+const B = {
+  green:   "#2EE6A6",  // primary signal green
+  blue:    "#57a6ff",  // strategic blue
+  amber:   "#F59E0B",  // rising / warning
+  indigo:  "#6366F1",  // muted depth
+  purple:  "#8B5CF6",  // subtle accent
+  red:     "#EF4444",  // critical
+  orange:  "#F97316",  // high intensity
+  white:   "#E2E8F0",  // cool stellar white
+  skyA:    "#001208",  // sky gradient top
+  skyB:    "#000a06",  // sky gradient mid
+  skyC:    "#020a08",  // sky gradient base / bg
+} as const;
+
 // ── SVG scene components ───────────────────────────────────────────────────────
-// All scenes use viewBox="0 0 240 150". Colors from vivid cosmic palette.
-// Animations use CSS @keyframes via inline styles where possible, else Framer Motion.
+// All scenes use viewBox="0 0 240 150". Colors from Metrivant brand palette (B).
+// Animations use Framer Motion.
 
 const W = 240;
 const H = 150;
@@ -84,7 +100,7 @@ function SceneStarfield() {
     cy: pseudoRand(i * 3.7) * H,
     r: 0.6 + pseudoRand(i * 5.3) * 1.4,
     opacity: 0.35 + pseudoRand(i * 2.9) * 0.65,
-    color: i % 7 === 0 ? "#FFD700" : i % 5 === 0 ? "#FF9F2E" : i % 4 === 0 ? "#7DF9FF" : "#FFF5E0",
+    color: i % 7 === 0 ? B.amber : i % 5 === 0 ? B.amber : i % 4 === 0 ? B.green : B.white,
   }));
   return (
     <g>
@@ -98,7 +114,7 @@ function SceneStarfield() {
         />
       ))}
       {/* Milky Way dusting */}
-      <ellipse cx={CX} cy={CY} rx={90} ry={12} fill="rgba(180,160,255,0.05)" />
+      <ellipse cx={CX} cy={CY} rx={90} ry={12} fill="rgba(46,230,166,0.04)" />
     </g>
   );
 }
@@ -122,7 +138,7 @@ function SceneConstellation() {
           key={i}
           x1={CONST_STARS[a].cx} y1={CONST_STARS[a].cy}
           x2={CONST_STARS[b].cx} y2={CONST_STARS[b].cy}
-          stroke="#C084FC" strokeWidth="0.7" strokeOpacity="0"
+          stroke={B.purple} strokeWidth="0.7" strokeOpacity="0"
           animate={{ strokeOpacity: [0, 0.35, 0.28] }}
           transition={{ duration: 1.2, delay: i * 0.18 }}
         />
@@ -131,7 +147,7 @@ function SceneConstellation() {
         <motion.circle
           key={i}
           cx={s.cx} cy={s.cy} r={i === 4 ? 2.8 : 1.8}
-          fill={i === 4 ? "#FFD700" : "#FFF5E0"}
+          fill={i === 4 ? B.amber : B.white}
           animate={{ opacity: [0.55, 1.0, 0.55] }}
           transition={{ duration: 2.5 + i * 0.3, repeat: Infinity, delay: i * 0.2 }}
         />
@@ -153,16 +169,16 @@ function SceneSpiralGalaxy() {
       cx: CX + r * Math.cos(angle) + (pseudoRand(i * 2.3) - 0.5) * spread,
       cy: CY + r * Math.sin(angle) * 0.45 + (pseudoRand(i * 5.7) - 0.5) * spread * 0.45,
       r: 0.5 + pseudoRand(i * 3.1) * 1.1,
-      color: i % 6 === 0 ? "#FF9F2E" : i % 4 === 0 ? "#7DF9FF" : "#C084FC",
+      color: i % 6 === 0 ? B.amber : i % 4 === 0 ? B.green : B.purple,
       opacity: 0.4 + pseudoRand(i * 1.7) * 0.6,
     };
   });
   return (
     <g>
       <radialGradient id="tgal" cx="50%" cy="50%" r="40%">
-        <stop offset="0%" stopColor="#FFD700" stopOpacity="0.35" />
-        <stop offset="60%" stopColor="#9B45FF" stopOpacity="0.12" />
-        <stop offset="100%" stopColor="#9B45FF" stopOpacity="0" />
+        <stop offset="0%" stopColor={B.green} stopOpacity="0.30" />
+        <stop offset="60%" stopColor={B.indigo} stopOpacity="0.10" />
+        <stop offset="100%" stopColor={B.indigo} stopOpacity="0" />
       </radialGradient>
       <circle cx={CX} cy={CY} r={40} fill="url(#tgal)" />
       <motion.g
@@ -174,7 +190,7 @@ function SceneSpiralGalaxy() {
           <circle key={i} cx={s.cx} cy={s.cy} r={s.r} fill={s.color} opacity={s.opacity} />
         ))}
       </motion.g>
-      <circle cx={CX} cy={CY} r={4} fill="#FFD700" opacity={0.9} />
+      <circle cx={CX} cy={CY} r={4} fill={B.amber} opacity={0.9} />
     </g>
   );
 }
@@ -185,15 +201,15 @@ function SceneBlackHole() {
     angle: (i / 18) * Math.PI * 2,
     r: 35 + pseudoRand(i * 6.2) * 22,
     size: 0.7 + pseudoRand(i * 2.9) * 1.1,
-    color: i % 3 === 0 ? "#FF9F2E" : i % 2 === 0 ? "#7DF9FF" : "#FFF5E0",
+    color: i % 3 === 0 ? B.orange : i % 2 === 0 ? B.blue : B.white,
   }));
   return (
     <g>
       <defs>
         <radialGradient id="tbh" cx="50%" cy="50%" r="50%">
           <stop offset="0%"   stopColor="#000000" stopOpacity="1.0" />
-          <stop offset="38%"  stopColor="#1a0020" stopOpacity="0.95" />
-          <stop offset="65%"  stopColor="#3D0066" stopOpacity="0.55" />
+          <stop offset="38%"  stopColor="#001a0a" stopOpacity="0.95" />
+          <stop offset="65%"  stopColor="#002818" stopOpacity="0.55" />
           <stop offset="100%" stopColor="#000000" stopOpacity="0" />
         </radialGradient>
       </defs>
@@ -203,7 +219,7 @@ function SceneBlackHole() {
           key={i}
           cx={CX} cy={CY} rx={r} ry={r * 0.30}
           fill="none"
-          stroke="#9B45FF"
+          stroke={B.indigo}
           strokeWidth={0.6 - i * 0.1}
           strokeOpacity={0.22 - i * 0.04}
           animate={{ rotate: [0, i % 2 === 0 ? 360 : -360] }}
@@ -251,7 +267,7 @@ function SceneSingularity() {
           key={i}
           x1={CX} y1={CY}
           x2={r.x2} y2={r.y2}
-          stroke={i % 3 === 0 ? "#FFD700" : i % 2 === 0 ? "#FF45CE" : "#7DF9FF"}
+          stroke={i % 3 === 0 ? B.amber : i % 2 === 0 ? B.red : B.blue}
           strokeWidth="0.8"
           animate={{ opacity: [0.0, 0.42, 0.0], scaleX: [0.4, 1, 0.4] }}
           transition={{
@@ -269,7 +285,7 @@ function SceneSingularity() {
           key={i}
           cx={CX} cy={CY} r={r}
           fill="none"
-          stroke={i === 0 ? "#FF45CE" : i === 1 ? "#9B45FF" : "#FFD700"}
+          stroke={i === 0 ? B.red : i === 1 ? B.indigo : B.amber}
           strokeWidth={0.8 - i * 0.15}
           animate={{ opacity: [0.08, 0.35, 0.08], scale: [0.95, 1.05, 0.95] }}
           transition={{ duration: 2 + i * 0.5, repeat: Infinity, ease: "easeInOut" }}
@@ -305,7 +321,7 @@ function SceneRareComet() {
           cx={pseudoRand(i * 7.3) * W}
           cy={pseudoRand(i * 4.1) * H}
           r={0.5 + pseudoRand(i * 2.2) * 0.8}
-          fill="#FFF5E0"
+          fill={B.white}
           opacity={0.25 + pseudoRand(i * 6.1) * 0.45}
         />
       ))}
@@ -317,18 +333,18 @@ function SceneRareComet() {
       >
         {/* Tail segments */}
         {tailStops.map((t, i) => (
-          <circle key={i} cx={t.x} cy={t.y} r={t.r} fill="#7DF9FF" opacity={t.opacity} />
+          <circle key={i} cx={t.x} cy={t.y} r={t.r} fill={B.blue} opacity={t.opacity} />
         ))}
         {/* Coma (diffuse halo) */}
         <circle cx={48} cy={44} r={6} fill="#FFFFFF" opacity={0.15} />
         {/* Nucleus */}
         <circle cx={48} cy={44} r={3.5} fill="#FFFFFF" opacity={0.95} />
-        <circle cx={48} cy={44} r={1.5} fill="#FFD700" opacity={0.88} />
+        <circle cx={48} cy={44} r={1.5} fill={B.amber} opacity={0.88} />
       </motion.g>
       {/* Faint streak */}
       <motion.line
         x1={0} y1={0} x2={240} y2={150}
-        stroke="#7DF9FF" strokeWidth="0.4"
+        stroke={B.blue} strokeWidth="0.4"
         animate={{ opacity: [0, 0.12, 0] }}
         transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", repeatDelay: 4 }}
       />
@@ -347,13 +363,13 @@ function SceneBinaryStar() {
           cx={pseudoRand(i * 8.1) * W}
           cy={pseudoRand(i * 3.3) * H}
           r={0.5 + pseudoRand(i * 2.7) * 0.8}
-          fill="#FFF5E0"
+          fill={B.white}
           opacity={0.22 + pseudoRand(i * 5.5) * 0.35}
         />
       ))}
       {/* Orbital ellipse */}
       <ellipse cx={CX} cy={CY} rx={46} ry={22}
-        fill="none" stroke="rgba(129,140,248,0.18)" strokeWidth="0.8" strokeDasharray="4 6" />
+        fill="none" stroke="rgba(99,102,241,0.18)" strokeWidth="0.8" strokeDasharray="4 6" />
       {/* Star A — orbital motion */}
       <motion.g
         animate={{ rotate: [0, 360] }}
@@ -361,9 +377,9 @@ function SceneBinaryStar() {
         style={{ transformOrigin: `${CX}px ${CY}px` }}
       >
         {/* Glow */}
-        <circle cx={CX + 46} cy={CY} r={14} fill="#FFB347" opacity={0.12} />
-        <circle cx={CX + 46} cy={CY} r={7}  fill="#FFB347" opacity={0.18} />
-        <circle cx={CX + 46} cy={CY} r={5}  fill="#FFD700" opacity={0.9}  />
+        <circle cx={CX + 46} cy={CY} r={14} fill={B.orange} opacity={0.12} />
+        <circle cx={CX + 46} cy={CY} r={7}  fill={B.orange} opacity={0.18} />
+        <circle cx={CX + 46} cy={CY} r={5}  fill={B.amber}  opacity={0.9}  />
       </motion.g>
       {/* Star B — opposite phase */}
       <motion.g
@@ -371,9 +387,9 @@ function SceneBinaryStar() {
         transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
         style={{ transformOrigin: `${CX}px ${CY}px` }}
       >
-        <circle cx={CX + 46} cy={CY} r={12} fill="#7DF9FF" opacity={0.10} />
-        <circle cx={CX + 46} cy={CY} r={6}  fill="#7DF9FF" opacity={0.16} />
-        <circle cx={CX + 46} cy={CY} r={4}  fill="#DDEEFF" opacity={0.85} />
+        <circle cx={CX + 46} cy={CY} r={12} fill={B.blue}  opacity={0.10} />
+        <circle cx={CX + 46} cy={CY} r={6}  fill={B.blue}  opacity={0.16} />
+        <circle cx={CX + 46} cy={CY} r={4}  fill={B.white} opacity={0.85} />
       </motion.g>
       {/* Center of mass */}
       <circle cx={CX} cy={CY} r={1.5} fill="rgba(255,255,255,0.25)" />
@@ -392,7 +408,7 @@ function SceneSupernova() {
           cx={pseudoRand(i * 9.3) * W}
           cy={pseudoRand(i * 4.7) * H}
           r={0.5 + pseudoRand(i * 3.1) * 0.8}
-          fill="#FFF5E0"
+          fill={B.white}
           opacity={0.20 + pseudoRand(i * 7.3) * 0.35}
         />
       ))}
@@ -402,7 +418,7 @@ function SceneSupernova() {
           key={i}
           cx={CX} cy={CY} r={12}
           fill="none"
-          stroke={i === 0 ? "#FFB347" : i === 1 ? "#FF6B35" : "#FF45CE"}
+          stroke={i === 0 ? B.amber : i === 1 ? B.orange : B.red}
           strokeWidth={2.4 - i * 0.5}
           animate={{ r: [12, 70], opacity: [0.7, 0] }}
           transition={{ duration: 3.2, repeat: Infinity, ease: "easeOut", delay }}
@@ -416,7 +432,7 @@ function SceneSupernova() {
             key={i}
             cx={CX} cy={CY}
             r={1.0 + pseudoRand(i * 2) * 0.8}
-            fill={i % 3 === 0 ? "#FFD700" : i % 2 === 0 ? "#FF9F2E" : "#FF45CE"}
+            fill={i % 3 === 0 ? B.amber : i % 2 === 0 ? B.orange : B.red}
             animate={{
               cx: [CX, CX + 52 * Math.cos(angle)],
               cy: [CY, CY + 52 * Math.sin(angle)],
@@ -440,16 +456,16 @@ function SceneSupernova() {
 // ── 9. Nebula ─────────────────────────────────────────────────────────────────
 function SceneNebula() {
   const clouds = [
-    { cx: CX - 28, cy: CY - 12, rx: 55, ry: 30, color: "#9B45FF", opacity: 0.13 },
-    { cx: CX + 24, cy: CY + 14, rx: 44, ry: 28, color: "#FF45CE", opacity: 0.10 },
-    { cx: CX - 10, cy: CY + 8,  rx: 38, ry: 22, color: "#45FFCE", opacity: 0.08 },
-    { cx: CX + 10, cy: CY - 20, rx: 30, ry: 18, color: "#7DF9FF", opacity: 0.09 },
+    { cx: CX - 28, cy: CY - 12, rx: 55, ry: 30, color: B.purple, opacity: 0.13 },
+    { cx: CX + 24, cy: CY + 14, rx: 44, ry: 28, color: B.red,    opacity: 0.10 },
+    { cx: CX - 10, cy: CY + 8,  rx: 38, ry: 22, color: B.green,  opacity: 0.08 },
+    { cx: CX + 10, cy: CY - 20, rx: 30, ry: 18, color: B.blue,   opacity: 0.09 },
   ];
   const embeddedStars = Array.from({ length: 28 }, (_, i) => ({
     cx: CX + (pseudoRand(i * 5.1) - 0.5) * 90,
     cy: CY + (pseudoRand(i * 3.7) - 0.5) * 60,
     r:  0.6 + pseudoRand(i * 2.3) * 1.2,
-    color: i % 5 === 0 ? "#FFD700" : i % 3 === 0 ? "#FF9F2E" : "#FFF5E0",
+    color: i % 5 === 0 ? B.amber : i % 3 === 0 ? B.orange : B.white,
     opacity: 0.45 + pseudoRand(i * 7.9) * 0.55,
   }));
   return (
@@ -483,7 +499,7 @@ function SceneCosmicCalm() {
     cy: pseudoRand(i * 6.7) * H,
     r: 0.5 + pseudoRand(i * 4.1) * 1.0,
     opacity: 0.18 + pseudoRand(i * 3.1) * 0.38,
-    color: i % 4 === 0 ? "#7DF9FF" : "#FFF5E0",
+    color: i % 4 === 0 ? B.blue : B.white,
   }));
   return (
     <g>
@@ -498,9 +514,9 @@ function SceneCosmicCalm() {
       ))}
       {/* Faint distant galaxy */}
       <ellipse cx={CX + 52} cy={CY - 24} rx={18} ry={6}
-        fill="rgba(192,132,252,0.08)" transform="rotate(-22, 172, 51)" />
+        fill="rgba(99,102,241,0.08)" transform="rotate(-22, 172, 51)" />
       <ellipse cx={CX - 58} cy={CY + 28} rx={12} ry={4}
-        fill="rgba(125,249,255,0.06)" transform="rotate(14, 62, 103)" />
+        fill="rgba(87,166,255,0.06)" transform="rotate(14, 62, 103)" />
     </g>
   );
 }
@@ -571,7 +587,7 @@ export default function TelescopePanel() {
           borderRadius: 10,
           overflow: "hidden",
           border: "1px solid rgba(255,255,255,0.06)",
-          background: "#050010",
+          background: B.skyC,
           cursor: "pointer",
         }}
         onClick={() => setStarted(true)}
@@ -580,9 +596,9 @@ export default function TelescopePanel() {
           <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block" }} aria-hidden>
             <defs>
               <radialGradient id="tsky-intro" cx="50%" cy="35%" r="65%">
-                <stop offset="0%"   stopColor="#1a0533" stopOpacity="1" />
-                <stop offset="60%"  stopColor="#0d0020" stopOpacity="1" />
-                <stop offset="100%" stopColor="#050010" stopOpacity="1" />
+                <stop offset="0%"   stopColor={B.skyA} stopOpacity="1" />
+                <stop offset="60%"  stopColor={B.skyB} stopOpacity="1" />
+                <stop offset="100%" stopColor={B.skyC} stopOpacity="1" />
               </radialGradient>
               <filter id="glow-intro" x="-30%" y="-60%" width="160%" height="220%">
                 <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur" />
@@ -597,12 +613,12 @@ export default function TelescopePanel() {
                 cx={pseudoRand(i * 7.3) * W}
                 cy={pseudoRand(i * 4.1) * H}
                 r={0.5 + pseudoRand(i * 2.2) * 0.9}
-                fill="#FFF5E0"
+                fill={B.white}
                 opacity={0.12 + pseudoRand(i * 6.1) * 0.22}
               />
             ))}
             {/* HUD corner brackets */}
-            <g stroke="rgba(192,132,252,0.22)" strokeWidth="1" fill="none">
+            <g stroke="rgba(46,230,166,0.22)" strokeWidth="1" fill="none">
               <polyline points="10,22 10,10 22,10" />
               <polyline points={`${W-22},10 ${W-10},10 ${W-10},22`} />
               <polyline points={`10,${H-22} 10,${H-10} 22,${H-10}`} />
@@ -629,7 +645,7 @@ export default function TelescopePanel() {
               fontSize="6.5"
               fontFamily="monospace"
               letterSpacing="2.5"
-              fill="rgba(192,132,252,0.55)"
+              fill="rgba(46,230,166,0.55)"
             >
               COMPETITIVE SIGNAL VIEWER
             </text>
@@ -672,7 +688,7 @@ export default function TelescopePanel() {
           alignItems: "center",
           justifyContent: "center",
         }}>
-          <span style={{ fontSize: 8, fontFamily: "monospace", letterSpacing: "0.18em", color: "rgba(192,132,252,0.28)" }}>
+          <span style={{ fontSize: 8, fontFamily: "monospace", letterSpacing: "0.18em", color: "rgba(46,230,166,0.28)" }}>
             TELESCOPE · 10 SCENES
           </span>
         </div>
@@ -710,9 +726,9 @@ export default function TelescopePanel() {
             {/* Sky background */}
             <defs>
               <radialGradient id={`tsky-${scene.id}`} cx="50%" cy="35%" r="65%">
-                <stop offset="0%"   stopColor="#1a0533" stopOpacity="1" />
-                <stop offset="60%"  stopColor="#0d0020" stopOpacity="1" />
-                <stop offset="100%" stopColor="#050010" stopOpacity="1" />
+                <stop offset="0%"   stopColor={B.skyA} stopOpacity="1" />
+                <stop offset="60%"  stopColor={B.skyB} stopOpacity="1" />
+                <stop offset="100%" stopColor={B.skyC} stopOpacity="1" />
               </radialGradient>
               {/* HUD glow filter for in-scene text */}
               <filter id={`hud-glow-${scene.id}`} x="-10%" y="-80%" width="120%" height="260%">
