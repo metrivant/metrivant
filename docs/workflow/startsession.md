@@ -44,15 +44,11 @@ Environment variables are surface-specific.
 Variables in metrivant-runtime are NOT available in metrivant-ui.
 
 VERIFY:
-```bash
 cat .vercel/project.json
 cat radar-ui/.vercel/project.json
-```
 
 Dependency check:
-```bash
-scripts/check-surface-deps.sh
-```
+scripts/check-surface-deps.sh (if present)
 If missing → manually verify imports vs package.json
 
 ---
@@ -61,10 +57,8 @@ If missing → manually verify imports vs package.json
 
 Before any work:
 
-```
 surface: frontend | runtime | both
 mode: build | fix | diagnose | refactor | document
-```
 
 If unclear:
 STOP — ask
@@ -89,33 +83,6 @@ refactor:
 
 build / fix:
 - normal rules apply
-
----
-
-## CORE PIPELINE (DO NOT BREAK)
-
-```
-competitors → monitored_pages → snapshots → page_sections
-→ section_baselines → section_diffs → signals
-→ interpretations → strategic_movements → radar_feed → UI
-```
-
-Constraints:
-- Supabase = state machine
-- Vercel = stateless execution
-- pipeline = deterministic
-
----
-
-## ENGINEERING RULES
-
-- read before editing
-- smallest viable change
-- no large rewrites
-- no new major dependencies
-- no schema changes without necessity
-- delete > add
-- no speculative abstractions
 
 ---
 
@@ -197,7 +164,6 @@ Never guess.
 
 ## END-OF-TASK CHECK (MANDATORY)
 
-```
 Surface: frontend | runtime | both | none
 Mode: build | fix | diagnose | refactor | document
 Dependencies added: yes / no
@@ -206,7 +172,6 @@ Contract changed: yes / no
 → if yes: impacted surfaces stated: yes / no
 Commit/push: done | pending | not needed
 Expected Vercel target: metrivant-ui | metrivant-runtime | both | none
-```
 
 If task changed:
 - architecture
@@ -217,33 +182,69 @@ If task changed:
 → verify this file is still accurate
 → update if needed
 
-Additionally:
-If new lessons, failure patterns, or implicit rules emerge:
-→ update this file or relevant documentation immediately
+If task produced:
+- new lessons
+- new failure patterns
+- clarified workflow rules
+- clarified deployment rules
+- clarified dependency ownership rules
+
+→ update documentation if it reveals a failure mode, constraint, or rule not already captured
+→ update startsession.md if operational truth changed
+→ keep CLAUDE.md and radar-ui/CLAUDE.md aligned
 
 Done = committed → pushed → correct project deployed → no errors
+
+---
+
+## DOCUMENT AUTHORITY
+
+Source of truth:
+- docs/workflow/startsession.md
+
+Compressed mirrors:
+- CLAUDE.md (root)
+- radar-ui/CLAUDE.md
+
+Compression rule:
+CLAUDE.md contains only:
+- identity
+- surfaces
+- session gate
+- mode rules
+- blast radius definition
+- stop conditions
+- end-of-task check
+
+All other sections remain in startsession.md.
+
+Rule:
+- startsession.md is canonical
+- CLAUDE.md files must mirror it
+- do NOT edit mirrors directly
+- if divergence occurs → update mirrors immediately
 
 ---
 
 ## REFERENCE (MAY MOVE)
 
 Surface rules:
-`docs/workflow/SURFACE_OWNERSHIP_RULES.md`
+docs/workflow/SURFACE_OWNERSHIP_RULES.md
 
 Deployment:
-`docs/workflow/DEPLOYMENT_BOOTSTRAP.md`
+docs/workflow/DEPLOYMENT_BOOTSTRAP.md
 
 Fail-safe:
-`docs/architecture/VERCEL_DEPLOYMENT_FAILSAFE.md`
+docs/architecture/VERCEL_DEPLOYMENT_FAILSAFE.md
 
 System:
-`docs/METRIVANT_MASTER_REFERENCE.md`
+docs/METRIVANT_MASTER_REFERENCE.md
 
 Root:
-`CLAUDE.md`
+CLAUDE.md
 
 Frontend:
-`radar-ui/CLAUDE.md`
+radar-ui/CLAUDE.md
 
 If missing:
 → check docs/ for relocated files
