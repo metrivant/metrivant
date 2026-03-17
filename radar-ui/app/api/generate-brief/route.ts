@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateBrief, buildBriefEmailHtml, getDailyQuote, type BriefContent } from "../../../lib/brief";
+
+export const maxDuration = 90;
 import { sendEmail, FROM_BRIEFS } from "../../../lib/email";
 import { createServiceClient } from "../../../lib/supabase/service";
 import { captureException, flush } from "../../../lib/sentry";

@@ -25,11 +25,14 @@ const MONITOR_SLUG = "watchdog";
 
 // Stages that write to pipeline_events (preferred freshness source)
 const PIPELINE_STAGES: Array<{ stage: string; thresholdMinutes: number }> = [
-  { stage: "snapshot",  thresholdMinutes: 60 },
-  { stage: "extract",   thresholdMinutes: 30 },
-  { stage: "diff",      thresholdMinutes: 30 },
-  { stage: "signal",    thresholdMinutes: 30 },
-  { stage: "interpret", thresholdMinutes: 60 },
+  { stage: "snapshot",          thresholdMinutes: 60 },
+  { stage: "extract",           thresholdMinutes: 30 },
+  { stage: "diff",              thresholdMinutes: 30 },
+  { stage: "signal",            thresholdMinutes: 30 },
+  { stage: "interpret",         thresholdMinutes: 60 },
+  // AI synthesis layers — cron at :30 and :45 respectively; thresholds allow one missed run
+  { stage: "movement_synthesis", thresholdMinutes: 90 },
+  { stage: "radar_narrative",    thresholdMinutes: 120 },
 ];
 
 async function handler(req: ApiReq, res: ApiRes): Promise<void> {

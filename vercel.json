@@ -1,5 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/interpret-signals.ts":              { "maxDuration": 30 },
+    "api/synthesize-movement-narratives.ts": { "maxDuration": 90 },
+    "api/generate-radar-narratives.ts":      { "maxDuration": 90 },
+    "api/generate-sector-intelligence.ts":   { "maxDuration": 90 },
+    "api/suggest-selector-repairs.ts":       { "maxDuration": 60 }
+  },
   "crons": [
     { "path": "/api/fetch-snapshots?page_class=ambient",    "schedule": "0,30 * * * *"  },
     { "path": "/api/fetch-snapshots?page_class=high_value", "schedule": "2 * * * *"     },

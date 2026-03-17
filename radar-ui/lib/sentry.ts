@@ -5,17 +5,16 @@
 
 import * as SentrySDK from "@sentry/nextjs";
 
-let initialised = false;
-
 function init() {
-  if (initialised) return;
+  // Guard against double-init: instrumentation.ts may have already called Sentry.init()
+  // on the server side before any manual captureException call reaches this wrapper.
+  if (SentrySDK.getClient()) return;
   const dsn =
     process.env.SENTRY_DSN ??
     process.env.SENTRY_DNS ?? // legacy key name in this project
     undefined;
   if (!dsn) return;
   SentrySDK.init({ dsn, tracesSampleRate: 0 });
-  initialised = true;
 }
 
 /** Capture an exception with optional context tags. Fire-and-forget. */

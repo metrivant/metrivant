@@ -19,6 +19,9 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "../../../lib/supabase/service";
 import { getRadarFeed } from "../../../lib/api";
+
+export const maxDuration = 60;
+
 import {
   generatePositioning,
   detectSignificantShift,

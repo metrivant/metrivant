@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getRadarFeed, getCompetitorDetail } from "../../../lib/api";
+
+export const maxDuration = 60;
 import { buildAlertEmailHtml, type AlertRow } from "../../../lib/alert";
 import {
   sendEmail,
