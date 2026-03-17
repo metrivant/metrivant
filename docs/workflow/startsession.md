@@ -316,6 +316,10 @@ Batch ≤50 IDs per REST call to avoid Supabase 8-second statement timeout (erro
   on urlEntries before processing. Budget-skipped pages now emit `pipeline_events` with
   `skip_reason: budget_exhausted` and trigger a Sentry `fetch_budget_exhausted` warning.
 
+- `section_diffs` does NOT have a `page_section_id` column. It references `page_sections` via
+  `previous_section_id` and `current_section_id`, and references `monitored_pages` directly via
+  `monitored_page_id`. The cascade path for competitor cleanup runs through `monitored_page_id`.
+
 - `RadarRealtimeSync` is a no-op until migration 048 is run in Supabase
   (`ALTER PUBLICATION supabase_realtime ADD TABLE competitors, strategic_movements`).
   Until then, the 60s fallback poll in Radar.tsx handles updates.
