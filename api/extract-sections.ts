@@ -131,6 +131,20 @@ async function handler(req: ApiReq, res: ApiRes) {
   const checkInId = Sentry.captureCheckIn({ monitorSlug: "extract-sections", status: "in_progress" });
 
   try {
+    // Pre-pass: shell and js_rendered snapshots are intentionally not extracted
+    // (bot walls / JS-heavy pages produce empty sections that pollute baselines).
+    // Mark them done immediately so they don't accumulate as orphaned rows and
+    // don't trigger false-positive backlog warnings in the health check.
+    await supabase
+      .from("snapshots")
+      .update({
+        sections_extracted: true,
+        sections_extracted_at: new Date().toISOString(),
+        raw_html: null,
+      })
+      .eq("sections_extracted", false)
+      .in("fetch_quality", ["shell", "js_rendered"]);
+
     const batchSize = 25; // lowered from 50 — halves peak memory (raw_html × N) with no coverage loss at 15min cadence
 
     const { data: snapshots, error: snapshotsError } = await supabase
