@@ -17,10 +17,26 @@ import { discoverProductFeed } from "../lib/product-feed-discovery";
 import { discoverEdgarFeed } from "../lib/edgar-discovery";
 import type { Category } from "../lib/url-scorer";
 
+// Shape written to monitored_pages.discovery_candidates — operator audit trail only.
+// Not read by any pipeline stage.
+interface DiscoveryCandidate {
+  url:           string;
+  score:         number;
+  selected?:     true;
+  rejected?:     true;
+  reject_reason?: string;
+}
+
+interface DiscoveryCandidatesJson {
+  discovered_at: string;
+  candidates:    DiscoveryCandidate[];
+}
+
 type CandidatePage = {
-  url:        string;
-  page_type:  string;
-  page_class: "high_value" | "standard" | "ambient";
+  url:                  string;
+  page_type:            string;
+  page_class:           "high_value" | "standard" | "ambient";
+  discovery_candidates?: DiscoveryCandidatesJson;
 };
 
 type ExtractionRule = {
@@ -152,33 +168,38 @@ async function resolveMonitoredPages(
     ...(!isEnterprise ? ["changelog"] : []),
   ];
 
-  const categoryRankedCandidates = new Map<string, string[]>();
+  // Scored candidate entry: url + numeric score for discovery_candidates metadata.
+  type ScoredEntry = { url: string; score: number };
+
+  const categoryRankedCandidates = new Map<string, ScoredEntry[]>();
 
   for (const cat of categoriesToResolve) {
-    const queue: string[] = [];
+    const queue: ScoredEntry[] = [];
 
     // 1. LLM result — highest confidence source
     const llmResult = classified?.[cat as Category];
     if (llmResult?.url && llmResult.confidence >= CONFIDENCE_THRESHOLD) {
-      queue.push(llmResult.url);
+      queue.push({ url: llmResult.url, score: llmResult.confidence });
     }
 
     // 2. Scored candidates in rank order
     for (const candidate of scored[cat as Category] ?? []) {
       if (queue.length >= MAX_CANDIDATES) break;
-      if (candidate.score >= MIN_SCORE && !queue.includes(candidate.url)) {
-        queue.push(candidate.url);
+      if (candidate.score >= MIN_SCORE && !queue.some((e) => e.url === candidate.url)) {
+        queue.push({ url: candidate.url, score: candidate.score });
       }
     }
 
-    // 3. Template fallback (SaaS only)
+    // 3. Template fallback (SaaS only) — score 0 (unscored convention path)
     if (!isEnterprise) {
       const fallbacks: Partial<Record<Category, string>> = {
         pricing:          baseUrl + "/pricing",
         blog_or_articles: baseUrl + "/blog",
       };
       const fallback = fallbacks[cat as Category];
-      if (fallback && !queue.includes(fallback)) queue.push(fallback);
+      if (fallback && !queue.some((e) => e.url === fallback)) {
+        queue.push({ url: fallback, score: 0 });
+      }
     }
 
     if (queue.length > 0) categoryRankedCandidates.set(cat, queue);
@@ -186,13 +207,13 @@ async function resolveMonitoredPages(
 
   // Changelog is template-only (convention path, always validated)
   if (!isEnterprise) {
-    categoryRankedCandidates.set("changelog", [baseUrl + "/changelog"]);
+    categoryRankedCandidates.set("changelog", [{ url: baseUrl + "/changelog", score: 0 }]);
   }
 
   // ── Validate all candidate URLs in parallel ─────────────────────────────────
   const allCandidateUrls = new Set<string>();
-  for (const urls of categoryRankedCandidates.values()) {
-    for (const url of urls) allCandidateUrls.add(url);
+  for (const entries of categoryRankedCandidates.values()) {
+    for (const { url } of entries) allCandidateUrls.add(url);
   }
 
   const validationResults = await Promise.all(
@@ -205,20 +226,27 @@ async function resolveMonitoredPages(
 
   // ── Commit first valid candidate per category ───────────────────────────────
   // Iterates ranked list. Empty category is preferred over a wrong URL.
+  // Builds discovery_candidates metadata per committed page for operator audit.
   const committedUrls = new Set<string>([baseUrl]);
 
   for (const cat of allCategories) {
-    const candidates = categoryRankedCandidates.get(cat) ?? [];
+    const entries = categoryRankedCandidates.get(cat) ?? [];
     let committed = false;
+    const outcomeList: DiscoveryCandidate[] = [];
 
-    for (const url of candidates) {
+    for (const { url, score } of entries) {
       const validation = validatedUrls.get(url);
-      if (!validation?.ok) continue;
+      if (!validation?.ok) {
+        // HTTP failed — record without outcome flags
+        outcomeList.push({ url, score });
+        continue;
+      }
 
       // Content-pattern gate
       const guardResult = rejectPageUrl(url, cat);
       if (guardResult.reject) {
         rejections.push({ cat, url, reason: guardResult.reason });
+        outcomeList.push({ url, score, rejected: true, reject_reason: guardResult.reason });
         Sentry.addBreadcrumb({
           category: "onboarding",
           message:  "url_guard_rejected",
@@ -230,14 +258,24 @@ async function resolveMonitoredPages(
 
       // Dedup — skip if same URL committed under another category
       const normalizedUrl = url.replace(/\/$/, "");
-      if (committedUrls.has(normalizedUrl)) continue;
+      if (committedUrls.has(normalizedUrl)) {
+        outcomeList.push({ url, score });
+        continue;
+      }
       committedUrls.add(normalizedUrl);
 
+      outcomeList.push({ url, score, selected: true });
+
+      const discoveryCandidates: DiscoveryCandidatesJson = {
+        discovered_at: new Date().toISOString(),
+        candidates:    outcomeList,
+      };
+
       if (cat === "changelog") {
-        pages.push({ url, page_type: "changelog", page_class: "high_value" });
+        pages.push({ url, page_type: "changelog", page_class: "high_value", discovery_candidates: discoveryCandidates });
       } else {
         const pageDef = CATEGORY_TO_PAGE[cat as Category];
-        if (pageDef) pages.push({ url, page_type: pageDef.page_type, page_class: pageDef.page_class });
+        if (pageDef) pages.push({ url, page_type: pageDef.page_type, page_class: pageDef.page_class, discovery_candidates: discoveryCandidates });
       }
 
       committed = true;
@@ -245,12 +283,12 @@ async function resolveMonitoredPages(
     }
 
     if (!committed) {
-      if (candidates.length > 0 && !unresolved.includes(cat)) {
+      if (entries.length > 0 && !unresolved.includes(cat)) {
         Sentry.addBreadcrumb({
           category: "onboarding",
           message:  "category_no_valid_candidate",
           level:    "warning",
-          data:     { cat, candidatesAttempted: candidates.length },
+          data:     { cat, candidatesAttempted: entries.length },
         });
       }
       if (!unresolved.includes(cat)) unresolved.push(cat);
@@ -342,12 +380,13 @@ async function handler(req: ApiReq, res: ApiRes) {
         .from("monitored_pages")
         .upsert(
           {
-            competitor_id: competitorId,
-            url:           page.url,
-            page_type:     page.page_type,
-            page_class:    page.page_class,
-            active:        true,
-            health_state:  "healthy", // URL passed onboarding validation — safe starting state
+            competitor_id:        competitorId,
+            url:                  page.url,
+            page_type:            page.page_type,
+            page_class:           page.page_class,
+            active:               true,
+            health_state:         "healthy", // URL passed onboarding validation — safe starting state
+            ...(page.discovery_candidates ? { discovery_candidates: page.discovery_candidates } : {}),
           },
           { onConflict: "url" }
         )
