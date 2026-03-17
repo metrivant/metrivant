@@ -76,13 +76,13 @@ async function handler(req: ApiReq, res: ApiRes) {
     // ── Step 3: Latest narrative per competitor ────────────────────────────────
     const { data: narrativeRows } = await sb
       .from("radar_narratives")
-      .select("competitor_id, created_at, pressure_index")
+      .select("competitor_id, created_at, pressure_index, generation_reason")
       .in("competitor_id", trackedIds)
       .order("created_at", { ascending: false })
       .limit(trackedIds.length * 2);
 
-    const lastNarrativeMap = new Map<string, { created_at: string; pressure_index: number | null }>();
-    for (const n of (narrativeRows ?? []) as { competitor_id: string; created_at: string; pressure_index: number | null }[]) {
+    const lastNarrativeMap = new Map<string, { created_at: string; pressure_index: number | null; generation_reason: string | null }>();
+    for (const n of (narrativeRows ?? []) as { competitor_id: string; created_at: string; pressure_index: number | null; generation_reason: string | null }[]) {
       if (!lastNarrativeMap.has(n.competitor_id)) {
         lastNarrativeMap.set(n.competitor_id, n);
       }
@@ -91,7 +91,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     // ── Step 4: Signals in 14d window with page_class ─────────────────────────
     const { data: signalRows } = await sb
       .from("signals")
-      .select("id, signal_type, detected_at, competitor_id, monitored_pages(page_class, page_type)")
+      .select("id, signal_type, detected_at, competitor_id, relevance_level, monitored_pages(page_class, page_type)")
       .in("competitor_id", trackedIds)
       .gte("detected_at", since14d)
       .eq("interpreted", true)
@@ -103,6 +103,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       signal_type: string;
       detected_at: string;
       competitor_id: string;
+      relevance_level: string | null;
       monitored_pages: { page_class: string; page_type: string } | null;
     };
 
@@ -145,7 +146,12 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     // ── Step 7: Determine which competitors need new narratives ───────────────
     const toGenerate: string[] = [];
+    // Tracks competitors that triggered via the fallback condition (single signal,
+    // no movement, no prior narrative) so the insert can be tagged generation_reason='fallback'.
+    const fallbackTriggerSet = new Set<string>();
     const now = Date.now();
+    const SINCE_48H_MS = 48 * 60 * 60 * 1000;
+    const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
     for (const competitorId of trackedIds) {
       candidatesChecked++;
@@ -164,12 +170,26 @@ async function handler(req: ApiReq, res: ApiRes) {
           new Date(s.detected_at).getTime() > lastNarrativeMs
       );
 
-      // Rate limit: 12h minimum between narratives (bypassed by high_value)
+      // Rate limit: fallback narratives are held to 24h; standard triggers use 12h.
+      // This prevents a single weak signal from regenerating every 12h indefinitely.
+      const lastWasFallback = lastNarrative?.generation_reason === "fallback";
+      const rateLimit = lastWasFallback ? TWENTY_FOUR_HOURS_MS : TWELVE_HOURS_MS;
       const timeSinceLast = lastNarrative ? now - lastNarrativeMs : Infinity;
-      if (timeSinceLast < TWELVE_HOURS_MS && !highValueOverride) continue;
+      if (timeSinceLast < rateLimit && !highValueOverride) continue;
 
-      // No narrative yet — generate if there are signals to explain
+      // No narrative yet — check if this is a fallback trigger or a standard first run
       if (!lastNarrative) {
+        const movements = movementsByCompetitor.get(competitorId) ?? [];
+        const hasMovement = movements.length > 0;
+        // Trigger 5 (fallback): interpreted signal within 48h, no movement, not low-relevance
+        const freshRelevantSignal = signals.find((s) => {
+          const age = now - new Date(s.detected_at).getTime();
+          const level = s.relevance_level ?? null;
+          return age <= SINCE_48H_MS && level !== "low";
+        });
+        if (freshRelevantSignal && !hasMovement) {
+          fallbackTriggerSet.add(competitorId);
+        }
         toGenerate.push(competitorId);
         continue;
       }
@@ -274,6 +294,8 @@ async function handler(req: ApiReq, res: ApiRes) {
           signal_count:        signalCount,
           narrative,
           evidence_signal_ids: selected.map((s) => s.signal_id),
+          // Fallback trigger: single signal, no movement — labeled for honest display
+          ...(fallbackTriggerSet.has(competitorId) ? { generation_reason: "fallback" } : {}),
         });
 
       if (insertError) {

@@ -25,6 +25,10 @@ export type RadarCompetitor = {
   momentum_score: number;
   radar_narrative: string | null;
   radar_narrative_signal_count: number | null;
+  /** 'fallback' when generated from a single signal with no movement; null otherwise. */
+  radar_narrative_generation_reason: string | null;
+  /** Interpretation summary for the most recent signal — only present when signals_7d > 0 and no movement. */
+  latest_interpretation_summary: string | null;
   /** Up to 7 historical SVG positions, newest first. Empty array until trail records accumulate. */
   trail: TrailPoint[];
 };

@@ -3610,6 +3610,15 @@ export default function Radar({
                       </span>
                     )}
                   </div>
+                  {/* State B/E metadata — signal(s) detected but no pattern confirmed yet */}
+                  {!selected.latest_movement_type && (selected.signals_7d ?? 0) > 0 && (
+                    <div className="mt-1.5 text-[11px] text-slate-600">
+                      {selected.signals_7d === 1 ? "1 signal" : `${selected.signals_7d} signals`}
+                      {" · "}
+                      {formatRelative(selected.last_signal_at)}
+                      {" · no pattern detected"}
+                    </div>
+                  )}
                 </div>
 
                 <button
@@ -3645,11 +3654,25 @@ export default function Radar({
                   Assessment
                 </div>
                 {detailLoading ? (
-                  <div className="h-14 animate-pulse rounded-lg bg-[#0c1e0c]" />
+                  // While detail loads, show pre-loaded interpretation summary if available
+                  selected.latest_interpretation_summary ? (
+                    <p className="text-sm leading-relaxed text-slate-400">
+                      {selected.latest_interpretation_summary}
+                    </p>
+                  ) : (
+                    <div className="h-14 animate-pulse rounded-lg bg-[#0c1e0c]" />
+                  )
                 ) : detailError ? (
-                  <p className="text-sm leading-6 text-slate-500">
-                    Could not load intelligence. Try selecting again.
-                  </p>
+                  // On detail error, fall back to pre-loaded interpretation summary
+                  selected.latest_interpretation_summary ? (
+                    <p className="text-sm leading-relaxed text-slate-400">
+                      {selected.latest_interpretation_summary}
+                    </p>
+                  ) : (
+                    <p className="text-sm leading-6 text-slate-500">
+                      Could not load intelligence. Try selecting again.
+                    </p>
+                  )
                 ) : primarySignal?.strategic_implication ? (
                   <p className="text-sm leading-relaxed text-slate-300">
                     {(() => {
@@ -3665,7 +3688,15 @@ export default function Radar({
                     )}
                     {primarySignal.summary}
                   </p>
-) : detail?.signals && detail.signals.length === 0 ? (
+                ) : selected.radar_narrative ? (
+                  // Fallback: show radar narrative when no signal detail is available
+                  <p className="text-sm leading-relaxed text-slate-400">
+                    {selected.radar_narrative_generation_reason === "fallback" && (
+                      <span className="text-slate-600">preliminary observation — </span>
+                    )}
+                    {selected.radar_narrative}
+                  </p>
+                ) : detail?.signals && detail.signals.length === 0 ? (
                   <p className="text-sm leading-6 text-slate-500">
                     {(selected.signals_pending ?? 0) > 0
                       ? `${selected.signals_pending} signal${selected.signals_pending === 1 ? "" : "s"} in analysis — results arriving shortly.`
@@ -4215,24 +4246,41 @@ export default function Radar({
                         </div>
                         <div className="mt-0.5 flex items-center gap-1 truncate text-[11px]">
                           {isActive ? (
-                            <span
-                              className="font-medium uppercase tracking-[0.14em]"
-                              style={{ color }}
-                            >
-                              {translateMovementType(competitor.latest_movement_type, sector)}
-                            </span>
+                            <>
+                              <span
+                                className="font-medium uppercase tracking-[0.14em]"
+                                style={{ color }}
+                              >
+                                {translateMovementType(competitor.latest_movement_type, sector)}
+                              </span>
+                              <span className="text-slate-700">/</span>
+                              <span className="tabular-nums text-slate-600">
+                                {formatRelative(competitor.latest_movement_last_seen_at ?? competitor.last_signal_at)}
+                              </span>
+                            </>
+                          ) : (competitor.signals_7d ?? 0) > 0 ? (
+                            <>
+                              <span className="uppercase tracking-[0.14em] text-slate-500">
+                                {competitor.signals_7d === 1 ? "1 signal" : `${competitor.signals_7d} signals`}
+                              </span>
+                              <span className="text-slate-700">·</span>
+                              <span className="tabular-nums text-slate-600">
+                                {formatRelative(competitor.last_signal_at)}
+                              </span>
+                              <span className="text-slate-700">·</span>
+                              <span className="uppercase tracking-[0.12em] text-slate-600">no pattern</span>
+                            </>
                           ) : (
-                            <span className="uppercase tracking-[0.14em] text-slate-600">
-                              {momentum >= 1.5 ? "Watching" : "Dormant"}
-                            </span>
+                            <>
+                              <span className="uppercase tracking-[0.14em] text-slate-600">
+                                {momentum >= 1.5 ? "Watching" : "Dormant"}
+                              </span>
+                              <span className="text-slate-700">/</span>
+                              <span className="tabular-nums text-slate-600">
+                                {formatRelative(competitor.latest_movement_last_seen_at ?? competitor.last_signal_at)}
+                              </span>
+                            </>
                           )}
-                          <span className="text-slate-700">/</span>
-                          <span className="tabular-nums text-slate-600">
-                            {formatRelative(
-                              competitor.latest_movement_last_seen_at ??
-                                competitor.last_signal_at
-                            )}
-                          </span>
                         </div>
                       </div>
 

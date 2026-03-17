@@ -303,24 +303,77 @@ async function handler(req: ApiReq, res: ApiRes) {
     // ── Step 7: Load latest narrative per competitor ──────────────────────────
     // radar_narratives is append-only. We bulk-fetch ordered by created_at DESC
     // and take the first row per competitor in code.
-    const narrativeMap = new Map<string, { narrative: string; signal_count: number }>();
+    const narrativeMap = new Map<string, { narrative: string; signal_count: number; generation_reason: string | null }>();
 
     if (competitorIds.length > 0) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: narrativeRows } = await (supabase as any)
         .from("radar_narratives")
-        .select("competitor_id, narrative, signal_count, created_at")
+        .select("competitor_id, narrative, signal_count, created_at, generation_reason")
         .in("competitor_id", competitorIds)
         .order("created_at", { ascending: false })
         .limit(competitorIds.length * 2); // 2 most recent per competitor is sufficient
 
       for (const n of (narrativeRows ?? []) as {
-        competitor_id: string;
-        narrative:     string;
-        signal_count:  number;
+        competitor_id:     string;
+        narrative:         string;
+        signal_count:      number;
+        generation_reason: string | null;
       }[]) {
         if (!narrativeMap.has(n.competitor_id)) {
-          narrativeMap.set(n.competitor_id, { narrative: n.narrative, signal_count: n.signal_count });
+          narrativeMap.set(n.competitor_id, {
+            narrative:         n.narrative,
+            signal_count:      n.signal_count,
+            generation_reason: n.generation_reason ?? null,
+          });
+        }
+      }
+    }
+
+    // ── Step 7.6: Interpretation summaries for signal-only competitors ────────
+    // For competitors with interpreted signals but no confirmed movement, surface
+    // the latest interpretation summary in the feed so the UI can display
+    // something meaningful without requiring a competitor-detail API call.
+    const interpretationSummaryMap = new Map<string, string>();
+
+    const noMovementWithSignals = competitorIds.filter(
+      (id) => (signalAggMap.get(id)?.signals_7d ?? 0) > 0 && !latestMovementMap.has(id)
+    );
+
+    if (noMovementWithSignals.length > 0) {
+      // Most recent interpreted signal ID per competitor
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: latestSigRows } = await (supabase as any)
+        .from("signals")
+        .select("id, competitor_id")
+        .in("competitor_id", noMovementWithSignals)
+        .eq("interpreted", true)
+        .gte("detected_at", since7d)
+        .order("detected_at", { ascending: false })
+        .limit(noMovementWithSignals.length);
+
+      const latestSignalIdByCompetitor = new Map<string, string>();
+      for (const s of (latestSigRows ?? []) as { id: string; competitor_id: string }[]) {
+        if (!latestSignalIdByCompetitor.has(s.competitor_id)) {
+          latestSignalIdByCompetitor.set(s.competitor_id, s.id);
+        }
+      }
+
+      const signalIds = [...latestSignalIdByCompetitor.values()];
+      if (signalIds.length > 0) {
+        const { data: interpRows } = await supabase
+          .from("interpretations")
+          .select("signal_id, summary")
+          .in("signal_id", signalIds);
+
+        for (const i of (interpRows ?? []) as { signal_id: string; summary: string | null }[]) {
+          if (!i.summary) continue;
+          for (const [cid, sid] of latestSignalIdByCompetitor) {
+            if (sid === i.signal_id) {
+              interpretationSummaryMap.set(cid, i.summary);
+              break;
+            }
+          }
         }
       }
     }
@@ -399,8 +452,10 @@ async function handler(req: ApiReq, res: ApiRes) {
         latest_movement_summary:       movement?.summary ?? null,
         latest_signal_type:            agg?.latest_signal_type ?? null,
         momentum_score:                momentumScore,
-        radar_narrative:               narrativeMap.get(c.id)?.narrative       ?? null,
-        radar_narrative_signal_count:  narrativeMap.get(c.id)?.signal_count    ?? null,
+        radar_narrative:                    narrativeMap.get(c.id)?.narrative           ?? null,
+        radar_narrative_signal_count:       narrativeMap.get(c.id)?.signal_count        ?? null,
+        radar_narrative_generation_reason:  narrativeMap.get(c.id)?.generation_reason   ?? null,
+        latest_interpretation_summary:      interpretationSummaryMap.get(c.id)          ?? null,
         trail: (trailMap.get(c.id) ?? []).map((r) => ({
           x: r.x,
           y: r.y,

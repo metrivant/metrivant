@@ -110,6 +110,7 @@ async function runCheck(): Promise<NextResponse> {
   const active = competitors.filter((c) => c.signals_7d > 0);
 
   if (active.length === 0) {
+    await writeCronHeartbeat(supabase, "/api/check-signals", "ok", Date.now() - runStart, 0);
     return NextResponse.json({ ok: true, signalsFound: 0, alertsCreated: 0 });
   }
 
@@ -158,6 +159,7 @@ async function runCheck(): Promise<NextResponse> {
   });
 
   if (qualifying.length === 0) {
+    await writeCronHeartbeat(supabase, "/api/check-signals", "ok", Date.now() - runStart, 0);
     return NextResponse.json({ ok: true, signalsFound: 0, alertsCreated: 0 });
   }
 
@@ -214,6 +216,7 @@ async function runCheck(): Promise<NextResponse> {
   }
 
   if (alertsCreated === 0) {
+    await writeCronHeartbeat(supabase, "/api/check-signals", "ok", Date.now() - runStart, 0);
     return NextResponse.json({
       ok:          true,
       signalsFound: qualifying.length,
