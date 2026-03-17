@@ -248,3 +248,19 @@ radar-ui/CLAUDE.md
 
 If missing:
 → check docs/ for relocated files
+
+---
+
+## END OF SESSION — MANDATORY UPDATE
+
+At the end of every session, update `docs/workflow/endsession.md` with new operational
+knowledge gained. Structure additions under these five sections (add only if new):
+
+1. **DIAGNOSTIC EFFICIENCY PROTOCOL** — new ordered steps or shortcuts discovered
+2. **TOKEN EFFICIENCY RULES** — patterns that reduced unnecessary reads or calls
+3. **KNOWN SYSTEM BEHAVIOUR** — behaviours confirmed as intentional (not bugs)
+4. **MODE INFERENCE RULE** — new task phrasings mapped to correct session mode
+5. **PROMPT EXECUTION RULES** — new rules about how to interpret and execute user instructions
+
+Commit the update with:
+  docs(workflow): update endsession.md — [one-line description of what was learned]
