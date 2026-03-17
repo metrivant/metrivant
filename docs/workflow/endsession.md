@@ -110,6 +110,52 @@ If any answer above is uncertain → resolve before ending session.
 
 ---
 
+## QUERY EXECUTION — NO SUPABASE CLI
+
+`supabase` CLI is NOT installed. `grep` and `head` are NOT available in the shell environment.
+
+All database queries run via the **Supabase REST API** using credentials from `.env.local`.
+
+**Credentials (read from `.env.local` at session start if not already known):**
+```
+NEXT_PUBLIC_SUPABASE_URL  →  SB_URL
+SUPABASE_SERVICE_ROLE_KEY →  SB_KEY
+```
+
+**Count query (use `Prefer: count=exact` + `Range` header, parse `content-range` response):**
+```bash
+curl -s "$SB_URL/rest/v1/table_name?filter=eq.value&select=id" \
+  -H "apikey: $SB_KEY" -H "Authorization: Bearer $SB_KEY" \
+  -H "Prefer: count=exact" -H "Range-Unit: items" -H "Range: 0-0" \
+  -I | python3 -c "import sys; [print(l) for l in sys.stdin if 'content-range' in l.lower()]"
+```
+Result format: `content-range: */N` where N = total count.
+
+**Row fetch + Python aggregation (no grep/head available):**
+```python
+python3 -c "
+import urllib.request, json
+url = 'https://<project>.supabase.co/rest/v1/table_name?select=col1,col2&filter=eq.value'
+req = urllib.request.Request(url, headers={'apikey': '<key>', 'Authorization': 'Bearer <key>'})
+rows = json.loads(urllib.request.urlopen(req).read())
+print(json.dumps(rows, indent=2))
+"
+```
+
+**REST filter syntax:**
+- `column=eq.value` — equals
+- `column=in.(a,b,c)` — IN list
+- `column=gt.value` — greater than
+- `column=is.null` — IS NULL
+- `column=not.is.null` — IS NOT NULL
+- `order=col.desc&limit=10` — ordering + limit
+
+**Parallel queries:** run multiple curl/python calls in the same bash block using `;` or `&&`.
+
+**Never use** `grep`, `head`, `tail`, `sed`, `awk` — not available. Use Python inline instead.
+
+---
+
 ## DIAGNOSTIC EFFICIENCY PROTOCOL
 
 Use this order for diagnose sessions. Stop at the level that answers the question.
