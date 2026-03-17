@@ -71,13 +71,19 @@ competitors
 → UI
 
 ================================================
-4. CRON SCHEDULE (vercel.json — metrivant-runtime)
+4. CRON SCHEDULE
 ================================================
 
-Three-tier fetch cadence:
+── Runtime (vercel.json — metrivant-runtime) ──────────────────────────────────
+
+Fetch cadence:
   :00,:30  fetch-snapshots?page_class=ambient     (blog, careers)
-  :02,:32  fetch-snapshots?page_class=high_value  (pricing, changelog, newsroom)
+  :02      fetch-snapshots?page_class=high_value  (pricing, changelog, newsroom) — every hour
   :04      fetch-snapshots?page_class=standard    (homepage, features) — every 3h
+
+Pool 1 ingestion (newsroom):
+  :10      ingest-feeds
+  :12      promote-feed-signals
 
 Processing pipeline (every 30 min):
   :15,:45  extract-sections
@@ -87,13 +93,28 @@ Processing pipeline (every 30 min):
   :23,:53  detect-ambient-activity
   :25,:55  update-pressure-index
 
-Interpretation + movements (every 60 min):
+Interpretation + movements + AI synthesis (every 60 min):
   :28      interpret-signals
+  :30      synthesize-movement-narratives
+  :45      generate-radar-narratives
   :50      update-signal-velocity
   :55      detect-movements
 
 Weekly:
-  Mon 09:00  generate-brief
+  Mon 07:00  generate-sector-intelligence
+
+Daily:
+  02:00  promote-baselines
+  03:00  retention
+  04:00  suggest-selector-repairs
+
+── Frontend (radar-ui/vercel.json — metrivant-ui) ────────────────────────────
+
+  Mon 10:00  generate-brief         ← radar-ui surface only (runtime stub is disabled)
+  Hourly :00 check-signals
+  Every 6h   update-momentum
+  Daily 08:00 strategic-analysis
+  Daily 09:00 update-positioning
 
 ================================================
 5. PAGE CLASSIFICATION (monitored_pages.page_class)
@@ -195,9 +216,9 @@ Confidence gates:
   >= 0.65       → status = 'pending' (sent to OpenAI)
 
 Deduplication:
-  signal_hash = sha256(competitor_id:signal_type:section_type:YYYY-MM-DD)[:32]
-  One signal per (competitor, section_type, signal_type) per UTC calendar day.
-  Allows same signal_type from different page sections to fire independently.
+  signal_hash = sha256(competitor_id:signal_type:section_type:diff_id)[:32]
+  Anchored to the specific diff — not a daily bucket.
+  Same-day distinct events each produce independent signals (e.g., morning price change + evening rollback).
 
 Smart excerpts (buildExcerpts):
   Finds first divergence point, backs up to word boundary,
@@ -804,10 +825,34 @@ Needs verification / apply if not yet done:
 Note: migration 014 was superseded by 017. If 014 was already applied, 017 is still
 safe to run (all steps are DROP IF EXISTS / ADD IF NOT EXISTS).
 
-Signal hash dedup note (CLAUDE.md shows old formula):
+-- Migrations 026–028 (observability, feedback, retention) --
+pipeline_events                    observability log for all pipeline stages; 90d retention (lib/pipeline-metrics.ts)
+signal_feedback                    operator quality labels per signal (verdict, noise_category); unique per signal_id
+retention functions                4 idempotent Postgres RPC functions: retention_null_raw_html,
+                                   retention_delete_sections, retention_delete_diffs, retention_delete_pipeline_events
+
+-- Migrations 030–035 (AI Intelligence Stack) --
+signals.relevance_level            gpt-4o-mini pre-classification (high|medium|low); low skips interpretation
+signals.relevance_rationale        one-sentence rationale from relevance classifier
+strategic_movements (032):         movement_summary, strategic_implication, confidence_level, confidence_reason, narrative_generated_at
+selector_repair_suggestions (031): AI-proposed CSS selector fixes; operator review only; never auto-applied
+radar_narratives (033):            append-only per-competitor activity narratives; joined by radar-feed Step 7
+sector_intelligence (034):         weekly cross-competitor GPT-4o analysis per org; sector_trends + divergences JSONB
+weekly_briefs (035):               sector_summary, movements JSONB, activity JSONB, brief_markdown columns
+
+-- Migrations 036–044 --
+radar_positions (036):             SVG node trail per org; 28d retention
+monitored_pages.health_state (037): per-page observability (healthy|blocked|challenge|degraded|baseline_maturing|unresolved)
+pool_events + competitor_feeds (038): newsroom pool — append-only ingestion log + feed config per competitor
+pool_events extensions (039–043):  careers, investor, product, procurement, regulatory pools (schema + code complete)
+media_observations + sector_narratives (044): media pool — 30d observations + permanent narrative clusters
+signals.source_type (038):         'page_diff' | 'feed_event' provenance tracking
+signals extended types (038–043):  feed_press_release, feed_newsroom_post, hiring_spike, new_function, new_region,
+                                   role_cluster, earnings_release, acquisition, and others
+
+Signal hash (v4.1):
   signal_hash = sha256(competitor_id:signal_type:section_type:diff_id)[:32]
   Anchored to the diff — NOT a calendar-day bucket.
-  CLAUDE.md section on signal_hash still shows old "YYYY-MM-DD" formula — that is stale.
   The code in detect-signals.ts is authoritative.
 
 ================================================
@@ -833,3 +878,107 @@ Expected failures silenced in fetch-snapshots (isExpectedFailure):
   "HTML exceeds size limit"      page > 1MB
   TypeError: fetch failed        DNS/connection failure
   23505                          concurrent run duplicate insert race
+
+================================================
+28. AI INTELLIGENCE LAYERS
+================================================
+
+The system has 6 distinct AI processing layers. All are GPT-based; none are speculative.
+
+Layer 1 — Signal Relevance Classification
+  Stage:  runs within detect-signals (or classify-signal-relevance)
+  Model:  gpt-4o-mini
+  Output: signals.relevance_level (high|medium|low), signals.relevance_rationale
+  Gate:   relevance_level='low' → signal skips Layer 2 (cost control)
+
+Layer 2 — Signal Interpretation
+  Stage:  interpret-signals (:28 hourly)
+  Model:  gpt-4o-mini (temperature=0, seed=42, json_object)
+  Input:  pending signals (confidence >= 0.65 OR promoted by pressure_index >= 5.0)
+  Output: interpretations table; signal status → interpreted
+
+Layer 3 — Movement Synthesis
+  Stage:  synthesize-movement-narratives (:30 hourly)
+  Model:  gpt-4o
+  Input:  strategic_movements WHERE movement_summary IS NULL
+  Output: strategic_movements.movement_summary, strategic_implication, confidence_level, confidence_reason
+  Fallback: deterministic summary on LLM failure
+
+Layer 4 — Radar Narrative Generation
+  Stage:  generate-radar-narratives (:45 hourly)
+  Model:  gpt-4o-mini
+  Triggers: new movement, ≥2 signals in 7d since last narrative, pressure +1.5, high_value override
+  Rate limit: 12h per competitor (bypassed by high_value trigger)
+  Output: radar_narratives (append-only, max 5 evidence signals per narrative)
+
+Layer 5 — Sector Intelligence
+  Stage:  generate-sector-intelligence (Mon 07:00 UTC)
+  Model:  gpt-4o
+  Input:  all tracked competitor signals (30d window), section-pivoted by type
+  Output: sector_intelligence per org (sector_trends[], divergences[], summary)
+
+Layer 6 — Weekly Brief Generation
+  Stage:  generate-brief (Mon 10:00 UTC) — radar-ui surface only
+  Model:  gpt-4o (temperature=0.25, max_tokens=1400)
+  Input:  sector_intelligence.summary + strategic_movements.movement_summary + radar_narratives
+          + sector_narratives (Pool 7 — optional; currently empty until media pool activates)
+  Output: weekly_briefs (BriefContent JSON + brief_markdown); email via Resend
+  Surface note: Implemented in radar-ui/app/api/generate-brief/route.ts.
+                Runtime api/generate-brief.ts is a DISABLED STUB ({ok:true, disabled:true}).
+
+================================================
+29. POOL SYSTEM — ADDITIVE SIGNAL ARCHITECTURE
+================================================
+
+Pools are additive signal sources running parallel to the page-diff pipeline.
+Feed events flow: pool_events → promote-feed-signals → signals → existing pipeline.
+
+Tables:   pool_events (append-only event log), competitor_feeds (feed config per competitor per pool)
+Schema:   migration 038 (base), 039–043 (per-pool extensions)
+Provenance: signals.source_type = 'feed_event' (vs 'page_diff' for web monitoring)
+Dedup:    signal_hash is primary dedup key for feed signals
+
+Pool 1 — Newsroom (ACTIVE)
+  Migration:  038_pool_events_and_feeds.sql
+  Ingest:     api/ingest-feeds.ts — scheduled :10 hourly (vercel.json)
+  Promote:    api/promote-feed-signals.ts — scheduled :12 hourly
+  Signal types: feed_press_release, feed_newsroom_post
+  Status:     active and running
+
+Pool 2 — Careers (DORMANT)
+  Migration:  039_careers_pool.sql
+  Ingest:     api/ingest-careers.ts — code complete, NOT in vercel.json
+  Signal types: hiring_spike, new_function, new_region, role_cluster
+  Status:     dormant — activation-ready (add cron entry to vercel.json)
+
+Pool 3 — Investor (DORMANT)
+  Migration:  040_investor_pool.sql
+  Ingest:     api/ingest-investor-feeds.ts — code complete, NOT in vercel.json
+  Signal types: earnings_release, acquisition, divestiture, guidance_update, major_contract,
+                capital_raise, strategic_investment, partnership, investor_presentation
+  Status:     dormant — activation-ready
+
+Pool 4 — Product (DORMANT)
+  Migration:  041_product_pool.sql
+  Ingest:     api/ingest-product-feeds.ts — code complete, NOT in vercel.json
+  Status:     dormant — activation-ready
+
+Pool 5 — Procurement (DORMANT)
+  Migration:  042_procurement_pool.sql
+  Ingest:     api/ingest-procurement-feeds.ts — code complete, NOT in vercel.json
+  Status:     dormant — activation-ready
+
+Pool 6 — Regulatory (DORMANT)
+  Migration:  043_regulatory_pool.sql
+  Ingest:     api/ingest-regulatory-feeds.ts — code complete, NOT in vercel.json
+  Status:     dormant — activation-ready
+
+Pool 7 — Media (SCHEMA COMPLETE, INGESTION NOT IMPLEMENTED)
+  Migration:  044_media_pool.sql
+  Tables:     media_observations (30d retention), sector_narratives (permanent)
+  Data flow:  media RSS → media_observations → cluster detection → sector_narratives
+              → sector_intelligence context → weekly brief "Market Context"
+  Ingest:     api/ingest-media-feeds.ts — exists, ingestion logic not yet implemented
+  Status:     schema complete; sector_narratives table is empty until implemented
+  Impact:     weekly briefs query sector_narratives as optional input and run without it;
+              briefs omit Market Context section until Pool 7 is activated

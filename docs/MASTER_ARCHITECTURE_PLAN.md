@@ -1,3 +1,5 @@
+SUPERSEDED — see docs/METRIVANT_MASTER_REFERENCE.md
+
 METRIVANT — MASTER ARCHITECTURE PLAN
 Version: v1.1
 Status: Pre-production architecture blueprint

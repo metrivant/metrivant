@@ -1,3 +1,5 @@
+SUPERSEDED — see docs/METRIVANT_MASTER_REFERENCE.md
+
 METRIVANT — SYSTEM RUNTIME FLOW
 Version: v2.0 (intelligence cadence + precision tuning)
 

@@ -52,6 +52,15 @@ Key schema additions (migrations 030–035) — AI Intelligence Stack:
 - sector_intelligence (034)         weekly cross-competitor GPT-4o analysis per org; sector_trends + divergences JSONB
 - weekly_briefs (035):              sector_summary, movements JSONB, activity JSONB, brief_markdown columns added
 
+Key schema additions (migrations 036–044):
+- radar_positions (036)              SVG node trail per org; 28d retention
+- monitored_pages.health_state (037) per-page observability (healthy|blocked|challenge|degraded|baseline_maturing|unresolved)
+- pool_events + competitor_feeds (038) newsroom pool: append-only ingestion log + feed config per competitor
+- pool_events extensions (039–043)   careers, investor, product, procurement, regulatory pools (schema + code complete)
+- media_observations + sector_narratives (044) media pool: sector narrative cluster detection; 30d observations + permanent clusters
+- signals.source_type (038)          'page_diff' | 'feed_event' provenance tracking
+- signals extended types (038–043)   feed_press_release, feed_newsroom_post, hiring_spike, new_function, new_region, role_cluster, earnings_release, acquisition, and others
+
 Retention policy (lib/retention-config.ts):
   RAW_HTML           7d  — null raw_html on processed snapshots (sections_extracted=true)
   EXTRACTED_SECTIONS 90d — delete page_sections, skip rows referenced by baselines/diffs
@@ -65,9 +74,19 @@ Brief generation (radar-ui/app/api/generate-brief/route.ts — Monday 10:00 UTC)
     1. sector_intelligence.summary   (latest row within 7d)
     2. strategic_movements           (movement_summary IS NOT NULL, last 7d, ORDER BY confidence DESC, LIMIT 10)
     3. radar_narratives              (latest per competitor)
+    4. sector_narratives             (Pool 7 media — last 14d, max 5, optional; currently empty until Pool 7 activates)
   GPT-4o assembles BriefContent JSON from artifact prompt. Stored in weekly_briefs.content for UI.
   Also stores: sector_summary, movements JSONB, activity JSONB, brief_markdown (deterministic markdown).
   Fallback: skips org if no artifacts exist (no LLM call).
+  Surface: radar-ui only. Runtime api/generate-brief.ts = DISABLED STUB ({ok:true, disabled:true}).
+
+AI layers (6):
+  1. Signal relevance classification  gpt-4o-mini → signals.relevance_level (high|medium|low); low skips interpretation
+  2. Signal interpretation             gpt-4o-mini → interpretations (:28 hourly, pending signals only)
+  3. Movement synthesis                gpt-4o     → strategic_movements.movement_summary + strategic_implication (:30 hourly)
+  4. Radar narrative generation        gpt-4o-mini → radar_narratives per competitor (:45 hourly)
+  5. Sector intelligence               gpt-4o     → sector_intelligence per org (Mon 07:00 UTC)
+  6. Weekly brief generation           gpt-4o     → weekly_briefs (radar-ui, Mon 10:00 UTC)
 
 Confidence model (v4.0):
   base             = SECTION_WEIGHTS[section_type]   (0.25–0.85)
@@ -136,6 +155,16 @@ Manual pipeline trigger:
 
 Full system reference:
   docs/METRIVANT_MASTER_REFERENCE.md — single authoritative doc (replaces all individual docs)
+
+Pool system (additive signal pipeline — parallel to page-diff monitoring):
+  Pool 1 (newsroom):  active — ingest-feeds (:10 hourly), promote-feed-signals (:12 hourly)
+                      signals flow into existing pipeline with source_type='feed_event'
+  Pools 2–6 (careers, investor, product, procurement, regulatory):
+                      schema + code complete, NOT scheduled — dormant, activation-ready
+                      activate by adding cron entry to vercel.json
+  Pool 7 (media):     schema complete (migration 044), ingestion not implemented
+                      produces sector_narratives (currently empty table)
+                      weekly briefs query sector_narratives as optional input; run without it
 
 Sector model (v3.0):
 - Each sector has 15 competitors in the catalog

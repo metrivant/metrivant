@@ -1,3 +1,5 @@
+SUPERSEDED — see docs/METRIVANT_MASTER_REFERENCE.md
+
 ## Pattern Layer (planned)
 
 Pattern detection sits after signals.
