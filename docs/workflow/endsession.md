@@ -210,3 +210,13 @@ State the inferred mode at the start of the session. Stop and ask only if genuin
 - "comprehensive report" with open questions = document mode. Generate the report to a file in docs/, commit it. List the open questions to the user at the end — do not guess answers.
 - When Supabase REST returns error 57014 (statement timeout): switch to batched deletes ≤50 rows per call.
   Never retry the same large delete — it will time out again.
+
+- `pending_review` signals on fresh competitors create a bootstrap deadlock: no signals → low pressure →
+  no promotion → no signals. Bootstrap fix applied (2026-03-17) in `update-pressure-index.ts`: if a
+  competitor has zero signals in `pending` or `interpreted`, their highest-confidence `pending_review`
+  signal (≥ 0.50) is promoted once per run regardless of pressure_index.
+
+- `onboard-competitor` URL validation is reachability-only (HTTP 200 + content-length). It does not check
+  whether the URL is the right kind of page. Bad URLs that return 200 (sitemaps, legal pages, product tools,
+  single posts, homepage locale variants) are silently committed. Content-pattern gate added (2026-03-17)
+  in `rejectPageUrl()` — applied before commit, after HTTP validation passes.

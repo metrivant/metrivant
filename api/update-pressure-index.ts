@@ -3,6 +3,7 @@ import { withSentry, ApiReq, ApiRes } from "../lib/withSentry";
 import { Sentry } from "../lib/sentry";
 import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
+import { recordEvent, generateRunId } from "../lib/pipeline-metrics";
 
 /**
  * update-pressure-index
@@ -28,9 +29,12 @@ import { verifyCronSecret } from "../lib/withCronAuth";
  *   cron will pick them up on the next run.
  */
 
-const PRESSURE_PROMOTE_THRESHOLD = 5.0;
-const SIGNAL_WINDOW_DAYS         = 7;
-const ACTIVITY_WINDOW_HOURS      = 48;
+const PRESSURE_PROMOTE_THRESHOLD  = 5.0;
+const SIGNAL_WINDOW_DAYS          = 7;
+const ACTIVITY_WINDOW_HOURS       = 48;
+// Minimum confidence for bootstrap promotion — midpoint of the pending_review band (0.35–0.64).
+// Prevents weak signals from self-promoting on fresh competitors.
+const BOOTSTRAP_CONFIDENCE_FLOOR  = 0.50;
 
 const SEVERITY_WEIGHTS: Record<string, number> = {
   high:   1.0,
@@ -76,12 +80,19 @@ interface ActivityEventRow {
   event_type: string;
 }
 
+interface BootstrapCandidateRow {
+  id: string;
+  competitor_id: string;
+  confidence_score: number;
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 async function handler(req: ApiReq, res: ApiRes) {
   if (!verifyCronSecret(req, res)) return;
 
   const startedAt = Date.now();
+  const runId     = (req.headers as Record<string, string | undefined>)?.["x-vercel-id"] ?? generateRunId();
 
   const checkInId = Sentry.captureCheckIn({
     monitorSlug: "update-pressure-index",
@@ -169,6 +180,47 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     if (eventsError) throw eventsError;
 
+    // ── 4b. Bootstrap gate — active signal counts per competitor ──────────────
+    // "Active" = already in the interpretation pipeline (pending or interpreted).
+    // Competitors with zero active signals are bootstrap candidates.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: activeSignalRows, error: activeSignalsError } = await (supabase as any)
+      .from("signals")
+      .select("competitor_id")
+      .in("competitor_id", competitorIds)
+      .in("status", ["pending", "interpreted"]);
+
+    if (activeSignalsError) throw activeSignalsError;
+
+    const activeSignalsByCompetitor = new Map<string, number>();
+    for (const row of (activeSignalRows ?? []) as { competitor_id: string }[]) {
+      activeSignalsByCompetitor.set(
+        row.competitor_id,
+        (activeSignalsByCompetitor.get(row.competitor_id) ?? 0) + 1
+      );
+    }
+
+    // ── 4c. Bootstrap candidates — highest-confidence pending_review per competitor ─
+    // Ordered descending so the first occurrence per competitor_id is the best candidate.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: bootstrapRows, error: bootstrapRowsError } = await (supabase as any)
+      .from("signals")
+      .select("id, competitor_id, confidence_score")
+      .in("competitor_id", competitorIds)
+      .eq("status", "pending_review")
+      .gte("confidence_score", BOOTSTRAP_CONFIDENCE_FLOOR)
+      .order("confidence_score", { ascending: false });
+
+    if (bootstrapRowsError) throw bootstrapRowsError;
+
+    // One candidate per competitor — first occurrence = highest confidence.
+    const bootstrapCandidates = new Map<string, BootstrapCandidateRow>();
+    for (const row of (bootstrapRows ?? []) as BootstrapCandidateRow[]) {
+      if (!bootstrapCandidates.has(row.competitor_id)) {
+        bootstrapCandidates.set(row.competitor_id, row);
+      }
+    }
+
     // ── 5. Aggregate in-memory per competitor ─────────────────────────────────
 
     // signal weight per competitor
@@ -203,6 +255,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     let competitorsUpdated  = 0;
     let signalsPromoted     = 0;
+    let bootstrapPromoted   = 0;
 
     for (const { id: cid } of allCompetitors) {
       const signalW    = signalWeightByCompetitor.get(cid) ?? 0;
@@ -241,6 +294,39 @@ async function handler(req: ApiReq, res: ApiRes) {
             signalsPromoted += promoted?.length ?? 0;
           }
         }
+      } else {
+        // Bootstrap promotion — fires only when pressure-based promotion did not trigger.
+        // A competitor with no active signals and a qualifying pending_review signal
+        // receives exactly one promotion per run, unblocking the interpretation pipeline
+        // without requiring pressure to build first.
+        const hasActiveSignals = (activeSignalsByCompetitor.get(cid) ?? 0) > 0;
+        const candidate        = bootstrapCandidates.get(cid);
+
+        if (!hasActiveSignals && candidate) {
+          const { error: promotionError } = await supabase
+            .from("signals")
+            .update({ status: "pending" })
+            .eq("id", candidate.id)
+            .eq("status", "pending_review"); // safety: only promote if still pending_review
+
+          if (promotionError) {
+            Sentry.captureException(promotionError);
+          } else {
+            signalsPromoted  += 1;
+            bootstrapPromoted += 1;
+            void recordEvent({
+              run_id:   runId,
+              stage:    "bootstrap_promotion",
+              status:   "success",
+              metadata: {
+                competitor_id:    cid,
+                signal_id:        candidate.id,
+                confidence_score: candidate.confidence_score,
+                reason:           "bootstrap_exemption",
+              },
+            });
+          }
+        }
       }
     }
 
@@ -250,6 +336,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       stage_name: "update-pressure-index",
       competitorsUpdated,
       signalsPromoted,
+      bootstrapPromoted,
       runtimeDurationMs,
     });
 
@@ -266,6 +353,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       job: "update-pressure-index",
       competitorsUpdated,
       signalsPromoted,
+      bootstrapPromoted,
       runtimeDurationMs,
     });
 

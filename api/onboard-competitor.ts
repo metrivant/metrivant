@@ -91,6 +91,56 @@ function rulesForPage(pageType: string): ExtractionRule[] {
   }
 }
 
+// ── URL content-pattern gate ───────────────────────────────────────────────────
+//
+// Applied after HTTP validation passes, before committing a URL to monitored_pages.
+// Catches egregious misclassifications that return HTTP 200 but are the wrong kind
+// of page: sitemaps, legal pages, single articles, product tools, homepage variants.
+//
+// Returns a rejection reason string, or null if the URL is acceptable.
+// Pure string matching — no extra HTTP calls.
+
+function rejectPageUrl(url: string, category: string): string | null {
+  // File-type URLs (sitemaps, feeds, JSON) — not HTML pages
+  if (/\.(xml|json)(\?.*)?$/i.test(url)) return "file_not_page";
+
+  // Legal/compliance pages
+  if (/\/(privacy|terms|legal|cookie|gdpr|compliance)([-/]|$)/i.test(url)) return "legal_page";
+
+  // Year-in-path → likely a single dated article, not a section index
+  if (/\/\d{4}\//.test(url)) return "single_post";
+
+  // Query-string URLs — dynamic pages are unreliable for change detection
+  if (url.includes("?")) return "query_url";
+
+  // Deep blog paths — 3+ segments usually means a specific article, not an index
+  // e.g. /business/blog/rush-order-tees-affirm — 3 segments → single post
+  // e.g. /business/blog — 2 segments → acceptable index
+  if (category === "blog_or_articles") {
+    try {
+      const pathSegments = new URL(url).pathname.replace(/^\/|\/$/g, "").split("/").filter(Boolean);
+      if (pathSegments.length >= 3) return "likely_single_post";
+    } catch { /* unparseable URL already failed validateUrl */ }
+  }
+
+  // For newsroom/blog: known product-tool path patterns misclassified as content pages
+  if (category === "newsroom" || category === "blog_or_articles") {
+    if (/\/(free-tools|vc-database|investor-database|demo|calculator|tools)(\/|$)/i.test(url)) {
+      return "product_tool";
+    }
+  }
+
+  // For newsroom: locale-only path (e.g. /us/, /uk/, /en/) → homepage variant, not press
+  if (category === "newsroom") {
+    try {
+      const path = new URL(url).pathname.replace(/^\/|\/$/g, "");
+      if (path === "" || /^[a-z]{2}(-[a-z]{2})?$/i.test(path)) return "homepage_variant";
+    } catch { /* ignore */ }
+  }
+
+  return null;
+}
+
 // ── URL discovery and resolution ───────────────────────────────────────────────
 //
 // Flow:
@@ -98,7 +148,8 @@ function rulesForPage(pageType: string): ExtractionRule[] {
 //   2. Score candidates deterministically per category
 //   3. Refine with LLM if OpenAI key available (best-effort, gpt-4o-mini)
 //   4. Validate top candidate per category with HEAD/GET
-//   5. Commit only validated pages
+//   5. Apply content-pattern gate (rejectPageUrl)
+//   6. Commit only validated + pattern-clean pages
 //
 // SaaS fallback: if discovery produces no candidate for pricing/changelog/blog,
 // try the conventional template path and validate it too.
@@ -109,10 +160,11 @@ async function resolveMonitoredPages(
   sector:         string,
   competitorName: string,
   openaiKey:      string | undefined
-): Promise<{ pages: CandidatePage[]; resolved: number; unresolved: string[] }> {
+): Promise<{ pages: CandidatePage[]; resolved: number; unresolved: string[]; rejections: { cat: string; url: string; reason: string }[] }> {
   const isEnterprise = ENTERPRISE_SECTORS.has(sector);
   const pages: CandidatePage[] = [];
   const unresolved: string[]   = [];
+  const rejections: { cat: string; url: string; reason: string }[] = [];
 
   // Homepage is always committed without discovery
   pages.push({ url: baseUrl, page_type: "homepage", page_class: "standard" });
@@ -190,6 +242,14 @@ async function resolveMonitoredPages(
       continue;
     }
 
+    // Content-pattern gate: reject URLs that returned 200 but are the wrong kind of page
+    const rejection = rejectPageUrl(url, cat);
+    if (rejection) {
+      rejections.push({ cat, url, reason: rejection });
+      unresolved.push(cat);
+      continue;
+    }
+
     // Skip if this URL was already committed under another category
     const normalizedUrl = url.replace(/\/$/, "");
     if (committedUrls.has(normalizedUrl)) {
@@ -208,7 +268,7 @@ async function resolveMonitoredPages(
     }
   }
 
-  return { pages, resolved: pages.length - 1, unresolved };
+  return { pages, resolved: pages.length - 1, unresolved, rejections };
 }
 
 // ── Handler ────────────────────────────────────────────────────────────────────
@@ -278,7 +338,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     */
 
     const openaiKey = process.env.OPENAI_API_KEY;
-    const { pages, resolved, unresolved } = await resolveMonitoredPages(
+    const { pages, resolved, unresolved, rejections } = await resolveMonitoredPages(
       baseUrl,
       sector,
       name,
@@ -641,6 +701,8 @@ async function handler(req: ApiReq, res: ApiRes) {
       pages_resolved:           resolved,
       pages_unresolved:         unresolved.length,
       unresolved_categories:    unresolved,
+      pages_rejected:           rejections.length,
+      rejected_pages:           rejections,
       feed_discovery:           feedDiscoveryStatus,
       ats_discovery:            atsDiscoveryStatus,
       investor_discovery:       investorDiscoveryStatus,
@@ -659,6 +721,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       pages_created:            createdPages.length,
       pages_resolved:           resolved,
       unresolved_categories:    unresolved,
+      rejected_pages:           rejections,
       feed_discovery:           feedDiscoveryStatus,
       ats_discovery:            atsDiscoveryStatus,
       investor_discovery:       investorDiscoveryStatus,
