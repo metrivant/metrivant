@@ -3,8 +3,8 @@
 // Used by /api/initialize-sector to seed tracked_competitors when a new user
 // selects their sector during onboarding.
 //
-// Each sector has 15 competitors. Priority 1–5 are always included.
-// The remaining 10 are randomly sampled to give variety across sessions.
+// Each sector has 20 competitors. Priority 1–5 are always included.
+// The remaining 15 are randomly sampled to give variety across sessions.
 // getSectorRandomDefaults() handles that logic.
 //
 // default_pages are the page types the runtime pipeline creates
@@ -40,6 +40,11 @@ const SAAS_DEFAULTS: SectorDefaultCompetitor[] = [
   { name: "Zoom",         domain: "zoom.us",          website_url: "https://zoom.us",          priority: 13, default_pages: SAAS_PAGES },
   { name: "Atlassian",    domain: "atlassian.com",    website_url: "https://atlassian.com",    priority: 14, default_pages: SAAS_PAGES },
   { name: "monday.com",   domain: "monday.com",       website_url: "https://monday.com",       priority: 15, default_pages: SAAS_PAGES },
+  { name: "Loom",         domain: "loom.com",         website_url: "https://loom.com",         priority: 16, default_pages: SAAS_PAGES },
+  { name: "Miro",         domain: "miro.com",         website_url: "https://miro.com",         priority: 17, default_pages: SAAS_PAGES },
+  { name: "Zapier",       domain: "zapier.com",       website_url: "https://zapier.com",       priority: 18, default_pages: SAAS_PAGES },
+  { name: "Intercom",     domain: "intercom.com",     website_url: "https://intercom.com",     priority: 19, default_pages: SAAS_PAGES },
+  { name: "Segment",      domain: "segment.com",      website_url: "https://segment.com",      priority: 20, default_pages: SAAS_PAGES },
 ];
 
 // ── Defense ───────────────────────────────────────────────────────────────────
@@ -60,6 +65,11 @@ const DEFENSE_DEFAULTS: SectorDefaultCompetitor[] = [
   { name: "Booz Allen",       domain: "boozallen.com",       website_url: "https://boozallen.com",       priority: 13, default_pages: DEFENSE_PAGES },
   { name: "L3Harris",         domain: "l3harris.com",        website_url: "https://l3harris.com",        priority: 14, default_pages: DEFENSE_PAGES },
   { name: "Leonardo DRS",     domain: "leonardodrs.com",     website_url: "https://leonardodrs.com",     priority: 15, default_pages: DEFENSE_PAGES },
+  { name: "Peraton",          domain: "peraton.com",         website_url: "https://peraton.com",         priority: 16, default_pages: DEFENSE_PAGES },
+  { name: "Parsons",          domain: "parsons.com",         website_url: "https://parsons.com",         priority: 17, default_pages: DEFENSE_PAGES },
+  { name: "Joby Aviation",    domain: "jobyaviation.com",    website_url: "https://jobyaviation.com",    priority: 18, default_pages: DEFENSE_PAGES },
+  { name: "Sierra Nevada Corp",domain: "sncorp.com",         website_url: "https://sncorp.com",          priority: 19, default_pages: DEFENSE_PAGES },
+  { name: "Terran Orbital",   domain: "terranorbital.com",   website_url: "https://terranorbital.com",   priority: 20, default_pages: DEFENSE_PAGES },
 ];
 
 // ── Energy ────────────────────────────────────────────────────────────────────
@@ -80,6 +90,11 @@ const ENERGY_DEFAULTS: SectorDefaultCompetitor[] = [
   { name: "Sempra",         domain: "sempra.com",         website_url: "https://sempra.com",        priority: 13, default_pages: ENERGY_PAGES },
   { name: "Marathon Oil",   domain: "marathonoil.com",    website_url: "https://marathonoil.com",   priority: 14, default_pages: ENERGY_PAGES },
   { name: "Occidental",     domain: "oxy.com",            website_url: "https://oxy.com",           priority: 15, default_pages: ENERGY_PAGES },
+  { name: "Arcadia",        domain: "arcadia.com",        website_url: "https://arcadia.com",       priority: 16, default_pages: ENERGY_PAGES },
+  { name: "Palmetto",       domain: "palmetto.com",       website_url: "https://palmetto.com",      priority: 17, default_pages: ENERGY_PAGES },
+  { name: "Aurora Solar",   domain: "aurorasolar.com",    website_url: "https://aurorasolar.com",   priority: 18, default_pages: ENERGY_PAGES },
+  { name: "Stem",           domain: "stem.com",           website_url: "https://stem.com",          priority: 19, default_pages: ENERGY_PAGES },
+  { name: "PowerFlex",      domain: "powerflex.com",      website_url: "https://powerflex.com",     priority: 20, default_pages: ENERGY_PAGES },
 ];
 
 // ── Cybersecurity ─────────────────────────────────────────────────────────────
@@ -102,6 +117,11 @@ const CYBERSECURITY_DEFAULTS: SectorDefaultCompetitor[] = [
   { name: "Arctic Wolf",        domain: "arcticwolf.com",         website_url: "https://arcticwolf.com",         priority: 13, default_pages: CYBER_PAGES },
   { name: "Snyk",               domain: "snyk.io",                website_url: "https://snyk.io",                priority: 14, default_pages: CYBER_PAGES },
   { name: "Lacework",           domain: "lacework.com",           website_url: "https://lacework.com",           priority: 15, default_pages: CYBER_PAGES },
+  { name: "Varonis",            domain: "varonis.com",            website_url: "https://varonis.com",            priority: 16, default_pages: CYBER_PAGES },
+  { name: "Orca",               domain: "orca.security",          website_url: "https://orca.security",          priority: 17, default_pages: CYBER_PAGES },
+  { name: "Qualys",             domain: "qualys.com",             website_url: "https://qualys.com",             priority: 18, default_pages: CYBER_PAGES },
+  { name: "Vectra AI",          domain: "vectra.ai",              website_url: "https://vectra.ai",              priority: 19, default_pages: CYBER_PAGES },
+  { name: "Pentera",            domain: "pentera.io",             website_url: "https://pentera.io",             priority: 20, default_pages: CYBER_PAGES },
 ];
 
 // ── Fintech ───────────────────────────────────────────────────────────────────
@@ -123,7 +143,12 @@ const FINTECH_DEFAULTS: SectorDefaultCompetitor[] = [
   { name: "Affirm",       domain: "affirm.com",      website_url: "https://affirm.com",      priority: 12, default_pages: FINTECH_PAGES },
   { name: "Wise",         domain: "wise.com",        website_url: "https://wise.com",        priority: 13, default_pages: FINTECH_PAGES },
   { name: "Nuvei",        domain: "nuvei.com",       website_url: "https://nuvei.com",       priority: 14, default_pages: FINTECH_PAGES },
-  { name: "Checkout.com", domain: "checkout.com",    website_url: "https://checkout.com",    priority: 15, default_pages: FINTECH_PAGES },
+  { name: "Checkout.com",      domain: "checkout.com",       website_url: "https://checkout.com",       priority: 15, default_pages: FINTECH_PAGES },
+  { name: "Moov",              domain: "moov.io",            website_url: "https://moov.io",            priority: 16, default_pages: FINTECH_PAGES },
+  { name: "Increase",          domain: "increase.com",       website_url: "https://increase.com",       priority: 17, default_pages: FINTECH_PAGES },
+  { name: "Modern Treasury",   domain: "moderntreasury.com", website_url: "https://moderntreasury.com", priority: 18, default_pages: FINTECH_PAGES },
+  { name: "Unit",              domain: "unit.co",            website_url: "https://unit.co",            priority: 19, default_pages: FINTECH_PAGES },
+  { name: "Column",            domain: "column.com",         website_url: "https://column.com",         priority: 20, default_pages: FINTECH_PAGES },
 ];
 
 // ── AI Infrastructure ─────────────────────────────────────────────────────────
@@ -146,6 +171,11 @@ const AI_INFRASTRUCTURE_DEFAULTS: SectorDefaultCompetitor[] = [
   { name: "Modal",          domain: "modal.com",         website_url: "https://modal.com",         priority: 13, default_pages: AI_PAGES },
   { name: "Baseten",        domain: "baseten.co",        website_url: "https://baseten.co",        priority: 14, default_pages: AI_PAGES },
   { name: "Perplexity",     domain: "perplexity.ai",     website_url: "https://perplexity.ai",     priority: 15, default_pages: AI_PAGES },
+  { name: "Fireworks AI",   domain: "fireworks.ai",      website_url: "https://fireworks.ai",      priority: 16, default_pages: AI_PAGES },
+  { name: "Cerebras",       domain: "cerebras.net",      website_url: "https://cerebras.net",      priority: 17, default_pages: AI_PAGES },
+  { name: "LlamaIndex",     domain: "llamaindex.ai",     website_url: "https://llamaindex.ai",     priority: 18, default_pages: AI_PAGES },
+  { name: "LangChain",      domain: "langchain.com",     website_url: "https://langchain.com",     priority: 19, default_pages: AI_PAGES },
+  { name: "DeepInfra",      domain: "deepinfra.com",     website_url: "https://deepinfra.com",     priority: 20, default_pages: AI_PAGES },
 ];
 
 // ── DevTools ──────────────────────────────────────────────────────────────────
@@ -168,6 +198,11 @@ const DEVTOOLS_DEFAULTS: SectorDefaultCompetitor[] = [
   { name: "PlanetScale",domain: "planetscale.com", website_url: "https://planetscale.com", priority: 13, default_pages: DEVTOOLS_PAGES },
   { name: "Turso",      domain: "turso.tech",      website_url: "https://turso.tech",      priority: 14, default_pages: DEVTOOLS_PAGES },
   { name: "Val Town",   domain: "val.town",        website_url: "https://val.town",        priority: 15, default_pages: DEVTOOLS_PAGES },
+  { name: "Doppler",    domain: "doppler.com",     website_url: "https://doppler.com",     priority: 16, default_pages: DEVTOOLS_PAGES },
+  { name: "Infisical",  domain: "infisical.com",   website_url: "https://infisical.com",   priority: 17, default_pages: DEVTOOLS_PAGES },
+  { name: "Depot",      domain: "depot.dev",       website_url: "https://depot.dev",       priority: 18, default_pages: DEVTOOLS_PAGES },
+  { name: "Dagger",     domain: "dagger.io",       website_url: "https://dagger.io",       priority: 19, default_pages: DEVTOOLS_PAGES },
+  { name: "Earthly",    domain: "earthly.dev",     website_url: "https://earthly.dev",     priority: 20, default_pages: DEVTOOLS_PAGES },
 ];
 
 // ── Healthcare ────────────────────────────────────────────────────────────────
@@ -189,7 +224,12 @@ const HEALTHCARE_DEFAULTS: SectorDefaultCompetitor[] = [
   { name: "Innovaccer",      domain: "innovaccer.com",      website_url: "https://innovaccer.com",      priority: 12, default_pages: HEALTH_PAGES },
   { name: "Canvas Medical",  domain: "canvasmedical.com",   website_url: "https://canvasmedical.com",   priority: 13, default_pages: HEALTH_PAGES },
   { name: "Netsmart",        domain: "ntst.com",            website_url: "https://ntst.com",            priority: 14, default_pages: HEALTH_PAGES },
-  { name: "Clipboard Health",domain: "clipboardhealth.com", website_url: "https://clipboardhealth.com", priority: 15, default_pages: HEALTH_PAGES },
+  { name: "Clipboard Health",  domain: "clipboardhealth.com", website_url: "https://clipboardhealth.com", priority: 15, default_pages: HEALTH_PAGES },
+  { name: "Commure",           domain: "commure.com",         website_url: "https://commure.com",         priority: 16, default_pages: HEALTH_PAGES },
+  { name: "Turquoise Health",  domain: "turquoise.health",    website_url: "https://turquoise.health",    priority: 17, default_pages: HEALTH_PAGES },
+  { name: "Abridge",           domain: "abridge.com",         website_url: "https://abridge.com",         priority: 18, default_pages: HEALTH_PAGES },
+  { name: "Aidoc",             domain: "aidoc.com",           website_url: "https://aidoc.com",           priority: 19, default_pages: HEALTH_PAGES },
+  { name: "Notable",           domain: "notablehealth.com",   website_url: "https://notablehealth.com",   priority: 20, default_pages: HEALTH_PAGES },
 ];
 
 // ── Consumer Tech ─────────────────────────────────────────────────────────────
@@ -211,7 +251,12 @@ const CONSUMER_TECH_DEFAULTS: SectorDefaultCompetitor[] = [
   { name: "Snap",     domain: "snap.com",     website_url: "https://snap.com",     priority: 12, default_pages: CONSUMER_PAGES },
   { name: "Discord",  domain: "discord.com",  website_url: "https://discord.com",  priority: 13, default_pages: CONSUMER_PAGES },
   { name: "Reddit",   domain: "reddit.com",   website_url: "https://reddit.com",   priority: 14, default_pages: CONSUMER_PAGES },
-  { name: "Twitch",   domain: "twitch.tv",    website_url: "https://twitch.tv",    priority: 15, default_pages: CONSUMER_PAGES },
+  { name: "Twitch",     domain: "twitch.tv",      website_url: "https://twitch.tv",      priority: 15, default_pages: CONSUMER_PAGES },
+  { name: "Roblox",    domain: "roblox.com",    website_url: "https://roblox.com",    priority: 16, default_pages: CONSUMER_PAGES },
+  { name: "Duolingo",  domain: "duolingo.com",  website_url: "https://duolingo.com",  priority: 17, default_pages: CONSUMER_PAGES },
+  { name: "Calm",      domain: "calm.com",      website_url: "https://calm.com",      priority: 18, default_pages: CONSUMER_PAGES },
+  { name: "BeReal",    domain: "bereal.com",    website_url: "https://bereal.com",    priority: 19, default_pages: CONSUMER_PAGES },
+  { name: "Headspace", domain: "headspace.com", website_url: "https://headspace.com", priority: 20, default_pages: CONSUMER_PAGES },
 ];
 
 // ── Catalog map ───────────────────────────────────────────────────────────────
