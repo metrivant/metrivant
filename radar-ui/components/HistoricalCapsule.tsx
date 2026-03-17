@@ -14,7 +14,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { INTEL_STORIES } from "../lib/intel-stories";
 import type { IntelStory, IllustrationKey } from "../lib/intel-stories";
 import type { ExpandedContent, TimelineEvent } from "../app/api/expand-intel-story/route";
-import { canShowPanel, setPanelOpen, setPanelClosed, randomDelay } from "../lib/panel-coordinator";
+import { canShowPanel, setPanelOpen, setPanelClosed, nextCycleDelay } from "../lib/panel-coordinator";
 
 // ── Session dedup ─────────────────────────────────────────────────────────────
 
@@ -321,18 +321,47 @@ const TIMELINE_COLORS: Record<TimelineEvent["type"], string> = {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function TimelineRow({ ev }: { ev: TimelineEvent }) {
+function TimelineIcon({ type }: { type: TimelineEvent["type"] }) {
+  const c = TIMELINE_COLORS[type];
+  if (type === "warning") return (
+    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden style={{ flexShrink: 0 }}>
+      <polygon points="7,2 13,12 1,12" fill="none" stroke={c} strokeWidth="1.4" strokeLinejoin="round" />
+      <line x1="7" y1="6" x2="7" y2="9" stroke={c} strokeWidth="1.4" strokeLinecap="round" />
+      <circle cx="7" cy="11" r="0.9" fill={c} />
+    </svg>
+  );
+  if (type === "missed") return (
+    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden style={{ flexShrink: 0 }}>
+      <circle cx="7" cy="7" r="5.5" fill="none" stroke={c} strokeWidth="1.4" />
+      <line x1="4.5" y1="4.5" x2="9.5" y2="9.5" stroke={c} strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="9.5" y1="4.5" x2="4.5" y2="9.5" stroke={c} strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+  if (type === "collapse") return (
+    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden style={{ flexShrink: 0 }}>
+      <line x1="7" y1="1.5" x2="7" y2="9.5" stroke={c} strokeWidth="1.4" strokeLinecap="round" />
+      <polyline points="4,7 7,10.5 10,7" fill="none" stroke={c} strokeWidth="1.4" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
   return (
-    <div className="flex items-start gap-2.5">
-      <div className="flex flex-col items-center shrink-0" style={{ minHeight: 28 }}>
-        <div className="w-2 h-2 rounded-full mt-1 shrink-0" style={{ background: TIMELINE_COLORS[ev.type] }} />
-        <div className="w-px flex-1 mt-1" style={{ background: "rgba(255,255,255,0.05)" }} />
+    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden style={{ flexShrink: 0 }}>
+      <circle cx="7" cy="7" r="5.5" fill="none" stroke={c} strokeWidth="1.4" />
+      <polyline points="4,7 6.5,9.5 10,4.5" fill="none" stroke={c} strokeWidth="1.4" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function TimelineRow({ ev }: { ev: TimelineEvent }) {
+  const c = TIMELINE_COLORS[ev.type];
+  return (
+    <div className="flex items-start gap-2.5 mb-2">
+      <div className="flex flex-col items-center shrink-0 mt-0.5">
+        <TimelineIcon type={ev.type} />
+        <div className="w-px flex-1 mt-1" style={{ background: "rgba(255,255,255,0.05)", minHeight: 10 }} />
       </div>
-      <div className="pb-3 min-w-0">
-        <span className="text-[10px] font-bold tracking-wider mr-1.5" style={{ color: TIMELINE_COLORS[ev.type] }}>
-          {ev.year}
-        </span>
-        <span className="text-[11px] text-slate-400 leading-snug">{ev.event}</span>
+      <div className="pb-2 min-w-0 flex-1">
+        <span className="text-[9px] font-bold tracking-widest mr-1.5 font-mono" style={{ color: c }}>{ev.year}</span>
+        <span className="text-[10px] text-slate-400 leading-snug">{ev.event}</span>
       </div>
     </div>
   );
@@ -369,14 +398,14 @@ export default function HistoricalCapsule() {
   // Only run client-side to avoid SSR mismatch with sessionStorage
   useEffect(() => { setReady(true); }, []);
 
-  // First panel after 6–10 minutes
+  // First panel after 2 minutes (starts the 2→3→2 cycle)
   useEffect(() => {
     if (!ready) return;
     const t = setTimeout(() => {
       if (!canShowPanel()) return;
       const next = pickNext();
       if (next) { markShown(next.id); setStory(next); setPanelOpen(); }
-    }, randomDelay(360_000, 600_000));
+    }, nextCycleDelay());
     return () => clearTimeout(t);
   }, [ready]);
 
@@ -385,7 +414,7 @@ export default function HistoricalCapsule() {
       if (!canShowPanel()) return;
       const next = pickNext();
       if (next) { markShown(next.id); setStory(next); setPanelOpen(); }
-    }, randomDelay(360_000, 600_000));
+    }, nextCycleDelay());
   }, []);
 
   const handleClose = useCallback(() => {
@@ -527,21 +556,42 @@ export default function HistoricalCapsule() {
               {loading && <ExpandSkeleton />}
 
               {expandError && (
-                <p className="text-[11px] text-slate-600 italic">Unable to load expansion. Try again shortly.</p>
+                <div className="flex flex-col items-center gap-3 py-3">
+                  <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden>
+                    <circle cx="11" cy="11" r="9.5" fill="none" stroke="rgba(100,116,139,0.28)" strokeWidth="1.4" />
+                    <line x1="11" y1="7" x2="11" y2="12.5" stroke="rgba(100,116,139,0.50)" strokeWidth="1.4" strokeLinecap="round" />
+                    <circle cx="11" cy="15" r="1" fill="rgba(100,116,139,0.50)" />
+                  </svg>
+                  <p className="text-[11px] text-slate-600 italic text-center">Unable to load expansion.</p>
+                  <button
+                    onClick={handleLearnMore}
+                    className="text-[10px] px-3 py-1 rounded-lg transition-all"
+                    style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.35)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }}
+                  >
+                    Retry
+                  </button>
+                </div>
               )}
 
               {content && (
-                <div className="space-y-5">
+                <div className="space-y-4">
                   {/* Overview */}
-                  <div>
+                  <div className="rounded-lg px-3 py-2.5" style={{ borderLeft: `2px solid ${story.accent}80`, background: "rgba(255,255,255,0.02)" }}>
                     <div className="text-[9px] font-bold uppercase tracking-widest mb-1.5" style={{ color: story.accent }}>Overview</div>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">{content.overview}</p>
+                    <p className="text-[11px] text-slate-300 leading-relaxed">{content.overview}</p>
                   </div>
 
                   {/* Timeline */}
                   {!!content.timeline?.length && (
                     <div>
-                      <div className="text-[9px] font-bold uppercase tracking-widest mb-2" style={{ color: story.accent }}>Timeline</div>
+                      <div className="flex items-center gap-1.5 mb-2.5">
+                        <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
+                          <line x1="5" y1="0" x2="5" y2="10" stroke={story.accent} strokeWidth="1.2" strokeOpacity="0.55" />
+                          <circle cx="5" cy="2.5" r="1.5" fill={story.accent} fillOpacity="0.65" />
+                          <circle cx="5" cy="7.5" r="1.5" fill={story.accent} fillOpacity="0.35" />
+                        </svg>
+                        <div className="text-[9px] font-bold uppercase tracking-widest" style={{ color: story.accent }}>Timeline</div>
+                      </div>
                       {content.timeline.map((ev, i) => <TimelineRow key={i} ev={ev} />)}
                     </div>
                   )}
@@ -549,25 +599,39 @@ export default function HistoricalCapsule() {
                   {/* Missed signals */}
                   {!!content.missed_signals?.length && (
                     <div>
-                      <div className="text-[9px] font-bold uppercase tracking-widest mb-2" style={{ color: "#EF4444" }}>Signals That Were Ignored</div>
-                      <ul className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
+                          <circle cx="5" cy="5" r="4.5" fill="none" stroke="#EF4444" strokeWidth="1.2" strokeOpacity="0.60" />
+                          <line x1="3" y1="3" x2="7" y2="7" stroke="#EF4444" strokeWidth="1.2" strokeOpacity="0.60" strokeLinecap="round" />
+                          <line x1="7" y1="3" x2="3" y2="7" stroke="#EF4444" strokeWidth="1.2" strokeOpacity="0.60" strokeLinecap="round" />
+                        </svg>
+                        <div className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "#EF4444" }}>Signals Ignored</div>
+                      </div>
+                      <div className="space-y-1.5">
                         {content.missed_signals.map((sig, i) => (
-                          <li key={i} className="flex items-start gap-2">
-                            <span className="mt-[1px] text-[10px] text-red-500 shrink-0 leading-4">✕</span>
-                            <span className="text-[11px] text-slate-400 leading-relaxed">{sig}</span>
-                          </li>
+                          <div key={i} className="flex items-start gap-2 px-2.5 py-1.5 rounded-md"
+                            style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.10)" }}>
+                            <div className="w-1 h-1 rounded-full shrink-0 mt-1.5" style={{ background: "#EF4444", opacity: 0.65 }} />
+                            <span className="text-[10px] text-slate-400 leading-snug">{sig}</span>
+                          </div>
                         ))}
-                      </ul>
+                      </div>
                     </div>
                   )}
 
-                  {/* Metrivant connection */}
+                  {/* Metrivant detection */}
                   {content.metrivant_would_detect && (
-                    <div className="rounded-lg p-3" style={{ background: "rgba(46,230,166,0.05)", border: "1px solid rgba(46,230,166,0.13)" }}>
-                      <div className="text-[9px] font-bold uppercase tracking-widest mb-1.5" style={{ color: "#2EE6A6" }}>
-                        How Metrivant Would Have Detected This
+                    <div className="rounded-lg p-3" style={{ background: "rgba(46,230,166,0.04)", border: "1px solid rgba(46,230,166,0.13)" }}>
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
+                          <circle cx="6" cy="6" r="5.2" fill="none" stroke="#2EE6A6" strokeWidth="1.1" strokeOpacity="0.55" />
+                          <circle cx="6" cy="6" r="3.0" fill="none" stroke="#2EE6A6" strokeWidth="1.0" strokeOpacity="0.35" />
+                          <circle cx="6" cy="6" r="1.0" fill="#2EE6A6" fillOpacity="0.75" />
+                          <line x1="6" y1="0.8" x2="6" y2="6" stroke="#2EE6A6" strokeWidth="1.1" strokeOpacity="0.80" />
+                        </svg>
+                        <div className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "#2EE6A6" }}>Metrivant Would Detect</div>
                       </div>
-                      <p className="text-[11px] leading-relaxed" style={{ color: "rgba(46,230,166,0.72)" }}>
+                      <p className="text-[10px] leading-relaxed" style={{ color: "rgba(46,230,166,0.62)" }}>
                         {content.metrivant_would_detect}
                       </p>
                     </div>
@@ -575,9 +639,12 @@ export default function HistoricalCapsule() {
 
                   {/* Takeaway */}
                   {content.takeaway && (
-                    <div className="rounded-lg p-3" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                      <span className="text-[9px] font-bold uppercase tracking-widest mr-2" style={{ color: "rgba(255,255,255,0.30)" }}>Lesson</span>
-                      <span className="text-[11px] text-slate-300 italic leading-relaxed">{content.takeaway}</span>
+                    <div className="flex gap-2.5 rounded-lg p-3" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                      <div className="text-[22px] leading-none shrink-0 mt-[-3px]" style={{ color: "rgba(255,255,255,0.10)", fontFamily: "Georgia, serif" }}>"</div>
+                      <div>
+                        <span className="text-[9px] font-bold uppercase tracking-widest block mb-1" style={{ color: "rgba(255,255,255,0.22)" }}>Lesson</span>
+                        <span className="text-[10px] text-slate-300 italic leading-relaxed">{content.takeaway}</span>
+                      </div>
                     </div>
                   )}
                 </div>

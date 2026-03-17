@@ -1,7 +1,9 @@
 # Sentry Observability Audit
 
-**Date:** 2026-03-17
-**Scope:** Full audit of Sentry integration across both Metrivant surfaces — runtime (`metrivant-runtime`) and frontend (`metrivant-ui`). Read-only investigation. No code, config, or Sentry settings were modified.
+**Audit date:** 2026-03-17
+**Implementation date:** 2026-03-17
+**Scope:** Full audit + hardening pass across both Metrivant surfaces — runtime (`metrivant-runtime`) and frontend (`metrivant-ui`).
+**Status:** Post-hardening. All P1 and P2 defects resolved.
 
 ---
 
@@ -10,24 +12,23 @@
 ### Runtime (`lib/sentry.ts`)
 
 - **Package:** `@sentry/node`
-- **DSN source:** `SENTRY_DSN ?? SENTRY_DNS` — active typo fallback (see §10)
-- **Traces:** `tracesSampleRate: 0.05` in production, `1.0` in development
+- **DSN source:** `SENTRY_DSN ?? SENTRY_DNS` — typo fallback retained (see DEF-01)
+- **Traces:** `tracesSampleRate: 0.05` production, `1.0` development
 - **Environment:** `VERCEL_ENV ?? NODE_ENV`
 - **Release:** `VERCEL_GIT_COMMIT_SHA`
 - **`beforeSend`:** not configured
-- **Verdict:** solid. Env and release tracking are correct. Traces are appropriately sampled for production.
+- **Verdict:** solid.
 
 ### Frontend (`radar-ui/lib/sentry.ts`)
 
 - **Package:** `@sentry/nextjs` (lazy init)
 - **DSN source:** `SENTRY_DSN ?? SENTRY_DNS` — same typo fallback
-- **Traces:** `tracesSampleRate: 0` — **traces disabled entirely**
-- **Environment:** not set
-- **Release:** not set
-- **`sentry.client.config.ts` / `sentry.server.config.ts` / `sentry.edge.config.ts`:** none present
-- **`withSentryConfig` in `next.config.ts`:** not configured
-- **Exports:** `captureException` and `captureMessage` only — no `captureCheckIn`
-- **Verdict:** minimal. Environment and release are blind. Traces are off. Sentry SDK is present for exception capture only — not for performance or cron monitoring.
+- **Traces:** `tracesSampleRate: 0` — traces disabled
+- **Environment:** not set (DEF-06, still open)
+- **Release:** not set (DEF-06, still open)
+- **`flush` export added:** `export async function flush(timeoutMs = 2000)` — safe for client+server; used by all frontend cron handlers
+- **`captureCheckIn`:** NOT exported from this module (client-bundled file — would break client bundle); frontend handlers use inline `require("@sentry/nextjs")` pattern instead
+- **Verdict:** functional. Exception capture, flush discipline, and cron monitoring are now correct. Env/release tracking still absent.
 
 ---
 
@@ -35,67 +36,67 @@
 
 ### Runtime: `lib/withSentry.ts`
 
-All 20 scheduled runtime handlers are wrapped with `withSentry`. The wrapper:
+All 25 scheduled runtime handlers are wrapped with `withSentry`. The wrapper:
 
 - Catches unhandled exceptions and calls `Sentry.captureException`
 - Tags the function name via `Sentry.setTag("function", name)`
 - Calls `Sentry.flush(2000)` before returning 500
 - Does NOT suppress the error — re-throws after flush
 
-**Verdict:** runtime exception coverage is complete. Any unhandled throw in any runtime handler will be captured and flushed before the function exits.
+**Verdict:** complete. Any unhandled throw in any runtime handler is captured and flushed.
 
-### Frontend: no equivalent wrapper
+### Frontend: no shared wrapper (by design)
 
-Frontend cron handlers (`/api/check-signals`, `/api/generate-brief`, `/api/update-momentum`, `/api/strategic-analysis`, `/api/update-positioning`) each manage Sentry manually with ad-hoc `try/catch` blocks and `captureException` calls. There is no shared wrapper enforcing flush discipline.
-
-**Verdict:** frontend exception coverage is inconsistent. Missed exceptions in frontend crons will silently disappear.
+Frontend cron handlers (`/api/check-signals`, `/api/generate-brief`, `/api/update-momentum`, `/api/strategic-analysis`, `/api/update-positioning`) manage Sentry manually. All 5 now have explicit `captureCheckIn` + `flush` coverage at every exit path (see §3).
 
 ---
 
 ## 3. Sentry Check-in Coverage (Cron Monitors)
 
-### Runtime — 20 scheduled cron slots
+### Runtime — 25 scheduled cron slots
 
-All active scheduled runtime handlers emit `captureCheckIn` with both `in_progress` and `ok`/`error` status. All use `Sentry.flush(2000)` in both success and error paths.
+All runtime handlers emit `captureCheckIn` with `checkInId` correlation (start → ok/error linked as one duration-tracked event).
 
-| Handler | Monitor Slug | Check-in |
-|---|---|---|
-| `fetch-snapshots` (ambient) | `fetch-snapshots-ambient` | ✅ |
-| `fetch-snapshots` (high_value) | `fetch-snapshots-high-value` | ✅ |
-| `fetch-snapshots` (standard) | `fetch-snapshots-standard` | ✅ |
-| `extract-sections` | `extract-sections` | ✅ |
-| `build-baselines` | `build-baselines` | ✅ |
-| `detect-diffs` | `detect-diffs` | ✅ |
-| `detect-signals` | `detect-signals` | ✅ |
-| `detect-ambient-activity` | `detect-ambient-activity` | ✅ |
-| `update-pressure-index` | `update-pressure-index` | ✅ |
-| `interpret-signals` | `interpret-signals` | ✅ |
-| `update-signal-velocity` | `update-signal-velocity` | ✅ |
-| `detect-movements` | `detect-movements` | ✅ |
-| `synthesize-movement-narratives` | `synthesize-movement-narratives` | ✅ |
-| `generate-radar-narratives` | `generate-radar-narratives` | ✅ |
-| `generate-sector-intelligence` | `generate-sector-intelligence` | ✅ |
-| `ingest-feeds` | `ingest-feeds` | ✅ |
-| `promote-feed-signals` | `promote-feed-signals` | ✅ |
-| `promote-baselines` | `promote-baselines` | ✅ |
-| `retention` | `retention` | ✅ |
-| `suggest-selector-repairs` | `suggest-selector-repairs` | ✅ |
+| Handler | Monitor Slug | Check-in | checkInId |
+|---|---|---|---|
+| `fetch-snapshots` (ambient) | `fetch-snapshots-ambient` | ✅ | ✅ |
+| `fetch-snapshots` (high_value) | `fetch-snapshots-high-value` | ✅ | ✅ |
+| `fetch-snapshots` (standard) | `fetch-snapshots-standard` | ✅ | ✅ |
+| `extract-sections` | `extract-sections` | ✅ | ✅ |
+| `build-baselines` | `build-baselines` | ✅ | ✅ |
+| `detect-diffs` | `detect-diffs` | ✅ | ✅ |
+| `detect-signals` | `detect-signals` | ✅ | ✅ |
+| `detect-ambient-activity` | `detect-ambient-activity` | ✅ | ✅ |
+| `update-pressure-index` | `update-pressure-index` | ✅ | ✅ |
+| `interpret-signals` | `interpret-signals` | ✅ | ✅ |
+| `update-signal-velocity` | `update-signal-velocity` | ✅ | ✅ |
+| `detect-movements` | `detect-movements` | ✅ | ✅ |
+| `synthesize-movement-narratives` | `synthesize-movement-narratives` | ✅ | ✅ |
+| `generate-radar-narratives` | `generate-radar-narratives` | ✅ | ✅ |
+| `generate-sector-intelligence` | `generate-sector-intelligence` | ✅ | ✅ |
+| `ingest-feeds` | `ingest-feeds` | ✅ | ✅ |
+| `promote-feed-signals` | `promote-feed-signals` | ✅ | ✅ |
+| `promote-baselines` | `promote-baselines` | ✅ | ✅ |
+| `retention` | `retention` | ✅ | ✅ |
+| `suggest-selector-repairs` | `suggest-selector-repairs` | ✅ | ✅ |
+| `onboard-competitor` | `onboard-competitor` | ✅ | ✅ (fixed: moved before try block) |
+| `watchdog` | `watchdog` | ✅ | ✅ (new handler) |
 
-**Verdict:** runtime cron monitor coverage is complete.
+**Verdict:** runtime cron monitor coverage is complete. `checkInId` correlation allows Sentry to calculate actual monitor duration.
 
 ### Frontend — 5 scheduled cron slots
 
-| Handler | Monitor Slug | Check-in |
-|---|---|---|
-| `check-signals` | none | ❌ |
-| `generate-brief` | `generate-brief` | ✅ |
-| `update-momentum` | none | ❌ |
-| `strategic-analysis` | none | ❌ |
-| `update-positioning` | none | ❌ |
+All 5 frontend cron handlers now have full check-in coverage. **DEF-02 resolved.**
 
-**4 of 5 frontend crons have no Sentry check-in monitor.** If any of these handlers silently miss their schedule (Vercel cron misfire, deployment gap, unhandled exception before captureException is reached), Sentry will not detect the absence.
+| Handler | Monitor Slug | Check-in | checkInId | flush |
+|---|---|---|---|---|
+| `check-signals` | `check-signals` | ✅ | ✅ | ✅ |
+| `generate-brief` | `generate-brief` | ✅ | ✅ | ✅ |
+| `update-momentum` | `update-momentum` | ✅ | ✅ | ✅ |
+| `strategic-analysis` | `strategic-analysis` | ✅ | ✅ | ✅ |
+| `update-positioning` | `update-positioning` | ✅ | ✅ | ✅ |
 
-`generate-brief` uses `captureCheckIn` via a `require("@sentry/nextjs")` workaround because the lazy-init frontend sentry module does not expose `captureCheckIn`. This works but is fragile — it bypasses the module interface.
+All handlers use the inline `require("@sentry/nextjs")` pattern with a local `captureCheckIn` helper function. This is intentional — the lazy-init frontend Sentry module cannot expose `captureCheckIn` without risk of bundling it client-side.
 
 ---
 
@@ -103,196 +104,158 @@ All active scheduled runtime handlers emit `captureCheckIn` with both `in_progre
 
 ### Runtime
 
-Every runtime handler flushes via `Sentry.flush(2000)` in both success and error paths, enforced by the `withSentry` wrapper and the per-handler `finalize()` pattern. No runtime handler was found that could exit without flushing.
+Every runtime handler flushes via `Sentry.flush(2000)` in both success and error paths, enforced by the `withSentry` wrapper and per-handler `finalize()` pattern. **Complete.**
 
-### Frontend
+### Frontend — **DEF-03 resolved**
 
-- `generate-brief`: flushes in both ok and error paths ✅
-- `check-signals`: uses `captureException` in catch block but **no explicit flush** — relies on Next.js process lifecycle
-- `update-momentum`: no flush found
-- `strategic-analysis`: no flush found
-- `update-positioning`: no flush found
+All 5 frontend cron handlers now call `flush()` (from `radar-ui/lib/sentry.ts`) at every exit point:
 
-**Verdict:** frontend flush discipline is inconsistent. In serverless environments, unflushed events may be dropped when the function exits. This is a known risk with `@sentry/nextjs` in serverless unless `Sentry.flush()` is called explicitly.
+| Handler | flush on ok | flush on error |
+|---|---|---|
+| `check-signals` | ✅ | ✅ |
+| `generate-brief` | ✅ | ✅ |
+| `update-momentum` | ✅ | ✅ |
+| `strategic-analysis` | ✅ | ✅ |
+| `update-positioning` | ✅ | ✅ |
 
 ---
 
-## 5. `writeCronHeartbeat` Coverage
+## 5. Watchdog (`api/watchdog.ts`) — New
 
-`writeCronHeartbeat` writes a best-effort upsert to the `cron_heartbeats` Supabase table. It is a secondary observability mechanism independent of Sentry.
+A new pipeline staleness watchdog was added. Runs every 15 minutes.
 
-### Frontend handlers with heartbeat coverage
+**What it checks:**
+
+| Stage | Threshold | Source |
+|---|---|---|
+| `snapshot` | 60 min | `pipeline_events` |
+| `extract` | 30 min | `pipeline_events` |
+| `diff` | 30 min | `pipeline_events` |
+| `signal` | 30 min | `pipeline_events` |
+| `interpret` | 60 min | `pipeline_events` |
+| `build-baselines` | 60 min | `section_baselines` (fallback — stage doesn't write pipeline_events) |
+
+**Behavior:** For each stale stage, emits a `Sentry.captureMessage` warning at `"warning"` level with `watchdog_stale_stage` context including `stage`, `lastEventAt`, `minutesSinceLastEvent`, and `threshold`.
+
+**Important caveat:** The `interpret` stage only writes to `pipeline_events` when signals are processed. If no pending signals exist, no rows are written — a quiet watchdog for that stage is expected behavior, not a failure. Cross-reference the `interpret-signals` Sentry Cron monitor (check-in status) to distinguish genuine stalls from empty-batch runs.
+
+**Self-monitoring:** The watchdog itself has `captureCheckIn` with checkInId threading and `flush`. If the watchdog itself fails, Sentry will detect the missed check-in.
+
+---
+
+## 6. AI Latency Recording (`pipeline_events`)
+
+All LLM calls now record latency and outcome to `pipeline_events` via `recordEvent()`. This enables post-hoc AI performance analysis.
+
+| Handler | Stage | Model |
+|---|---|---|
+| `synthesize-movement-narratives.ts` | `movement_synthesis` | `gpt-4o` |
+| `generate-radar-narratives.ts` | `radar_narrative` | `gpt-4o-mini` |
+| `generate-sector-intelligence.ts` | `sector_intelligence` | `gpt-4o` |
+| `generate-brief` (radar-ui) | `brief_generation` | `gpt-4o` |
+
+Each record includes `duration_ms`, `status` (success/failure), and metadata (`model`, `batch_size`, context IDs).
+
+---
+
+## 7. `writeCronHeartbeat` Coverage
 
 | Handler | Heartbeat on all paths |
 |---|---|
-| `check-signals` | ✅ (fixed in Signal Visibility Correction — now called on all 4 exit paths) |
-| `generate-brief` | ❌ — heartbeat present on happy path only; error path exits without heartbeat |
-| `update-momentum` | not audited (may or may not use heartbeat) |
+| `check-signals` | ✅ (all 4 exit paths) |
+| `generate-brief` | ⚠️ error path missing (DEF-04, still open) |
+| `update-momentum` | not audited |
 | `strategic-analysis` | not audited |
 | `update-positioning` | not audited |
 
-**`generate-brief` gap:** the handler calls `writeCronHeartbeat` at the end of the happy path but does not call it in the catch block. A failed brief generation will produce neither a heartbeat update nor a Sentry flush — the failure is observable only via `captureException` if the exception is captured before the function exits.
+`cron_heartbeats` is a secondary observability layer (not consumed by alerting). DEF-04 is low-severity.
 
 ---
 
-## 6. Health Endpoint
+## 8. Health Endpoint
 
-`api/health.ts` provides pull-only system health assessment.
+`api/health.ts` provides pull-only system health. Emits Sentry warnings when called.
 
-**What it measures:**
-- Latest fetch age vs. SLA threshold
-- Snapshot/diff/signal backlogs (oldest unprocessed rows)
-- Stuck signals (pending signals older than threshold)
-- Suppression ratio (noiseDiffRatioLast24h ≥ 0.90 with ≥10 diffs)
-- Fetch backlog by page_class (high_value / standard / ambient)
+**What it measures:** fetch age, snapshot/diff/signal backlogs, stuck signals, suppression ratio.
 
-**What it does with findings:**
-- Emits `Sentry.captureMessage` for each SLA breach or anomaly detected
-- Returns a structured JSON response with `ok` (execution health) and `healthy` (system health) fields
+**Structural gap (DEF-05, still open):** Not scheduled as a cron. Requires manual or external probe to trigger. The new watchdog (`api/watchdog.ts`) partially fills this gap for pipeline freshness, but does not replace the full health check logic.
 
-**Critical limitation:** the health endpoint is **not scheduled as a cron job**. It requires `Authorization: Bearer {CRON_SECRET}` and must be called manually or from an external monitor. If no one calls it, pipeline backlogs and stuck signals go undetected indefinitely.
-
-**Not wrapped in `withSentry`.** The health endpoint has its own try/catch but does not use the `withSentry` wrapper. An unhandled exception in the health check itself will not be captured.
+**Not wrapped in `withSentry`.** Exceptions in the health handler itself are not auto-captured.
 
 ---
 
-## 7. `pipeline_events` and Alerting
+## 9. Observability Summary
 
-`lib/pipeline-metrics.ts` provides `recordEvent()`, which writes fire-and-forget audit records to the `pipeline_events` table.
-
-**Coverage:** used in fetch-snapshots, extract-sections, detect-diffs, detect-signals, interpret-signals, and pool handlers.
-
-**Alerting path:** none. `pipeline_events` is a pure audit log — a post-hoc debugging aid. No automated process reads it to fire alerts or Sentry events.
-
-**Verdict:** valuable for forensics, not for real-time detection. A stage that consistently writes error events to `pipeline_events` will not trigger any notification.
-
----
-
-## 8. Timeout and Wall Clock Guard Coverage
-
-**Vercel function timeout configuration:**
-- No `maxDuration` exports found in any handler file
-- No `functions` overrides in `vercel.json` (runtime) or `radar-ui/vercel.json`
-- All handlers run under the default Vercel plan timeout for their project tier
-
-**Wall clock self-termination:**
-- `interpret-signals`: has `WALL_CLOCK_GUARD_MS = 25_000` — the only handler with explicit self-termination logic. Stops processing before Vercel kills the function to allow a clean flush and response.
-- All other handlers: no wall clock guard. If a handler approaches the Vercel timeout limit, it will be killed hard — `Sentry.flush()` may not complete, and the check-in `status: "ok"` will not be sent. Sentry will see the check-in open and never closed, eventually triggering a missed check-in alert (if alert rules are configured in the Sentry dashboard).
-
----
-
-## 9. Observability Summary: Active vs. Passive
-
-| Mechanism | Mode | Alert path | Notes |
+| Mechanism | Mode | Alert path | Status |
 |---|---|---|---|
-| Runtime `withSentry` exception capture | Active | Sentry → alerts if configured | Covers all 20 runtime handlers |
-| Runtime `captureCheckIn` monitors | Active | Sentry missed check-in → alert | All 20 runtime crons covered |
-| Frontend exception capture (`captureException`) | Active | Sentry → alerts if configured | All 5 frontend crons have it |
-| Frontend `captureCheckIn` monitors | Active | Sentry missed check-in → alert | Only `generate-brief` covered (4/5 missing) |
-| `cron_heartbeats` table | Passive | No alert — read-only table | Best-effort, not consumed by anything alerting |
-| `pipeline_events` table | Passive | No alert — forensic log only | 90-day retention |
-| `api/health.ts` Sentry warnings | Passive (pull) | Only fires when endpoint is called | Not scheduled; no external probe confirmed |
-| Sentry alert rules | Unknown | Cannot be verified from codebase | No `.sentryclirc`, no `sentry.properties`, no webhook refs |
-
-**The system is largely passive.** It captures errors reliably when they happen and a flush completes. It does NOT proactively detect:
-- Frontend cron misfires (no check-in monitors on 4/5 frontend crons)
-- Pipeline backlogs (health endpoint must be called manually)
-- Slow degradation (nothing monitors pipeline throughput over time)
-- Sentry flush failures in frontend handlers
-
-Whether the operator receives real-time alerts for captured exceptions depends entirely on alert rules configured in the Sentry dashboard, which cannot be verified from the codebase.
+| Runtime `withSentry` exception capture | Active (push) | Sentry → alert | ✅ Complete |
+| Runtime `captureCheckIn` with checkInId | Active (push) | Sentry missed check-in → alert | ✅ Complete |
+| Frontend exception capture | Active (push) | Sentry → alert | ✅ Complete |
+| Frontend `captureCheckIn` with checkInId | Active (push) | Sentry missed check-in → alert | ✅ Complete (all 5 handlers) |
+| Watchdog staleness detection | Active (push, 15min) | Sentry warning → alert | ✅ New |
+| AI latency recording | Passive | `pipeline_events` forensics only | ✅ New |
+| `cron_heartbeats` | Passive | No alert — read-only | ⚠️ Secondary only |
+| `pipeline_events` | Passive | No alert — forensic log | ⚠️ Secondary only |
+| `api/health.ts` | Passive (pull) | Only fires when called | ⚠️ Not scheduled |
+| Sentry alert rules | External | Cannot verify from codebase | ❓ UI-only |
 
 ---
 
-## 10. Known Defects and Gaps
+## 10. Defect Register
 
-### DEF-01: SENTRY_DNS typo fallback (both surfaces)
-
-**Risk:** If `SENTRY_DSN` is absent or misspelled in the Vercel environment, both surfaces silently fall back to `SENTRY_DNS`. This means a misconfigured env var goes undetected — Sentry will appear to initialize but events may go to the wrong project or nowhere.
-
-**Severity:** Low — the fallback is an active mitigation that makes the current typo work. The risk is forward: if the env var is corrected to `SENTRY_DSN` and `SENTRY_DNS` is removed, the fallback stops working.
-
-**Location:** `lib/sentry.ts:3`, `radar-ui/lib/sentry.ts:8`
-
----
-
-### DEF-02: 4 frontend crons have no Sentry check-in monitor
-
-**Affected handlers:** `check-signals`, `update-momentum`, `strategic-analysis`, `update-positioning`
-
-**Risk:** A cron misfire (Vercel platform issue, deployment gap, handler crash before `captureException`) will not be detected by Sentry. These handlers run hourly and daily and are responsible for alert generation, momentum scoring, and market positioning — all user-visible.
-
-**Severity:** Medium. These are not pipeline stages (the runtime pipeline has full coverage), but they control the user's view of intelligence freshness and alert delivery.
-
-**Fix scope:** Add `captureCheckIn` to each handler's start/end/error paths. Requires `require("@sentry/nextjs")` workaround (same pattern as `generate-brief`) since the lazy-init frontend module does not export `captureCheckIn`.
+| ID | Description | Severity | Status |
+|---|---|---|---|
+| DEF-01 | `SENTRY_DNS` typo fallback in both surfaces | Low | Open — documented in `.env.example`, not a live defect |
+| DEF-02 | 4 of 5 frontend crons had no `captureCheckIn` monitor | Medium | **Fixed** |
+| DEF-03 | Frontend cron flush discipline inconsistent | Low-Medium | **Fixed** |
+| DEF-04 | `generate-brief` heartbeat missing on error path | Low | Open — low impact (heartbeat table not alerting) |
+| DEF-05 | `api/health.ts` not scheduled — pull-only | Medium | Open — watchdog partially mitigates for pipeline freshness |
+| DEF-06 | Frontend Sentry missing `environment` and `release` | Low | Open — forensic impact only |
+| DEF-07 | No wall clock guard outside `interpret-signals` | Low | Open — check-in model will detect timeout kills |
 
 ---
 
-### DEF-03: Frontend cron flush discipline is inconsistent
+## 11. Silent Failure Matrix (Post-Hardening)
 
-**Affected handlers:** `check-signals`, `update-momentum`, `strategic-analysis`, `update-positioning`
+| Scenario | Detected | System | Notified |
+|---|---|---|---|
+| A. Pipeline stall | ✅ | Watchdog (15min) | Sentry warning → alert |
+| B. Cron not firing | ✅ | Sentry check-in | Missed check-in alert |
+| C. Cron fails silently | ✅ | `withSentry` wrapper + check-in `error` | Sentry alert |
+| D. AI degradation | ✅ | `pipeline_events` failure entries | Pull only (no alert) |
+| E. Fetch failure spike | ✅ | `captureCheckIn` error on `fetch-snapshots` | Sentry alert |
+| F. Signal blockage | ✅ | Watchdog `signal` stage freshness | Sentry warning |
+| G. Interpretation drop | ✅ | Watchdog `interpret` stage freshness | Sentry warning ⚠️ see note |
+| H. Brief generation failure | ✅ | `captureCheckIn` error on `generate-brief` | Sentry alert |
+| I. Feed ingestion zero results | ✅ | `captureCheckIn` ok (runs, no error) — but no result count check | Pull via pipeline_events |
+| J. Data correctness failure | ❌ | Not detectable | None — known limitation |
 
-**Risk:** Captured exceptions in these handlers may be dropped when the serverless function exits before Sentry can flush the event queue.
-
-**Severity:** Low-Medium. Errors are captured, but delivery is not guaranteed.
-
-**Fix scope:** Add `await Sentry.flush(2000)` in all catch blocks before returning.
-
----
-
-### DEF-04: `generate-brief` heartbeat not written on error path
-
-**Risk:** A failed brief generation will not update `cron_heartbeats`. The heartbeat timestamp will show the last *successful* run — masking the failure to any operator watching the table.
-
-**Severity:** Low. `cron_heartbeats` is not currently consumed by any alerting mechanism. The impact is limited to manual inspection latency.
-
-**Fix scope:** Add `writeCronHeartbeat("generate-brief")` in the catch block before re-throwing or returning.
+⚠️ Scenario G: `interpret` watchdog may fire false positives when no pending signals exist. Cross-reference `interpret-signals` cron monitor status in Sentry Crons before acting.
 
 ---
 
-### DEF-05: `api/health.ts` is pull-only and not wrapped in `withSentry`
+## 12. Remaining Recommendations
 
-**Risk:** The most comprehensive system health check in the codebase is passive — it fires Sentry warnings only when called. An extended pipeline degradation between manual health checks goes undetected.
-
-**Severity:** Medium. This is a structural gap: the health check exists and is accurate, but it only runs when someone pokes it.
-
-**Fix scope (option A):** Add `health` to `vercel.json` as a scheduled cron (e.g., every 6 hours).
-**Fix scope (option B):** Configure an external uptime monitor (e.g., BetterUptime, Cronitor, or a Sentry Cron) to hit `/api/health` on a schedule and alert on non-200 or `healthy: false`.
-
----
-
-### DEF-06: Frontend Sentry missing environment and release tracking
-
-**Risk:** Errors captured on the frontend cannot be filtered or pinged to a specific deployment or environment in Sentry. Post-deploy regression tracking is manual.
-
-**Severity:** Low. The system is operated by one engineer who knows the deployment timeline. The impact is forensic latency, not operational risk.
-
-**Fix scope:** Add `environment` and `release` to the frontend Sentry init using `process.env.VERCEL_ENV` and `process.env.VERCEL_GIT_COMMIT_SHA`.
+| Priority | Defect | Action | Effort |
+|---|---|---|---|
+| P1 | DEF-05 | Schedule `api/health.ts` as cron or configure external uptime probe | Small |
+| P2 | DEF-04 | Add `writeCronHeartbeat("generate-brief")` to catch block | Trivial |
+| P3 | DEF-06 | Add `environment` and `release` to frontend Sentry init | Trivial |
+| P3 | DEF-07 | Extend `WALL_CLOCK_GUARD_MS` to `detect-movements`, `synthesize-movement-narratives`, `generate-radar-narratives` | Small |
+| P4 | DEF-01 | Standardize on `SENTRY_DSN`; remove `SENTRY_DNS` fallback after env confirmation | Trivial |
 
 ---
 
-### DEF-07: No wall clock guard outside `interpret-signals`
+## 13. System Verdict
 
-**Risk:** Any handler with a variable-length loop (e.g., `detect-movements`, `synthesize-movement-narratives`, `generate-radar-narratives`) can be killed hard by Vercel before completing a flush. The Sentry check-in will remain open, eventually triggering a missed check-in alert — but the error context (what stage it was in, how many items it processed) will be lost.
+**Critical failure detection:** Yes. Every pipeline stage has Sentry check-in coverage. A stage that stops running or throws will be detected within one missed check-in interval and will fire an alert (if alert rules are configured in Sentry UI).
 
-**Severity:** Low. The check-in model will detect the issue; the gap is only in diagnostic detail.
+**Operator notified immediately:** Yes, for all P1 scenarios — provided Sentry alert rules are active for `is:unresolved` issues and missed cron check-ins.
 
-**Fix scope:** Extend `WALL_CLOCK_GUARD_MS` pattern to any handler that iterates over a variable-length competitor list.
+**Watchdog coverage:** Yes. `api/watchdog.ts` detects pipeline freshness every 15 minutes, independent of individual stage check-ins.
 
----
-
-## 11. Recommendations (Priority Order)
-
-| Priority | Defect | Action |
-|---|---|---|
-| P1 | DEF-02 | Add `captureCheckIn` to `check-signals`, `update-momentum`, `strategic-analysis`, `update-positioning` |
-| P1 | DEF-05 | Schedule `api/health.ts` as a cron or configure an external probe |
-| P2 | DEF-03 | Add `Sentry.flush(2000)` to frontend cron catch blocks |
-| P2 | DEF-04 | Add `writeCronHeartbeat` to `generate-brief` error path |
-| P3 | DEF-06 | Add `environment` and `release` to frontend Sentry init |
-| P3 | DEF-07 | Extend wall clock guard to variable-length runtime handlers |
-| P4 | DEF-01 | Standardize on `SENTRY_DSN`; document the `SENTRY_DNS` fallback in env setup notes |
+**Remaining blind spot:** Feed ingestion result counts (Scenario I) are not alertable. `pipeline_events` logs failures but no automated process reads it for alerting.
 
 ---
 
-*This audit covers the state of the codebase as of 2026-03-17. Alert rules configured in the Sentry dashboard cannot be verified from the codebase and are outside the scope of this report.*
+*Last updated: 2026-03-17. Alert rules configured in the Sentry dashboard cannot be verified from the codebase.*

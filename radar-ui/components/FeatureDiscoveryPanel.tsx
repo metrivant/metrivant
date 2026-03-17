@@ -17,7 +17,7 @@ import { FEATURE_PANELS } from "../lib/feature-panels";
 import type { FeaturePanel, DiagramKey } from "../lib/feature-panels";
 import type { FeatureExpandedContent, FeatureStep } from "../app/api/expand-feature-panel/route";
 import type { DeepContextContent, HistoricalEra } from "../app/api/deep-context-feature/route";
-import { canShowPanel, setPanelOpen, setPanelClosed, randomDelay } from "../lib/panel-coordinator";
+import { canShowPanel, setPanelOpen, setPanelClosed, nextCycleDelay } from "../lib/panel-coordinator";
 
 // ── Session dedup ─────────────────────────────────────────────────────────────
 
@@ -825,15 +825,15 @@ export default function FeatureDiscoveryPanel() {
     setPanel(next);
   }, []);
 
-  // First appearance: 10–15 minutes after mount
+  // First appearance uses the shared 2→3→2 min cycle
   useEffect(() => {
     if (!ready) return;
-    const t = setTimeout(tryShow, randomDelay(600_000, 900_000));
+    const t = setTimeout(tryShow, nextCycleDelay());
     return () => clearTimeout(t);
   }, [ready, tryShow]);
 
   const scheduleNext = useCallback(() => {
-    setTimeout(tryShow, randomDelay(600_000, 900_000));
+    setTimeout(tryShow, nextCycleDelay());
   }, [tryShow]);
 
   const handleClose = useCallback(() => {

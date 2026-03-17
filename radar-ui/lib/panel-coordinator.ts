@@ -49,3 +49,24 @@ export function setPanelClosed(): void {
 export function randomDelay(minMs: number, maxMs: number): number {
   return Math.floor(minMs + Math.random() * (maxMs - minMs));
 }
+
+// ── Cycle timer: 2 min → 3 min → 2 min → repeat ───────────────────────────────
+
+const CYCLE_INDEX_KEY  = "mv_panel_cycle_idx";
+const CYCLE_DELAYS_MS  = [120_000, 180_000, 120_000]; // 2 min, 3 min, 2 min
+
+/**
+ * Returns the next delay in the 2min→3min→2min cycle and advances the index.
+ * Index persists per session so the loop continues across dismissals.
+ */
+export function nextCycleDelay(): number {
+  try {
+    const raw = sessionStorage.getItem(CYCLE_INDEX_KEY);
+    const idx  = raw !== null ? parseInt(raw, 10) : 0;
+    const delay = CYCLE_DELAYS_MS[idx % CYCLE_DELAYS_MS.length];
+    sessionStorage.setItem(CYCLE_INDEX_KEY, String((idx + 1) % CYCLE_DELAYS_MS.length));
+    return delay;
+  } catch {
+    return 120_000;
+  }
+}
