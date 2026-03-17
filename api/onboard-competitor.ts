@@ -433,6 +433,15 @@ async function handler(req: ApiReq, res: ApiRes) {
       const feedResult   = await discoverFeed(baseUrl, newsroomPage?.url);
       feedDiscoveryStatus = feedResult.found ? "found" : "unavailable";
 
+      if (!feedResult.found) {
+        Sentry.addBreadcrumb({
+          category: "onboarding",
+          message:  "feed_discovery_failed",
+          level:    "info",
+          data:     { competitor_id: competitorId, reason: feedResult.reason },
+        });
+      }
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabase as any)
         .from("competitor_feeds")
@@ -440,9 +449,10 @@ async function handler(req: ApiReq, res: ApiRes) {
           {
             competitor_id:     competitorId,
             pool_type:         "newsroom",
-            feed_url:          feedResult.found ? feedResult.url       : null,
+            feed_url:          feedResult.found ? feedResult.url        : null,
             source_type:       feedResult.found ? feedResult.source_type : "rss",
             discovery_status:  feedResult.found ? "active" : "feed_unavailable",
+            last_error:        feedResult.found ? null : feedResult.reason,
             discovered_at:     new Date().toISOString(),
             updated_at:        new Date().toISOString(),
           },
