@@ -1,95 +1,176 @@
 # SESSION BOOTSTRAP
 
-> Read this at the start of every session. One read, no questions.
+Read at start of every session.
 
 ---
 
-## Identity
+## SYSTEM IDENTITY (ENFORCED)
 
-Metrivant is a **deterministic competitive intelligence radar** — not a dashboard, not an AI toy.
-Architecture is the foundation. Preserve it unless there is a clear defect.
+Metrivant = deterministic competitive intelligence system.
+
+Do NOT:
+- redesign architecture unless explicitly directed
+- widen scope implicitly
+- introduce speculative systems
+
+If architecture change is explicitly requested:
+→ analyze impact across:
+  - surfaces
+  - deployment
+  - pipeline
+→ propose changes + consequences before implementing
 
 ---
 
-## Surfaces & Vercel Bindings
+## SURFACES & DEPLOYMENT (HARD BOUNDARY)
 
-| Surface | Directory | Vercel Project | package.json |
-|---|---|---|---|
-| Runtime | `api/`, `lib/`, `migrations/` | `metrivant-runtime` | `package.json` (root) |
-| Frontend | `radar-ui/` | `metrivant-ui` | `radar-ui/package.json` |
+Runtime:
+- dirs: api/, lib/, migrations/
+- vercel: metrivant-runtime
+- deps: root package.json
 
-**Critical rule:** Every import must resolve from the `package.json` of its own surface.
-Vercel builds each project independently. Cross-surface `node_modules` do not exist at build time.
+Frontend:
+- dir: radar-ui/
+- vercel: metrivant-ui
+- deps: radar-ui/package.json
 
-Verify bindings before touching deployment:
+RULE:
+Each surface is isolated at build time.
+Every import must resolve from its own surface package.json.
+
+Env rule:
+Environment variables are surface-specific.
+Variables in metrivant-runtime are NOT available in metrivant-ui.
+
+VERIFY:
 ```bash
-cat .vercel/project.json          # → metrivant-runtime
-cat radar-ui/.vercel/project.json # → metrivant-ui
+cat .vercel/project.json
+cat radar-ui/.vercel/project.json
 ```
 
-Scan for missing deps (warn-only):
+Dependency check:
 ```bash
-bash scripts/check-surface-deps.sh
+scripts/check-surface-deps.sh
 ```
+If missing → manually verify imports vs package.json
 
 ---
 
-## Session Rules
+## SESSION START GATE (MANDATORY)
 
-State the surface before any work begins:
+Before any work:
+
 ```
 surface: frontend | runtime | both
 ```
 
-If unclear — stop and ask. No assumptions.
+If unclear:
+STOP — ask
 
 ---
 
-## Core Pipeline
+## PRE-CHANGE CHECK
+
+If surface changes mid-session:
+→ re-confirm surface
+
+Before adding dependencies:
+1. confirm correct surface
+2. confirm correct package.json
+
+---
+
+## CORE PIPELINE (DO NOT BREAK)
 
 ```
 competitors → monitored_pages → snapshots → page_sections
-  → section_baselines → section_diffs → signals
-  → interpretations → strategic_movements → radar_feed → UI
+→ section_baselines → section_diffs → signals
+→ interpretations → strategic_movements → radar_feed → UI
 ```
 
-Supabase = state machine. Vercel = stateless execution. Sentry = observability.
+Constraints:
+- Supabase = state machine
+- Vercel = stateless execution
+- pipeline = deterministic
 
 ---
 
-## Engineering Constraints
+## ENGINEERING RULES
 
-- Read before editing
-- Propose before implementing
-- Smallest safe change wins
-- No architecture redesign, no large rewrites, no new major dependencies
-- No backend contract changes unless fixing a clear defect
-- No speculative abstractions
-- Deletion over bloat
+- read before editing
+- propose before implementing
+- smallest viable change
+- no large rewrites
+- no new major dependencies
+- no schema changes without necessity
+- delete > add
+- no speculative abstractions
 
 ---
 
-## End-of-Task Check
+## STOP CONDITIONS (CRITICAL)
+
+STOP if:
+- surface unclear
+- dependency ownership unclear
+- deployment target unclear
+- change crosses surfaces unintentionally
+- change alters pipeline behavior without justification
+- new external dependency introduced without verification
+
+Never guess.
+
+---
+
+## END-OF-TASK CHECK (MANDATORY)
 
 ```
-Surface:              frontend | runtime | both | none
-Dependencies touched: yes / no
-  If yes — declared in correct package.json: yes / no
-Commit/push:          done | pending
+Surface: frontend | runtime | both | none
+Dependencies added: yes / no
+→ declared correctly: yes / no
+Commit/push: done | pending | not needed
 Expected Vercel target: metrivant-ui | metrivant-runtime | both | none
 ```
 
-A change is **live** only when: committed → pushed → correct Vercel project deployed → no build error.
+If task changed:
+- architecture
+- surfaces
+- deployment
+- pipeline
+- workflow rules
+- constraints
+- dependency model
+
+→ verify this file is still accurate
+→ update if needed
+
+Additionally:
+If new lessons, failure patterns, or implicit rules emerge:
+→ update this file or relevant documentation immediately
+
+Done = committed → pushed → correct project deployed → no errors
 
 ---
 
-## Reference Docs
+## REFERENCE (MAY MOVE)
 
-| Topic | File |
-|---|---|
-| Surface rules | `docs/workflow/SURFACE_OWNERSHIP_RULES.md` |
-| Deployment protocol | `docs/workflow/DEPLOYMENT_BOOTSTRAP.md` |
-| Vercel fail-safe | `docs/architecture/VERCEL_DEPLOYMENT_FAILSAFE.md` |
-| Full system reference | `docs/METRIVANT_MASTER_REFERENCE.md` |
-| Root instructions | `CLAUDE.md` |
-| Frontend instructions | `radar-ui/CLAUDE.md` |
+Surface rules:
+`docs/workflow/SURFACE_OWNERSHIP_RULES.md`
+
+Deployment:
+`docs/workflow/DEPLOYMENT_BOOTSTRAP.md`
+
+Fail-safe:
+`docs/architecture/VERCEL_DEPLOYMENT_FAILSAFE.md`
+
+System:
+`docs/METRIVANT_MASTER_REFERENCE.md`
+
+Root:
+`CLAUDE.md`
+
+Frontend:
+`radar-ui/CLAUDE.md`
+
+If missing:
+→ check docs/ for relocated files
