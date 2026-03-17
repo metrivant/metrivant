@@ -793,3 +793,25 @@ This includes:
 - Session end gate (commit + push + target confirmed)
 
 Failure to run the deployment check invalidates the task.
+
+---
+
+# 22. SURFACE OWNERSHIP & DEPENDENCY RULE
+
+Before any task that touches dependencies or adds imports:
+
+Read:
+- `/docs/workflow/SURFACE_OWNERSHIP_RULES.md`
+- `/docs/workflow/DEPLOYMENT_BOOTSTRAP.md`
+
+**Rule**: Every import in `radar-ui/` must resolve from `radar-ui/package.json`. The root `package.json` is invisible to the Vercel build for this surface.
+
+If adding a new package used inside `radar-ui/`:
+- Add it to `radar-ui/package.json` — not root
+- Run `npm install` inside `radar-ui/`
+- Commit both `radar-ui/package.json` and `radar-ui/package-lock.json`
+
+Optional scan before pushing:
+```bash
+bash scripts/check-surface-deps.sh
+```

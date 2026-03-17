@@ -164,6 +164,14 @@ Never do these unless explicitly approved:
 - add visual noise or gimmicky animation
 - turn the radar into a generic feed-first SaaS dashboard
 
+Surface ownership (read before every task):
+- docs/workflow/SURFACE_OWNERSHIP_RULES.md
+- docs/workflow/DEPLOYMENT_BOOTSTRAP.md
+- Optional scan: bash scripts/check-surface-deps.sh
+- Every import must resolve from the package.json of its own surface
+- radar-ui/** dependencies → radar-ui/package.json only
+- api/**, lib/** dependencies → root package.json only
+
 Always do these first:
 1. Read the repository before editing
 2. Read CLAUDE.md before editing
