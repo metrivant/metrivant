@@ -159,7 +159,11 @@ ALTER TABLE page_sections
   ADD CONSTRAINT page_sections_snapshot_id_fkey
   FOREIGN KEY (snapshot_id) REFERENCES snapshots(id) ON DELETE CASCADE;
 
--- ── 7. section_diffs → page_sections ─────────────────────────────────────────
+-- ── 7. section_diffs → monitored_pages ───────────────────────────────────────
+-- Note: section_diffs has no page_section_id column. It references page_sections
+-- via previous_section_id and current_section_id (no CASCADE needed there — the
+-- retention code manages those relationships). The direct monitored_page_id FK
+-- to monitored_pages is the correct cascade path for competitor cleanup.
 DO $$
 DECLARE v TEXT;
 BEGIN
@@ -170,7 +174,7 @@ BEGIN
     AND EXISTS (
       SELECT 1 FROM pg_attribute a
       WHERE a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey)
-        AND a.attname = 'page_section_id'
+        AND a.attname = 'monitored_page_id'
     );
   IF v IS NOT NULL THEN
     EXECUTE 'ALTER TABLE section_diffs DROP CONSTRAINT ' || quote_ident(v);
@@ -178,5 +182,5 @@ BEGIN
 END $$;
 
 ALTER TABLE section_diffs
-  ADD CONSTRAINT section_diffs_page_section_id_fkey
-  FOREIGN KEY (page_section_id) REFERENCES page_sections(id) ON DELETE CASCADE;
+  ADD CONSTRAINT section_diffs_monitored_page_id_fkey
+  FOREIGN KEY (monitored_page_id) REFERENCES monitored_pages(id) ON DELETE CASCADE;
