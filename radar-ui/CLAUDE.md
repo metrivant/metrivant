@@ -775,3 +775,21 @@ All architectural and product decisions must remain consistent with this documen
 If the system evolves — new sectors added, new pipeline stages introduced, new product surfaces shipped, Stripe integrated, plan enforcement implemented — this file must be updated before proceeding to the next task.
 
 Do not treat this file as a starting point for inference. Treat it as ground truth.
+
+---
+
+# 21. DEPLOYMENT SAFETY
+
+At the end of every task that modifies code, you MUST run the deployment check defined in:
+
+```
+/docs/architecture/VERCEL_DEPLOYMENT_FAILSAFE.md
+```
+
+This includes:
+- Surface classification at task start
+- Vercel project.json verification before deployment
+- End-of-task deployment check block
+- Session end gate (commit + push + target confirmed)
+
+Failure to run the deployment check invalidates the task.
