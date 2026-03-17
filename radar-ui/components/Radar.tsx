@@ -447,6 +447,103 @@ function computeGravityPositions(
   return result;
 }
 
+// ─── Enhanced Gravity Field: high-fidelity scalar-field contour deformation ──
+// Same model as computeGravityContours but with tighter wells, more rings,
+// and higher base opacity so warping is legible at a glance.
+// Returns { path, fillOpacity } per ring — inner rings carry a depth fill.
+function computeEnhancedContours(
+  competitors: RadarCompetitor[],
+  gravPositions: Map<string, Point>,
+): { path: string; fillOpacity: number }[] {
+  const N_RINGS  = 16;
+  const N_PTS    = 80;
+  const R_MIN    = 32;
+  const R_MAX    = OUTER_RADIUS * 0.85;
+  const EPSILON  = 1600;   // tighter than classic (2800) — sharper local wells
+  const P_EXP    = 1.55;   // more localised falloff than classic (1.4)
+  const MAX_DISP = 88;     // 2× classic (42) — dramatic field curvature
+
+  const masses = competitors
+    .map((c) => ({ pos: gravPositions.get(c.competitor_id), mass: getNodeMass(c) }))
+    .filter((m): m is { pos: Point; mass: number } => m.pos !== undefined && m.mass > 0.3);
+
+  if (masses.length === 0) return [];
+
+  return Array.from({ length: N_RINGS }, (_, ri) => {
+    const t = ri / (N_RINGS - 1);
+    const r0 = R_MIN * Math.pow(R_MAX / R_MIN, t);
+    const ringMaxDisp = MAX_DISP * (1 - t * 0.50);
+
+    const pts: Point[] = Array.from({ length: N_PTS }, (_, pi) => {
+      const angle = (pi / N_PTS) * Math.PI * 2;
+      const bx = CENTER + r0 * Math.cos(angle);
+      const by = CENTER + r0 * Math.sin(angle);
+      let dx = 0, dy = 0;
+      for (const { pos, mass } of masses) {
+        const ddx = pos.x - bx;
+        const ddy = pos.y - by;
+        const dist2 = ddx * ddx + ddy * ddy;
+        const f = mass / (Math.pow(dist2, P_EXP / 2) + EPSILON);
+        dx += ddx * f;
+        dy += ddy * f;
+      }
+      const mag = Math.sqrt(dx * dx + dy * dy);
+      if (mag > ringMaxDisp) { dx = (dx / mag) * ringMaxDisp; dy = (dy / mag) * ringMaxDisp; }
+      return { x: bx + dx, y: by + dy };
+    });
+
+    return {
+      path: ptsToSmoothPath(pts),
+      // Inner 6 rings carry a very faint depth fill to suggest gravitational depth
+      fillOpacity: ri < 6 ? 0.011 * (1 - ri / 6) : 0,
+    };
+  });
+}
+
+// Label positions for enhanced mode: radial outward placement + 4 repulsion passes.
+// Prevents vertical label overlap for nodes within 80px horizontal proximity.
+function computeEnhancedLabelPositions(
+  competitors: RadarCompetitor[],
+  positions: Map<string, Point>,
+): Map<string, { x: number; y: number; anchor: "start" | "end" | "middle" }> {
+  const result = new Map<string, { x: number; y: number; anchor: "start" | "end" | "middle" }>();
+
+  for (const c of competitors) {
+    const pos = positions.get(c.competitor_id);
+    if (!pos) continue;
+    const nodeR = getNodeSize(Number(c.momentum_score ?? 0));
+    const dist = Math.sqrt((pos.x - CENTER) ** 2 + (pos.y - CENTER) ** 2) || 1;
+    const nx = (pos.x - CENTER) / dist;
+    const ny = (pos.y - CENTER) / dist;
+    result.set(c.competitor_id, {
+      x: pos.x + nx * (nodeR + 16),
+      y: pos.y + ny * (nodeR + 16) + 4,
+      anchor: nx > 0.3 ? "start" : nx < -0.3 ? "end" : "middle",
+    });
+  }
+
+  // Vertical repulsion: 4 passes, labels within 80px horizontal proximity
+  const MIN_SEP = 16;
+  const H_PROX  = 80;
+  const entries = [...result.values()];
+  for (let pass = 0; pass < 4; pass++) {
+    for (let i = 0; i < entries.length; i++) {
+      for (let j = i + 1; j < entries.length; j++) {
+        const a = entries[i], b = entries[j];
+        if (Math.abs(b.x - a.x) >= H_PROX) continue;
+        const dy = b.y - a.y;
+        const gap = MIN_SEP - Math.abs(dy);
+        if (gap <= 0) continue;
+        const push = gap * 0.45;
+        if (dy >= 0) { a.y -= push; b.y += push; }
+        else         { a.y += push; b.y -= push; }
+      }
+    }
+  }
+
+  return result;
+}
+
 function getClusterLabel(movementType: string): string {
   switch (movementType) {
     case "pricing_strategy_shift": return "PRICING CLUSTER";
@@ -507,6 +604,8 @@ type BlipNodeProps = {
   isHiringSurge?: boolean;
   /** True on touch/mobile — enlarges label and increases contrast */
   isMobile?: boolean;
+  /** Enhanced gravity mode: precomputed label position with collision avoidance */
+  gravityLabelOverride?: { x: number; y: number; anchor: "start" | "end" | "middle" };
 };
 
 const BlipNode = memo(function BlipNode({
@@ -530,6 +629,7 @@ const BlipNode = memo(function BlipNode({
   tensionDescription = null,
   isHiringSurge = false,
   isMobile = false,
+  gravityLabelOverride,
 }: BlipNodeProps) {
   const [hovered, setHovered] = useState(false);
   const momentum = Number(competitor.momentum_score ?? 0);
@@ -871,18 +971,18 @@ const BlipNode = memo(function BlipNode({
       {/* Label — hidden for dormant nodes by default; shown on hover or selection */}
       {(!isDormantNode || isSelected || hovered) && (
         <text
-          x={(() => {
+          x={gravityLabelOverride ? gravityLabelOverride.x : (() => {
             if (!gravityMode) return x;
             const nx = (x - CENTER) / (Math.sqrt((x - CENTER) ** 2 + (y - CENTER) ** 2) || 1);
             return x + nx * (nodeSize + 13);
           })()}
-          y={(() => {
+          y={gravityLabelOverride ? gravityLabelOverride.y : (() => {
             if (!gravityMode) return y + nodeSize + 14;
             const dy = y - CENTER;
             const ny = dy / (Math.sqrt((x - CENTER) ** 2 + dy ** 2) || 1);
             return y + ny * (nodeSize + 13) + 4;
           })()}
-          textAnchor={(() => {
+          textAnchor={gravityLabelOverride ? gravityLabelOverride.anchor : (() => {
             if (!gravityMode) return "middle";
             const nx = (x - CENTER) / (Math.sqrt((x - CENTER) ** 2 + (y - CENTER) ** 2) || 1);
             return nx > 0.3 ? "start" : nx < -0.3 ? "end" : "middle";
@@ -1228,6 +1328,8 @@ export default function Radar({
 
   // ── Gravity Field mode ───────────────────────────────────────────────────
   const [gravityMode, setGravityMode] = useState(false);
+  // Enhanced sub-mode inside Gravity Field — deeper contours + label avoidance
+  const [gravityEnhanced, setGravityEnhanced] = useState(false);
   const gravityEverRef = useRef(false);
 
   // Dispatch gravity_shift achievement on first activation
@@ -1272,6 +1374,20 @@ export default function Radar({
     if (!gravityMode || gravityPositions.size === 0) return [];
     return computeGravityContours(sorted, gravityPositions);
   }, [gravityMode, sorted, gravityPositions]);
+
+  // Enhanced contours — deeper deformation, more rings, depth fills (enhanced sub-mode only)
+  const enhancedContours = useMemo(() => {
+    if (!gravityMode || !gravityEnhanced || gravityPositions.size === 0) return [];
+    return computeEnhancedContours(sorted, gravityPositions);
+  }, [gravityMode, gravityEnhanced, sorted, gravityPositions]);
+
+  // Enhanced label positions — collision-resolved radial placement (enhanced sub-mode only)
+  const enhancedLabelPositions = useMemo(() => {
+    if (!gravityMode || !gravityEnhanced) {
+      return new Map<string, { x: number; y: number; anchor: "start" | "end" | "middle" }>();
+    }
+    return computeEnhancedLabelPositions(sorted, gravityPositions);
+  }, [gravityMode, gravityEnhanced, sorted, gravityPositions]);
 
   // Standard-mode node positions: zone-aware, ID-anchored placement.
   // Competitors are grouped by radial zone then spread across the zone's radius band.
@@ -1811,6 +1927,24 @@ export default function Radar({
                   </button>
                 </div>
 
+                {/* Enhanced sub-toggle — visible only inside Gravity Field mode */}
+                {gravityMode && (
+                  <button
+                    onClick={() => setGravityEnhanced((v) => !v)}
+                    className="rounded-[6px] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] transition-all duration-300"
+                    style={{
+                      background: gravityEnhanced ? "rgba(167,139,250,0.13)" : "transparent",
+                      color: gravityEnhanced ? G.coreLt : G.dim,
+                      boxShadow: gravityEnhanced ? `inset 0 0 0 1px rgba(167,139,250,0.30)` : `inset 0 0 0 1px rgba(42,32,66,0.6)`,
+                      marginLeft: "4px",
+                    }}
+                    aria-label={gravityEnhanced ? "Disable enhanced field" : "Enable enhanced field"}
+                    title="Deep Field — tighter contour deformation with label spacing"
+                  >
+                    Deep Field
+                  </button>
+                )}
+
                 {/* Latest change */}
                 {(() => {
                   const latestMover = latestSignalAt
@@ -2201,10 +2335,9 @@ export default function Radar({
                 <g style={{ opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.55s ease" }}>
 
                   {/* ── Gravity field contours ─────────────────────────────────── */}
-                  {/* Concentric rings deformed toward node masses via scalar field.  */}
-                  {/* Inner rings compress tighter around heavy nodes; outer rings    */}
-                  {/* show broad field curvature. strokeOpacity fades outward.       */}
-                  {gravityContours.length > 0 && (
+                  {/* Standard: 11 rings, moderate displacement, faint opacity.      */}
+                  {/* Enhanced: 16 rings, 2× displacement, visible opacity + depth.  */}
+                  {!gravityEnhanced && gravityContours.length > 0 && (
                     <g style={{ pointerEvents: "none" }}>
                       {gravityContours.map((d, i) => {
                         const t = i / (gravityContours.length - 1);
@@ -2216,6 +2349,24 @@ export default function Radar({
                             stroke={G.primary}
                             strokeWidth={0.65 - t * 0.22}
                             strokeOpacity={0.10 - t * 0.055}
+                          />
+                        );
+                      })}
+                    </g>
+                  )}
+                  {gravityEnhanced && enhancedContours.length > 0 && (
+                    <g style={{ pointerEvents: "none" }}>
+                      {enhancedContours.map(({ path, fillOpacity }, i) => {
+                        const t = i / (enhancedContours.length - 1);
+                        return (
+                          <path
+                            key={`ec-${i}`}
+                            d={path}
+                            fill={fillOpacity > 0 ? G.core : "none"}
+                            fillOpacity={fillOpacity}
+                            stroke={t < 0.30 ? G.coreLt : G.primary}
+                            strokeWidth={0.85 - t * 0.50}
+                            strokeOpacity={0.28 - t * 0.22}
                           />
                         );
                       })}
@@ -2692,6 +2843,11 @@ export default function Radar({
                   isWeakSignal={weakSignalSet.has(competitor.competitor_id)}
                   tensionDescription={tensionDescriptionMap.get(competitor.competitor_id) ?? null}
                   isHiringSurge={hiringSurgeSet.has(competitor.competitor_id)}
+                  gravityLabelOverride={
+                    gravityMode && gravityEnhanced
+                      ? enhancedLabelPositions.get(competitor.competitor_id)
+                      : undefined
+                  }
                 />
               ))}
               </g>
