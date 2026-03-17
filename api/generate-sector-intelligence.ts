@@ -17,6 +17,7 @@ import {
   generateSectorIntelligence,
 } from "../lib/sector-intelligence";
 import type { SignalForSector, SectorNarrativeContext } from "../lib/sector-intelligence";
+import { recordEvent, startTimer } from "../lib/pipeline-metrics";
 
 const DEFAULT_WINDOW_DAYS = 30;
 const MIN_COMPETITORS     = 2;  // pattern detection requires at least 2
@@ -32,7 +33,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     ? Math.min(windowParam, 90)
     : DEFAULT_WINDOW_DAYS;
 
-  Sentry.captureCheckIn({ monitorSlug: "generate-sector-intelligence", status: "in_progress" });
+  const checkInId = Sentry.captureCheckIn({ monitorSlug: "generate-sector-intelligence", status: "in_progress" });
 
   let orgsProcessed   = 0;
   let analysesCreated = 0;
@@ -191,6 +192,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         const narratives = (narrativeRows ?? []) as SectorNarrativeContext[];
 
         // ── GPT-4o sector analysis ────────────────────────────────────────────
+        const aiElapsed = startTimer();
         const result = await generateSectorIntelligence(
           sector,
           windowDays,
@@ -198,6 +200,18 @@ async function handler(req: ApiReq, res: ApiRes) {
           selectedSignals,
           narratives.length > 0 ? narratives : undefined
         ).catch(() => null);
+
+        void recordEvent({
+          stage:    "sector_intelligence",
+          status:   result ? "success" : "failure",
+          duration_ms: aiElapsed(),
+          metadata: {
+            model:         "gpt-4o",
+            batch_size:    selectedSignals.length,
+            org_id:        org.id as string,
+            sector,
+          },
+        });
 
         if (!result) {
           // Non-fatal: skip this org; pipeline and radar are unaffected

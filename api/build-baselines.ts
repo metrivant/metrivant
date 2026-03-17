@@ -9,7 +9,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   const startedAt = Date.now();
 
-  Sentry.captureCheckIn({ monitorSlug: "build-baselines", status: "in_progress" });
+  const checkInId = Sentry.captureCheckIn({ monitorSlug: "build-baselines", status: "in_progress" });
 
   try {
     const { data, error } = await supabase.rpc("build_section_baselines");
@@ -155,7 +155,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       runtimeDurationMs,
     });
 
-    Sentry.captureCheckIn({ monitorSlug: "build-baselines", status: "ok" });
+    Sentry.captureCheckIn({ monitorSlug: "build-baselines", status: "ok", checkInId });
     await Sentry.flush(2000);
 
     res.status(200).json({
@@ -170,7 +170,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   } catch (error) {
     Sentry.captureException(error);
-    Sentry.captureCheckIn({ monitorSlug: "build-baselines", status: "error" });
+    Sentry.captureCheckIn({ monitorSlug: "build-baselines", status: "error", checkInId });
     await Sentry.flush(2000);
     throw error;
   }

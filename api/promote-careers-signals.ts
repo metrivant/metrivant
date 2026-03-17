@@ -206,7 +206,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   const startedAt = Date.now();
   const runId     = (req.headers as Record<string, string | undefined>)?.["x-vercel-id"] ?? generateRunId();
 
-  Sentry.captureCheckIn({ monitorSlug: "promote-careers-signals", status: "in_progress" });
+  const checkInId = Sentry.captureCheckIn({ monitorSlug: "promote-careers-signals", status: "in_progress" });
 
   try {
     // ── Find competitors with pending job postings ─────────────────────────────
@@ -227,7 +227,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     ].slice(0, MAX_COMPETITORS_PER_RUN);
 
     if (competitorIds.length === 0) {
-      Sentry.captureCheckIn({ monitorSlug: "promote-careers-signals", status: "ok" });
+      Sentry.captureCheckIn({ monitorSlug: "promote-careers-signals", status: "ok", checkInId });
       await Sentry.flush(2000);
       return res.status(200).json({
         ok: true,
@@ -488,7 +488,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       runtimeDurationMs,
     });
 
-    Sentry.captureCheckIn({ monitorSlug: "promote-careers-signals", status: "ok" });
+    Sentry.captureCheckIn({ monitorSlug: "promote-careers-signals", status: "ok", checkInId });
     await Sentry.flush(2000);
 
     res.status(200).json({
@@ -502,7 +502,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     });
   } catch (error) {
     Sentry.captureException(error);
-    Sentry.captureCheckIn({ monitorSlug: "promote-careers-signals", status: "error" });
+    Sentry.captureCheckIn({ monitorSlug: "promote-careers-signals", status: "error", checkInId });
     await Sentry.flush(2000);
     throw error;
   }

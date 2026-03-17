@@ -14,6 +14,7 @@ import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
 import { synthesizeMovement } from "../lib/movement-synthesis";
 import type { SignalForSynthesis } from "../lib/movement-synthesis";
+import { recordEvent, startTimer } from "../lib/pipeline-metrics";
 
 interface MovementRow {
   id:            string;
@@ -58,7 +59,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     return;
   }
 
-  Sentry.captureCheckIn({ monitorSlug: "synthesize-movement-narratives", status: "in_progress" });
+  const checkInId = Sentry.captureCheckIn({ monitorSlug: "synthesize-movement-narratives", status: "in_progress" });
 
   let movementsProcessed  = 0;
   let narrativesGenerated = 0;
@@ -77,7 +78,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     if (movementsError) throw movementsError;
 
     if (!movements || movements.length === 0) {
-      Sentry.captureCheckIn({ monitorSlug: "synthesize-movement-narratives", status: "ok" });
+      Sentry.captureCheckIn({ monitorSlug: "synthesize-movement-narratives", status: "ok", checkInId });
       await Sentry.flush(2000);
       res.status(200).json({
         ok: true, job: "synthesize-movement-narratives",
@@ -177,12 +178,24 @@ async function handler(req: ApiReq, res: ApiRes) {
 
         // 7 — GPT-4o synthesis
         const movementSector = competitorSectorMap.get(movement.competitor_id) ?? "custom";
+        const aiElapsed = startTimer();
         const synthesis = await synthesizeMovement(
           competitorName,
           movement.movement_type,
           movementSector,
           signalsForSynthesis
         ).catch(() => null);
+
+        void recordEvent({
+          stage:    "movement_synthesis",
+          status:   synthesis ? "success" : "failure",
+          duration_ms: aiElapsed(),
+          metadata: {
+            model:      "gpt-4o",
+            batch_size: 1,
+            competitor_id: movement.competitor_id,
+          },
+        });
 
         if (synthesis) {
           await writeNarrative(
@@ -213,7 +226,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       runtimeDurationMs,
     });
 
-    Sentry.captureCheckIn({ monitorSlug: "synthesize-movement-narratives", status: "ok" });
+    Sentry.captureCheckIn({ monitorSlug: "synthesize-movement-narratives", status: "ok", checkInId });
     await Sentry.flush(2000);
 
     res.status(200).json({
@@ -226,7 +239,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     });
   } catch (error) {
     Sentry.captureException(error);
-    Sentry.captureCheckIn({ monitorSlug: "synthesize-movement-narratives", status: "error" });
+    Sentry.captureCheckIn({ monitorSlug: "synthesize-movement-narratives", status: "error", checkInId });
     await Sentry.flush(2000);
     throw error;
   }

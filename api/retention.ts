@@ -53,7 +53,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   const startedAt = Date.now();
   const runId     = generateRunId();
 
-  Sentry.captureCheckIn({ monitorSlug: "retention", status: "in_progress" });
+  const checkInId = Sentry.captureCheckIn({ monitorSlug: "retention", status: "in_progress" });
 
   // ── Tier 1: NULL raw HTML ─────────────────────────────────────────────────
   const t1 = await runTier("retention_null_raw_html", { cutoff_days: RETENTION_DAYS.RAW_HTML });

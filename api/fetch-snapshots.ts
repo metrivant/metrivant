@@ -412,7 +412,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     ? `fetch-snapshots-${pageClass.replace(/_/g, "-")}`
     : "fetch-snapshots";
 
-  Sentry.captureCheckIn({ monitorSlug, status: "in_progress" });
+  const checkInId = Sentry.captureCheckIn({ monitorSlug, status: "in_progress" });
 
   try {
     let pageQuery = supabase
@@ -634,7 +634,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       runtimeDurationMs,
     });
 
-    Sentry.captureCheckIn({ monitorSlug, status: "ok" });
+    Sentry.captureCheckIn({ monitorSlug, status: "ok", checkInId });
     await Sentry.flush(2000);
 
     res.status(200).json({
@@ -656,7 +656,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   } catch (error) {
     Sentry.captureException(error);
-    Sentry.captureCheckIn({ monitorSlug, status: "error" });
+    Sentry.captureCheckIn({ monitorSlug, status: "error", checkInId });
     await Sentry.flush(2000);
     throw error;
   }

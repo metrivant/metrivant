@@ -20,6 +20,7 @@
     { "path": "/api/generate-sector-intelligence",           "schedule": "0 7 * * 1"     },
     { "path": "/api/promote-baselines",                      "schedule": "0 2 * * *"     },
     { "path": "/api/retention",                              "schedule": "0 3 * * *"     },
-    { "path": "/api/suggest-selector-repairs",               "schedule": "0 4 * * *"     }
+    { "path": "/api/suggest-selector-repairs",               "schedule": "0 4 * * *"     },
+    { "path": "/api/watchdog",                               "schedule": "*/15 * * * *"  }
   ]
 }

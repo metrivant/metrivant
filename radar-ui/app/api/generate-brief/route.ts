@@ -2,16 +2,20 @@ import { NextResponse } from "next/server";
 import { generateBrief, buildBriefEmailHtml, getDailyQuote, type BriefContent } from "../../../lib/brief";
 import { sendEmail, FROM_BRIEFS } from "../../../lib/email";
 import { createServiceClient } from "../../../lib/supabase/service";
-import { captureException } from "../../../lib/sentry";
+import { captureException, flush } from "../../../lib/sentry";
 
 // captureCheckIn is server-only in @sentry/nextjs and must not live in lib/sentry.ts
 // (which is also client-bundled via app/app/error.tsx). API routes are server-only, so
 // the direct SDK import here is safe from Turbopack's client-bundle static analysis.
-function captureCheckIn(status: "in_progress" | "ok" | "error"): void {
+function captureCheckIn(status: "in_progress" | "ok" | "error", checkInId?: string): string | undefined {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (require("@sentry/nextjs") as any).captureCheckIn?.({ monitorSlug: "generate-brief", status });
-  } catch { /* non-fatal */ }
+    return (require("@sentry/nextjs") as any).captureCheckIn?.({
+      monitorSlug: "generate-brief",
+      status,
+      ...(checkInId ? { checkInId } : {}),
+    }) as string | undefined;
+  } catch { return undefined; }
 }
 import { writeCronHeartbeat } from "../../../lib/cronHeartbeat";
 
@@ -195,13 +199,14 @@ async function runGeneration(): Promise<NextResponse> {
   const openaiKey = process.env.OPENAI_API_KEY;
   if (!openaiKey) {
     captureCheckIn("error");
+    await flush();
     return NextResponse.json(
       { error: "OPENAI_API_KEY not configured" },
       { status: 500 }
     );
   }
 
-  captureCheckIn("in_progress");
+  const checkInId = captureCheckIn("in_progress");
 
   const runStart  = Date.now();
   const siteUrl   = process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
@@ -218,12 +223,15 @@ async function runGeneration(): Promise<NextResponse> {
 
   if (orgsError) {
     captureException(orgsError, { route: "generate-brief", step: "fetch_orgs" });
-    captureCheckIn("error");
+    captureCheckIn("error", checkInId);
+    await flush();
     return NextResponse.json({ error: "Failed to fetch organizations" }, { status: 500 });
   }
 
   if (!orgs || orgs.length === 0) {
     await writeCronHeartbeat(supabase, "/api/generate-brief", "ok", Date.now() - runStart, 0);
+    captureCheckIn("ok", checkInId);
+    await flush();
     return NextResponse.json({ ok: true, briefs_generated: 0, emails_sent: 0, message: "No organizations" });
   }
 
@@ -375,9 +383,23 @@ async function runGeneration(): Promise<NextResponse> {
       // We pass a lightweight RadarCompetitor-compatible array derived from artifacts.
       // The AI prompt is built from artifacts via the overridden user prompt path.
       // generateBrief is called directly with a pre-built prompt.
-      const userPrompt = buildArtifactPrompt(week, sectorSummary, movements, activity, narratives);
-      const briefContent = await generateBriefFromArtifacts(openaiKey, userPrompt);
-      const now = new Date();
+      const userPrompt    = buildArtifactPrompt(week, sectorSummary, movements, activity, narratives);
+      const aiStart       = Date.now();
+      const briefContent  = await generateBriefFromArtifacts(openaiKey, userPrompt);
+      const aiDurationMs  = Date.now() - aiStart;
+      const now           = new Date();
+
+      // Record AI latency to pipeline_events — best-effort, fire-and-forget
+      void supabase.from("pipeline_events").insert({
+        stage:       "brief_generation",
+        status:      "success",
+        duration_ms: aiDurationMs,
+        metadata:    {
+          model:         "gpt-4o",
+          batch_size:    movements.length + activity.length,
+          org_id:        org.id,
+        },
+      });
 
       // ── Deterministic markdown rendering ──────────────────────────────────
       const briefMarkdown = buildBriefMarkdown(briefContent, week, now, narratives);
@@ -454,7 +476,8 @@ async function runGeneration(): Promise<NextResponse> {
   }
 
   await writeCronHeartbeat(supabase, "/api/generate-brief", "ok", Date.now() - runStart, emailsSent);
-  captureCheckIn("ok");
+  captureCheckIn("ok", checkInId);
+  await flush();
 
   return NextResponse.json({
     ok:               true,

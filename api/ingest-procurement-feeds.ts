@@ -106,7 +106,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   const startedAt = Date.now();
   const runId     = (req.headers as Record<string, string | undefined>)?.["x-vercel-id"] ?? generateRunId();
 
-  Sentry.captureCheckIn({ monitorSlug: "ingest-procurement-feeds", status: "in_progress" });
+  const checkInId = Sentry.captureCheckIn({ monitorSlug: "ingest-procurement-feeds", status: "in_progress" });
 
   try {
     // ── Phase 1: Load competitor-scoped procurement feeds ─────────────────────
@@ -472,7 +472,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       runtimeDurationMs,
     });
 
-    Sentry.captureCheckIn({ monitorSlug: "ingest-procurement-feeds", status: "ok" });
+    Sentry.captureCheckIn({ monitorSlug: "ingest-procurement-feeds", status: "ok", checkInId });
     await Sentry.flush(2000);
 
     res.status(200).json({
@@ -488,7 +488,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     });
   } catch (error) {
     Sentry.captureException(error);
-    Sentry.captureCheckIn({ monitorSlug: "ingest-procurement-feeds", status: "error" });
+    Sentry.captureCheckIn({ monitorSlug: "ingest-procurement-feeds", status: "error", checkInId });
     await Sentry.flush(2000);
     throw error;
   }

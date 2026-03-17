@@ -237,7 +237,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   const startedAt = Date.now();
   const runId     = (req.headers as Record<string, string | undefined>)?.["x-vercel-id"] ?? generateRunId();
 
-  Sentry.captureCheckIn({ monitorSlug: "interpret-signals", status: "in_progress" });
+  const checkInId = Sentry.captureCheckIn({ monitorSlug: "interpret-signals", status: "in_progress" });
 
   try {
     const { data: resetCount,  error: resetError  } = await supabase.rpc("reset_stuck_signals",  { stale_minutes: STALE_MINUTES });
@@ -530,7 +530,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       runtimeDurationMs,
     });
 
-    Sentry.captureCheckIn({ monitorSlug: "interpret-signals", status: "ok" });
+    Sentry.captureCheckIn({ monitorSlug: "interpret-signals", status: "ok", checkInId });
     await Sentry.flush(2000);
 
     res.status(200).json({
@@ -548,7 +548,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     });
   } catch (error) {
     Sentry.captureException(error);
-    Sentry.captureCheckIn({ monitorSlug: "interpret-signals", status: "error" });
+    Sentry.captureCheckIn({ monitorSlug: "interpret-signals", status: "error", checkInId });
     await Sentry.flush(2000);
     throw error;
   }

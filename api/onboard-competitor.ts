@@ -222,9 +222,9 @@ async function handler(req: ApiReq, res: ApiRes) {
   }
 
   const startedAt = Date.now();
+  const checkInId = Sentry.captureCheckIn({ monitorSlug: "onboard-competitor", status: "in_progress" });
 
   try {
-    try { Sentry.captureCheckIn({ monitorSlug: "onboard-competitor", status: "in_progress" }); } catch { /* non-fatal */ }
 
     const body        = (req.body ?? {}) as Record<string, unknown>;
     const name        = typeof body.name        === "string" ? body.name        : undefined;
@@ -650,7 +650,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       runtimeDurationMs,
     });
 
-    Sentry.captureCheckIn({ monitorSlug: "onboard-competitor", status: "ok" });
+    Sentry.captureCheckIn({ monitorSlug: "onboard-competitor", status: "ok", checkInId });
     await Sentry.flush(2000);
 
     return res.status(200).json({
@@ -670,7 +670,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   } catch (error) {
     Sentry.captureException(error);
-    Sentry.captureCheckIn({ monitorSlug: "onboard-competitor", status: "error" });
+    Sentry.captureCheckIn({ monitorSlug: "onboard-competitor", status: "error", checkInId });
     await Sentry.flush(2000);
     return res.status(500).json({ ok: false, error: "internal_error" });
   }

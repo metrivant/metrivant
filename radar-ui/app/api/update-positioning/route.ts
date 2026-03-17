@@ -26,8 +26,21 @@ import {
   type PositionShift,
 } from "../../../lib/positioning";
 import { sendEmail, FROM_ALERTS } from "../../../lib/email";
-import { captureException } from "../../../lib/sentry";
+import { captureException, flush } from "../../../lib/sentry";
 import { writeCronHeartbeat } from "../../../lib/cronHeartbeat";
+
+// captureCheckIn is server-only in @sentry/nextjs — require() prevents static analysis
+// from including it in client bundles (lib/sentry.ts is also client-bundled via error.tsx).
+function captureCheckIn(status: "in_progress" | "ok" | "error", checkInId?: string): string | undefined {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (require("@sentry/nextjs") as any).captureCheckIn?.({
+      monitorSlug: "update-positioning",
+      status,
+      ...(checkInId ? { checkInId } : {}),
+    }) as string | undefined;
+  } catch { return undefined; }
+}
 
 const OPENAI_API_KEY  = process.env.OPENAI_API_KEY  ?? "";
 const POSTHOG_API_KEY = process.env.POSTHOG_API_KEY ?? "";
@@ -45,9 +58,12 @@ async function handler(request: Request): Promise<NextResponse> {
 
   if (!OPENAI_API_KEY) {
     await writeCronHeartbeat(createServiceClient(), "/api/update-positioning", "error", 0, 0, "OPENAI_API_KEY not configured");
+    captureCheckIn("error");
+    await flush();
     return NextResponse.json({ error: "OPENAI_API_KEY not configured" }, { status: 500 });
   }
 
+  const checkInId = captureCheckIn("in_progress");
   const service      = createServiceClient();
   const runStart     = Date.now();
   const analysisDate = new Date().toLocaleDateString("en-US", {
@@ -228,6 +244,8 @@ async function handler(request: Request): Promise<NextResponse> {
   }
 
   await writeCronHeartbeat(service, "/api/update-positioning", "ok", Date.now() - runStart, totalUpdated);
+  captureCheckIn("ok", checkInId);
+  await flush();
 
   return NextResponse.json({
     ok:            true,

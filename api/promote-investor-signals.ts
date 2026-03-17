@@ -53,7 +53,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   const startedAt = Date.now();
   const runId     = (req.headers as Record<string, string | undefined>)?.["x-vercel-id"] ?? generateRunId();
 
-  Sentry.captureCheckIn({ monitorSlug: "promote-investor-signals", status: "in_progress" });
+  const checkInId = Sentry.captureCheckIn({ monitorSlug: "promote-investor-signals", status: "in_progress" });
 
   try {
     // ── Load pending investor pool events ─────────────────────────────────────
@@ -72,7 +72,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     const rowsClaimed = events.length;
 
     if (rowsClaimed === 0) {
-      Sentry.captureCheckIn({ monitorSlug: "promote-investor-signals", status: "ok" });
+      Sentry.captureCheckIn({ monitorSlug: "promote-investor-signals", status: "ok", checkInId });
       await Sentry.flush(2000);
       return res.status(200).json({
         ok: true,
@@ -377,7 +377,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       runtimeDurationMs,
     });
 
-    Sentry.captureCheckIn({ monitorSlug: "promote-investor-signals", status: "ok" });
+    Sentry.captureCheckIn({ monitorSlug: "promote-investor-signals", status: "ok", checkInId });
     await Sentry.flush(2000);
 
     res.status(200).json({
@@ -394,7 +394,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     });
   } catch (error) {
     Sentry.captureException(error);
-    Sentry.captureCheckIn({ monitorSlug: "promote-investor-signals", status: "error" });
+    Sentry.captureCheckIn({ monitorSlug: "promote-investor-signals", status: "error", checkInId });
     await Sentry.flush(2000);
     throw error;
   }

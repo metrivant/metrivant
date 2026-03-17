@@ -74,7 +74,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   const startedAt = Date.now();
 
-  Sentry.captureCheckIn({ monitorSlug: "detect-movements", status: "in_progress" });
+  const checkInId = Sentry.captureCheckIn({ monitorSlug: "detect-movements", status: "in_progress" });
 
   try {
     // 14-day window: tighter than 30d to surface active movements rather than
@@ -253,7 +253,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       runtimeDurationMs,
     });
 
-    Sentry.captureCheckIn({ monitorSlug: "detect-movements", status: "ok" });
+    Sentry.captureCheckIn({ monitorSlug: "detect-movements", status: "ok", checkInId });
     await Sentry.flush(2000);
 
     res.status(200).json({
@@ -269,7 +269,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     });
   } catch (error) {
     Sentry.captureException(error);
-    Sentry.captureCheckIn({ monitorSlug: "detect-movements", status: "error" });
+    Sentry.captureCheckIn({ monitorSlug: "detect-movements", status: "error", checkInId });
     await Sentry.flush(2000);
     throw error;
   }

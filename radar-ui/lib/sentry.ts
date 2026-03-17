@@ -58,3 +58,17 @@ export function captureMessage(
     // Never let Sentry errors surface to callers.
   }
 }
+
+/**
+ * Flush pending Sentry events. Call in cron route finally-paths to guarantee
+ * delivery before the serverless function terminates.
+ * Safe on both client and server — @sentry/nextjs exposes flush on all runtimes.
+ */
+export async function flush(timeoutMs = 2000): Promise<void> {
+  try {
+    init();
+    await SentrySDK.flush(timeoutMs);
+  } catch {
+    // Never let Sentry errors surface to callers.
+  }
+}

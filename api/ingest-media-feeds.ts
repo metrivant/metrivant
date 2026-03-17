@@ -179,7 +179,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   const runId = (req.headers as Record<string, string | undefined>)?.["x-vercel-id"] ?? generateRunId();
 
-  Sentry.captureCheckIn({ monitorSlug: "ingest-media-feeds", status: "in_progress" });
+  const checkInId = Sentry.captureCheckIn({ monitorSlug: "ingest-media-feeds", status: "in_progress" });
 
   const configuredSectors = getConfiguredSectors();
   let totalObservationsInserted = 0;
@@ -332,7 +332,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       };
     }
 
-    Sentry.captureCheckIn({ monitorSlug: "ingest-media-feeds", status: "ok" });
+    Sentry.captureCheckIn({ monitorSlug: "ingest-media-feeds", status: "ok", checkInId });
 
     res.status(200).json({
       ok:                    true,
@@ -347,7 +347,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     });
 
   } catch (err) {
-    Sentry.captureCheckIn({ monitorSlug: "ingest-media-feeds", status: "error" });
+    Sentry.captureCheckIn({ monitorSlug: "ingest-media-feeds", status: "error", checkInId });
     Sentry.captureException(err);
     res.status(500).json({ ok: false, error: String(err), runId });
   }

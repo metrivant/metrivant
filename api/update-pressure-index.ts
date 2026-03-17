@@ -83,7 +83,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   const startedAt = Date.now();
 
-  Sentry.captureCheckIn({
+  const checkInId = Sentry.captureCheckIn({
     monitorSlug: "update-pressure-index",
     status: "in_progress",
   });
@@ -108,7 +108,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     ].map((id) => ({ id }));
 
     if (allCompetitors.length === 0) {
-      Sentry.captureCheckIn({ monitorSlug: "update-pressure-index", status: "ok" });
+      Sentry.captureCheckIn({ monitorSlug: "update-pressure-index", status: "ok", checkInId });
       await Sentry.flush(2000);
       return res.status(200).json({ ok: true, job: "update-pressure-index", competitorsUpdated: 0 });
     }
@@ -256,6 +256,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     Sentry.captureCheckIn({
       monitorSlug: "update-pressure-index",
       status: "ok",
+      checkInId,
     });
 
     await Sentry.flush(2000);
@@ -274,6 +275,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     Sentry.captureCheckIn({
       monitorSlug: "update-pressure-index",
       status: "error",
+      checkInId,
     });
 
     await Sentry.flush(2000);

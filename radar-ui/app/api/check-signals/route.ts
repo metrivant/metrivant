@@ -7,8 +7,22 @@ import {
   FROM_ALERTS,
 } from "../../../lib/email";
 import { createServiceClient } from "../../../lib/supabase/service";
-import { captureException } from "../../../lib/sentry";
+import { captureException, flush } from "../../../lib/sentry";
 import { writeCronHeartbeat } from "../../../lib/cronHeartbeat";
+
+// captureCheckIn is server-only in @sentry/nextjs — require() prevents static analysis
+// from including it in client bundles (lib/sentry.ts is also client-bundled via error.tsx).
+// Returns the checkInId from "in_progress" so ok/error calls can correlate the same event.
+function captureCheckIn(status: "in_progress" | "ok" | "error", checkInId?: string): string | undefined {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (require("@sentry/nextjs") as any).captureCheckIn?.({
+      monitorSlug: "check-signals",
+      status,
+      ...(checkInId ? { checkInId } : {}),
+    }) as string | undefined;
+  } catch { return undefined; }
+}
 
 // ── Alert synthesis via GPT-4o ─────────────────────────────────────────────────
 // Generates a concise (≤40 word) analyst-quality alert message.
@@ -78,6 +92,7 @@ function isRecent(detectedAt: string): boolean {
 }
 
 async function runCheck(): Promise<NextResponse> {
+  const checkInId = captureCheckIn("in_progress");
   const runStart = Date.now();
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://metrivant.com";
@@ -90,10 +105,14 @@ async function runCheck(): Promise<NextResponse> {
 
   if (orgsError) {
     captureException(orgsError, { route: "check-signals", step: "orgs_select" });
+    captureCheckIn("error", checkInId);
+    await flush();
     return NextResponse.json({ error: "Failed to load orgs" }, { status: 500 });
   }
 
   if (!orgs || orgs.length === 0) {
+    captureCheckIn("ok", checkInId);
+    await flush();
     return NextResponse.json({ ok: true, message: "No orgs registered" });
   }
 
@@ -105,12 +124,16 @@ async function runCheck(): Promise<NextResponse> {
     captureException(err instanceof Error ? err : new Error(String(err)), {
       route: "check-signals", step: "radar_feed",
     });
+    captureCheckIn("error", checkInId);
+    await flush();
     return NextResponse.json({ error: "Failed to fetch radar feed" }, { status: 500 });
   }
   const active = competitors.filter((c) => c.signals_7d > 0);
 
   if (active.length === 0) {
     await writeCronHeartbeat(supabase, "/api/check-signals", "ok", Date.now() - runStart, 0);
+    captureCheckIn("ok", checkInId);
+    await flush();
     return NextResponse.json({ ok: true, signalsFound: 0, alertsCreated: 0 });
   }
 
@@ -160,6 +183,8 @@ async function runCheck(): Promise<NextResponse> {
 
   if (qualifying.length === 0) {
     await writeCronHeartbeat(supabase, "/api/check-signals", "ok", Date.now() - runStart, 0);
+    captureCheckIn("ok", checkInId);
+    await flush();
     return NextResponse.json({ ok: true, signalsFound: 0, alertsCreated: 0 });
   }
 
@@ -217,6 +242,8 @@ async function runCheck(): Promise<NextResponse> {
 
   if (alertsCreated === 0) {
     await writeCronHeartbeat(supabase, "/api/check-signals", "ok", Date.now() - runStart, 0);
+    captureCheckIn("ok", checkInId);
+    await flush();
     return NextResponse.json({
       ok:          true,
       signalsFound: qualifying.length,
@@ -307,6 +334,8 @@ async function runCheck(): Promise<NextResponse> {
   }
 
   await writeCronHeartbeat(supabase, "/api/check-signals", "ok", Date.now() - runStart, alertsCreated);
+  captureCheckIn("ok", checkInId);
+  await flush();
 
   return NextResponse.json({
     ok:           true,

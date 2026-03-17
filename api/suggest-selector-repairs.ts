@@ -21,7 +21,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     return;
   }
 
-  Sentry.captureCheckIn({ monitorSlug: "suggest-selector-repairs", status: "in_progress" });
+  const checkInId = Sentry.captureCheckIn({ monitorSlug: "suggest-selector-repairs", status: "in_progress" });
 
   let candidatesDetected               = 0;
   let repairProposalsCreated           = 0;
@@ -126,7 +126,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       runtimeDurationMs,
     });
 
-    Sentry.captureCheckIn({ monitorSlug: "suggest-selector-repairs", status: "ok" });
+    Sentry.captureCheckIn({ monitorSlug: "suggest-selector-repairs", status: "ok", checkInId });
     await Sentry.flush(2000);
 
     res.status(200).json({
@@ -140,7 +140,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     });
   } catch (error) {
     Sentry.captureException(error);
-    Sentry.captureCheckIn({ monitorSlug: "suggest-selector-repairs", status: "error" });
+    Sentry.captureCheckIn({ monitorSlug: "suggest-selector-repairs", status: "error", checkInId });
     await Sentry.flush(2000);
     throw error;
   }

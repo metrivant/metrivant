@@ -22,6 +22,7 @@ import {
   generateRadarNarrative,
 } from "../lib/radar-narrative";
 import type { SignalForNarrative } from "../lib/radar-narrative";
+import { recordEvent, startTimer } from "../lib/pipeline-metrics";
 
 const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
 const SINCE_14D_MS    = 14 * 24 * 60 * 60 * 1000;
@@ -32,7 +33,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   const startedAt = Date.now();
 
-  Sentry.captureCheckIn({ monitorSlug: "generate-radar-narratives", status: "in_progress" });
+  const checkInId = Sentry.captureCheckIn({ monitorSlug: "generate-radar-narratives", status: "in_progress" });
 
   let candidatesChecked   = 0;
   let narrativesGenerated = 0;
@@ -273,12 +274,24 @@ async function handler(req: ApiReq, res: ApiRes) {
 
       // Call GPT-4o-mini
       const competitorSector = competitorSectorMap.get(competitorId) ?? "custom";
+      const aiElapsed = startTimer();
       const result = await generateRadarNarrative(
         comp.name,
         competitorSector,
         comp.pressure_index,
         selected
       ).catch(() => null);
+
+      void recordEvent({
+        stage:    "radar_narrative",
+        status:   result ? "success" : "failure",
+        duration_ms: aiElapsed(),
+        metadata: {
+          model:         "gpt-4o-mini",
+          batch_size:    selected.length,
+          competitor_id: competitorId,
+        },
+      });
 
       const narrative = result?.radar_explanation
         ?? `${comp.name} had ${rawSigs.length} signal${rawSigs.length !== 1 ? "s" : ""} in the last 14 days.`;
