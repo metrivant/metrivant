@@ -143,7 +143,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         rowsSuppressed: 0,
         rowsLowRelevance: 0,
         rowsDuplicate: 0,
-        diffsSupressed: 0,
+        diffsSuppressed: 0,
         runtimeDurationMs: Date.now() - startedAt,
       });
     }
@@ -191,7 +191,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     let rowsSuppressed   = 0;
     let rowsLowRelevance = 0;
     let rowsDuplicate    = 0;
-    let diffsSupressed   = 0;
+    let diffsSuppressed   = 0;
 
     for (const event of events) {
       const elapsed    = startTimer();
@@ -268,7 +268,7 @@ async function handler(req: ApiReq, res: ApiRes) {
               .from("section_diffs")
               .update({ signal_detected: true, is_noise: false })
               .in("id", diffIds);
-            diffsSupressed += diffIds.length;
+            diffsSuppressed += diffIds.length;
           }
         }
 
@@ -346,7 +346,7 @@ async function handler(req: ApiReq, res: ApiRes) {
             signal_id:     promotedSignalId,
             signal_type:   signalType,
             competitor_id: event.competitor_id,
-            diffs_suppressed: diffsSupressed,
+            diffs_suppressed: diffsSuppressed,
           },
         });
       } catch (eventError) {
@@ -370,7 +370,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsSuppressed,
       rowsLowRelevance,
       rowsDuplicate,
-      diffsSupressed,
+      diffsSuppressed,
       runtimeDurationMs,
     });
 
@@ -385,7 +385,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsSuppressed,
       rowsLowRelevance,
       rowsDuplicate,
-      diffsSupressed,
+      diffsSuppressed,
       runtimeDurationMs,
     });
   } catch (error) {

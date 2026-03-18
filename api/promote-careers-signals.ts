@@ -306,13 +306,23 @@ async function handler(req: ApiReq, res: ApiRes) {
         const patterns = detectPatterns(competitorId, recentOnly7d, knownFunctions, knownLocations);
 
         if (patterns.length === 0) {
-          // No patterns yet — mark pending postings as normalised (no signal, not a duplicate)
-          const pendingIds = pendingPostings.map((p) => p.id);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any)
-            .from("pool_events")
-            .update({ normalization_status: "normalised" })
-            .in("id", pendingIds);
+          // Suppress only postings that have aged past the 7-day detection window.
+          // Postings still within the window stay pending — more postings may arrive
+          // over the next few days and push the count over the spike/cluster threshold.
+          // Suppressing in-window postings immediately would cause permanent signal loss:
+          //   Day 1: 2 engineering postings → no spike (need 3) → wrongly suppressed
+          //   Day 2: 1 more arrives, but the prior 2 are suppressed → spike never fires
+          const windowCutoff = Date.now() - PATTERN_WINDOW_MS;
+          const agedOut = pendingPostings.filter(
+            (p) => p.published_at && new Date(p.published_at).getTime() < windowCutoff
+          );
+          if (agedOut.length > 0) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (supabase as any)
+              .from("pool_events")
+              .update({ normalization_status: "suppressed" })
+              .in("id", agedOut.map((p) => p.id));
+          }
           competitorsProcessed += 1;
           continue;
         }
@@ -403,18 +413,24 @@ async function handler(req: ApiReq, res: ApiRes) {
           });
         }
 
-        // Mark remaining pending postings (those not part of a pattern) as normalised
+        // Suppress only non-promoted postings that have aged out of the detection window.
+        // Non-promoted postings still within the 7-day window stay pending — they may
+        // join a different pattern type (e.g., a role_cluster or new_region) on a future
+        // run as more postings arrive for this competitor.
+        const windowCutoff = Date.now() - PATTERN_WINDOW_MS;
         const promotedEventIds = new Set(patterns.flatMap((p) => p.poolEventIds));
-        const unpromoted = pendingPostings
-          .map((p) => p.id)
-          .filter((id) => !promotedEventIds.has(id));
+        const agedOutUnpromoted = pendingPostings.filter(
+          (p) => !promotedEventIds.has(p.id) &&
+                 p.published_at &&
+                 new Date(p.published_at).getTime() < windowCutoff
+        );
 
-        if (unpromoted.length > 0) {
+        if (agedOutUnpromoted.length > 0) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           await (supabase as any)
             .from("pool_events")
-            .update({ normalization_status: "normalised" })
-            .in("id", unpromoted);
+            .update({ normalization_status: "suppressed" })
+            .in("id", agedOutUnpromoted.map((p) => p.id));
         }
 
         // ── Task 7: suppress overlapping careers page-diff signals ────────────

@@ -165,11 +165,11 @@ async function handler(req: ApiReq, res: ApiRes) {
             .from("pool_events")
             .upsert(newRows as any[], { onConflict: "competitor_id,content_hash", ignoreDuplicates: true });
 
-          if (insertError) {
-            Sentry.captureException(insertError);
-          } else {
-            eventsInserted += newRows.length;
-          }
+          // Throw on insert failure — increments feedsFailed via outer catch and
+          // updates consecutive_failures. Does not reset last_fetched_at.
+          // A constraint violation here is a schema/code sync defect, not a race.
+          if (insertError) throw insertError;
+          eventsInserted += newRows.length;
         }
 
         // Update feed metadata on success
@@ -253,6 +253,13 @@ async function handler(req: ApiReq, res: ApiRes) {
       eventsDuplicate,
       runtimeDurationMs,
     });
+
+    // Warn when active feeds fetched successfully but produced zero new postings
+    // and zero duplicates. Indicates ATS endpoint returning empty or all-malformed
+    // responses — a silent failure mode that wouldn't otherwise surface.
+    if (feedsTotal > 0 && feedsIngested > 0 && eventsInserted === 0 && eventsDuplicate === 0) {
+      Sentry.captureMessage("ingest_careers_empty_postings", "warning");
+    }
 
     Sentry.captureCheckIn({ monitorSlug: "ingest-careers", status: "ok", checkInId });
     await Sentry.flush(2000);

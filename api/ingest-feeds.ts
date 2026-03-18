@@ -213,11 +213,12 @@ async function handler(req: ApiReq, res: ApiRes) {
             .from("pool_events")
             .upsert(newRows as any[], { onConflict: "competitor_id,content_hash", ignoreDuplicates: true });
 
-          if (insertError) {
-            Sentry.captureException(insertError);
-          } else {
-            eventsInserted += newRows.length;
-          }
+          // Throw on insert failure so the outer catch increments feedsFailed,
+          // updates consecutive_failures, and does not mark last_fetched_at.
+          // A constraint violation here is a real pipeline defect (e.g. schema
+          // out of sync with code) — not a transient race.
+          if (insertError) throw insertError;
+          eventsInserted += newRows.length;
         }
 
         // Update feed metadata.
