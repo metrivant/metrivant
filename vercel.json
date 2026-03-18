@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
+    "api/fetch-snapshots.ts":                { "maxDuration": 30 },
     "api/interpret-signals.ts":              { "maxDuration": 30 },
     "api/synthesize-movement-narratives.ts": { "maxDuration": 90 },
     "api/generate-radar-narratives.ts":      { "maxDuration": 90 },

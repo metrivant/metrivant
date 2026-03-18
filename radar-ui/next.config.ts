@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import path from "path";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const securityHeaders = [
   // Prevent DNS prefetching to reduce information leakage
@@ -44,4 +45,11 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// withSentryConfig injects sentry.client.config.ts into the browser bundle,
+// enabling automatic capture of client-side React errors and unhandled exceptions.
+// Source map upload is skipped when SENTRY_AUTH_TOKEN is absent (non-fatal).
+export default withSentryConfig(nextConfig, {
+  automaticVercelMonitors: false, // monitors are managed manually in Sentry UI
+  disableLogger: true,            // strip Sentry debug logging from production bundles
+  telemetry: false,               // don't send build telemetry to Sentry
+});
