@@ -1824,7 +1824,7 @@ export default function Radar({
   }
 
   return (
-    <div className="grid h-full gap-3 grid-cols-1 lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_370px]">
+    <div className="grid h-full gap-3 grid-cols-1 grid-rows-[1fr] lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_370px]">
       {/* ── Radar panel ─────────────────────────────────────────── */}
       <section
         className={`flex min-h-0 flex-1 flex-col overflow-hidden${isolated ? "" : " rounded-[20px]"}`}
@@ -2164,9 +2164,9 @@ export default function Radar({
                     cy={CENTER}
                     r={OUTER_RADIUS * factor}
                     fill="none"
-                    stroke={gravityMode ? G.ring : "#0f3d20"}
-                    strokeWidth="1.5"
-                    opacity={factor <= 0.3 ? 0.88 : factor <= 0.6 ? 0.70 : factor <= 0.9 ? 0.50 : 0.35}
+                    stroke={gravityMode ? G.ring : "#1e5c40"}
+                    strokeWidth="1.8"
+                    opacity={factor <= 0.3 ? 0.88 : factor <= 0.6 ? 0.70 : factor <= 0.9 ? 0.58 : 0.46}
                     style={{ transition: "stroke 0.8s ease, opacity 0.8s ease" }}
                   />
                 ))}
@@ -2183,9 +2183,9 @@ export default function Radar({
                       y1={CENTER - dy}
                       x2={CENTER + dx}
                       y2={CENTER + dy}
-                      stroke={gravityMode ? G.ring : "#0f3d20"}
-                      strokeWidth="1"
-                      opacity="0.65"
+                      stroke={gravityMode ? G.ring : "#1e5c40"}
+                      strokeWidth="1.2"
+                      opacity="0.72"
                       style={{ transition: "stroke 0.8s ease" }}
                     />
                   );
@@ -2199,9 +2199,9 @@ export default function Radar({
                     y1={tick.y1}
                     x2={tick.x2}
                     y2={tick.y2}
-                    stroke={gravityMode ? G.ring : "#0f3d20"}
+                    stroke={gravityMode ? G.ring : "#1e5c40"}
                     strokeWidth={tick.isMajor ? 1.5 : tick.isMedium ? 1.0 : 0.7}
-                    opacity={tick.isMajor ? 0.90 : tick.isMedium ? 0.60 : 0.35}
+                    opacity={tick.isMajor ? 0.90 : tick.isMedium ? 0.65 : 0.42}
                     style={{ transition: "stroke 0.8s ease" }}
                   />
                 ))}

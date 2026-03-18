@@ -240,7 +240,7 @@ export default async function Page() {
       />
 
       {/* ── Header — brand + stats ───────────────────────────────────────── */}
-      <header className="relative z-20 flex h-[68px] shrink-0 items-center border-b border-[#0e2210] bg-[rgba(0,0,0,0.98)] backdrop-blur-xl">
+      <header className="relative z-20 flex h-[56px] shrink-0 items-center border-b border-[#0e2210] bg-[rgba(0,0,0,0.98)] backdrop-blur-xl">
 
         {/* Accent line at top of header */}
         <div
@@ -297,8 +297,8 @@ export default async function Page() {
             <div className="hidden md:flex items-center gap-5">
               {/* Rivals */}
               <div className="group relative cursor-default text-right">
-                <div className="text-[10px] uppercase tracking-[0.22em] text-slate-600">Rivals</div>
-                <div className="mt-0.5 text-[20px] font-semibold leading-none tabular-nums text-slate-200">{competitors.length}</div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-slate-600">Rivals</div>
+                <div className="mt-px text-[18px] font-semibold leading-none tabular-nums text-slate-200">{competitors.length}</div>
                 <div
                   className="pointer-events-none absolute right-0 top-full z-30 mt-2 w-52 rounded-[10px] border border-[#1a3020] bg-[#060d06] px-3 py-2.5 text-left opacity-0 transition-opacity duration-150 group-hover:opacity-100"
                   style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85), 0 0 0 1px rgba(46,230,166,0.06)" }}
@@ -310,8 +310,8 @@ export default async function Page() {
               <div className="h-8 w-px bg-[#0f2010]" />
               {/* Active */}
               <div className="group relative cursor-default text-right">
-                <div className="text-[10px] uppercase tracking-[0.22em] text-slate-600">Active</div>
-                <div className="mt-0.5 text-[20px] font-semibold leading-none tabular-nums" style={{ color: activeCount > 0 ? "#2EE6A6" : "#475569" }}>{activeCount}</div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-slate-600">Active</div>
+                <div className="mt-px text-[18px] font-semibold leading-none tabular-nums" style={{ color: activeCount > 0 ? "#2EE6A6" : "#475569" }}>{activeCount}</div>
                 <div
                   className="pointer-events-none absolute right-0 top-full z-30 mt-2 w-52 rounded-[10px] border border-[#1a3020] bg-[#060d06] px-3 py-2.5 text-left opacity-0 transition-opacity duration-150 group-hover:opacity-100"
                   style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85), 0 0 0 1px rgba(46,230,166,0.06)" }}
@@ -323,8 +323,8 @@ export default async function Page() {
               <div className="h-8 w-px bg-[#0f2010]" />
               {/* Signals */}
               <div className="group relative cursor-default text-right">
-                <div className="text-[10px] uppercase tracking-[0.22em] text-slate-600">Signals</div>
-                <div className="mt-0.5 text-[20px] font-semibold leading-none tabular-nums text-slate-200">{totalSignals7d}</div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-slate-600">Signals</div>
+                <div className="mt-px text-[18px] font-semibold leading-none tabular-nums text-slate-200">{totalSignals7d}</div>
                 <div
                   className="pointer-events-none absolute right-0 top-full z-30 mt-2 w-52 rounded-[10px] border border-[#1a3020] bg-[#060d06] px-3 py-2.5 text-left opacity-0 transition-opacity duration-150 group-hover:opacity-100"
                   style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85), 0 0 0 1px rgba(46,230,166,0.06)" }}
@@ -336,8 +336,8 @@ export default async function Page() {
               <div className="h-8 w-px bg-[#0f2010]" />
               {/* New 24h */}
               <div className="group relative cursor-default text-right">
-                <div className="text-[10px] uppercase tracking-[0.22em] text-slate-600">New 24h</div>
-                <div className="mt-0.5 text-[20px] font-semibold leading-none tabular-nums" style={{ color: newToday > 0 ? "#2EE6A6" : "#475569" }}>{newToday}</div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-slate-600">New 24h</div>
+                <div className="mt-px text-[18px] font-semibold leading-none tabular-nums" style={{ color: newToday > 0 ? "#2EE6A6" : "#475569" }}>{newToday}</div>
                 <div
                   className="pointer-events-none absolute right-0 top-full z-30 mt-2 w-52 rounded-[10px] border border-[#1a3020] bg-[#060d06] px-3 py-2.5 text-left opacity-0 transition-opacity duration-150 group-hover:opacity-100"
                   style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85), 0 0 0 1px rgba(46,230,166,0.06)" }}
@@ -359,7 +359,7 @@ export default async function Page() {
       <IntelligenceStrip competitors={competitors} newsItems={newsItems} sector={sector} />
 
       {/* ── Body: sidebar nav + radar ─────────────────────────────────────── */}
-      <div className="flex flex-1 flex-row overflow-hidden">
+      <div className="flex flex-1 min-h-0 flex-row overflow-hidden">
 
         {/* ── Left sidebar — navigation (desktop only) ──────────────────── */}
         <nav
@@ -372,7 +372,7 @@ export default async function Page() {
         {/* ── Radar content area ─────────────────────────────────────────── */}
         {/* Desktop: flex-1 overflow-hidden p-3 (fixed viewport height)       */}
         {/* Mobile:  p-3 pb-[76px] — extra bottom padding clears mobile nav   */}
-        <div className="relative z-10 flex flex-1 flex-col overflow-hidden p-3 pb-[76px] md:pb-3">
+        <div className="relative z-10 flex flex-1 min-h-0 flex-col overflow-hidden p-3 pb-[76px] md:pb-3">
           <RadarViewedTracker orgId={orgId} competitorCount={competitors.length} hasActiveAlerts={hasCriticalAlert} />
           <Radar competitors={competitors} sector={sector} orgId={orgId} />
         </div>
