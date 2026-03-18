@@ -511,6 +511,12 @@ async function handler(req: ApiReq, res: ApiRes) {
       runtimeDurationMs,
     });
 
+    // Warn when active sources were ingested successfully but produced zero new events.
+    // eventsDuplicate === 0 excludes normal steady-state dedup.
+    if (totalSources > 0 && sourcesIngested > 0 && eventsInserted === 0 && eventsDuplicate === 0) {
+      Sentry.captureMessage("ingest_regulatory_feeds_empty_entries", "warning");
+    }
+
     Sentry.captureCheckIn({ monitorSlug: "ingest-regulatory-feeds", status: "ok", checkInId });
     await Sentry.flush(2000);
 

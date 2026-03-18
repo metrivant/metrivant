@@ -33,6 +33,13 @@ const PIPELINE_STAGES: Array<{ stage: string; thresholdMinutes: number }> = [
   // AI synthesis layers — cron at :30 and :45 respectively; thresholds allow one missed run
   { stage: "movement_synthesis", thresholdMinutes: 90 },
   { stage: "radar_narrative",    thresholdMinutes: 120 },
+  // Pool ingestion stages — all run hourly; 90-minute threshold allows one missed run
+  { stage: "feed_ingest",        thresholdMinutes: 90 },
+  { stage: "careers_ingest",     thresholdMinutes: 90 },
+  { stage: "investor_ingest",    thresholdMinutes: 90 },
+  { stage: "product_ingest",     thresholdMinutes: 90 },
+  { stage: "procurement_ingest", thresholdMinutes: 90 },
+  { stage: "regulatory_ingest",  thresholdMinutes: 90 },
 ];
 
 async function handler(req: ApiReq, res: ApiRes): Promise<void> {

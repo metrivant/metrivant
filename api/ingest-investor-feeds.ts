@@ -232,6 +232,13 @@ async function handler(req: ApiReq, res: ApiRes) {
       runtimeDurationMs,
     });
 
+    // Warn when active feeds were fetched successfully but produced zero new events.
+    // eventsDuplicate === 0 excludes normal steady-state dedup — this only fires
+    // when feeds are empty or all entries exceed MAX_ENTRY_AGE_DAYS.
+    if (feedsTotal > 0 && feedsIngested > 0 && eventsInserted === 0 && eventsDuplicate === 0) {
+      Sentry.captureMessage("ingest_investor_feeds_empty_entries", "warning");
+    }
+
     Sentry.captureCheckIn({ monitorSlug: "ingest-investor-feeds", status: "ok", checkInId });
     await Sentry.flush(2000);
 
