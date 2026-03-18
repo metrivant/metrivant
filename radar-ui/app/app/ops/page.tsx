@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "../../../lib/supabase/server";
 import { createServiceClient } from "../../../lib/supabase/service";
+import { RepairActionRow } from "./RepairActionRow";
 
 export const dynamic = "force-dynamic";
 
@@ -132,6 +133,7 @@ type CoverageHealthRow = {
 
 type RepairSuggestionRow = {
   id:                string;
+  monitored_page_id: string;
   section_type:      string;
   proposed_selector: string;
   confidence:        number;
@@ -414,7 +416,7 @@ export default async function OpsPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = await (service as any)
       .from("selector_repair_suggestions")
-      .select("id, section_type, proposed_selector, confidence, rationale, created_at")
+      .select("id, monitored_page_id, section_type, proposed_selector, confidence, rationale, created_at")
       .eq("status", "pending")
       .order("created_at", { ascending: false })
       .limit(20);
@@ -851,7 +853,16 @@ export default async function OpsPage() {
               />
               <div className="flex flex-col gap-2">
                 {repairRows.map((r) => (
-                  <RepairRow key={r.id} repair={r} />
+                  <RepairActionRow
+                    key={r.id}
+                    id={r.id}
+                    monitored_page_id={r.monitored_page_id}
+                    section_type={r.section_type}
+                    proposed_selector={r.proposed_selector}
+                    confidence={r.confidence}
+                    rationale={r.rationale}
+                    created_at={r.created_at}
+                  />
                 ))}
               </div>
             </section>
@@ -1091,36 +1102,3 @@ function ErrorRow({ error }: { error: ErrorEventRow }) {
   );
 }
 
-function RepairRow({ repair }: { repair: RepairSuggestionRow }) {
-  const confColor =
-    repair.confidence >= 0.70 ? "#2EE6A6" :
-    repair.confidence >= 0.40 ? "#f59e0b" :
-    "#ef4444";
-  return (
-    <div className="relative overflow-hidden rounded-[12px] border border-[#0e2010] bg-[#020802] px-4 py-3">
-      <div
-        className="absolute inset-y-0 left-0 w-[3px] rounded-l-[12px]"
-        style={{ backgroundColor: "rgba(46,230,166,0.35)" }}
-      />
-      <div className="ml-3 flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-[11px] font-bold text-slate-300">{repair.section_type}</span>
-            <span className="text-[10px] text-slate-700">·</span>
-            <span className="font-mono text-[10px] text-slate-600">{formatAge(repair.created_at)}</span>
-          </div>
-          <div className="mt-1 font-mono text-[11px] text-[#2EE6A6]">{repair.proposed_selector}</div>
-          {repair.rationale && (
-            <p className="mt-0.5 text-[11px] text-slate-600">{repair.rationale}</p>
-          )}
-        </div>
-        <div className="shrink-0 text-right">
-          <span className="font-mono text-[13px] font-bold tabular-nums" style={{ color: confColor }}>
-            {Math.round(repair.confidence * 100)}%
-          </span>
-          <div className="mt-0.5 font-mono text-[10px] text-slate-700">confidence</div>
-        </div>
-      </div>
-    </div>
-  );
-}
