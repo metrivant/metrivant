@@ -380,8 +380,14 @@ print(json.dumps(rows, indent=2))
 
 ## 8. KNOWN SYSTEM BEHAVIOUR (do not mistake for bugs)
 
-**Quick triage index:** `radarClip` | `zoom-transform` | `background-tsc` | `cascade/FK` | `pipeline-tables` | `feeds-dormant` | `bootstrap-deadlock` | `onboard-url` | `CSS-grid/flex` | `sentry-monitors` | `maxDuration` | `pool-events-types` | `realtime-cdc` | `AI-handlers-timeout`
+**Quick triage index:** `radarClip` | `zoom-transform` | `background-tsc` | `cascade/FK` | `pipeline-tables` | `feeds-dormant` | `bootstrap-deadlock` | `onboard-url` | `CSS-grid/flex` | `sentry-monitors` | `maxDuration` | `pool-events-types` | `realtime-cdc` | `AI-handlers-timeout` | `competitor-sector`
 Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
+
+- [B] `competitors` table has NO `sector` column. Sector is stored on `organizations` and reached via
+  `tracked_competitors.org_id`. Any cron or handler needing per-competitor sector must do:
+  (1) query `tracked_competitors` for org_id, (2) query `organizations` for sector, (3) default to "saas"
+  for competitors not in tracked_competitors (ghost competitors the pipeline still processes).
+  Pattern in `api/expand-coverage.ts` → `buildSectorMap()`. (2026-03-18)
 
 - [B] `strategic_insights` is populated by `/api/strategic-analysis` cron (daily 08:00 UTC). It will be empty
   on a fresh deployment until the cron fires. The Strategy page now has a fallback layer:
