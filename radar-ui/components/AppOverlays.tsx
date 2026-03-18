@@ -10,7 +10,7 @@ import {
 } from "../lib/strategy";
 import type { RadarCompetitor } from "../lib/api";
 import type { BriefContent } from "../lib/brief";
-import MarketMap, { type MapCompetitor } from "../app/app/market-map/MarketMap";
+import GravityMap from "./gravity-map/GravityMap";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -68,145 +68,12 @@ function OverlayAccentLine() {
 const PANEL_HEADER =
   "relative z-10 flex h-12 shrink-0 items-center justify-between border-b border-[#0e2210] px-5";
 
-// ── Market Map Overlay ─────────────────────────────────────────────────────────
+// ── Gravity Map Overlay ────────────────────────────────────────────────────────
 
-function MapOverlay({
-  competitors,
-  onClose,
-}: {
-  competitors: RadarCompetitor[];
-  onClose: () => void;
-}) {
-  const [mapData, setMapData] = useState<MapCompetitor[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setError(false);
-      try {
-        const supabase = createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) {
-          setError(true);
-          return;
-        }
-
-        const { data: orgRows } = await supabase
-          .from("organizations")
-          .select("id")
-          .eq("owner_id", user.id)
-          .order("created_at", { ascending: true })
-          .limit(1);
-        const org = orgRows?.[0] ?? null;
-
-        if (!org) {
-          setMapData([]);
-          return;
-        }
-
-        const [{ data: positioning }, { data: history }] = await Promise.all([
-          supabase
-            .from("competitor_positioning")
-            .select(
-              "competitor_id, competitor_name, market_focus_score, customer_segment_score, confidence, rationale, updated_at"
-            )
-            .eq("org_id", org.id)
-            .order("updated_at", { ascending: false }),
-          supabase
-            .from("positioning_history")
-            .select(
-              "competitor_id, market_focus_score, customer_segment_score, recorded_at"
-            )
-            .eq("org_id", org.id)
-            .order("recorded_at", { ascending: false })
-            .limit(300),
-        ]);
-
-        if (cancelled) return;
-
-        if (!positioning) {
-          setMapData([]);
-          return;
-        }
-
-        // Group history by competitor_id (max 10 entries each)
-        type HistPt = {
-          market_focus_score: number;
-          customer_segment_score: number;
-          recorded_at: string;
-        };
-        const historyMap = new Map<string, HistPt[]>();
-        for (const h of history ?? []) {
-          const id = h.competitor_id as string;
-          const arr = historyMap.get(id) ?? [];
-          if (arr.length < 10) {
-            arr.push({
-              market_focus_score: Number(h.market_focus_score),
-              customer_segment_score: Number(h.customer_segment_score),
-              recorded_at: h.recorded_at as string,
-            });
-            historyMap.set(id, arr);
-          }
-        }
-
-        // Enrich with radar feed data
-        const radarMap = new Map(competitors.map((c) => [c.competitor_id, c]));
-
-        const mapped: MapCompetitor[] = (
-          positioning as unknown as Array<{
-            competitor_id: string;
-            competitor_name: string;
-            market_focus_score: number;
-            customer_segment_score: number;
-            confidence: number;
-            rationale: string | null;
-          }>
-        ).map((p) => {
-          const radar = radarMap.get(p.competitor_id);
-          return {
-            competitor_id: p.competitor_id,
-            competitor_name: p.competitor_name,
-            market_focus_score: Number(p.market_focus_score),
-            customer_segment_score: Number(p.customer_segment_score),
-            confidence: Number(p.confidence),
-            rationale: p.rationale,
-            momentum_score: Number(radar?.momentum_score ?? 0),
-            signals_7d: Number(radar?.signals_7d ?? 0),
-            latest_movement_type: radar?.latest_movement_type ?? null,
-            website_url: radar?.website_url ?? null,
-            history: historyMap.get(p.competitor_id) ?? [],
-          };
-        });
-
-        // Cross-reference with currently tracked competitors to exclude ghost rows
-        // (positioning rows for competitors that have since been untracked)
-        const trackedIds = new Set(competitors.map((c) => c.competitor_id));
-        const filtered = mapped.filter((m) => trackedIds.has(m.competitor_id));
-
-        setMapData(filtered);
-        if (filtered.length > 0) {
-          window.dispatchEvent(new CustomEvent("mv:achieve", { detail: "map_viewed" }));
-        }
-      } catch {
-        if (!cancelled) setError(true);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [competitors]);
-
+function MapOverlay({ onClose }: { onClose: () => void }) {
   return (
     <motion.div
-      className="fixed inset-0 z-[100] flex flex-col bg-[#000200]"
+      className="fixed inset-0 z-[100] flex flex-col bg-[#000100]"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -219,14 +86,7 @@ function MapOverlay({
           backgroundImage:
             "radial-gradient(rgba(255,255,255,0.85) 0.5px, transparent 0.5px)",
           backgroundSize: "6px 6px",
-          opacity: 0.016,
-        }}
-      />
-      <div
-        className="pointer-events-none fixed inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 80% 40% at 50% -5%, rgba(46,230,166,0.06) 0%, transparent 70%)",
+          opacity: 0.014,
         }}
       />
 
@@ -235,11 +95,11 @@ function MapOverlay({
         <OverlayAccentLine />
         <div className="flex items-center gap-3">
           <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-            Market Map
+            Gravity Field
           </span>
           <span style={{ color: "rgba(46,230,166,0.25)" }}>·</span>
           <span className="text-[10px] text-slate-600">
-            Competitive positioning
+            Strategic mass distribution
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -248,36 +108,9 @@ function MapOverlay({
         </div>
       </div>
 
-      {/* Content */}
+      {/* Content — GravityMap manages its own data fetch */}
       <div className="relative z-10 flex flex-1 overflow-hidden">
-        {loading ? (
-          <div className="flex flex-1 items-center justify-center">
-            <div className="text-[11px] uppercase tracking-[0.22em] text-slate-600">
-              Loading positioning data…
-            </div>
-          </div>
-        ) : error ? (
-          <div className="flex flex-1 items-center justify-center">
-            <div className="text-[11px] text-slate-600">
-              Could not load market map.
-            </div>
-          </div>
-        ) : !mapData || mapData.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center">
-            <div className="text-center">
-              <div className="text-[11px] uppercase tracking-[0.22em] text-slate-600">
-                No positioning data yet
-              </div>
-              <div className="mt-1 text-[10px] text-slate-700">
-                Run positioning analysis to populate the map.
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="flex-1 overflow-hidden">
-            <MarketMap competitors={mapData} />
-          </div>
-        )}
+        <GravityMap />
       </div>
     </motion.div>
   );
@@ -730,7 +563,7 @@ export default function AppOverlays({
   return (
     <AnimatePresence>
       {active === "map" && (
-        <MapOverlay key="map" competitors={competitors} onClose={close} />
+        <MapOverlay key="map" onClose={close} />
       )}
       {active === "briefs" && (
         <BriefsOverlay key="briefs" onClose={close} />

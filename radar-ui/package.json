@@ -16,12 +16,13 @@
     "d3-scale": "^4.0.2",
     "framer-motion": "^12.35.2",
     "next": "16.1.6",
+    "openai": "^4",
     "postcss": "^8.5.8",
     "posthog-js": "^1.360.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "openai": "^4",
-    "stripe": "^20.4.1"
+    "stripe": "^20.4.1",
+    "three": "^0.183.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.1",
