@@ -28,16 +28,31 @@ If committed=no or pushed=no → state: "Not live. Run git push."
 - new prompt execution rule
 - environment / tooling constraint
 
-If found → append to correct section of `startsession.md` (§6 Diagnostic, §6 Token, §6 Prompt, §7 Query, §8 Known Behaviour) → commit with:
-`docs(workflow): update startsession.md — [one-line description]`
+Do NOT capture:
+- resolved bugs already reflected in the committed code
+- implementation details already in CLAUDE.md or MASTER_REFERENCE.md
+- one-time task state or session-specific decisions
+- anything explained by `git log` alone
+
+If found → append under the correct section of `startsession.md`:
+  - §6 Diagnostic Efficiency — new ordered steps or shortcuts
+  - §6 Token Efficiency — patterns that reduced unnecessary reads/calls
+  - §6 Prompt Execution — new rules for interpreting instructions
+  - §7 Query Execution — new REST patterns or shell constraints
+  - §8 Known Behaviour — tag as [B] permanent | [I] incident (patched)
+  → commit: `docs(workflow): update startsession.md — [one-line description]`
+
+Cull rule: if §8 has [I] entries older than 60 days describing patched bugs with no ongoing triage value → delete them (keeps §8 scannable).
 
 If none → state: "No new system knowledge."
 
-**3. Memory** — update `~/.claude/projects/-home-arcmatrix93/memory/` only if this session changed:
-- system architecture
+**3. Memory** — update `~/.claude/projects/-home-arcmatrix93/memory/` only if this session produced a **delta** in:
+- system architecture or component structure
 - pool activation state
-- active features
-- known remaining issues
+- active feature set (new feature shipped or disabled)
+- known remaining issues that persist to next session
+
+Skip memory update if: only bug fixes, only docs changes, or only changes already captured in startsession.md §8.
 
 **4. Close block:**
 ```

@@ -247,6 +247,8 @@ Batch ≤50 IDs per REST call to avoid Supabase 8-second statement timeout (erro
 - Prefer `timeout 90 git push 2>&1` over background push — synchronous, 1 turn. Pre-push TS checks take ~60s; 90s is sufficient. (2026-03-18)
 - Scan discipline: extract only function signatures, key conditions, queries, critical logic paths. Multiple matches → return top 2–3 only. Large files → scan, do not dump.
 - Prop threading: when a server component needs to pass live data to a stateless child, compute a typed stats struct in the page and thread it down. Avoids a new API route. Pattern: `page.tsx → Parent({stats}) → Child({stats})`. (2026-03-18)
+- When a large component (~4000 lines) has a visual element that "doesn't appear": check `radarClip` / `clipPath` containment before reading the full render tree. One grep for the element key + one Read offset+limit to confirm its parent group resolves the issue in 2 tool calls. (2026-03-18)
+- Agent tool for Radar.tsx edits: prefer a single agent with full instructions over sequential back-and-forth. Agent reads the full file once, makes all edits, runs tsc, commits. Saves 4–6 turns per multi-edit session. (2026-03-18)
 
 ### Token Efficiency Rules — Response Format
 
@@ -374,7 +376,10 @@ print(json.dumps(rows, indent=2))
 
 ## 8. KNOWN SYSTEM BEHAVIOUR (do not mistake for bugs)
 
-- `strategic_insights` is populated by `/api/strategic-analysis` cron (daily 08:00 UTC). It will be empty
+**Quick triage index:** `radarClip` | `zoom-transform` | `background-tsc` | `cascade/FK` | `pipeline-tables` | `feeds-dormant` | `bootstrap-deadlock` | `onboard-url` | `CSS-grid/flex` | `sentry-monitors` | `maxDuration` | `pool-events-types` | `realtime-cdc` | `AI-handlers-timeout`
+Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
+
+- [B] `strategic_insights` is populated by `/api/strategic-analysis` cron (daily 08:00 UTC). It will be empty
   on a fresh deployment until the cron fires. The Strategy page now has a fallback layer:
   `strategic_movements` (14-day window) provides live data without GPT. Use `strategic_movements` as the
   "always-on" layer; `strategic_insights` as the "enhanced AI" layer. (2026-03-18)
@@ -389,7 +394,7 @@ print(json.dumps(rows, indent=2))
 - `zoom: 0.9` was removed from globals.css (2026-03-18, reversed later). Do not re-add it — it caused
   all text to render at 90% of declared size and caused subpixel blur on CSS-animated elements. (2026-03-18)
 
-- `extract-sections` intentionally skips `fetch_quality='shell'` and `fetch_quality='js_rendered'` snapshots.
+- [I] `extract-sections` intentionally skips `fetch_quality='shell'` and `fetch_quality='js_rendered'` snapshots.
   The health endpoint counts ALL `sections_extracted=false` as backlog — this causes a false-positive
   `snapshot_extraction_backlog` warning when non-full-quality snapshots accumulate.
   Fix applied (2026-03-17): pre-pass bulk marks them done immediately.
@@ -420,18 +425,18 @@ print(json.dumps(rows, indent=2))
   After 049: `DELETE FROM competitors WHERE id = '...'` cascades automatically (except signals,
   interpretations, signal_feedback — those are intentionally RESTRICT).
 
-- `pending_review` signals on fresh competitors create a bootstrap deadlock: no signals → low pressure →
+- [I] `pending_review` signals on fresh competitors create a bootstrap deadlock: no signals → low pressure →
   no promotion → no signals. Bootstrap fix applied (2026-03-17) in `update-pressure-index.ts`: if a
   competitor has zero signals in `pending` or `interpreted`, their highest-confidence `pending_review`
   signal (≥ 0.50) is promoted once per run regardless of pressure_index. Bootstrap now also prefers
   high_value page signals over ambient/standard when selecting the candidate.
 
-- `onboard-competitor` URL validation is reachability-only (HTTP 200 + content-length). It does not check
+- [I] `onboard-competitor` URL validation is reachability-only (HTTP 200 + content-length). It does not check
   whether the URL is the right kind of page. Bad URLs that return 200 (sitemaps, legal pages, product tools,
   single posts, homepage locale variants) are silently committed. Content-pattern gate added (2026-03-17)
   in `rejectPageUrl()` — applied before commit, after HTTP validation passes.
 
-- `fetch-snapshots` budget exhaustion: with INVOCATION_BUDGET_MS (now 25000ms on Vercel Pro), pages near
+- [I] `fetch-snapshots` budget exhaustion: with INVOCATION_BUDGET_MS (now 25000ms on Vercel Pro), pages near
   the back of the query result were consistently skipped. Fix applied (2026-03-17): Fisher-Yates shuffle
   on urlEntries before processing. Budget-skipped pages now emit `pipeline_events` with
   `skip_reason: budget_exhausted` and trigger a Sentry `fetch_budget_exhausted` warning.
