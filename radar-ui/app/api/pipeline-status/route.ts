@@ -7,19 +7,15 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "../../../lib/supabase/service";
 
-// pipeline_events.stage keys written by the backend runtime
-const STAGE_MAP: Record<string, string> = {
-  capture:      "fetch-snapshots",
-  parse:        "extract-sections",
-  baseline:     "build-baselines",
-  diff:         "detect-diffs",
-  signal:       "detect-signals",
-  intelligence: "interpret-signals",
-};
+// Actual pipeline_events.stage keys written by the backend runtime handlers
+// (verified against live database 2026-03-18)
+const CYCLE_STAGES = ["snapshot", "extract", "compare", "diff"] as const;
+const EVENT_STAGES = ["signal", "interpret", "movement_synthesis"] as const;
 
-// Minutes without a successful event before status degrades
-const WARN_MINS  = 70;   // sub-hourly stages → warn at 70m
-const STALE_MINS = 150;  // stale at 2.5h
+// Cycle stages (run every crawl cycle regardless of content changes):
+// stale if no success in CYCLE_WARN_MINS
+const CYCLE_WARN_MINS  = 70;   // sub-hourly crawl stages: warn at 70m
+const CYCLE_STALE_MINS = 150;  // stale at 2.5h
 
 export type StageStatus = "ok" | "warn" | "stale" | "unknown";
 
@@ -28,60 +24,103 @@ export type PipelineStatusResponse = {
   generatedAt: string;
 };
 
+// Map from UI node ID → pipeline_events.stage value
+const PIPELINE_NODE_MAP: Record<string, string> = {
+  capture:      "snapshot",
+  parse:        "extract",
+  baseline:     "compare",
+  diff:         "diff",
+  signal:       "signal",
+  intelligence: "interpret",
+  movement:     "movement_synthesis",
+};
+
 export async function GET(): Promise<NextResponse<PipelineStatusResponse>> {
-  const unknownResponse = (): NextResponse<PipelineStatusResponse> => {
-    const stages = ["capture","parse","baseline","diff","signal","intelligence","movement","radar"]
+  const unknownAll = (): NextResponse<PipelineStatusResponse> => {
+    const stages = Object.keys(PIPELINE_NODE_MAP).concat("radar")
       .map((id) => ({ id, status: "unknown" as StageStatus }));
     return NextResponse.json({ stages, generatedAt: new Date().toISOString() });
   };
 
   try {
     const service = createServiceClient();
-    const ago3h = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
 
-    // Fetch most recent events per stage from last 3h
+    // Fetch last 48h of events — wide enough for both cycle and event-driven stages
+    const ago48h = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: rows, error } = await (service as any)
       .from("pipeline_events")
       .select("stage, status, created_at")
-      .gte("created_at", ago3h)
+      .gte("created_at", ago48h)
       .order("created_at", { ascending: false })
-      .limit(500);
+      .limit(2000);
 
-    if (error) return unknownResponse();
+    if (error) return unknownAll();
 
-    // Last successful event per stage
-    const lastSuccessAt = new Map<string, number>();
-    for (const row of (rows ?? []) as { stage: string; status: string; created_at: string }[]) {
-      if (row.status === "success" && !lastSuccessAt.has(row.stage)) {
-        lastSuccessAt.set(row.stage, new Date(row.created_at).getTime());
-      }
+    type Row = { stage: string; status: string; created_at: string };
+    const allRows = (rows ?? []) as Row[];
+    const now = Date.now();
+
+    // Build per-stage event lists
+    const byStage = new Map<string, Row[]>();
+    for (const row of allRows) {
+      if (!byStage.has(row.stage)) byStage.set(row.stage, []);
+      byStage.get(row.stage)!.push(row);
     }
 
-    function ageStatus(key: string): StageStatus {
-      const ts = lastSuccessAt.get(key);
-      if (!ts) return "unknown";
-      const ageMins = (Date.now() - ts) / 60_000;
-      if (ageMins < WARN_MINS)  return "ok";
-      if (ageMins < STALE_MINS) return "warn";
+    // ── Cycle stage status: must have run recently ────────────────────────
+    function cycleStatus(key: string): StageStatus {
+      const stageRows = byStage.get(key) ?? [];
+      const lastSuccess = stageRows.find((r) => r.status === "success");
+      if (!lastSuccess) return "unknown";
+      const ageMins = (now - new Date(lastSuccess.created_at).getTime()) / 60_000;
+      if (ageMins < CYCLE_WARN_MINS)  return "ok";
+      if (ageMins < CYCLE_STALE_MINS) return "warn";
       return "stale";
     }
 
-    const stages = Object.entries(STAGE_MAP).map(([id, key]) => ({
-      id,
-      status: ageStatus(key),
-    }));
+    // ── Event-driven stage status: only fires when there's work in queue ─
+    // "unknown" only if never seen in 48h.
+    // "warn" if any failure in last 2h.
+    // "ok" otherwise — a quiet queue is a healthy queue.
+    function eventStatus(key: string): StageStatus {
+      const stageRows = byStage.get(key) ?? [];
+      if (stageRows.length === 0) return "unknown"; // never run
 
-    // movement: look for detect-movements or synthesize-movement-narratives
-    const movementStatus =
-      ageStatus("detect-movements") !== "unknown"
-        ? ageStatus("detect-movements")
-        : ageStatus("synthesize-movement-narratives");
-    stages.push({ id: "movement", status: movementStatus });
+      const ago2h = now - 2 * 60 * 60 * 1000;
+      const recentFailures = stageRows.filter(
+        (r) => r.status === "failure" && new Date(r.created_at).getTime() > ago2h
+      );
+      const recentSuccesses = stageRows.filter(
+        (r) => r.status === "success" && new Date(r.created_at).getTime() > ago2h
+      );
 
-    // radar: derived — ok if intelligence is ok, else mirror intelligence
-    const intelStatus = stages.find((s) => s.id === "intelligence")?.status ?? "unknown";
-    stages.push({ id: "radar", status: intelStatus });
+      // Active failure with no recent recovery → stale
+      if (recentFailures.length > 0 && recentSuccesses.length === 0) return "warn";
+      // Any events in window → ok (pipeline ran, work was processed)
+      return "ok";
+    }
+
+    const stages: { id: string; status: StageStatus }[] = [
+      { id: "capture",      status: cycleStatus("snapshot") },
+      { id: "parse",        status: cycleStatus("extract") },
+      { id: "baseline",     status: cycleStatus("compare") },
+      { id: "diff",         status: cycleStatus("diff") },
+      { id: "signal",       status: eventStatus("signal") },
+      { id: "intelligence", status: eventStatus("interpret") },
+      { id: "movement",     status: eventStatus("movement_synthesis") },
+    ];
+
+    // RADAR: derived — inherits worst of signal + intelligence
+    const sigStatus   = stages.find((s) => s.id === "signal")?.status       ?? "unknown";
+    const intelStatus = stages.find((s) => s.id === "intelligence")?.status  ?? "unknown";
+    const radarStatus: StageStatus =
+      sigStatus === "stale"   || intelStatus === "stale"   ? "stale"   :
+      sigStatus === "warn"    || intelStatus === "warn"    ? "warn"    :
+      sigStatus === "ok"      || intelStatus === "ok"      ? "ok"      :
+      "unknown";
+    stages.push({ id: "radar", status: radarStatus });
 
     const res = NextResponse.json<PipelineStatusResponse>({
       stages,
@@ -91,6 +130,6 @@ export async function GET(): Promise<NextResponse<PipelineStatusResponse>> {
     return res;
 
   } catch {
-    return unknownResponse();
+    return unknownAll();
   }
 }

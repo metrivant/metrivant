@@ -724,24 +724,22 @@ function Connector({
         style={
           isHorizontal
             ? {
-                right:       "2px",
-                top:         "50%",
-                transform:   "translateY(-50%)",
-                width:       "5px",
-                height:      "5px",
+                right:     "2px",
+                top:       "50%",
+                transform: "translateY(-50%) rotate(45deg)",
+                width:     "5px",
+                height:    "5px",
                 borderTop:   "1px solid rgba(46,230,166,0.35)",
                 borderRight: "1px solid rgba(46,230,166,0.35)",
-                rotate:      "45deg",
               }
             : {
-                bottom:      "2px",
-                left:        "50%",
-                transform:   "translateX(-50%)",
-                width:       "5px",
-                height:      "5px",
-                borderBottom:"1px solid rgba(46,230,166,0.35)",
-                borderRight: "1px solid rgba(46,230,166,0.35)",
-                rotate:      "45deg",
+                bottom:    "2px",
+                left:      "50%",
+                transform: "translateX(-50%) rotate(45deg)",
+                width:     "5px",
+                height:    "5px",
+                borderBottom: "1px solid rgba(46,230,166,0.35)",
+                borderRight:  "1px solid rgba(46,230,166,0.35)",
               }
         }
       />

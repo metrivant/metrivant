@@ -14,19 +14,10 @@ export const metadata = {
     "The Metrivant detection pipeline: 8 stages from page capture to radar intelligence. Live operational status.",
 };
 
-// ── Server-side status fetch (same logic as /api/pipeline-status, avoids self-fetch) ─
+// ── Server-side status fetch — mirrors /api/pipeline-status logic ─────────────
 
-const STAGE_MAP: Record<string, string> = {
-  capture:      "fetch-snapshots",
-  parse:        "extract-sections",
-  baseline:     "build-baselines",
-  diff:         "detect-diffs",
-  signal:       "detect-signals",
-  intelligence: "interpret-signals",
-};
-
-const WARN_MINS  = 70;
-const STALE_MINS = 150;
+const CYCLE_WARN_MINS  = 70;
+const CYCLE_STALE_MINS = 150;
 
 async function getInitialStages(): Promise<{ id: string; status: StageStatus }[]> {
   const fallback = ["capture","parse","baseline","diff","signal","intelligence","movement","radar"]
@@ -34,47 +25,65 @@ async function getInitialStages(): Promise<{ id: string; status: StageStatus }[]
 
   try {
     const service = createServiceClient();
-    const ago3h = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+    const ago48h = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    const now = Date.now();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: rows, error } = await (service as any)
       .from("pipeline_events")
       .select("stage, status, created_at")
-      .gte("created_at", ago3h)
+      .gte("created_at", ago48h)
       .order("created_at", { ascending: false })
-      .limit(500);
+      .limit(2000);
 
     if (error || !rows) return fallback;
 
-    const lastSuccessAt = new Map<string, number>();
-    for (const row of rows as { stage: string; status: string; created_at: string }[]) {
-      if (row.status === "success" && !lastSuccessAt.has(row.stage)) {
-        lastSuccessAt.set(row.stage, new Date(row.created_at).getTime());
-      }
+    type Row = { stage: string; status: string; created_at: string };
+    const allRows = rows as Row[];
+
+    const byStage = new Map<string, Row[]>();
+    for (const row of allRows) {
+      if (!byStage.has(row.stage)) byStage.set(row.stage, []);
+      byStage.get(row.stage)!.push(row);
     }
 
-    function ageStatus(key: string): StageStatus {
-      const ts = lastSuccessAt.get(key);
-      if (!ts) return "unknown";
-      const ageMins = (Date.now() - ts) / 60_000;
-      if (ageMins < WARN_MINS)  return "ok";
-      if (ageMins < STALE_MINS) return "warn";
+    function cycleStatus(key: string): StageStatus {
+      const last = (byStage.get(key) ?? []).find((r) => r.status === "success");
+      if (!last) return "unknown";
+      const ageMins = (now - new Date(last.created_at).getTime()) / 60_000;
+      if (ageMins < CYCLE_WARN_MINS)  return "ok";
+      if (ageMins < CYCLE_STALE_MINS) return "warn";
       return "stale";
     }
 
-    const stages = Object.entries(STAGE_MAP).map(([id, key]) => ({
-      id,
-      status: ageStatus(key),
-    }));
+    function eventStatus(key: string): StageStatus {
+      const stageRows = byStage.get(key) ?? [];
+      if (stageRows.length === 0) return "unknown";
+      const ago2h = now - 2 * 60 * 60 * 1000;
+      const recentFailures  = stageRows.filter((r) => r.status === "failure" && new Date(r.created_at).getTime() > ago2h);
+      const recentSuccesses = stageRows.filter((r) => r.status === "success" && new Date(r.created_at).getTime() > ago2h);
+      if (recentFailures.length > 0 && recentSuccesses.length === 0) return "warn";
+      return "ok";
+    }
 
-    const movementStatus =
-      ageStatus("detect-movements") !== "unknown"
-        ? ageStatus("detect-movements")
-        : ageStatus("synthesize-movement-narratives");
-    stages.push({ id: "movement", status: movementStatus });
+    const stages: { id: string; status: StageStatus }[] = [
+      { id: "capture",      status: cycleStatus("snapshot") },
+      { id: "parse",        status: cycleStatus("extract") },
+      { id: "baseline",     status: cycleStatus("compare") },
+      { id: "diff",         status: cycleStatus("diff") },
+      { id: "signal",       status: eventStatus("signal") },
+      { id: "intelligence", status: eventStatus("interpret") },
+      { id: "movement",     status: eventStatus("movement_synthesis") },
+    ];
 
+    const sigStatus   = stages.find((s) => s.id === "signal")?.status      ?? "unknown";
     const intelStatus = stages.find((s) => s.id === "intelligence")?.status ?? "unknown";
-    stages.push({ id: "radar", status: intelStatus });
+    const radarStatus: StageStatus =
+      sigStatus === "stale"   || intelStatus === "stale"   ? "stale"   :
+      sigStatus === "warn"    || intelStatus === "warn"    ? "warn"    :
+      sigStatus === "ok"      || intelStatus === "ok"      ? "ok"      :
+      "unknown";
+    stages.push({ id: "radar", status: radarStatus });
 
     return stages;
   } catch {
