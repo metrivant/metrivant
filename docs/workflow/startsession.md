@@ -243,6 +243,14 @@ Use this order for diagnose sessions. Stop at the level that answers the questio
 Never read source files before checking health + pipeline_events first.
 Never use specific column names in REST queries before doing `limit=1&select=*` to learn the schema.
 
+**UI "missing data" triage order:** (2026-03-18)
+```
+1. Check page.tsx imports + JSX (grep -n "ComponentName" page.tsx) — stale import most common cause
+2. Check if source table is populated (REST count query)
+3. Check when the populating cron last ran (pipeline_events or Vercel cron logs)
+4. If code + data are correct → deployment delay or browser cache (tell user: Ctrl+Shift+R)
+```
+
 **Bulk delete order for non-CASCADE tables (competitor cleanup):**
 ```
 1. signal_feedback          (references signals)
@@ -269,10 +277,30 @@ Batch ≤50 IDs per REST call to avoid Supabase 8-second statement timeout (erro
 - Read git log before reading code — commit messages often explain "why" and prevent unnecessary file reads.
 - Count/distribution queries before full row fetches: confirm scale before fetching all data.
 - Stop reading when root cause is confirmed — do not continue for completeness.
+- For large components (Radar.tsx, 4000+ lines): use `grep -n "pattern"` first to get line numbers, then `Read offset+limit` on only the relevant block. Never read the full file for a targeted edit. (2026-03-18)
+- When a server component needs to pass live data to a child component that currently takes no props: compute a small typed stats struct in the page, thread it through one intermediate component as an optional prop. Avoids a new API route. Pattern: `page.tsx → ParentComponent({stats}) → ChildComponent({stats})`. (2026-03-18)
+- Multi-file search: `grep -n "pattern" file1 file2 file3 2>/dev/null` in one Bash call instead of separate Grep tool calls. Use when checking imports across 2–4 known files. (2026-03-18)
+- When user says "X is not showing / old panel still showing": check page.tsx imports + JSX first (single grep call) before reading component files. Root cause is almost always at the page level. (2026-03-18)
 
 ---
 
 ## KNOWN SYSTEM BEHAVIOUR (do not mistake for bugs)
+
+- `strategic_insights` is populated by `/api/strategic-analysis` cron (daily 08:00 UTC). It will be empty
+  on a fresh deployment until the cron fires. The Strategy page now has a fallback layer:
+  `strategic_movements` (14-day window) provides live data without GPT. Use `strategic_movements` as the
+  "always-on" layer; `strategic_insights` as the "enhanced AI" layer. (2026-03-18)
+
+- Three ambient panel systems exist in radar-ui. As of 2026-03-18:
+  - `KnowledgePanel` — ACTIVE (encyclopaedia, replaces the below two)
+  - `HistoricalCapsule` — DISABLED (file exists, not imported)
+  - `FeatureDiscoveryPanel` — DISABLED (file exists, not imported)
+  - `TutorialHint` — DISABLED (file exists, removed from page.tsx)
+  Do not re-enable old panels. KnowledgePanel is the single ambient education system.
+
+- `zoom: 0.9` on `html` in globals.css scales the entire rendered viewport uniformly. All fixed-position
+  elements, Framer Motion animations, and SVG overlays scale correctly. Safe in all modern browsers.
+  Does NOT break `position: fixed` layout — elements remain anchored to the (scaled) viewport. (2026-03-18)
 
 - `extract-sections` intentionally skips `fetch_quality='shell'` and `fetch_quality='js_rendered'` snapshots.
   The health endpoint counts ALL `sections_extracted=false` as backlog — this causes a false-positive
@@ -384,6 +412,10 @@ Batch ≤50 IDs per REST call to avoid Supabase 8-second statement timeout (erro
   do not implement unless explicitly approved.
 - When user says "implement all tiers" or "proceed" → implement everything safe; explicitly name what is
   skipped and why (risk, complexity, missing prerequisite).
+- Multiple rapid user messages during a session accumulate as a queue. Complete the current task fully before addressing the next. Do not stop mid-implementation to acknowledge queued messages. (2026-03-18)
+- "analyse and improve X — no patterns/data showing" = fix mode. Always diagnose data pipeline first (is the source table populated? when does the cron run?) before redesigning UI. (2026-03-18)
+- "X panel is not showing / still seeing old panel" — do NOT redesign. Check page.tsx imports first. If code is correct and cron deployed, root cause is Vercel deployment delay or browser cache. Tell user: hard refresh (Ctrl+Shift+R). (2026-03-18)
+- "commit and push all completions during this session" = commit everything uncommitted, then push once. Do not push per-feature — batch into one commit unless features are already partially committed. (2026-03-18)
 
 ---
 
