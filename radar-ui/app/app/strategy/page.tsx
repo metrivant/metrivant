@@ -14,6 +14,7 @@ import StrategyTracker from "./StrategyTracker";
 import StrategyActionButton from "./StrategyActionButton";
 import StrategyTimeline from "./StrategyTimeline";
 import StrategyCompetitorPills from "./StrategyCompetitorPills";
+import { ActionQueueCard } from "./ActionQueueCard";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,17 @@ type InsightRow = {
   competitors_involved: string[];
   is_major:             boolean;
   created_at:           string;
+};
+
+type StrategicAction = {
+  id:               string;
+  action_type:      string;
+  urgency:          string;
+  priority:         number;
+  title:            string;
+  description:      string;
+  rationale:        string | null;
+  competitor_names: string[];
 };
 
 type EvidenceItem = {
@@ -224,6 +236,20 @@ export default async function StrategyPage({
     }
   } catch { /* non-fatal */ }
 
+  // ── Fetch action queue for this org ─────────────────────────────────────────
+  let actions: StrategicAction[] = [];
+  try {
+    if (orgId) {
+      const { data: actionData } = await supabase
+        .from("strategic_actions")
+        .select("id, action_type, urgency, priority, title, description, rationale, competitor_names")
+        .eq("org_id", orgId)
+        .eq("status", "open")
+        .order("priority");
+      actions = (actionData ?? []) as StrategicAction[];
+    }
+  } catch { /* non-fatal */ }
+
   // Section groupings (display-only — same underlying data)
   const majorSignals       = insights.filter((i) => i.is_major);
   const otherPatterns      = insights.filter((i) => !i.is_major);
@@ -233,6 +259,7 @@ export default async function StrategyPage({
   const singleGroups       = movementGroups.filter((g) => g.movements.length === 1);
   const hasMovements       = movementGroups.length > 0;
   const hasContexts        = contexts.length > 0;
+  const hasActions         = actions.length > 0;
 
   // Competitor → movement cross-reference (for context cards)
   const movementByCompetitor = new Map<string, { type: string; label: string; color: string }>();
@@ -250,6 +277,7 @@ export default async function StrategyPage({
 
   // Dynamic section index — preserves numbering regardless of which sections are present
   const _activeSections: string[] = [];
+  if (hasActions)                            _activeSections.push("actions");
   if (hasMovements)                          _activeSections.push("movements");
   if (hasContexts)                           _activeSections.push("landscape");
   if (hasInsights)                           _activeSections.push("signals");
@@ -354,7 +382,7 @@ export default async function StrategyPage({
         </div>
 
         {/* ── No data at all ────────────────────────────────────────── */}
-        {!hasMovements && !hasInsights && !hasContexts && (
+        {!hasMovements && !hasInsights && !hasContexts && !hasActions && (
           <div
             className="flex flex-col items-center rounded-[18px] border border-[#0d2010] px-8 py-20 text-center"
             style={{ background: "rgba(2,8,2,0.5)" }}
@@ -380,11 +408,41 @@ export default async function StrategyPage({
           </div>
         )}
 
-        {(hasMovements || hasInsights || hasContexts) && (
+        {(hasMovements || hasInsights || hasContexts || hasActions) && (
           <div className="flex flex-col gap-12">
 
             {/* ══════════════════════════════════════════════════════════
-                SECTION 01 — Field Movements
+                SECTION 01 — Action Queue
+                GPT-4o synthesis of competitor_contexts + movements → ranked
+                actionable responses. Regenerated daily at 09:30 UTC.
+            ═══════════════════════════════════════════════════════════ */}
+            {hasActions && (
+            <section>
+              <SectionHeader
+                index={sIdx("actions")}
+                title="Action Queue"
+                subtitle={`${actions.length} prioritized action${actions.length !== 1 ? "s" : ""} · derived from intelligence contexts · refreshes daily`}
+              />
+              <div className="flex flex-col gap-2">
+                {actions.map((a) => (
+                  <ActionQueueCard
+                    key={a.id}
+                    id={a.id}
+                    action_type={a.action_type}
+                    urgency={a.urgency}
+                    priority={a.priority}
+                    title={a.title}
+                    description={a.description}
+                    rationale={a.rationale}
+                    competitor_names={a.competitor_names}
+                  />
+                ))}
+              </div>
+            </section>
+            )}
+
+            {/* ══════════════════════════════════════════════════════════
+                SECTION 02 — Field Movements
                 Live movement registry — always populated once pipeline runs
             ═══════════════════════════════════════════════════════════ */}
             {hasMovements && (
