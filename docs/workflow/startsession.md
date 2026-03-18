@@ -244,7 +244,7 @@ Batch ≤50 IDs per REST call to avoid Supabase 8-second statement timeout (erro
 - For large components (Radar.tsx, 4000+ lines): `grep -n "pattern"` first → get line numbers → `Read offset+limit` on relevant block only. Never read the full file for a targeted edit. (2026-03-18)
 - Multi-file search: `grep -n "pattern" file1 file2 file3 2>/dev/null` in one Bash call. Use when checking imports across 2–4 known files. (2026-03-18)
 - When editing a large component, run ALL edits in one message with parallel Edit tool calls where line ranges are independent. Do not interleave reads between edits. (2026-03-18)
-- Prefer `timeout 90 git push 2>&1` over background push — synchronous, 1 turn. Pre-push TS checks take ~60s; 90s is sufficient. (2026-03-18)
+- Use plain `git push` — pre-push hook is async (exits 0 immediately, tsc runs in background). Results in `.typecheck-log` at repo root. No timeout needed; push completes in <5s. (2026-03-18)
 - Scan discipline: extract only function signatures, key conditions, queries, critical logic paths. Multiple matches → return top 2–3 only. Large files → scan, do not dump.
 - Prop threading: when a server component needs to pass live data to a stateless child, compute a typed stats struct in the page and thread it down. Avoids a new API route. Pattern: `page.tsx → Parent({stats}) → Child({stats})`. (2026-03-18)
 - When a large component (~4000 lines) has a visual element that "doesn't appear": check `radarClip` / `clipPath` containment before reading the full render tree. One grep for the element key + one Read offset+limit to confirm its parent group resolves the issue in 2 tool calls. (2026-03-18)
@@ -302,7 +302,7 @@ Default bias: **return less, not more**. Output only what changes understanding 
 - "analyse and improve X — nothing showing" = fix mode. Diagnose data pipeline first (is the source table populated? when does the cron run?) before redesigning UI. (2026-03-18)
 - "X panel is not showing / still seeing old panel" → check page.tsx imports first. If code is correct and deployed, cause is Vercel delay or browser cache. Tell user: Ctrl+Shift+R. (2026-03-18)
 - "commit and push all completions" = batch everything uncommitted into one commit, then push once. (2026-03-18)
-- "commit, push" or "commit + push" = stage relevant files, commit with descriptive message, then `git push` synchronously with 90s timeout. Do not use background push — use `timeout 90 git push 2>&1` so the result is immediate. No separate "wait and read" turns needed. (2026-03-18)
+- "commit, push" or "commit + push" = stage relevant files, commit with descriptive message, then `git push`. Hook is async — push completes in <5s. No timeout needed. (2026-03-18)
 - "read endsession.md" = execute all endsession steps immediately from session context, no pauses between steps, no user prompts. (2026-03-18)
 - "implement all identified improvements now" or "implement all X now" = execute everything that is safe (low blast radius, no new deps, no schema changes) without requesting per-item approval. Name any skipped items + reason at the end. (2026-03-18)
 - When given a multi-part prompt (e.g. layout fix + grid visibility), execute ALL parts in one pass. Do not implement part 1, report, then ask to continue. Surface is already approved — complete the full scope. (2026-03-18)

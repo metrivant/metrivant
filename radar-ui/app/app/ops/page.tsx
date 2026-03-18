@@ -32,9 +32,24 @@ const STALE_THRESHOLDS: Record<string, number> = {
   "synthesize-movement-narratives": 70,
   "generate-radar-narratives":  70,
   "generate-sector-intelligence": 10_080,
+  // pool ingest handlers — hourly, stale if >90 min
+  "ingest-feeds":               90,
+  "ingest-careers":             90,
+  "ingest-investor-feeds":      90,
+  "ingest-product-feeds":       90,
+  "ingest-procurement-feeds":   90,
+  "ingest-regulatory-feeds":    90,
+  "ingest-media-feeds":         90,
+  // pool promote handlers — hourly, stale if >90 min
+  "promote-feed-signals":       90,
+  "promote-careers-signals":    90,
+  "promote-investor-signals":   90,
+  "promote-product-signals":    90,
+  "promote-procurement-signals":90,
+  "promote-regulatory-signals": 90,
 };
 
-const DEFAULT_THRESHOLD = 1_500; // 25 hours — daily jobs not explicitly listed
+const DEFAULT_THRESHOLD = 1_500; // 25 hours — daily/weekly jobs not explicitly listed
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
