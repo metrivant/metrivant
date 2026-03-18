@@ -1,98 +1,95 @@
-# END SESSION CHECK
+# END SESSION — EXECUTABLE PROCEDURE
 
-Run this at the end of every session.
-
----
-
-## TASK SUMMARY
-
-- What was done:
-- Surface: frontend | runtime | both | none
-- Mode: build | fix | diagnose | refactor | document
+When this file is triggered, execute every step below automatically.
+Do not present a blank form. Derive all answers from session context and write the outputs directly.
 
 ---
 
-## DEPLOYMENT STATE
+## STEP 1 — DERIVE SESSION FACTS
 
-- Changes committed: yes | no | not needed
-- Changes pushed: yes | no | not needed
-- Expected Vercel target:
-  metrivant-ui | metrivant-runtime | both | none
-- Deployment status: success | pending | failed | not needed
+From memory of this session, determine and state:
 
-A change is only live if:
-commit → push → correct Vercel deploy → no errors
-
----
-
-## DEPENDENCIES
-
-- Any new dependencies introduced: yes | no
-- If yes:
-  - declared in correct package.json: yes | no
-  - surface verified: yes | no
+```
+Task summary:        [what was built, fixed, or diagnosed — 1–2 sentences]
+Surface:             frontend | runtime | both | none
+Mode:                build | fix | diagnose | refactor | document
+Files changed:       [list every file modified or created]
+Files deleted:       [list or "none"]
+```
 
 ---
 
-## CONTRACT CHECK
+## STEP 2 — DEPLOYMENT STATE
 
-- Any change to:
-  - API shape
-  - function signatures
-  - shared types
-  - database schema
-  - env requirements
+Answer each question from session context:
 
-yes | no
+```
+Changes committed:   yes | no | not needed
+Changes pushed:      yes | no | not needed
+Vercel target:       metrivant-ui | metrivant-runtime | both | none
+Deployment status:   success | pending | failed | not needed
+```
 
-If yes:
-- impacted surface(s) stated: yes | no
-- cross-surface impact reviewed: yes | no
+If committed = no or pushed = no → state explicitly:
+→ "Changes are local only. Must commit + push before live."
 
----
-
-## ARCHITECTURE SAFETY
-
-- Any unintended cross-surface changes: yes | no
-- Any high blast radius changes: yes | no
-
-If yes:
-- explicitly approved: yes | no
+A change is only live if: commit → push → correct Vercel project deployed → no build errors.
 
 ---
 
-## DOCUMENTATION UPDATE
+## STEP 3 — DEPENDENCY CHECK
 
-If task changed:
-- architecture
-- pipeline
-- surfaces
-- deployment
-- pools
-- AI layers
-- workflow rules
+```
+New dependencies introduced:   yes | no
+```
 
-→ Documentation updated: yes | no
-
-If no:
-→ reason:
+If yes, verify and state:
+- package name
+- declared in which package.json (root vs radar-ui)
+- surface confirmed correct: yes | no
 
 ---
 
-## LESSONS / SIGNALS
+## STEP 4 — CONTRACT CHECK
 
-Did this session reveal:
-- a new failure mode
-- a missing rule
-- a source of confusion
-- a gap in documentation
+Scan files changed. For each, answer:
 
-yes | no
+```
+API shape changed:          yes | no
+Function signatures changed: yes | no
+Shared types changed:        yes | no
+DB schema changed:           yes | no  →  migration written | SQL manual | not needed
+Env var requirements changed: yes | no
+```
 
-If yes:
-→ update `docs/workflow/startsession.md` under the relevant section before ending.
+If any = yes:
+- state impacted surfaces
+- confirm cross-surface impact was reviewed
 
-Sections:
+---
+
+## STEP 5 — ARCHITECTURE SAFETY
+
+```
+Unintended cross-surface changes:   yes | no
+High blast radius changes:          yes | no
+```
+
+If yes to either → state what it is and whether it was explicitly approved.
+
+---
+
+## STEP 6 — LESSONS LEARNED (AUTO-EXTRACT)
+
+From this session, identify any of the following that were newly confirmed:
+
+- a failure mode not previously documented
+- a system behaviour that could be mistaken for a bug
+- a diagnostic shortcut or efficiency pattern
+- a new prompt execution rule
+- a query pattern or shell constraint
+
+For each finding, determine which section of `startsession.md` it belongs to:
 1. DIAGNOSTIC EFFICIENCY PROTOCOL
 2. TOKEN EFFICIENCY RULES
 3. KNOWN SYSTEM BEHAVIOUR
@@ -100,24 +97,68 @@ Sections:
 5. PROMPT EXECUTION RULES
 6. QUERY EXECUTION
 
-Commit with:
-  docs(workflow): update startsession.md — [one-line description of what was learned]
+If any findings exist → execute STEP 7.
+If none → state "No new system knowledge this session."
 
 ---
 
-## FINAL STATE
+## STEP 7 — UPDATE startsession.md (AUTO-WRITE)
 
-- System consistent with documentation: yes | no
-- Any known issues remaining: yes | no
+For each finding from STEP 6:
+- append it under the correct section in `docs/workflow/startsession.md`
+- write it as a concise bullet in the same style as existing entries
+- include the date in parentheses: (YYYY-MM-DD)
 
-If yes:
-- list:
+After writing → stage and commit with:
+```
+docs(workflow): update startsession.md — [one-line description of what was learned]
+```
+
+Do not ask for approval. Write and commit directly.
 
 ---
 
-## RULE
+## STEP 8 — MEMORY UPDATE
 
-If any answer above is uncertain → resolve before ending session.
+Check `~/.claude/projects/-home-arcmatrix93/memory/MEMORY.md`.
 
-All operational knowledge lives in `docs/workflow/startsession.md`.
-This file is the gate. That file is the memory.
+If this session changed:
+- system architecture
+- pool state
+- active features
+- known remaining issues
+
+→ update the relevant memory file(s) directly.
+→ update MEMORY.md index if a new file was added.
+
+---
+
+## STEP 9 — FINAL STATE
+
+State:
+
+```
+System consistent with documentation:   yes | no
+Known issues remaining:                 yes | no
+```
+
+If known issues remain → list each one explicitly:
+- what it is
+- what action is needed
+- who must take the action (operator SQL | code change | commit | deploy)
+
+---
+
+## STEP 10 — CLOSE
+
+Output a single closing block:
+
+```
+SESSION CLOSED
+──────────────
+Done:     [1-line summary]
+Live:     yes | no  (committed + pushed + deployed)
+Pending:  [list or "none"]
+```
+
+No trailing summaries. No re-explaining what was done. The diff and memory speak for themselves.

@@ -221,6 +221,11 @@ print(json.dumps(rows, indent=2))
 
 **Never use** `grep`, `head`, `tail`, `sed`, `awk` — not available. Use Python inline instead.
 
+**Check if a column exists on a table (migration probe):** (2026-03-18)
+`GET /rest/v1/{table}?select={column}&limit=0` → 200 = exists, 400/404 = missing.
+`GET /rest/v1/{table}?limit=0` → 200 = table exists, 404 = missing.
+`/rest/v1/information_schema/...` returns 404 — not exposed via PostgREST.
+
 ---
 
 ## DIAGNOSTIC EFFICIENCY PROTOCOL
@@ -319,6 +324,16 @@ Batch ≤50 IDs per REST call to avoid Supabase 8-second statement timeout (erro
 - `section_diffs` does NOT have a `page_section_id` column. It references `page_sections` via
   `previous_section_id` and `current_section_id`, and references `monitored_pages` directly via
   `monitored_page_id`. The cascade path for competitor cleanup runs through `monitored_page_id`.
+
+- Migrations 040–043, 048, 049 applied 2026-03-18. All pool constraint gaps resolved.
+  pool_events.source_type now allows all ATS + investor + product + procurement + regulatory types.
+  ON DELETE CASCADE active on 7 core FK relationships. Realtime CDC active on competitors +
+  strategic_movements. Single-line competitor deletion now works without manual bulk-delete order.
+
+- Sequential migrations can leave cumulative constraint gaps: migrations 039 and 040 each extended
+  `competitor_feeds.source_type` but silently omitted `pool_events.source_type`. Migration 041
+  documents and fixes this. When diagnosing silent ingest failures (eventsInserted: 0 with
+  feedsIngested > 0), check pool_events constraints directly — not just competitor_feeds. (2026-03-18)
 
 - `RadarRealtimeSync` is a no-op until migration 048 is run in Supabase
   (`ALTER PUBLICATION supabase_realtime ADD TABLE competitors, strategic_movements`).
