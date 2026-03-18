@@ -245,6 +245,7 @@ Batch ≤50 IDs per REST call to avoid Supabase 8-second statement timeout (erro
 - When a server component needs to pass live data to a child component that currently takes no props: compute a small typed stats struct in the page, thread it through one intermediate component as an optional prop. Avoids a new API route. Pattern: `page.tsx → ParentComponent({stats}) → ChildComponent({stats})`. (2026-03-18)
 - Multi-file search: `grep -n "pattern" file1 file2 file3 2>/dev/null` in one Bash call instead of separate Grep tool calls. Use when checking imports across 2–4 known files. (2026-03-18)
 - When user says "X is not showing / old panel still showing": check page.tsx imports + JSX first (single grep call) before reading component files. Root cause is almost always at the page level. (2026-03-18)
+- Layout "dead space at bottom" fix order: (1) check grid containers for missing `grid-rows-[1fr]` — auto rows don't fill `h-full` grid containers; (2) add `min-h-0` to intermediate flex containers; (3) verify `h-dvh` is on root. Grid track sizing is the most common culprit — check it first before reading child components. (2026-03-18)
 
 ### Prompt Execution Rules
 
@@ -267,6 +268,22 @@ Batch ≤50 IDs per REST call to avoid Supabase 8-second statement timeout (erro
 ## 7. QUERY EXECUTION — NO SUPABASE CLI
 
 `supabase` CLI is NOT installed. `grep` and `head` are NOT available in the shell environment.
+
+**Git push / SSH environment note:** (2026-03-18)
+SSH port 22 to github.com is unreliable in this sandbox (intermittent timeout). The permanent fix
+is `~/.ssh/config` routing `github.com` through `ssh.github.com:443` with `ssh.github.com` in
+`known_hosts`. This is already configured. If push hangs or times out, it is a transient network
+issue — retry once before escalating. Do NOT report this as a permanent blocker.
+```
+# ~/.ssh/config (already set)
+Host github.com
+  HostName ssh.github.com
+  Port 443
+  User git
+  IdentityFile ~/.ssh/id_ed25519
+  ServerAliveInterval 30
+  ServerAliveCountMax 3
+```
 
 All database queries run via the **Supabase REST API** using credentials from `.env.local`.
 
