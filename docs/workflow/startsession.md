@@ -251,6 +251,8 @@ Batch ≤50 IDs per REST call to avoid Supabase 8-second statement timeout (erro
 - Agent tool for Radar.tsx edits: prefer a single agent with full instructions over sequential back-and-forth. Agent reads the full file once, makes all edits, runs tsc, commits. Saves 4–6 turns per multi-edit session. (2026-03-18)
 - Supabase Security Advisor warnings (RLS Disabled, Security Definer Views): before hardening, grep for `.from('table_name')` and `.from('view_name')` across api/ + lib/ + radar-ui/ to confirm actual access pattern. In this codebase all flagged views are service-role-only — REVOKE from anon/authenticated resolves warnings with zero code changes. (2026-03-18)
 - Multiple simultaneous background push failures (exit 124) are always transient SSH timeouts. Verify `git status` vs `origin/main` — if "up to date", all failures are stale noise. Do not retry individually. (2026-03-18)
+- `vercel.json` crons use single-line compact JSON formatting — Edit tool string matching fails on multiline patterns. Use Python `json.load` + `json.dump` to modify vercel.json programmatically. (2026-03-18)
+- tsc incremental cache (`--incremental + tsBuildInfoFile`) does NOT meaningfully reduce check time on this CPU-constrained sandbox (still ~60s warm vs ~85s cold). Bottleneck is CPU not I/O. Async hook is the correct fix; incremental helps only on more capable machines. (2026-03-18)
 
 ### Token Efficiency Rules — Response Format
 
