@@ -842,7 +842,7 @@ export default function KnowledgePanel() {
           transition={{ duration: 0.40, ease: [0.16, 1, 0.3, 1] }}
           style={{
             position: "fixed",
-            top: "16px",
+            top: "72px",
             right: "16px",
             width: "320px",
             zIndex: 55,

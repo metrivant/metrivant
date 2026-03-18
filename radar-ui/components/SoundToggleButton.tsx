@@ -29,7 +29,7 @@ export default function SoundToggleButton() {
       onClick={handleToggle}
       aria-label={enabled ? "Mute sound effects" : "Enable sound effects"}
       title={enabled ? "Sound on" : "Sound off"}
-      className="flex h-7 w-7 items-center justify-center rounded-full border transition-colors"
+      className="flex h-8 w-8 items-center justify-center rounded-full border transition-colors"
       style={{
         borderColor: enabled ? "rgba(46,230,166,0.30)" : "rgba(46,230,166,0.10)",
         background:  enabled ? "rgba(46,230,166,0.06)" : "transparent",

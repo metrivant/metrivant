@@ -298,7 +298,7 @@ export default async function Page() {
               {/* Rivals */}
               <div className="group relative cursor-default text-right">
                 <div className="text-[10px] uppercase tracking-[0.18em] text-slate-600">Rivals</div>
-                <div className="mt-px text-[18px] font-semibold leading-none tabular-nums text-slate-200">{competitors.length}</div>
+                <div className="mt-px text-[16px] font-semibold leading-none tabular-nums text-slate-200">{competitors.length}</div>
                 <div
                   className="pointer-events-none absolute right-0 top-full z-30 mt-2 w-52 rounded-[10px] border border-[#1a3020] bg-[#060d06] px-3 py-2.5 text-left opacity-0 transition-opacity duration-150 group-hover:opacity-100"
                   style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85), 0 0 0 1px rgba(46,230,166,0.06)" }}
@@ -311,7 +311,7 @@ export default async function Page() {
               {/* Active */}
               <div className="group relative cursor-default text-right">
                 <div className="text-[10px] uppercase tracking-[0.18em] text-slate-600">Active</div>
-                <div className="mt-px text-[18px] font-semibold leading-none tabular-nums" style={{ color: activeCount > 0 ? "#2EE6A6" : "#475569" }}>{activeCount}</div>
+                <div className="mt-px text-[16px] font-semibold leading-none tabular-nums" style={{ color: activeCount > 0 ? "#2EE6A6" : "#475569" }}>{activeCount}</div>
                 <div
                   className="pointer-events-none absolute right-0 top-full z-30 mt-2 w-52 rounded-[10px] border border-[#1a3020] bg-[#060d06] px-3 py-2.5 text-left opacity-0 transition-opacity duration-150 group-hover:opacity-100"
                   style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85), 0 0 0 1px rgba(46,230,166,0.06)" }}
@@ -324,7 +324,7 @@ export default async function Page() {
               {/* Signals */}
               <div className="group relative cursor-default text-right">
                 <div className="text-[10px] uppercase tracking-[0.18em] text-slate-600">Signals</div>
-                <div className="mt-px text-[18px] font-semibold leading-none tabular-nums text-slate-200">{totalSignals7d}</div>
+                <div className="mt-px text-[16px] font-semibold leading-none tabular-nums text-slate-200">{totalSignals7d}</div>
                 <div
                   className="pointer-events-none absolute right-0 top-full z-30 mt-2 w-52 rounded-[10px] border border-[#1a3020] bg-[#060d06] px-3 py-2.5 text-left opacity-0 transition-opacity duration-150 group-hover:opacity-100"
                   style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85), 0 0 0 1px rgba(46,230,166,0.06)" }}
@@ -337,7 +337,7 @@ export default async function Page() {
               {/* New 24h */}
               <div className="group relative cursor-default text-right">
                 <div className="text-[10px] uppercase tracking-[0.18em] text-slate-600">New 24h</div>
-                <div className="mt-px text-[18px] font-semibold leading-none tabular-nums" style={{ color: newToday > 0 ? "#2EE6A6" : "#475569" }}>{newToday}</div>
+                <div className="mt-px text-[16px] font-semibold leading-none tabular-nums" style={{ color: newToday > 0 ? "#2EE6A6" : "#475569" }}>{newToday}</div>
                 <div
                   className="pointer-events-none absolute right-0 top-full z-30 mt-2 w-52 rounded-[10px] border border-[#1a3020] bg-[#060d06] px-3 py-2.5 text-left opacity-0 transition-opacity duration-150 group-hover:opacity-100"
                   style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85), 0 0 0 1px rgba(46,230,166,0.06)" }}
