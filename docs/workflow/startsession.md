@@ -398,6 +398,17 @@ print(json.dumps(rows, indent=2))
   (`ALTER PUBLICATION supabase_realtime ADD TABLE competitors, strategic_movements`).
   Until then, the 60s fallback poll in Radar.tsx handles updates.
 
+- CSS Grid `h-full` does NOT fill height automatically when rows are implicit/auto-sized. Without an
+  explicit `grid-rows-[1fr]`, the implicit row tracks are content-sized — leaving dead space inside a
+  full-height grid container even when `overflow-hidden` is applied at every ancestor. Fix: add
+  `grid-rows-[1fr]` to the grid container. Distinct from flexbox: `flex-1` fills remaining space,
+  `h-full` on a grid container does not propagate that height to its tracks. (2026-03-18)
+
+- Flex containers between a viewport-height root and a `h-full` child must have `min-h-0` to allow
+  correct shrink behaviour. `overflow-hidden` alone does not guarantee this — without `min-h-0`, a
+  flex item with `min-height: auto` (default) resists shrinking and can crowd out siblings. Add
+  `min-h-0` defensively to any intermediate `flex-1` flex container in the viewport height chain. (2026-03-18)
+
 - Migrations 046 (`discovery_candidates`) and 047 (`last_fetched_at`) must be run in Supabase SQL Editor
   before their respective features activate. Both are swallowed-error non-blocking until applied.
 
