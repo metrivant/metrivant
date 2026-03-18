@@ -24,8 +24,7 @@ import AchievementsButton from "../../components/AchievementsButton";
 import SoundToggleButton from "../../components/SoundToggleButton";
 import InitBanner from "../../components/InitBanner";
 import TutorialHint from "../../components/TutorialHint";
-import HistoricalCapsule from "../../components/HistoricalCapsule";
-import FeatureDiscoveryPanel from "../../components/FeatureDiscoveryPanel";
+import KnowledgePanel from "../../components/KnowledgePanel";
 import RadarRealtimeSync from "../../components/RadarRealtimeSync";
 import { getRadarFeed } from "../../lib/api";
 import { createClient } from "../../lib/supabase/server";
@@ -396,11 +395,8 @@ export default async function Page() {
       {/* ── Time-based feature discovery hints ──────────────────────────── */}
       {!trialExpired && <TutorialHint />}
 
-      {/* ── Historical trade capsules — periodic ambient intelligence ────── */}
-      {!trialExpired && <HistoricalCapsule />}
-
-      {/* ── Feature discovery panels — periodic product education ──────── */}
-      {!trialExpired && <FeatureDiscoveryPanel />}
+      {/* ── Knowledge panel — encyclopaedia of intelligence, features, science ── */}
+      {!trialExpired && <KnowledgePanel />}
 
       {/* ── Mobile bottom navigation — md:hidden inside component ─────────── */}
       <MobileNav />
