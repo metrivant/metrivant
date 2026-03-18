@@ -29,14 +29,18 @@ const NAV_ITEMS: { href: string; label: string; icon: ReactNode; overlayKey?: st
     ),
   },
   {
-    href: "/app",
-    label: "Market Map",
+    href: "/app/gravity-map",
+    label: "Gravity Map",
     overlayKey: "map",
     icon: (
       <svg width="13" height="13" viewBox="0 0 11 11" fill="none" aria-hidden="true">
-        <rect x="1" y="1" width="9" height="9" rx="1" stroke="currentColor" strokeWidth="1.2" />
-        <line x1="5.5" y1="1" x2="5.5" y2="10" stroke="currentColor" strokeWidth="1" strokeDasharray="1.5 1.5" />
-        <line x1="1" y1="5.5" x2="10" y2="5.5" stroke="currentColor" strokeWidth="1" strokeDasharray="1.5 1.5" />
+        <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.2" />
+        <circle cx="5.5" cy="5.5" r="1.5" stroke="currentColor" strokeWidth="1" />
+        <circle cx="5.5" cy="5.5" r="0.6" fill="currentColor" />
+        <line x1="5.5" y1="1.5" x2="5.5" y2="3" stroke="currentColor" strokeWidth="0.9" strokeOpacity="0.5" />
+        <line x1="5.5" y1="8" x2="5.5" y2="9.5" stroke="currentColor" strokeWidth="0.9" strokeOpacity="0.5" />
+        <line x1="1.5" y1="5.5" x2="3" y2="5.5" stroke="currentColor" strokeWidth="0.9" strokeOpacity="0.5" />
+        <line x1="8" y1="5.5" x2="9.5" y2="5.5" stroke="currentColor" strokeWidth="0.9" strokeOpacity="0.5" />
       </svg>
     ),
   },
@@ -162,7 +166,7 @@ export default function SidebarNav() {
         />
         <div className="grid grid-cols-2 gap-x-1 gap-y-1.5">
           {[
-            { key: "M", label: "Map" },
+            { key: "M", label: "Gravity" },
             { key: "B", label: "Briefs" },
             { key: "S", label: "Strategy" },
             { key: "D", label: "Discover" },
