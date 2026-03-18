@@ -450,6 +450,12 @@ print(json.dumps(rows, indent=2))
   documents and fixes this. When diagnosing silent ingest failures (eventsInserted: 0 with
   feedsIngested > 0), check pool_events constraints directly — not just competitor_feeds. (2026-03-18)
 
+- SVG `radarClip` visibility trap: any element inside `<g clipPath="url(#radarClip)">` is clipped to OUTER_RADIUS=420. Elements intended to render in the black space outside the radar circle (orbit rings, HUD corner panels) must be placed OUTSIDE this group. Symptom: element exists in code, is invisible at runtime. Triage: grep for the element key/id, confirm it is not a descendant of the radarClip `<g>`. (2026-03-18)
+
+- HUD zoom-independence pattern: SVG panels that must NOT scale with radar zoom must live in a separate overlay `<svg>` (`position:absolute; inset:0; pointerEvents:none`) sibling to the zoom canvas div — not inside it. The zoom canvas div carries `transform: scale(zoom)` which scales all children uniformly. Node-position connector lines in the overlay require: `overlayX = CENTER + (nodeX - CENTER + pan.x) * zoom`. (2026-03-18)
+
+- Background tsc via `| head -N` reports exit code from `head`, not `tsc`. Exit code 0 does NOT confirm a clean typecheck — always read the output file content. Use `npx tsc --noEmit 2>&1` without piping to get a reliable exit code. (2026-03-18)
+
 - `RadarRealtimeSync` is a no-op until migration 048 is run in Supabase
   (`ALTER PUBLICATION supabase_realtime ADD TABLE competitors, strategic_movements`).
   Until then, the 60s fallback poll in Radar.tsx handles updates.
