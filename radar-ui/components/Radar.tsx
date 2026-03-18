@@ -533,17 +533,6 @@ function computeEnhancedLabelPositions(
   return result;
 }
 
-function getClusterLabel(movementType: string): string {
-  switch (movementType) {
-    case "pricing_strategy_shift": return "PRICING CLUSTER";
-    case "product_expansion":      return "PRODUCT CLUSTER";
-    case "market_reposition":      return "MARKET CLUSTER";
-    case "enterprise_push":        return "ENTERPRISE ZONE";
-    case "ecosystem_expansion":    return "ECOSYSTEM ZONE";
-    default:                       return "ACTIVITY CLUSTER";
-  }
-}
-
 
 // ─── BlipNode sub-component ───────────────────────────────────────────────────
 // Isolates each competitor blip. Prevents unrelated state changes in the parent
@@ -1293,28 +1282,6 @@ export default function Radar({
     [sorted],
   );
 
-  // Cluster groups: movement_type buckets with ≥2 nodes for halo rendering
-  type GravityCluster = { type: string; color: string; label: string; nodes: Point[] };
-  const gravityGroups = useMemo((): GravityCluster[] => {
-    if (!gravityMode || gravityPositions.size === 0) return [];
-    const map = new Map<string, GravityCluster>();
-    for (const c of sorted) {
-      const type = c.latest_movement_type;
-      if (!type) continue;
-      const pos = gravityPositions.get(c.competitor_id);
-      if (!pos) continue;
-      if (!map.has(type)) {
-        map.set(type, {
-          type,
-          color: getMovementColor(type),
-          label: getClusterLabel(type),
-          nodes: [],
-        });
-      }
-      map.get(type)!.nodes.push(pos);
-    }
-    return [...map.values()].filter((g) => g.nodes.length >= 2);
-  }, [gravityMode, gravityPositions, sorted]);
 
   // Spacetime grid — warped mesh showing gravitational influence of high-momentum nodes
   const gravityContours = useMemo(() => {
@@ -2079,8 +2046,8 @@ export default function Radar({
               />
 
               {/* ── Rotating grid layer — rings, crosshairs, ticks ─── */}
-              {/* 360° per 120s = near-imperceptible motion. Creates the
-                  sense of a live scanning instrument without visual noise. */}
+              {/* Hidden in Deep Field mode — the circular instrument dissolves. */}
+              <g style={{ opacity: gravityEnhanced ? 0 : 1, transition: "opacity 0.8s ease" }}>
               <motion.g
                 animate={{ rotate: 360 }}
                 transition={{ duration: 120, repeat: Infinity, ease: "linear" }}
@@ -2138,6 +2105,7 @@ export default function Radar({
                 ))}
 
               </motion.g>
+              </g>
 
               {/* Cardinal labels rendered outside clip (see below) */}
 
@@ -2178,7 +2146,7 @@ export default function Radar({
               </g>
 
               {/* ── Gravity field propagation — slow, heavy, deep (fades in in Gravity Mode) ── */}
-              <g style={{ opacity: gravityMode ? 1 : 0, transition: "opacity 1.0s ease", pointerEvents: "none" }}>
+              <g style={{ opacity: gravityMode && !gravityEnhanced ? 1 : 0, transition: "opacity 1.0s ease", pointerEvents: "none" }}>
                 {/* Primary field waves — slower than sonar, heavy gravitational cadence */}
                 {[0, 1].map((i) => (
                   <motion.circle
@@ -2261,235 +2229,172 @@ export default function Radar({
                 style={{ transition: "fill 0.8s ease" }}
               />
 
-              {/* ── Gravity Field layers — cluster halos + relationship lines ── */}
+              {/* ── Gravity Field layers ────────────────────────────────────── */}
               {gravityMode && (
                 <g style={{ opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.55s ease" }}>
 
-                  {/* ── Gravity field contours ─────────────────────────────────── */}
-                  {/* Standard: 11 rings, moderate displacement, faint opacity.      */}
-                  {/* Enhanced: 16 rings, 2× displacement, visible opacity + depth.  */}
+                  {/* ── GRAVITY FIELD: Cartesian measurement grid ── */}
+                  {/* Replaces decorative halos with a quiet coordinate substrate. */}
+                  {!gravityEnhanced && (
+                    <g style={{ pointerEvents: "none" }}>
+                      {Array.from({ length: 13 }, (_, i) => {
+                        const gx = CENTER - OUTER_RADIUS + (i / 12) * OUTER_RADIUS * 2;
+                        return (
+                          <line key={`gv-${i}`}
+                            x1={gx} y1={CENTER - OUTER_RADIUS}
+                            x2={gx} y2={CENTER + OUTER_RADIUS}
+                            stroke="#ffffff" strokeWidth="0.30" strokeOpacity="0.016"
+                          />
+                        );
+                      })}
+                      {Array.from({ length: 13 }, (_, i) => {
+                        const gy = CENTER - OUTER_RADIUS + (i / 12) * OUTER_RADIUS * 2;
+                        return (
+                          <line key={`gh-${i}`}
+                            x1={CENTER - OUTER_RADIUS} y1={gy}
+                            x2={CENTER + OUTER_RADIUS} y2={gy}
+                            stroke="#ffffff" strokeWidth="0.30" strokeOpacity="0.016"
+                          />
+                        );
+                      })}
+                    </g>
+                  )}
+
+                  {/* ── GRAVITY FIELD: deformed field contours — white, minimal ── */}
                   {!gravityEnhanced && gravityContours.length > 0 && (
                     <g style={{ pointerEvents: "none" }}>
                       {gravityContours.map((d, i) => {
                         const t = i / (gravityContours.length - 1);
                         return (
-                          <path
-                            key={`gc-${i}`}
-                            d={d}
-                            fill="none"
-                            stroke={G.primary}
-                            strokeWidth={0.65 - t * 0.22}
-                            strokeOpacity={0.10 - t * 0.055}
-                          />
-                        );
-                      })}
-                    </g>
-                  )}
-                  {gravityEnhanced && enhancedContours.length > 0 && (
-                    <g style={{ pointerEvents: "none" }}>
-                      {enhancedContours.map(({ path, fillOpacity }, i) => {
-                        const t = i / (enhancedContours.length - 1);
-                        return (
-                          <path
-                            key={`ec-${i}`}
-                            d={path}
-                            fill={fillOpacity > 0 ? G.core : "none"}
-                            fillOpacity={fillOpacity}
-                            stroke={t < 0.30 ? G.coreLt : G.primary}
-                            strokeWidth={0.85 - t * 0.50}
-                            strokeOpacity={0.28 - t * 0.22}
+                          <path key={`gc-${i}`} d={d} fill="none"
+                            stroke="#ffffff"
+                            strokeWidth={0.55 - t * 0.22}
+                            strokeOpacity={0.052 - t * 0.030}
                           />
                         );
                       })}
                     </g>
                   )}
 
-                  {/* ── Singularity core ──────────────────────────────────────── */}
-                  {/* The field contour rings above replace the old decorative well  */}
-                  {/* rings. Only the singularity anchor remains at the origin.      */}
-                  {/* Outer diffuse fill — gravitational origin marker */}
-                  <circle cx={500} cy={500} r={32}
-                    fill={G.core} fillOpacity={0.15}
-                    stroke={G.primary} strokeWidth={1.0} strokeOpacity={0.35}
-                  />
-                  {/* Pulsing attractor ring */}
-                  <motion.circle
-                    cx={500} cy={500} r={32}
-                    fill="none"
-                    stroke={G.coreLt} strokeWidth={1.2} strokeOpacity={0.55}
-                    animate={{ scale: [1, 1.14, 1] }}
-                    transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
-                    style={{ transformOrigin: "500px 500px" }}
-                  />
-                  {/* Singularity core */}
-                  <circle cx={500} cy={500} r={12}
-                    fill={G.core} fillOpacity={0.65}
-                    filter="url(#gravityGlow)"
-                  />
-                  <circle cx={500} cy={500} r={5} fill={G.dot} fillOpacity={0.95} />
-
-                  {/* Cluster halos — soft field around each movement-type group */}
-                  {gravityGroups.map(({ type, color, label, nodes }) => {
-                    const cx = nodes.reduce((s, p) => s + p.x, 0) / nodes.length;
-                    const cy = nodes.reduce((s, p) => s + p.y, 0) / nodes.length;
-                    const maxR = Math.max(
-                      ...nodes.map((p) => Math.sqrt((p.x - cx) ** 2 + (p.y - cy) ** 2)),
-                    ) + 36;
+                  {/* ── GRAVITY FIELD: per-node mass aura — soft radial depth well ── */}
+                  {!gravityEnhanced && sorted.map((c) => {
+                    const mPos = gravityPositions.get(c.competitor_id);
+                    if (!mPos) return null;
+                    const mass = getNodeMass(c);
+                    if (mass < 0.5) return null;
+                    const nR = getNodeSize(Number(c.momentum_score ?? 0));
+                    const auraR = nR + 22 + mass * 7;
+                    const auraColor = c.latest_movement_type
+                      ? getMovementColor(c.latest_movement_type)
+                      : G.primary;
                     return (
-                      <g key={`halo-${type}`} style={{ pointerEvents: "none" }}>
-                        {/* Outer diffuse boundary — gravitational influence fringe */}
-                        <circle
-                          cx={cx} cy={cy} r={maxR + 28}
-                          fill={color} fillOpacity={0.02}
-                          stroke={color} strokeWidth={0.5} strokeOpacity={0.07}
-                          strokeDasharray="2 14"
-                        />
-                        {/* Main cluster halo */}
-                        <circle
-                          cx={cx} cy={cy} r={maxR}
-                          fill={color} fillOpacity={0.10}
-                          stroke={color} strokeWidth={1.4} strokeOpacity={0.40}
-                          strokeDasharray="4 5"
-                          filter="url(#blipGlow)"
-                        />
-                        {/* Inner pressure core */}
-                        <circle
-                          cx={cx} cy={cy} r={maxR * 0.55}
-                          fill={color} fillOpacity={0.05}
-                          stroke="none"
-                        />
-                        {/* Cluster label — brighter, monospace, legible */}
-                        <text
-                          x={cx} y={cy - maxR - 11}
-                          textAnchor="middle"
-                          fill={color}
-                          fontSize="9"
-                          opacity={0.65}
-                          letterSpacing="0.18em"
-                          fontFamily="ui-monospace, 'Courier New', monospace"
-                          fontWeight="700"
-                        >
-                          {label}
-                        </text>
-                        <text
-                          x={cx} y={cy - maxR - 1}
-                          textAnchor="middle"
-                          fill={color}
-                          fontSize="7"
-                          opacity={0.28}
-                          letterSpacing="0.10em"
-                          fontFamily="ui-monospace, monospace"
-                        >
-                          {nodes.length} RIVALS
-                        </text>
-                      </g>
+                      <circle key={`aura-${c.competitor_id}`}
+                        cx={mPos.x} cy={mPos.y} r={auraR}
+                        fill={auraColor} fillOpacity={0.020 + mass * 0.008}
+                        style={{ pointerEvents: "none" }}
+                      />
                     );
                   })}
 
-                  {/* ── Per-node gravitational well rings — rising + accelerating nodes ── */}
-                  {/* Slow rotating dashed rings around high-momentum nodes, encoding   */}
-                  {/* their local gravitational influence on the field.                  */}
-                  {sorted
-                    .filter((c) => Number(c.momentum_score ?? 0) >= 3)
-                    .map((c) => {
-                      const pos = gravityPositions.get(c.competitor_id);
-                      if (!pos) return null;
-                      const momentum = Number(c.momentum_score ?? 0);
-                      const nodeColor = c.latest_movement_type
-                        ? getMovementColor(c.latest_movement_type)
-                        : c.latest_signal_type
-                          ? getSignalColor(c.latest_signal_type)
-                          : G.primary;
-                      const nodeR = getNodeSize(momentum);
-                      const ringCount = momentum >= 5 ? 3 : 2;
-                      return (
-                        <g key={`wring-${c.competitor_id}`} style={{ pointerEvents: "none" }}>
-                          {Array.from({ length: ringCount }, (_, ri) => (
-                            <motion.circle
-                              key={`wring-${c.competitor_id}-${ri}`}
-                              cx={pos.x} cy={pos.y}
-                              r={nodeR + 16 + ri * 14}
-                              fill="none"
-                              stroke={nodeColor}
-                              strokeWidth={0.55 - ri * 0.10}
-                              strokeOpacity={0.14 - ri * 0.03}
-                              strokeDasharray={`${2 + ri} ${11 + ri * 4}`}
-                              animate={{ rotate: ri % 2 === 0 ? 360 : -360 }}
-                              transition={{
-                                duration: 32 + ri * 14,
-                                repeat: Infinity,
-                                ease: "linear",
-                              }}
-                              style={{ transformOrigin: `${pos.x}px ${pos.y}px` }}
-                            />
-                          ))}
-                        </g>
-                      );
-                    })}
-
-                  {/* ── Tension filaments — animated strategic tension between converging nodes ── */}
-                  {/* Pulsing opacity encodes live tension. Traveling particle shows direction.   */}
-                  {tensionLinks.length > 0 && (
-                    <g style={{ pointerEvents: "none" }}>
-                      {tensionLinks.map((link) => {
-                        const posA = gravityPositions.get(link.idA);
-                        const posB = gravityPositions.get(link.idB);
-                        if (!posA || !posB) return null;
-                        const color   = getMovementColor(link.movementType);
-                        const opacity = link.intensity * 0.30;
-                        const w       = 0.4 + link.intensity * 0.7;
-                        const gap     = link.intensity > 0.80 ? 5
-                                      : link.intensity > 0.65 ? 8
-                                      : 12;
-                        const dist = Math.sqrt(
-                          (posB.x - posA.x) ** 2 + (posB.y - posA.y) ** 2,
+                  {/* ── GRAVITY FIELD: relationship threads — same movement type ── */}
+                  {!gravityEnhanced && (() => {
+                    const threads: React.ReactNode[] = [];
+                    const seen = new Set<string>();
+                    for (let i = 0; i < sorted.length; i++) {
+                      for (let j = i + 1; j < sorted.length; j++) {
+                        const a = sorted[i], b = sorted[j];
+                        if (!a.latest_movement_type || a.latest_movement_type !== b.latest_movement_type) continue;
+                        const tKey = `${a.competitor_id}|${b.competitor_id}`;
+                        if (seen.has(tKey)) continue;
+                        seen.add(tKey);
+                        const tPosA = gravityPositions.get(a.competitor_id);
+                        const tPosB = gravityPositions.get(b.competitor_id);
+                        if (!tPosA || !tPosB) continue;
+                        threads.push(
+                          <line key={tKey}
+                            x1={tPosA.x} y1={tPosA.y} x2={tPosB.x} y2={tPosB.y}
+                            stroke="#ffffff" strokeWidth="0.45" strokeOpacity="0.065"
+                            style={{ pointerEvents: "none" }}
+                          />,
                         );
-                        const travelDur = Math.max(2.5, dist / 65);
-                        // Deterministic stagger delay from competitor IDs
-                        const travelDelay = idHash(link.idA + link.idB) * travelDur;
+                      }
+                    }
+                    return <g style={{ pointerEvents: "none" }}>{threads}</g>;
+                  })()}
+
+                  {/* ── GRAVITY FIELD: center anchor ── */}
+                  {!gravityEnhanced && (
+                    <circle cx={CENTER} cy={CENTER} r={3.5}
+                      fill="#ffffff" fillOpacity={0.25}
+                      style={{ pointerEvents: "none" }}
+                    />
+                  )}
+
+                  {/* ── DEEP FIELD: iso-contour terrain — topographic mass landscape ── */}
+                  {gravityEnhanced && enhancedContours.length > 0 && (
+                    <g style={{ pointerEvents: "none" }}>
+                      {enhancedContours.map(({ path, fillOpacity: _ }, i) => {
+                        const t = i / (enhancedContours.length - 1);
                         return (
-                          <g key={`t-${link.idA}-${link.idB}`}>
-                            {/* Pulsing filament line */}
-                            <motion.line
-                              x1={posA.x} y1={posA.y}
-                              x2={posB.x} y2={posB.y}
-                              stroke={color}
-                              strokeWidth={w}
-                              strokeDasharray={`1.5 ${gap}`}
-                              animate={{ strokeOpacity: [opacity * 0.55, opacity, opacity * 0.55] }}
-                              transition={{
-                                duration: 4 + link.intensity * 2,
-                                repeat: Infinity,
-                                ease: "easeInOut",
-                              }}
-                            />
-                            {/* Traveling particle — shows flow direction along the filament */}
-                            <motion.circle
-                              r={1.3}
-                              fill={color}
-                              animate={{
-                                cx: [posA.x, posB.x],
-                                cy: [posA.y, posB.y],
-                                opacity: [0, link.intensity * 0.75, link.intensity * 0.75, 0],
-                              }}
-                              transition={{
-                                duration: travelDur,
-                                repeat: Infinity,
-                                ease: "linear",
-                                delay: travelDelay,
-                              }}
-                            />
-                          </g>
+                          <path key={`ec-${i}`} d={path} fill="none"
+                            stroke="#ffffff"
+                            strokeWidth={0.55 - t * 0.35}
+                            strokeOpacity={0.058 - t * 0.040}
+                          />
                         );
                       })}
                     </g>
                   )}
 
-                  {/* Relationship lines — selected node to same-type peers */}
+                  {/* ── DEEP FIELD: thread fabric — nearest-neighbor connections ── */}
+                  {gravityEnhanced && (() => {
+                    const dfEntries = sorted
+                      .map((c) => ({
+                        id: c.competitor_id,
+                        pos: gravityPositions.get(c.competitor_id),
+                        mass: getNodeMass(c),
+                      }))
+                      .filter((e): e is { id: string; pos: Point; mass: number } => e.pos !== undefined);
+                    const dfThreads: React.ReactNode[] = [];
+                    const dfSeen = new Set<string>();
+                    for (const node of dfEntries) {
+                      const neighbors = dfEntries
+                        .filter((e) => e.id !== node.id)
+                        .map((e) => ({
+                          ...e,
+                          dist: Math.sqrt(
+                            (e.pos.x - node.pos.x) ** 2 + (e.pos.y - node.pos.y) ** 2,
+                          ),
+                        }))
+                        .sort((a, b) => a.dist - b.dist)
+                        .slice(0, 2);
+                      for (const nb of neighbors) {
+                        const dfKey = [node.id, nb.id].sort().join("|");
+                        if (dfSeen.has(dfKey)) continue;
+                        dfSeen.add(dfKey);
+                        const sim = 1 - Math.abs(node.mass - nb.mass) /
+                          Math.max(node.mass + nb.mass, 0.01);
+                        dfThreads.push(
+                          <line key={dfKey}
+                            x1={node.pos.x} y1={node.pos.y}
+                            x2={nb.pos.x}   y2={nb.pos.y}
+                            stroke="#ffffff" strokeWidth="0.40"
+                            strokeOpacity={0.035 + sim * 0.055}
+                            style={{ pointerEvents: "none" }}
+                          />,
+                        );
+                      }
+                    }
+                    return <g style={{ pointerEvents: "none" }}>{dfThreads}</g>;
+                  })()}
+
+                  {/* ── Selected: relationship lines ── */}
                   {selected && (() => {
                     const selPos = gravityPositions.get(selected.competitor_id);
                     if (!selPos || !selected.latest_movement_type) return null;
-                    const relColor = selectedColor;
+                    const relColor = gravityEnhanced
+                      ? "rgba(255,255,255,0.50)"
+                      : selectedColor;
                     return sorted
                       .filter(
                         (c) =>
@@ -2505,44 +2410,14 @@ export default function Radar({
                             x1={selPos.x} y1={selPos.y}
                             x2={pos.x} y2={pos.y}
                             stroke={relColor}
-                            strokeWidth={1.5}
-                            strokeOpacity={0.40}
-                            strokeDasharray="4 6"
-                            style={{ pointerEvents: "none", filter: `drop-shadow(0 0 3px ${relColor}55)` }}
+                            strokeWidth={1.2}
+                            strokeOpacity={0.38}
+                            style={{ pointerEvents: "none" }}
                           />
                         );
                       });
                   })()}
 
-                  {/* Relationship summary — badge above selected node */}
-                  {selected && (() => {
-                    const selPos = gravityPositions.get(selected.competitor_id);
-                    if (!selPos || !selected.latest_movement_type) return null;
-                    const relCount = sorted.filter(
-                      (c) =>
-                        c.competitor_id !== selected.competitor_id &&
-                        c.latest_movement_type === selected.latest_movement_type,
-                    ).length;
-                    if (relCount === 0) return null;
-                    const relColor = selectedColor;
-                    const label = getMovementLabel(selected.latest_movement_type);
-                    const nodeR = getNodeSize(Number(selected.momentum_score ?? 0));
-                    return (
-                      <text
-                        x={selPos.x}
-                        y={selPos.y - nodeR - 22}
-                        textAnchor="middle"
-                        fill={relColor}
-                        fontSize="9"
-                        opacity={0.55}
-                        letterSpacing="0.06em"
-                        fontFamily="Inter, system-ui, sans-serif"
-                        style={{ pointerEvents: "none" }}
-                      >
-                        {relCount} rival{relCount !== 1 ? "s" : ""} share {label.toLowerCase()} pattern
-                      </text>
-                    );
-                  })()}
                 </g>
               )}
 
@@ -2694,7 +2569,12 @@ export default function Radar({
               )}
 
               {/* ── Competitor blips — revealed at entry phase 2 ──────── */}
-              <g style={{ opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.4s ease" }}>
+              {/* Deep Field: desaturate + brighten to white-star monochrome aesthetic */}
+              <g style={{
+                opacity: entryPhase >= 2 ? 1 : 0,
+                transition: "opacity 0.4s ease, filter 0.8s ease",
+                filter: gravityEnhanced ? "saturate(0) brightness(3.2)" : "none",
+              }}>
               {sorted.map((competitor, index) => (
                 <BlipNode
                   key={competitor.competitor_id}
