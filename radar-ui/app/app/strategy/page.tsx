@@ -52,6 +52,25 @@ type InsightRow = {
   created_at:           string;
 };
 
+type EvidenceItem = {
+  date:        string;
+  signal_type: string;
+  summary:     string;
+  verdict:     "validates" | "contradicts" | "neutral";
+};
+
+type ContextRow = {
+  competitor_id:    string;
+  competitor_name:  string;
+  hypothesis:       string | null;
+  confidence_level: string;
+  strategic_arc:    string | null;
+  open_questions:   string[];
+  evidence_trail:   EvidenceItem[];
+  signal_count:     number;
+  last_updated_at:  string;
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatAnalysisDate(iso: string): string {
@@ -192,6 +211,19 @@ export default async function StrategyPage({
     fetchError = true;
   }
 
+  // ── Fetch competitor intelligence contexts ──────────────────────────────────
+  let contexts: ContextRow[] = [];
+  try {
+    if (orgId) {
+      const { data: ctxData } = await supabase
+        .from("competitor_contexts")
+        .select("competitor_id, competitor_name, hypothesis, confidence_level, strategic_arc, open_questions, evidence_trail, signal_count, last_updated_at")
+        .eq("org_id", orgId)
+        .order("signal_count", { ascending: false });
+      contexts = ((ctxData ?? []) as ContextRow[]).filter((c) => c.hypothesis);
+    }
+  } catch { /* non-fatal */ }
+
   // Section groupings (display-only — same underlying data)
   const majorSignals       = insights.filter((i) => i.is_major);
   const otherPatterns      = insights.filter((i) => !i.is_major);
@@ -200,6 +232,33 @@ export default async function StrategyPage({
   const convergenceGroups  = movementGroups.filter((g) => g.movements.length >= 2);
   const singleGroups       = movementGroups.filter((g) => g.movements.length === 1);
   const hasMovements       = movementGroups.length > 0;
+  const hasContexts        = contexts.length > 0;
+
+  // Competitor → movement cross-reference (for context cards)
+  const movementByCompetitor = new Map<string, { type: string; label: string; color: string }>();
+  for (const g of movementGroups) {
+    for (const m of g.movements) {
+      if (!movementByCompetitor.has(m.competitor_id)) {
+        movementByCompetitor.set(m.competitor_id, {
+          type:  m.movement_type,
+          label: movementDisplayLabel(m.movement_type),
+          color: getMovementColor(m.movement_type),
+        });
+      }
+    }
+  }
+
+  // Dynamic section index — preserves numbering regardless of which sections are present
+  const _activeSections: string[] = [];
+  if (hasMovements)                          _activeSections.push("movements");
+  if (hasContexts)                           _activeSections.push("landscape");
+  if (hasInsights)                           _activeSections.push("signals");
+  if (hasInsights && otherPatterns.length > 0) _activeSections.push("patterns");
+  if (hasInsights)                           _activeSections.push("responses");
+  const sIdx = (name: string): string => {
+    const i = _activeSections.indexOf(name);
+    return String(i >= 0 ? i + 1 : 1).padStart(2, "0");
+  };
 
   return (
     <div className="min-h-screen bg-[#000200] text-white">
@@ -295,7 +354,7 @@ export default async function StrategyPage({
         </div>
 
         {/* ── No data at all ────────────────────────────────────────── */}
-        {!hasMovements && !hasInsights && (
+        {!hasMovements && !hasInsights && !hasContexts && (
           <div
             className="flex flex-col items-center rounded-[18px] border border-[#0d2010] px-8 py-20 text-center"
             style={{ background: "rgba(2,8,2,0.5)" }}
@@ -321,7 +380,7 @@ export default async function StrategyPage({
           </div>
         )}
 
-        {(hasMovements || hasInsights) && (
+        {(hasMovements || hasInsights || hasContexts) && (
           <div className="flex flex-col gap-12">
 
             {/* ══════════════════════════════════════════════════════════
@@ -367,13 +426,61 @@ export default async function StrategyPage({
             )}
 
             {/* ══════════════════════════════════════════════════════════
-                SECTION 02 — Strategic Signals (AI)
+                SECTION 02 — Strategic Landscape
+                Per-competitor intelligence contexts — accumulated by
+                interpret-signals after each batch
+            ═══════════════════════════════════════════════════════════ */}
+            {hasContexts && (
+            <section>
+              <SectionHeader
+                index={sIdx("landscape")}
+                title="Strategic Landscape"
+                subtitle={`${contexts.length} competitor profile${contexts.length !== 1 ? "s" : ""} · running intelligence context · ${trackedIds.length} tracked`}
+              />
+
+              <LandscapeStats contexts={contexts} total={trackedIds.length} />
+
+              {/* High + medium confidence profiles */}
+              {contexts.filter((c) => c.confidence_level !== "low").length > 0 && (
+                <div className="flex flex-col gap-3">
+                  {contexts
+                    .filter((c) => c.confidence_level !== "low")
+                    .map((c) => (
+                      <ContextCard
+                        key={c.competitor_id}
+                        ctx={c}
+                        movement={movementByCompetitor.get(c.competitor_id) ?? null}
+                      />
+                    ))}
+                </div>
+              )}
+
+              {/* Low confidence — building context */}
+              {contexts.filter((c) => c.confidence_level === "low").length > 0 && (
+                <div className="mt-4">
+                  <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-700">
+                    Building Context
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {contexts
+                      .filter((c) => c.confidence_level === "low")
+                      .map((c) => (
+                        <LowContextCard key={c.competitor_id} ctx={c} />
+                      ))}
+                  </div>
+                </div>
+              )}
+            </section>
+            )}
+
+            {/* ══════════════════════════════════════════════════════════
+                SECTION 03 — Strategic Signals (AI)
                 GPT-4o cross-competitor pattern analysis — runs daily
             ═══════════════════════════════════════════════════════════ */}
             {hasInsights && (
             <section>
               <SectionHeader
-                index={hasMovements ? "02" : "01"}
+                index={sIdx("signals")}
                 title="Strategic Signals"
                 subtitle={
                   majorSignals.length > 0
@@ -405,7 +512,7 @@ export default async function StrategyPage({
             {hasInsights && otherPatterns.length > 0 && (
             <section>
               <SectionHeader
-                index={hasMovements ? "03" : "02"}
+                index={sIdx("patterns")}
                 title="Market Patterns"
                 subtitle={`${otherPatterns.length} supporting pattern${otherPatterns.length !== 1 ? "s" : ""} detected`}
               />
@@ -424,7 +531,7 @@ export default async function StrategyPage({
             {hasInsights && (
             <section>
               <SectionHeader
-                index={hasMovements ? "04" : "03"}
+                index={sIdx("responses")}
                 title="Response Advisories"
                 subtitle="Ordered by confidence · click to copy"
               />
@@ -877,6 +984,178 @@ function PatternCard({ insight }: { insight: InsightRow }) {
           competitorCount={insight.competitor_count}
         />
       </div>
+    </div>
+  );
+}
+
+// ── Strategic Landscape components ────────────────────────────────────────────
+
+function LandscapeStats({ contexts, total }: { contexts: ContextRow[]; total: number }) {
+  const high       = contexts.filter((c) => c.confidence_level === "high").length;
+  const medium     = contexts.filter((c) => c.confidence_level === "medium").length;
+  const low        = contexts.filter((c) => c.confidence_level === "low").length;
+  const unanalyzed = Math.max(0, total - contexts.length);
+
+  return (
+    <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-[12px] border border-[#0e1e0e] bg-[#020802] px-4 py-3">
+      {high > 0 && (
+        <div className="flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#2EE6A6]" style={{ boxShadow: "0 0 4px #2EE6A666" }} />
+          <span className="text-[11px] text-slate-400">
+            <span className="font-semibold text-[#2EE6A6]">{high}</span> high confidence
+          </span>
+        </div>
+      )}
+      {medium > 0 && (
+        <div className="flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#f59e0b]" />
+          <span className="text-[11px] text-slate-400">
+            <span className="font-semibold text-[#f59e0b]">{medium}</span> medium
+          </span>
+        </div>
+      )}
+      {low > 0 && (
+        <div className="flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-700" />
+          <span className="text-[11px] text-slate-600">
+            <span className="font-semibold text-slate-500">{low}</span> building
+          </span>
+        </div>
+      )}
+      {unanalyzed > 0 && (
+        <div className="flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-800" />
+          <span className="text-[11px] text-slate-700">
+            <span className="font-semibold">{unanalyzed}</span> watched
+          </span>
+        </div>
+      )}
+      <div className="ml-auto text-[10px] text-slate-700">
+        {contexts.length} / {total} competitors analyzed
+      </div>
+    </div>
+  );
+}
+
+function ContextCard({
+  ctx,
+  movement,
+}: {
+  ctx:      ContextRow;
+  movement: { type: string; label: string; color: string } | null;
+}) {
+  const confColor =
+    ctx.confidence_level === "high"
+      ? "#2EE6A6"
+      : ctx.confidence_level === "medium"
+      ? "#f59e0b"
+      : "#64748b";
+
+  // Most recent first, max 3
+  const recentEvidence = [...ctx.evidence_trail].reverse().slice(0, 3);
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-[16px] border border-[#111f11] bg-[#020902] p-5"
+      style={{ borderLeftColor: `${confColor}45`, borderLeftWidth: "2px" }}
+    >
+      {/* Header */}
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[14px] font-semibold text-white">{ctx.competitor_name}</span>
+          <span
+            className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em]"
+            style={{
+              background: `${confColor}12`,
+              color:       confColor,
+              border:      `1px solid ${confColor}28`,
+            }}
+          >
+            {ctx.confidence_level}
+          </span>
+          {movement && (
+            <span
+              className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]"
+              style={{
+                background: `${movement.color}10`,
+                color:       movement.color,
+                border:      `1px solid ${movement.color}22`,
+              }}
+            >
+              {movement.label}
+            </span>
+          )}
+        </div>
+        <span className="shrink-0 font-mono text-[11px] text-slate-700 tabular-nums">
+          {formatRelativeShort(ctx.last_updated_at)}
+        </span>
+      </div>
+
+      {/* Hypothesis */}
+      <p className="mb-3 text-[13px] leading-relaxed text-slate-200">{ctx.hypothesis}</p>
+
+      {/* Strategic arc */}
+      {ctx.strategic_arc && (
+        <p className="mb-3 text-[12px] leading-relaxed text-slate-500">{ctx.strategic_arc}</p>
+      )}
+
+      {/* Open questions */}
+      {ctx.open_questions.length > 0 && (
+        <div className="mb-3 flex flex-col gap-1">
+          {ctx.open_questions.slice(0, 2).map((q, i) => (
+            <div key={i} className="flex items-start gap-1.5 text-[11px] italic text-slate-600">
+              <span style={{ color: confColor, opacity: 0.45, fontStyle: "normal" }}>?</span>
+              <span>{q}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Evidence trail */}
+      {recentEvidence.length > 0 && (
+        <div className="border-t border-[#0d1f0d] pt-3">
+          <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-slate-700">
+            {ctx.signal_count} signal{ctx.signal_count !== 1 ? "s" : ""} · recent evidence
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {recentEvidence.map((e, i) => (
+              <div key={i} className="flex items-baseline gap-2 text-[11px]">
+                <span
+                  style={{
+                    color:
+                      e.verdict === "validates"
+                        ? "#2EE6A6"
+                        : e.verdict === "contradicts"
+                        ? "#ef4444"
+                        : "#475569",
+                  }}
+                >
+                  {e.verdict === "validates" ? "✓" : e.verdict === "contradicts" ? "✗" : "○"}
+                </span>
+                <span className="shrink-0 text-slate-700">{e.date}</span>
+                <span className="shrink-0 text-slate-500">{e.signal_type.replace(/_/g, " ")}</span>
+                <span className="truncate text-slate-700">
+                  {e.summary.length > 55 ? e.summary.slice(0, 55) + "…" : e.summary}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LowContextCard({ ctx }: { ctx: ContextRow }) {
+  return (
+    <div className="flex items-center justify-between rounded-[12px] border border-[#0e1e0e] bg-[#020802] px-4 py-3">
+      <div className="flex items-center gap-2">
+        <span className="text-[13px] font-medium text-slate-400">{ctx.competitor_name}</span>
+        <span className="text-[11px] text-slate-700">
+          {ctx.signal_count} signal{ctx.signal_count !== 1 ? "s" : ""}
+        </span>
+      </div>
+      <span className="text-[10px] italic text-slate-700">Building context…</span>
     </div>
   );
 }
