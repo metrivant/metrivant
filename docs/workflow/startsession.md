@@ -386,9 +386,8 @@ print(json.dumps(rows, indent=2))
   - `TutorialHint` — DISABLED (file exists, removed from page.tsx)
   Do not re-enable old panels. KnowledgePanel is the single ambient education system.
 
-- `zoom: 0.9` on `html` in globals.css scales the entire rendered viewport uniformly. All fixed-position
-  elements, Framer Motion animations, and SVG overlays scale correctly. Safe in all modern browsers.
-  Does NOT break `position: fixed` layout — elements remain anchored to the (scaled) viewport. (2026-03-18)
+- `zoom: 0.9` was removed from globals.css (2026-03-18, reversed later). Do not re-add it — it caused
+  all text to render at 90% of declared size and caused subpixel blur on CSS-animated elements. (2026-03-18)
 
 - `extract-sections` intentionally skips `fetch_quality='shell'` and `fetch_quality='js_rendered'` snapshots.
   The health endpoint counts ALL `sections_extracted=false` as backlog — this causes a false-positive

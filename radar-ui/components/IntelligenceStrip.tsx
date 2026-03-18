@@ -346,7 +346,11 @@ export default function IntelligenceStrip({
         */}
         <div
           className="flex h-full items-center whitespace-nowrap"
-          style={{ animation: `intelligence-ticker ${tickerDuration} linear infinite` }}
+          style={{
+            animation: `intelligence-ticker ${tickerDuration} linear infinite`,
+            willChange: "transform",
+            backfaceVisibility: "hidden",
+          }}
         >
           {tickerItems.map((item, i) => (
             <TickerEntry key={`a-${i}`} item={item} />
