@@ -4,6 +4,9 @@
   "description": "Competitive intelligence engine",
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "test:watch": "jest --watch",
     "migrate": "tsx scripts/migrate.ts",
     "migrate:status": "tsx scripts/migrate.ts --status",
     "migrate:dry-run": "tsx scripts/migrate.ts --dry-run",
@@ -12,8 +15,12 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "^25.3.5",
     "@types/pg": "^8.18.0",
+    "jest": "^30.3.0",
+    "jest-environment-node": "^30.3.0",
+    "ts-jest": "^29.4.6",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
