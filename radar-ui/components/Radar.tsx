@@ -544,17 +544,6 @@ function getClusterLabel(movementType: string): string {
   }
 }
 
-// Human-readable trajectory labels for pressure zone overlays
-function getTrajectoryLabel(movementType: string): string {
-  switch (movementType) {
-    case "pricing_strategy_shift": return "Pricing Pressure";
-    case "product_expansion":      return "Product Acceleration";
-    case "market_reposition":      return "Market Repositioning";
-    case "enterprise_push":        return "Enterprise Expansion";
-    case "ecosystem_expansion":    return "Ecosystem Expansion";
-    default:                       return "Strategic Activity";
-  }
-}
 
 // ─── BlipNode sub-component ───────────────────────────────────────────────────
 // Isolates each competitor blip. Prevents unrelated state changes in the parent
@@ -1394,22 +1383,6 @@ export default function Radar({
     }).catch(() => {});
   }, [orgId, standardPositions]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Pressure zones: movement-type clusters with 2+ nodes in standard mode
-  const pressureZones = useMemo(() => {
-    if (gravityMode) return [];
-    const map = new Map<string, { color: string; label: string; positions: Point[]; movementType: string }>();
-    for (const c of sorted) {
-      const type = c.latest_movement_type;
-      if (!type) continue;
-      const pos = standardPositions.get(c.competitor_id);
-      if (!pos) continue;
-      if (!map.has(type)) {
-        map.set(type, { color: getMovementColor(type), label: getTrajectoryLabel(type), positions: [], movementType: type });
-      }
-      map.get(type)!.positions.push(pos);
-    }
-    return [...map.values()].filter((z) => z.positions.length >= 2);
-  }, [gravityMode, sorted, standardPositions]);
 
   // Radar synergy: focus a competitor from briefs/strategy via localStorage key mv_radar_focus
   const radarFocusApplied = useRef(false);
@@ -2573,41 +2546,6 @@ export default function Radar({
                 </g>
               )}
 
-              {/* ── Standard-mode pressure zones — trajectory clusters ──── */}
-              {!gravityMode && pressureZones.length > 0 && (
-                <g style={{ pointerEvents: "none", opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.55s ease" }}>
-                  {pressureZones.map(({ color, label, positions, movementType }, zoneIdx) => {
-                    const cx = positions.reduce((s, p) => s + p.x, 0) / positions.length;
-                    const cy = positions.reduce((s, p) => s + p.y, 0) / positions.length;
-                    const maxR = Math.max(...positions.map((p) => Math.sqrt((p.x - cx) ** 2 + (p.y - cy) ** 2))) + 38;
-                    // Tension intensity for this zone — average across matching links
-                    const zoneLinks = tensionLinks.filter((l) => l.movementType === movementType);
-                    const avgTension = zoneLinks.length > 0
-                      ? zoneLinks.reduce((s, l) => s + l.intensity, 0) / zoneLinks.length
-                      : 0;
-                    const isHeated = avgTension > 0.70;
-                    return (
-                      <g key={label}>
-                        {/* Cluster breathing — intensity-aware: heated zones breathe more */}
-                        <motion.circle
-                          cx={cx} cy={cy} r={maxR}
-                          fill={color} fillOpacity={0.025 + avgTension * 0.018}
-                          stroke={color} strokeWidth={0.75}
-                          strokeOpacity={0.08 + avgTension * 0.10}
-                          strokeDasharray={isHeated ? "3 6" : "4 8"}
-                          animate={{ scale: [1, isHeated ? 1.018 : 1.012, 1] }}
-                          transition={{
-                            duration: 7 + zoneIdx * 1.5,
-                            repeat: Infinity,
-                            ease: "easeInOut",
-                          }}
-                          style={{ transformOrigin: `${cx}px ${cy}px` }}
-                        />
-                      </g>
-                    );
-                  })}
-                </g>
-              )}
 
               {/* ── Ambient pulse lines — faint trajectory toward recently-active nodes */}
               {/* At most 3 lines (freshest echoes); very low opacity, slow pulse cycle.     */}
