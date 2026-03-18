@@ -226,6 +226,28 @@ async function fetchWithClassification(url: string): Promise<FetchOutcome> {
   }
 }
 
+// ── ScrapingBee fallback (challenge-page bypass via premium proxy) ─────────────
+
+async function fetchWithScrapingBee(url: string): Promise<FetchOutcome> {
+  const apiKey = process.env.SCRAPINGBEE_API_KEY;
+  if (!apiKey) return { ok: false, httpStatus: 0, failureClass: "unknown_fetch_failure" };
+  try {
+    const sbUrl = `https://app.scrapingbee.com/api/v1/?api_key=${encodeURIComponent(apiKey)}&url=${encodeURIComponent(url)}&render_js=false&premium_proxy=true`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const res = await fetch(sbUrl, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) return { ok: false, httpStatus: res.status, failureClass: "unknown_fetch_failure" };
+    let html = await res.text();
+    if (html.length > MAX_HTML_SIZE) html = html.slice(0, MAX_HTML_SIZE);
+    if (detectChallengePage(html)) return { ok: false, httpStatus: 200, failureClass: "challenge_page" };
+    return { ok: true, html, httpStatus: 200 };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, httpStatus: 0, failureClass: msg.includes("AbortError") ? "timeout" : "unknown_fetch_failure" };
+  }
+}
+
 // ── Per-URL processor ─────────────────────────────────────────────────────────
 
 async function processUrl(
@@ -267,10 +289,16 @@ async function processUrl(
   await sleep(randomInt(JITTER_MIN_MS, JITTER_MAX_MS));
 
   const elapsed = startTimer();
-  const outcome = await fetchWithClassification(url);
+  let outcome = await fetchWithClassification(url);
 
   // Record when we fetched this domain for the next request's delay check.
   lastFetchTimeByDomain.set(hostname, Date.now());
+
+  // ScrapingBee fallback: retry challenge-blocked pages via premium proxy.
+  // Only fires when key is present — safe no-op without it.
+  if (!outcome.ok && outcome.failureClass === "challenge_page" && process.env.SCRAPINGBEE_API_KEY) {
+    outcome = await fetchWithScrapingBee(url);
+  }
 
   // ── Failure path ───────────────────────────────────────────────────────────
   if (!outcome.ok) {
