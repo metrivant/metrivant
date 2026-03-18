@@ -6,10 +6,17 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import TelescopePanel, { type RadarStats } from "./TelescopePanel";
 
-const NAV_ITEMS: { href: string; label: string; icon: ReactNode; overlayKey?: string }[] = [
+const NAV_ITEMS: {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  overlayKey?: string;
+  keyBadge?: string;
+}[] = [
   {
     href: "/app/discover",
     label: "Discover",
+    keyBadge: "D",
     icon: (
       <svg width="13" height="13" viewBox="0 0 11 11" fill="none" aria-hidden="true">
         <circle cx="5" cy="5" r="3.5" stroke="currentColor" strokeWidth="1.3" />
@@ -21,6 +28,7 @@ const NAV_ITEMS: { href: string; label: string; icon: ReactNode; overlayKey?: st
     href: "/app/briefs",
     label: "Briefs",
     overlayKey: "briefs",
+    keyBadge: "B",
     icon: (
       <svg width="13" height="13" viewBox="0 0 11 11" fill="none" aria-hidden="true">
         <rect x="1.5" y="1" width="8" height="9" rx="1.3" stroke="currentColor" strokeWidth="1.3" />
@@ -32,6 +40,7 @@ const NAV_ITEMS: { href: string; label: string; icon: ReactNode; overlayKey?: st
     href: "/app/gravity-map",
     label: "Gravity Map",
     overlayKey: "map",
+    keyBadge: "M",
     icon: (
       <svg width="13" height="13" viewBox="0 0 11 11" fill="none" aria-hidden="true">
         <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.2" />
@@ -48,6 +57,7 @@ const NAV_ITEMS: { href: string; label: string; icon: ReactNode; overlayKey?: st
     href: "/app/strategy",
     label: "Strategy",
     overlayKey: "strategy",
+    keyBadge: "S",
     icon: (
       <svg width="13" height="13" viewBox="0 0 11 11" fill="none" aria-hidden="true">
         <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.3" />
@@ -106,12 +116,14 @@ function NavLink({
   icon,
   isActive,
   overlayKey,
+  keyBadge,
 }: {
   href: string;
   label: string;
   icon: ReactNode;
   isActive: boolean;
   overlayKey?: string;
+  keyBadge?: string;
 }) {
   const [hovered, setHovered] = useState(false);
   const style = isActive ? ACTIVE_STYLE : hovered ? HOVER_STYLE : DEFAULT_STYLE;
@@ -134,6 +146,18 @@ function NavLink({
     >
       {icon}
       {label}
+      {keyBadge && (
+        <span
+          className="ml-auto flex h-4 min-w-[16px] items-center justify-center rounded px-1 font-mono text-[9px] font-bold"
+          style={{
+            background: "#0a1a0a",
+            border: "1px solid rgba(46,230,166,0.14)",
+            color: "rgba(46,230,166,0.45)",
+          }}
+        >
+          {keyBadge}
+        </span>
+      )}
     </Link>
   );
 }
@@ -144,7 +168,7 @@ export default function SidebarNav({ radarStats }: { radarStats?: RadarStats }) 
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-col gap-1 p-3 pt-5">
-        {NAV_ITEMS.map(({ href, label, icon, overlayKey }) => (
+        {NAV_ITEMS.map(({ href, label, icon, overlayKey, keyBadge }) => (
           <NavLink
             key={href}
             href={href}
@@ -152,49 +176,25 @@ export default function SidebarNav({ radarStats }: { radarStats?: RadarStats }) 
             icon={icon}
             isActive={pathname.startsWith(href)}
             overlayKey={overlayKey}
+            keyBadge={keyBadge}
           />
         ))}
 
         <div className="my-2 h-px bg-[#0e2210]" />
       </div>
 
-      {/* Keybind legend */}
-      <div className="px-3 pb-2">
-        <div
-          className="mb-2.5 h-px"
-          style={{ background: "linear-gradient(90deg, rgba(46,230,166,0.18) 0%, transparent 100%)" }}
-        />
-        <div className="grid grid-cols-2 gap-x-1 gap-y-1.5">
-          {[
-            { key: "M", label: "Gravity" },
-            { key: "B", label: "Briefs" },
-            { key: "S", label: "Strategy" },
-            { key: "D", label: "Discover" },
-          ].map(({ key, label }) => (
-            <span key={key} className="flex items-center gap-1.5">
-              <span
-                className="flex h-4 min-w-[16px] items-center justify-center rounded px-1 font-mono text-[9px] font-bold"
-                style={{
-                  background: "#0a1a0a",
-                  border: "1px solid rgba(46,230,166,0.18)",
-                  color: "rgba(46,230,166,0.55)",
-                }}
-              >
-                {key}
-              </span>
-              <span
-                className="text-[10px] uppercase tracking-[0.12em]"
-                style={{ color: "rgba(100,116,139,0.50)" }}
-              >
-                {label}
-              </span>
-            </span>
-          ))}
-        </div>
-        <div
-          className="mt-2.5 h-px"
-          style={{ background: "linear-gradient(90deg, rgba(46,230,166,0.18) 0%, transparent 100%)" }}
-        />
+      {/* TELESCOPE section header */}
+      <div
+        className="px-3 pb-2 text-center"
+        style={{
+          fontFamily: "'Courier New', Monaco, monospace",
+          fontSize: "8px",
+          fontWeight: 700,
+          letterSpacing: "0.30em",
+          color: "rgba(255,255,255,0.28)",
+        }}
+      >
+        TELESCOPE
       </div>
 
       {/* Telescope — market state visualisation */}

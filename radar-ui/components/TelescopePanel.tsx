@@ -1,15 +1,16 @@
 "use client";
 
 /**
- * TelescopePanel — Redesigned Market Intelligence Visualiser
+ * TelescopePanel — White Star Aesthetic
  *
- * 4 scenes, each a direct encoding of live signal field data.
- * Scenes are derived from RadarStats and reflect actual strategic conditions.
+ * 4 scenes. Each encodes live RadarStats as a distinct deep-space state.
+ * All visual elements are white — brightness, size, and motion encode data.
+ * Status badge is the only element that retains color coding.
  *
- * Tier 4 — SINGULARITY   accelerating ≥ 2   Multiple competitors collapsing inward
- * Tier 3 — BLACK HOLE    accelerating ≥ 1   One competitor exerting gravitational pull
- * Tier 2 — CONSTELLATION rising ≥ 1 or signals7d ≥ 3   Active signal network
- * Tier 1 — RARE COMET    signals7d > 0 or default      Isolated detection, quiet field
+ * Tier 4 — SINGULARITY   accelerating ≥ 2   Converging force nodes, fast core pulse
+ * Tier 3 — BLACK HOLE    accelerating ≥ 1   Counter-rotating rings, void core
+ * Tier 2 — CONSTELLATION rising ≥ 1 or signals7d ≥ 3   Star network, shimmer edges
+ * Tier 1 — RARE COMET    signals7d > 0 or default      Lone traverse, quiet field
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -49,10 +50,10 @@ const STATUS_COLORS: Record<StatusLevel, string> = {
 };
 
 const SCENE_BG: Record<SceneId, { sky: string; tint: string }> = {
-  rare_comet:    { sky: "#00080f", tint: "#000610" },
-  constellation: { sky: "#000a08", tint: "#000c06" },
-  black_hole:    { sky: "#090001", tint: "#060001" },
-  singularity:   { sky: "#000d06", tint: "#000a04" },
+  rare_comet:    { sky: "#000810", tint: "#000710" },
+  constellation: { sky: "#000810", tint: "#000710" },
+  black_hole:    { sky: "#020106", tint: "#010004" },
+  singularity:   { sky: "#000810", tint: "#000710" },
 };
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -61,14 +62,6 @@ const W  = 240;
 const H  = 150;
 const CX = W / 2;
 const CY = H / 2;
-
-const B = {
-  green:  "#2EE6A6",
-  blue:   "#57a6ff",
-  amber:  "#F59E0B",
-  red:    "#EF4444",
-  white:  "#E2E8F0",
-} as const;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -92,9 +85,97 @@ function deriveSceneId(stats: RadarStats | undefined): SceneId {
   return "constellation";
 }
 
+// ── Scene: Rare Comet ──────────────────────────────────────────────────────────
+// A solitary signal transiting quiet space.
+// Stars shimmer — count reflects total tracked rivals.
+// Comet traverses diagonally. HUD reticle pulses at field center.
+
+function SceneRareComet({ stats }: { stats: RadarStats }) {
+  const starCount = Math.min(stats.total + 8, 26);
+  const stars = Array.from({ length: starCount }, (_, i) => ({
+    cx:      pseudoRand(i * 7.3) * W,
+    cy:      pseudoRand(i * 4.1) * H,
+    r:       0.38 + pseudoRand(i * 2.2) * 0.72,
+    opacity: 0.07 + pseudoRand(i * 6.1) * 0.30,
+    speed:   6 + pseudoRand(i * 3.3) * 7,
+  }));
+
+  return (
+    <g>
+      {/* Stars — shimmer */}
+      {stars.map((s, i) => (
+        <motion.circle
+          key={i}
+          cx={s.cx} cy={s.cy} r={s.r}
+          fill="#ffffff"
+          animate={{ opacity: [s.opacity * 0.35, s.opacity, s.opacity * 0.35] }}
+          transition={{
+            duration: s.speed,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: pseudoRand(i * 11) * 6,
+          }}
+        />
+      ))}
+
+      {/* Faint trajectory guide */}
+      <line
+        x1={-10} y1={22} x2={250} y2={128}
+        stroke="rgba(255,255,255,0.035)"
+        strokeWidth="0.30"
+        strokeDasharray="2 9"
+      />
+
+      {/* Comet traversal */}
+      <motion.g
+        initial={{ x: -72, y: -30 }}
+        animate={{ x: 312, y: 92 }}
+        transition={{
+          duration: 9,
+          repeat: Infinity,
+          ease: [0.22, 0.06, 0.58, 1],
+          repeatDelay: 5.5,
+        }}
+      >
+        {/* Decay trail — exponential opacity falloff */}
+        {Array.from({ length: 8 }, (_, i) => (
+          <circle
+            key={i}
+            cx={-i * 7}
+            cy={-i * 3.8}
+            r={Math.max(0.28, 2.0 - i * 0.22)}
+            fill="#ffffff"
+            opacity={Math.max(0, 0.62 - i * 0.082)}
+          />
+        ))}
+        {/* Outer glow */}
+        <circle cx={0} cy={0} r={7} fill="#ffffff" opacity={0.030} />
+        {/* Nucleus */}
+        <circle cx={0} cy={0} r={2.2} fill="#ffffff" opacity={0.92} />
+      </motion.g>
+
+      {/* HUD targeting reticle */}
+      <motion.g
+        animate={{ opacity: [0.10, 0.26, 0.10] }}
+        transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <g stroke="rgba(255,255,255,0.42)" strokeWidth="0.65" fill="none">
+          <polyline points={`${CX - 17},${CY - 9} ${CX - 17},${CY - 17} ${CX - 9},${CY - 17}`} />
+          <polyline points={`${CX + 9},${CY - 17} ${CX + 17},${CY - 17} ${CX + 17},${CY - 9}`} />
+          <polyline points={`${CX - 17},${CY + 9} ${CX - 17},${CY + 17} ${CX - 9},${CY + 17}`} />
+          <polyline points={`${CX + 9},${CY + 17} ${CX + 17},${CY + 17} ${CX + 17},${CY + 9}`} />
+        </g>
+        <line x1={CX - 4} y1={CY} x2={CX + 4} y2={CY} stroke="rgba(255,255,255,0.20)" strokeWidth="0.55" />
+        <line x1={CX} y1={CY - 4} x2={CX} y2={CY + 4} stroke="rgba(255,255,255,0.20)" strokeWidth="0.55" />
+      </motion.g>
+    </g>
+  );
+}
+
 // ── Scene: Constellation ───────────────────────────────────────────────────────
-// Signal network map — nodes represent the field, colored by momentum state.
-// Connection lines pulse to encode signal flow between tracked competitors.
+// Star network. Node brightness and size encode momentum state.
+// Connection edges shimmer to show signal flow.
+// No color — brightness and motion carry all meaning.
 
 function SceneConstellation({ stats }: { stats: RadarStats }) {
   const { total, accelerating, rising, signals7d } = stats;
@@ -104,108 +185,96 @@ function SceneConstellation({ stats }: { stats: RadarStats }) {
     const isAccel  = i < accelerating;
     const isRising = !isAccel && i < accelerating + rising;
     const angle    = ((i / nodeCount) * Math.PI * 2) - Math.PI / 2;
-    const baseR    = isAccel ? 20 + pseudoRand(i * 3.7) * 10
+    const baseR    = isAccel  ? 20 + pseudoRand(i * 3.7) * 10
                    : isRising ? 36 + pseudoRand(i * 3.7) * 14
-                   : 52 + pseudoRand(i * 3.7) * 18;
+                   :            52 + pseudoRand(i * 3.7) * 18;
     const jitter   = (pseudoRand(i * 7.1) - 0.5) * 0.55;
     return {
       cx:         CX + baseR * Math.cos(angle + jitter),
       cy:         CY + baseR * Math.sin(angle + jitter) * 0.70,
-      r:          isAccel ? 2.8 : isRising ? 2.2 : 1.5,
-      color:      isAccel ? B.red : isRising ? B.amber : B.green,
-      brightness: isAccel ? 0.95 : isRising ? 0.78 : 0.50,
-      speed:      isAccel ? 1.4 : isRising ? 2.0 : 3.0 + pseudoRand(i * 4.1) * 1.8,
+      r:          isAccel ? 2.8 : isRising ? 2.0 : 1.3,
+      brightness: isAccel ? 0.95 : isRising ? 0.70 : 0.38,
+      speed:      isAccel ? 1.6 : isRising ? 2.2 : 3.5 + pseudoRand(i * 4.1) * 1.5,
     };
   });
 
   const edges: { a: number; b: number; delay: number }[] = [];
-  for (let i = 0; i < nodes.length && edges.length < 16; i++) {
-    for (let j = i + 1; j < nodes.length && edges.length < 16; j++) {
+  for (let i = 0; i < nodes.length && edges.length < 14; i++) {
+    for (let j = i + 1; j < nodes.length && edges.length < 14; j++) {
       const dx = nodes[i].cx - nodes[j].cx;
       const dy = nodes[i].cy - nodes[j].cy;
       if (Math.sqrt(dx * dx + dy * dy) < 70) {
-        edges.push({ a: i, b: j, delay: (edges.length * 0.30) % 4.0 });
+        edges.push({ a: i, b: j, delay: (edges.length * 0.32) % 4.5 });
       }
     }
   }
 
   return (
     <g>
-      {/* Ambient field glow */}
-      <ellipse cx={CX} cy={CY} rx={88} ry={52} fill="rgba(46,230,166,0.022)" />
+      {/* Ambient center haze */}
+      <ellipse cx={CX} cy={CY} rx={88} ry={52} fill="rgba(255,255,255,0.010)" />
 
-      {/* Connection lines — sequential pulse encoding signal flow */}
-      {edges.map(({ a, b, delay }, i) => {
-        const edgeColor =
-          nodes[a].color === B.red || nodes[b].color === B.red ? B.red :
-          nodes[a].color === B.amber || nodes[b].color === B.amber ? B.amber :
-          B.green;
-        return (
-          <motion.line
-            key={i}
-            x1={nodes[a].cx} y1={nodes[a].cy}
-            x2={nodes[b].cx} y2={nodes[b].cy}
-            stroke={edgeColor}
-            strokeWidth="0.55"
-            strokeOpacity="0"
-            animate={{ strokeOpacity: [0, 0.20, 0.12, 0.20, 0] }}
-            transition={{ duration: 4.8, repeat: Infinity, delay, ease: "easeInOut" }}
-          />
-        );
-      })}
+      {/* Shimmer edges */}
+      {edges.map(({ a, b, delay }, i) => (
+        <motion.line
+          key={i}
+          x1={nodes[a].cx} y1={nodes[a].cy}
+          x2={nodes[b].cx} y2={nodes[b].cy}
+          stroke="#ffffff"
+          strokeWidth="0.42"
+          strokeOpacity="0"
+          animate={{ strokeOpacity: [0, 0.13, 0.07, 0.13, 0] }}
+          transition={{ duration: 5.2, repeat: Infinity, delay, ease: "easeInOut" }}
+        />
+      ))}
 
-      {/* Atmospheric halos on accelerating/rising nodes */}
+      {/* Glow halos on bright nodes */}
       {nodes
-        .filter((n) => n.color !== B.green)
+        .filter((n) => n.brightness > 0.50)
         .map((n, i) => (
           <motion.circle
-            key={`halo-${i}`}
+            key={`glow-${i}`}
             cx={n.cx} cy={n.cy}
-            r={n.r * 3.8}
-            fill={n.color}
-            animate={{ opacity: [0.03, 0.11, 0.03] }}
-            transition={{ duration: n.speed, repeat: Infinity, ease: "easeInOut", delay: i * 0.5 }}
+            r={n.r * 4.2}
+            fill="#ffffff"
+            animate={{ opacity: [0.015, 0.065, 0.015] }}
+            transition={{ duration: n.speed, repeat: Infinity, ease: "easeInOut", delay: i * 0.55 }}
           />
         ))}
 
-      {/* Nodes */}
+      {/* Nodes — shimmer */}
       {nodes.map((n, i) => (
         <motion.circle
           key={i}
           cx={n.cx} cy={n.cy}
           r={n.r}
-          fill={n.color}
-          animate={{ opacity: [n.brightness * 0.60, n.brightness, n.brightness * 0.60] }}
+          fill="#ffffff"
+          animate={{ opacity: [n.brightness * 0.52, n.brightness, n.brightness * 0.52] }}
           transition={{
             duration: n.speed,
             repeat: Infinity,
             ease: "easeInOut",
-            delay: pseudoRand(i * 9.1) * 2.2,
+            delay: pseudoRand(i * 9.1) * 2.5,
           }}
         />
       ))}
 
-      {/* Signal emanation from most-active node — scales with signals7d */}
+      {/* Signal emanation from most-active node */}
       {signals7d > 0 && nodes.length > 0 && (
         <>
-          {Array.from({ length: Math.min(signals7d, 8) }, (_, i) => {
-            const a = (i / Math.min(signals7d, 8)) * Math.PI * 2;
+          {Array.from({ length: Math.min(signals7d, 6) }, (_, i) => {
+            const a      = (i / Math.min(signals7d, 6)) * Math.PI * 2;
             const origin = nodes[0];
             return (
               <motion.line
                 key={`sig-${i}`}
                 x1={origin.cx} y1={origin.cy}
-                x2={origin.cx + 10 * Math.cos(a)}
-                y2={origin.cy + 10 * Math.sin(a)}
-                stroke={B.green}
-                strokeWidth="0.45"
-                animate={{ opacity: [0, 0.28, 0] }}
-                transition={{
-                  duration: 2.4,
-                  repeat: Infinity,
-                  delay: i * 0.18,
-                  ease: "easeInOut",
-                }}
+                x2={origin.cx + 9 * Math.cos(a)}
+                y2={origin.cy + 9 * Math.sin(a)}
+                stroke="#ffffff"
+                strokeWidth="0.38"
+                animate={{ opacity: [0, 0.22, 0] }}
+                transition={{ duration: 2.6, repeat: Infinity, delay: i * 0.20, ease: "easeInOut" }}
               />
             );
           })}
@@ -215,136 +284,53 @@ function SceneConstellation({ stats }: { stats: RadarStats }) {
   );
 }
 
-// ── Scene: Rare Comet ──────────────────────────────────────────────────────────
-// A solitary signal transiting quiet space. HUD reticle at field center.
-// Background star count mirrors total tracked competitors.
-
-function SceneRareComet({ stats }: { stats: RadarStats }) {
-  const starCount = Math.min(stats.total + 6, 22);
-  const stars = Array.from({ length: starCount }, (_, i) => ({
-    cx:      pseudoRand(i * 7.3) * W,
-    cy:      pseudoRand(i * 4.1) * H,
-    r:       0.45 + pseudoRand(i * 2.2) * 0.65,
-    opacity: 0.12 + pseudoRand(i * 6.1) * 0.24,
-    speed:   5.5 + pseudoRand(i * 3.3) * 5.5,
-  }));
-
-  return (
-    <g>
-      {/* Background stars — monitored competitors at rest */}
-      {stars.map((s, i) => (
-        <motion.circle
-          key={i}
-          cx={s.cx} cy={s.cy} r={s.r}
-          fill={B.white}
-          animate={{ opacity: [s.opacity * 0.45, s.opacity, s.opacity * 0.45] }}
-          transition={{ duration: s.speed, repeat: Infinity, ease: "easeInOut", delay: pseudoRand(i * 11) * 5 }}
-        />
-      ))}
-
-      {/* Faint trajectory guide */}
-      <line
-        x1={-10} y1={20} x2={250} y2={130}
-        stroke="rgba(46,230,166,0.055)"
-        strokeWidth="0.35"
-        strokeDasharray="2.5 9"
-      />
-
-      {/* Comet — translates diagonally across the field */}
-      <motion.g
-        initial={{ x: -72, y: -32 }}
-        animate={{ x: 312, y: 96 }}
-        transition={{
-          duration: 9,
-          repeat: Infinity,
-          ease: [0.22, 0.06, 0.58, 1],
-          repeatDelay: 5.5,
-        }}
-      >
-        {/* Decay trail — 7 particles with exponential falloff */}
-        {Array.from({ length: 7 }, (_, i) => (
-          <circle
-            key={i}
-            cx={-i * 7.5}
-            cy={-i * 4.2}
-            r={Math.max(0.35, 2.2 - i * 0.26)}
-            fill={i === 0 ? B.amber : B.green}
-            opacity={Math.max(0, 0.68 - i * 0.10)}
-          />
-        ))}
-        {/* Nucleus outer glow */}
-        <circle cx={0} cy={0} r={6.5} fill={B.green} opacity={0.07} />
-        {/* Nucleus */}
-        <circle cx={0} cy={0} r={2.8} fill={B.white} opacity={0.55} />
-        {/* Core */}
-        <circle cx={0} cy={0} r={1.4} fill={B.green} opacity={0.95} />
-      </motion.g>
-
-      {/* HUD targeting reticle — center field scan */}
-      <motion.g
-        animate={{ opacity: [0.15, 0.32, 0.15] }}
-        transition={{ duration: 3.8, repeat: Infinity, ease: "easeInOut" }}
-      >
-        <g stroke="rgba(46,230,166,0.60)" strokeWidth="0.65" fill="none">
-          <polyline points={`${CX - 17},${CY - 9} ${CX - 17},${CY - 17} ${CX - 9},${CY - 17}`} />
-          <polyline points={`${CX + 9},${CY - 17} ${CX + 17},${CY - 17} ${CX + 17},${CY - 9}`} />
-          <polyline points={`${CX - 17},${CY + 9} ${CX - 17},${CY + 17} ${CX - 9},${CY + 17}`} />
-          <polyline points={`${CX + 9},${CY + 17} ${CX + 17},${CY + 17} ${CX + 17},${CY + 9}`} />
-        </g>
-        <line x1={CX - 4} y1={CY} x2={CX + 4} y2={CY} stroke="rgba(46,230,166,0.30)" strokeWidth="0.55" />
-        <line x1={CX} y1={CY - 4} x2={CX} y2={CY + 4} stroke="rgba(46,230,166,0.30)" strokeWidth="0.55" />
-      </motion.g>
-    </g>
-  );
-}
-
 // ── Scene: Black Hole ──────────────────────────────────────────────────────────
-// One accelerating competitor exerting gravitational pull on the field.
-// Layered counter-rotating accretion disk: green outer → amber mid → red inner.
+// One accelerating competitor exerting gravitational pull.
+// White concentric ellipses counter-rotate at varying speeds.
 // Particle stream density scales with signals7d.
+// Absolute void core with white photon ring.
 
 function SceneBlackHole({ stats }: { stats: RadarStats }) {
-  const particleCount = Math.min(8 + stats.signals7d * 2, 28);
+  const particleCount = Math.min(8 + stats.signals7d * 2, 26);
 
   const diskRings = [
-    { rx: 70, ry: 18, color: B.green, sw: 0.65, speed: 30, dir:  1  },
-    { rx: 58, ry: 14, color: B.green, sw: 0.75, speed: 24, dir: -1  },
-    { rx: 46, ry: 11, color: B.amber, sw: 0.85, speed: 17, dir:  1  },
-    { rx: 34, ry: 8,  color: B.amber, sw: 0.95, speed: 12, dir: -1  },
-    { rx: 22, ry: 5,  color: B.red,   sw: 1.10, speed: 8,  dir:  1  },
+    { rx: 70, ry: 18, sw: 0.50, speed: 34, dir:  1, opacity: 0.10 },
+    { rx: 56, ry: 14, sw: 0.60, speed: 27, dir: -1, opacity: 0.14 },
+    { rx: 43, ry: 10, sw: 0.70, speed: 19, dir:  1, opacity: 0.19 },
+    { rx: 31, ry:  7, sw: 0.82, speed: 13, dir: -1, opacity: 0.25 },
+    { rx: 20, ry:  5, sw: 0.95, speed:  8, dir:  1, opacity: 0.34 },
   ];
 
   const particles = Array.from({ length: particleCount }, (_, i) => ({
     angle:   (i / particleCount) * Math.PI * 2,
-    r:       40 + pseudoRand(i * 5.3) * 30,
-    size:    0.45 + pseudoRand(i * 2.1) * 0.75,
-    color:   i % 5 === 0 ? B.red : i % 3 === 0 ? B.amber : B.green,
-    opacity: 0.28 + pseudoRand(i * 3.7) * 0.42,
+    r:       36 + pseudoRand(i * 5.3) * 30,
+    size:    0.38 + pseudoRand(i * 2.1) * 0.60,
+    opacity: 0.15 + pseudoRand(i * 3.7) * 0.28,
   }));
 
   return (
     <g>
       <defs>
-        <radialGradient id="bh-core" cx="50%" cy="50%" r="50%">
-          <stop offset="0%"   stopColor="#350308" stopOpacity="0.55" />
-          <stop offset="55%"  stopColor="#0d0204" stopOpacity="0.32" />
+        <radialGradient id="bh-outer-glow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"   stopColor="#ffffff" stopOpacity="0.030" />
+          <stop offset="65%"  stopColor="#ffffff" stopOpacity="0.008" />
           <stop offset="100%" stopColor="transparent" stopOpacity="0" />
         </radialGradient>
       </defs>
 
-      {/* Atmospheric void */}
-      <ellipse cx={CX} cy={CY} rx={75} ry={75} fill="url(#bh-core)" />
+      {/* Faint outer atmospheric glow */}
+      <ellipse cx={CX} cy={CY} rx={82} ry={82} fill="url(#bh-outer-glow)" />
 
-      {/* Accretion disk — counter-rotating layers */}
+      {/* Accretion disk — counter-rotating white ellipses */}
       {diskRings.map((ring, i) => (
         <motion.ellipse
           key={i}
           cx={CX} cy={CY}
           rx={ring.rx} ry={ring.ry}
           fill="none"
-          stroke={ring.color}
+          stroke="#ffffff"
           strokeWidth={ring.sw}
-          strokeOpacity={0.10 + i * 0.048}
+          strokeOpacity={ring.opacity}
           animate={{ rotate: [0, ring.dir * 360] }}
           transition={{ duration: ring.speed, repeat: Infinity, ease: "linear" }}
           style={{ transformOrigin: `${CX}px ${CY}px` }}
@@ -354,7 +340,7 @@ function SceneBlackHole({ stats }: { stats: RadarStats }) {
       {/* Particle stream rotating on disk plane */}
       <motion.g
         animate={{ rotate: [0, 360] }}
-        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+        transition={{ duration: 24, repeat: Infinity, ease: "linear" }}
         style={{ transformOrigin: `${CX}px ${CY}px` }}
       >
         {particles.map((p, i) => (
@@ -363,41 +349,35 @@ function SceneBlackHole({ stats }: { stats: RadarStats }) {
             cx={CX + p.r * Math.cos(p.angle)}
             cy={CY + p.r * Math.sin(p.angle) * 0.24}
             r={p.size}
-            fill={p.color}
+            fill="#ffffff"
             opacity={p.opacity}
           />
         ))}
       </motion.g>
 
       {/* Event horizon — absolute void */}
-      <circle cx={CX} cy={CY} r={13} fill="#000000" fillOpacity={0.97} />
+      <circle cx={CX} cy={CY} r={13} fill="#000000" fillOpacity={0.98} />
 
       {/* Photon ring */}
       <motion.circle
         cx={CX} cy={CY} r={13}
-        fill="none" stroke={B.red} strokeWidth={1.6}
-        animate={{ strokeOpacity: [0.28, 0.60, 0.28], r: [12.5, 14, 12.5] }}
-        transition={{ duration: 3.8, repeat: Infinity, ease: "easeInOut" }}
-      />
-
-      {/* Inner atmospheric bleed */}
-      <motion.circle
-        cx={CX} cy={CY} r={8}
-        fill={B.red}
-        animate={{ opacity: [0.05, 0.13, 0.05] }}
-        transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+        fill="none" stroke="#ffffff" strokeWidth={1.4}
+        animate={{ strokeOpacity: [0.18, 0.46, 0.18], r: [12.5, 13.8, 12.5] }}
+        transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut" }}
       />
 
       {/* Singularity point */}
-      <circle cx={CX} cy={CY} r={2.2} fill={B.white} opacity={0.60} />
+      <circle cx={CX} cy={CY} r={1.8} fill="#ffffff" opacity={0.78} />
     </g>
   );
 }
 
 // ── Scene: Singularity ─────────────────────────────────────────────────────────
-// 2+ competitors accelerating simultaneously. Maximum strategic tension.
-// Dual force nodes with tension filament. Ring count and burst intensity
-// scale with accelerating count. Only the core pulse is fast — all else slow.
+// 2+ competitors accelerating simultaneously.
+// Radial white filaments pulse from center.
+// Concentric rings breathe outward — count scales with accelerating.
+// Two force nodes with tension filament between them.
+// Core is the only fast element — encodes maximum urgency.
 
 function SceneSingularity({ stats }: { stats: RadarStats }) {
   const accelCount = Math.max(2, stats.accelerating);
@@ -405,103 +385,94 @@ function SceneSingularity({ stats }: { stats: RadarStats }) {
 
   const rings = Array.from({ length: ringCount }, (_, i) => ({
     r:     8 + i * 10,
-    color: i === 0 ? B.white : i === 1 ? B.red : i === 2 ? B.amber : B.green,
-    speed: 1.5 + i * 0.65,
+    speed: 1.9 + i * 0.68,
     delay: i * 0.38,
-    sw:    1.2 - i * 0.14,
+    sw:    0.95 - i * 0.12,
   }));
 
-  const filaments = Array.from({ length: 10 }, (_, i) => ({
-    angle:  (i / 10) * Math.PI * 2,
-    length: 44 + pseudoRand(i * 3.7) * 24,
-    color:  i % 3 === 0 ? B.red : i % 2 === 0 ? B.amber : B.green,
-    speed:  2.0 + pseudoRand(i * 2.3) * 0.9,
-    delay:  pseudoRand(i * 5.1) * 1.4,
+  const filaments = Array.from({ length: 12 }, (_, i) => ({
+    angle:  (i / 12) * Math.PI * 2,
+    length: 40 + pseudoRand(i * 3.7) * 28,
+    speed:  2.2 + pseudoRand(i * 2.3) * 1.0,
+    delay:  pseudoRand(i * 5.1) * 1.8,
   }));
 
-  // Two opposing force nodes representing converging accelerators
   const nodeA = { cx: CX - 30, cy: CY - 7 };
   const nodeB = { cx: CX + 30, cy: CY + 7 };
 
   return (
     <g>
-      <defs>
-        <radialGradient id="sg-void" cx="50%" cy="50%" r="50%">
-          <stop offset="0%"   stopColor="#001a08" stopOpacity="0.65" />
-          <stop offset="100%" stopColor="transparent" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-
-      <ellipse cx={CX} cy={CY} rx={92} ry={62} fill="url(#sg-void)" />
-
-      {/* Tension filament between the two force nodes */}
-      <motion.line
-        x1={nodeA.cx} y1={nodeA.cy}
-        x2={nodeB.cx} y2={nodeB.cy}
-        stroke={B.amber}
-        strokeWidth="0.75"
-        strokeDasharray="3.5 4.5"
-        animate={{ strokeOpacity: [0.12, 0.42, 0.12] }}
-        transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-      />
-
-      {/* Radial burst filaments from center */}
+      {/* Radial filaments from center */}
       {filaments.map((f, i) => (
         <motion.line
           key={i}
           x1={CX} y1={CY}
           x2={CX + f.length * Math.cos(f.angle)}
           y2={CY + f.length * Math.sin(f.angle)}
-          stroke={f.color}
-          strokeWidth="0.65"
-          animate={{ opacity: [0, 0.36, 0] }}
+          stroke="#ffffff"
+          strokeWidth="0.50"
+          animate={{ opacity: [0, 0.26, 0] }}
           transition={{ duration: f.speed, repeat: Infinity, delay: f.delay, ease: "easeInOut" }}
         />
       ))}
 
-      {/* Collapsing rings — centered between the two nodes */}
+      {/* Tension filament between force nodes */}
+      <motion.line
+        x1={nodeA.cx} y1={nodeA.cy}
+        x2={nodeB.cx} y2={nodeB.cy}
+        stroke="#ffffff"
+        strokeWidth="0.62"
+        strokeDasharray="3 4.5"
+        animate={{ strokeOpacity: [0.08, 0.32, 0.08] }}
+        transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      {/* Collapsing rings — breathe outward */}
       {rings.map((ring, i) => (
         <motion.circle
           key={i}
           cx={CX} cy={CY}
           r={ring.r}
           fill="none"
-          stroke={ring.color}
+          stroke="#ffffff"
           strokeWidth={ring.sw}
           animate={{
             r:       [ring.r, ring.r * 1.09, ring.r],
-            opacity: [0.07, 0.40, 0.07],
+            opacity: [0.055, 0.30, 0.055],
           }}
           transition={{ duration: ring.speed, repeat: Infinity, delay: ring.delay, ease: "easeInOut" }}
         />
       ))}
 
-      {/* Force node halos */}
+      {/* Force node glows */}
       {[nodeA, nodeB].map((n, i) => (
         <motion.circle
-          key={`nh-${i}`}
-          cx={n.cx} cy={n.cy} r={7}
-          fill={B.red}
-          animate={{ opacity: [0.05, 0.18, 0.05], r: [6, 8, 6] }}
-          transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut", delay: i * 0.50 }}
+          key={`glow-${i}`}
+          cx={n.cx} cy={n.cy} r={6}
+          fill="#ffffff"
+          animate={{ opacity: [0.025, 0.10, 0.025], r: [5, 7.5, 5] }}
+          transition={{ duration: 1.9, repeat: Infinity, ease: "easeInOut", delay: i * 0.55 }}
         />
       ))}
+
+      {/* Force node points */}
       {[nodeA, nodeB].map((n, i) => (
-        <circle key={`np-${i}`} cx={n.cx} cy={n.cy} r={2.4} fill={B.white} opacity={0.82} />
+        <circle key={`pt-${i}`} cx={n.cx} cy={n.cy} r={2.2} fill="#ffffff" opacity={0.88} />
       ))}
 
       {/* Core — the only fast element, encodes maximum urgency */}
       <motion.circle
         cx={CX} cy={CY} r={4.5}
-        fill={B.white}
-        animate={{ opacity: [0.55, 1.0, 0.55], r: [4.0, 5.5, 4.0] }}
+        fill="#ffffff"
+        animate={{ opacity: [0.50, 1.0, 0.50], r: [4.0, 5.5, 4.0] }}
         transition={{ duration: 0.95, repeat: Infinity, ease: "easeInOut" }}
       />
+      {/* Core outer bloom */}
       <motion.circle
-        cx={CX} cy={CY} r={11}
-        fill={B.green}
-        animate={{ opacity: [0.04, 0.17, 0.04] }}
-        transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+        cx={CX} cy={CY} r={12}
+        fill="#ffffff"
+        animate={{ opacity: [0.018, 0.075, 0.018] }}
+        transition={{ duration: 2.0, repeat: Infinity, ease: "easeInOut" }}
       />
     </g>
   );
@@ -518,14 +489,13 @@ function SceneRenderer({ id, stats }: { id: SceneId; stats: RadarStats }) {
   }
 }
 
-// ── HUD Signal Bar — animated fill + precise value label ──────────────────────
+// ── HUD Signal Bar — white fill, animated height ───────────────────────────────
 
 function SignalBar({
-  value, max, color, label,
+  value, max, label,
 }: {
   value: number;
   max: number;
-  color: string;
   label: string;
 }) {
   const fillPct  = Math.min(1, value / max);
@@ -538,12 +508,12 @@ function SignalBar({
         position: "relative",
         width: "100%",
         height: 28,
-        background: "rgba(255,255,255,0.025)",
+        background: "rgba(255,255,255,0.04)",
         borderRadius: 3,
         overflow: "hidden",
-        border: "1px solid rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.06)",
       }}>
-        {/* Fill bar */}
+        {/* Fill */}
         <motion.div
           animate={{ height: `${fillPct * 100}%` }}
           initial={{ height: 0 }}
@@ -552,19 +522,19 @@ function SignalBar({
             position: "absolute",
             bottom: 0, left: 0, right: 0,
             background: overflow
-              ? `linear-gradient(to top, ${color}, ${color}99)`
-              : `linear-gradient(to top, ${color}cc, ${color}44)`,
+              ? "linear-gradient(to top, rgba(255,255,255,0.92), rgba(255,255,255,0.58))"
+              : "linear-gradient(to top, rgba(255,255,255,0.78), rgba(255,255,255,0.24))",
             borderRadius: 2,
-            boxShadow: fillPct > 0.08 ? `0 0 7px ${color}3a` : "none",
+            boxShadow: fillPct > 0.08 ? "0 0 6px rgba(255,255,255,0.16)" : "none",
           }}
         />
-        {/* Value */}
+        {/* Value label */}
         <div style={{
           position: "absolute", inset: 0,
           display: "flex", alignItems: "center", justifyContent: "center",
           fontFamily: "monospace",
           fontSize: 11, fontWeight: 700, lineHeight: 1,
-          color: fillPct > 0.28 ? "rgba(255,255,255,0.92)" : color,
+          color: fillPct > 0.28 ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.38)",
           zIndex: 1,
         }}>
           {value}
@@ -574,7 +544,7 @@ function SignalBar({
       <div style={{
         fontFamily: "monospace",
         fontSize: 6, letterSpacing: "0.16em",
-        color: "rgba(255,255,255,0.26)",
+        color: "rgba(255,255,255,0.22)",
         textAlign: "center",
       }}>
         {label}
@@ -590,18 +560,18 @@ export default function TelescopePanel({ radarStats }: { radarStats?: RadarStats
     total: 0, accelerating: 0, rising: 0, signals7d: 0, topMovement: null,
   };
 
-  const derivedSceneId                    = deriveSceneId(radarStats);
-  const [manualIdx, setManualIdx]         = useState<number | null>(null);
+  const derivedSceneId            = deriveSceneId(radarStats);
+  const [manualIdx, setManualIdx] = useState<number | null>(null);
 
   // Reset manual override when live data changes tier
   useEffect(() => { setManualIdx(null); }, [derivedSceneId]);
 
-  const effectiveIdx  = manualIdx !== null
+  const effectiveIdx = manualIdx !== null
     ? manualIdx
     : Math.max(0, SCENES.findIndex((s) => s.id === derivedSceneId));
-  const scene         = SCENES[effectiveIdx];
-  const statusColor   = STATUS_COLORS[scene.status];
-  const bg            = SCENE_BG[scene.id];
+  const scene        = SCENES[effectiveIdx];
+  const statusColor  = STATUS_COLORS[scene.status];
+  const bg           = SCENE_BG[scene.id];
 
   const advance = useCallback(() => {
     setManualIdx((i) => ((i !== null ? i : effectiveIdx) + 1) % SCENES.length);
@@ -615,14 +585,14 @@ export default function TelescopePanel({ radarStats }: { radarStats?: RadarStats
       style={{
         borderRadius: 10,
         overflow: "hidden",
-        border: "1px solid rgba(255,255,255,0.06)",
+        border: "1px solid rgba(255,255,255,0.055)",
         background: bg.tint,
         minHeight: 160,
       }}
     >
       {/* ── Sky canvas ──────────────────────────────────────────────────── */}
       <div
-        style={{ position: "relative", lineHeight: 0, flex: 1, cursor: "pointer", minHeight: 112 }}
+        style={{ position: "relative", lineHeight: 0, flex: 1, cursor: "pointer", minHeight: 120 }}
         onClick={advance}
       >
         <AnimatePresence mode="wait">
@@ -640,8 +610,8 @@ export default function TelescopePanel({ radarStats }: { radarStats?: RadarStats
           >
             <defs>
               <radialGradient id={`vig-${scene.id}`} cx="50%" cy="50%" r="50%">
-                <stop offset="50%"  stopColor="#000000" stopOpacity="0"    />
-                <stop offset="100%" stopColor="#000000" stopOpacity="0.68" />
+                <stop offset="45%"  stopColor="#000000" stopOpacity="0"    />
+                <stop offset="100%" stopColor="#000000" stopOpacity="0.72" />
               </radialGradient>
             </defs>
 
@@ -655,7 +625,7 @@ export default function TelescopePanel({ radarStats }: { radarStats?: RadarStats
             <rect width={W} height={H} fill={`url(#vig-${scene.id})`} />
 
             {/* HUD corner brackets */}
-            <g stroke="rgba(255,255,255,0.065)" strokeWidth="0.75" fill="none">
+            <g stroke="rgba(255,255,255,0.055)" strokeWidth="0.70" fill="none">
               <polyline points="8,20 8,8 20,8" />
               <polyline points={`${W - 20},8 ${W - 8},8 ${W - 8},20`} />
               <polyline points={`8,${H - 20} 8,${H - 8} 20,${H - 8}`} />
@@ -667,7 +637,7 @@ export default function TelescopePanel({ radarStats }: { radarStats?: RadarStats
               x={10} y={H - 16}
               fontSize="7" fontWeight="bold"
               fontFamily="monospace" letterSpacing="2"
-              fill="rgba(255,255,255,0.78)"
+              fill="rgba(255,255,255,0.72)"
             >
               {scene.label}
             </text>
@@ -678,8 +648,8 @@ export default function TelescopePanel({ radarStats }: { radarStats?: RadarStats
               cy={H - 19.5}
               r={2.2}
               fill={statusColor}
-              animate={{ opacity: [0.65, 1.0, 0.65] }}
-              transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+              animate={{ opacity: [0.60, 1.0, 0.60] }}
+              transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
             />
 
             {/* Rival count — top right */}
@@ -687,7 +657,7 @@ export default function TelescopePanel({ radarStats }: { radarStats?: RadarStats
               x={W - 10} y={15}
               textAnchor="end" fontSize="6"
               fontFamily="monospace" letterSpacing="1.5"
-              fill="rgba(255,255,255,0.26)"
+              fill="rgba(255,255,255,0.22)"
             >
               {stats.total} RIVALS
             </text>
@@ -697,7 +667,7 @@ export default function TelescopePanel({ radarStats }: { radarStats?: RadarStats
         {/* Inner frame depth */}
         <div style={{
           position: "absolute", inset: 0, borderRadius: 10, pointerEvents: "none",
-          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.04), inset 0 -18px 28px rgba(0,0,0,0.32)",
+          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.038), inset 0 -18px 28px rgba(0,0,0,0.35)",
         }} />
       </div>
 
@@ -709,13 +679,13 @@ export default function TelescopePanel({ radarStats }: { radarStats?: RadarStats
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.30 }}
-          style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
+          style={{ borderTop: "1px solid rgba(255,255,255,0.042)" }}
         >
-          {/* Animated signal bars */}
+          {/* Signal bars — white fill */}
           <div style={{ display: "flex", gap: 5, padding: "6px 8px 4px" }}>
-            <SignalBar value={stats.accelerating} max={5}  color={B.red}   label="ACCEL"  />
-            <SignalBar value={stats.rising}        max={10} color={B.amber} label="RISING" />
-            <SignalBar value={stats.signals7d}     max={20} color={B.green} label="SIG/7D" />
+            <SignalBar value={stats.accelerating} max={5}  label="ACCEL"  />
+            <SignalBar value={stats.rising}        max={10} label="RISING" />
+            <SignalBar value={stats.signals7d}     max={20} label="SIG/7D" />
           </div>
 
           {/* Status badge + movement label + nav dots */}
@@ -737,7 +707,7 @@ export default function TelescopePanel({ radarStats }: { radarStats?: RadarStats
             {stats.topMovement && (
               <span style={{
                 fontSize: 5.5, fontFamily: "monospace", letterSpacing: "0.09em",
-                color: "rgba(255,255,255,0.24)",
+                color: "rgba(255,255,255,0.20)",
                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                 flex: 1, textAlign: "center", minWidth: 0,
               }}>
@@ -752,8 +722,8 @@ export default function TelescopePanel({ radarStats }: { radarStats?: RadarStats
                   key={s.id}
                   onClick={(e) => { e.stopPropagation(); jumpTo(i); }}
                   style={{
-                    width: i === effectiveIdx ? 10 : 3,
-                    height: 3, borderRadius: 2,
+                    width:      i === effectiveIdx ? 10 : 3,
+                    height:     3, borderRadius: 2,
                     background: i === effectiveIdx ? statusColor : "rgba(255,255,255,0.12)",
                     transition: "all 0.35s ease",
                     cursor: "pointer", flexShrink: 0,
