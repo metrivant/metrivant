@@ -7,6 +7,8 @@ import { verifyCronSecret } from "../lib/withCronAuth";
 import { createHash } from "crypto";
 import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
 import { classifySignalRelevance } from "../lib/signal-relevance";
+import { getCompetitorContext, formatContextForPrompt } from "../lib/competitor-context";
+import { updateCompetitorContext } from "../lib/context-updater";
 
 const BATCH_SIZE          = 15;
 const CONCURRENCY         = 4;
@@ -435,10 +437,24 @@ async function handler(req: ApiReq, res: ApiRes) {
             const userPrompt = buildUserPrompt(signal);
             const promptHash = hashPrompt(userPrompt);
 
+            // ── Competitor context (best-effort, non-blocking on failure) ──
+            let competitorCtx = null;
+            let signalSystemPrompt = systemPrompt;
+            try {
+              if (signal.competitor_id) {
+                competitorCtx = await getCompetitorContext(signal.competitor_id);
+                if (competitorCtx) {
+                  signalSystemPrompt = formatContextForPrompt(competitorCtx) + "\n\n" + systemPrompt;
+                }
+              }
+            } catch {
+              // Context fetch failure must never block interpretation
+            }
+
             const { result: interpretation, promptTokens, completionTokens } = await callOpenAI(
               userPrompt,
               modelUsed,
-              systemPrompt
+              signalSystemPrompt
             );
 
             const { error: upsertError } = await supabase
@@ -475,6 +491,20 @@ async function handler(req: ApiReq, res: ApiRes) {
               .eq("status", "in_progress");
 
             if (updateError) throw updateError;
+
+            // ── Context update (fire-and-forget — must not block pipeline) ─
+            void updateCompetitorContext(
+              competitorCtx,
+              signal.competitor_id,
+              "",   // org_id resolved inside context-updater via tracked_competitors lookup
+              signal.competitor_name,
+              [{
+                signal_type:           signal.signal_type,
+                summary:               interpretation.summary,
+                strategic_implication: interpretation.strategic_implication ?? null,
+                detected_at:           new Date().toISOString(),
+              }]
+            ).catch(() => {});
 
             void recordEvent({ run_id: runId, stage: "interpret", status: "success", duration_ms: elapsed(), metadata: { model: modelUsed, prompt_tokens: promptTokens, completion_tokens: completionTokens, signals_interpreted: 1 } });
             return { succeeded: true };
