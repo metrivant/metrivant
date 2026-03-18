@@ -17,6 +17,28 @@ import StrategyCompetitorPills from "./StrategyCompetitorPills";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+type MovementRow = {
+  id:                  string;
+  competitor_id:       string;
+  competitor_name:     string;
+  movement_type:       string;
+  confidence:          number;
+  signal_count:        number;
+  velocity:            number | null;
+  first_seen_at:       string;
+  last_seen_at:        string;
+  movement_summary:    string | null;
+  strategic_implication: string | null;
+};
+
+type MovementGroup = {
+  movement_type: string;
+  movements: MovementRow[];
+  avgConfidence: number;
+  totalSignals: number;
+  latestAt: string;
+};
+
 type InsightRow = {
   id:                   string;
   pattern_type:         PatternType;
@@ -63,6 +85,82 @@ export default async function StrategyPage({
 
   if (!user) redirect("/login");
 
+  // ── Fetch org + competitor IDs ──────────────────────────────────────────────
+  let orgId: string | null = null;
+  let trackedIds: string[] = [];
+  try {
+    const { data: orgRow } = await supabase
+      .from("organizations")
+      .select("id")
+      .eq("owner_id", user.id)
+      .single();
+    orgId = orgRow?.id ?? null;
+
+    if (orgId) {
+      const { data: tracked } = await supabase
+        .from("tracked_competitors")
+        .select("competitor_id")
+        .eq("org_id", orgId);
+      trackedIds = (tracked ?? []).map((r: { competitor_id: string }) => r.competitor_id).filter(Boolean);
+    }
+  } catch { /* non-fatal */ }
+
+  // ── Fetch live movements for this org's competitors ─────────────────────────
+  let movementGroups: MovementGroup[] = [];
+  try {
+    if (trackedIds.length > 0) {
+      const { data: mvRows } = await supabase
+        .from("strategic_movements")
+        .select("id, competitor_id, movement_type, confidence, signal_count, velocity, first_seen_at, last_seen_at, movement_summary, strategic_implication")
+        .in("competitor_id", trackedIds)
+        .not("movement_type", "is", null)
+        .gte("last_seen_at", new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString())
+        .order("last_seen_at", { ascending: false })
+        .limit(60);
+
+      if (mvRows && mvRows.length > 0) {
+        // Fetch competitor names
+        const { data: compRows } = await supabase
+          .from("competitors")
+          .select("id, name")
+          .in("id", [...new Set(mvRows.map((r: { competitor_id: string }) => r.competitor_id))]);
+        const nameMap = Object.fromEntries(
+          (compRows ?? []).map((c: { id: string; name: string }) => [c.id, c.name])
+        );
+        const enriched: MovementRow[] = (mvRows as Array<{
+          id: string; competitor_id: string; movement_type: string;
+          confidence: number; signal_count: number; velocity: number | null;
+          first_seen_at: string; last_seen_at: string;
+          movement_summary: string | null; strategic_implication: string | null;
+        }>).map((r) => ({ ...r, competitor_name: nameMap[r.competitor_id] ?? "Unknown" }));
+
+        // Group by movement_type
+        const byType = new Map<string, MovementRow[]>();
+        for (const m of enriched) {
+          const arr = byType.get(m.movement_type) ?? [];
+          arr.push(m);
+          byType.set(m.movement_type, arr);
+        }
+        movementGroups = [...byType.entries()]
+          .map(([type, mvs]) => ({
+            movement_type: type,
+            movements: mvs.sort((a, b) => b.confidence - a.confidence),
+            avgConfidence: mvs.reduce((s, m) => s + m.confidence, 0) / mvs.length,
+            totalSignals: mvs.reduce((s, m) => s + (m.signal_count ?? 0), 0),
+            latestAt: mvs.reduce((a, m) => (m.last_seen_at > a ? m.last_seen_at : a), mvs[0].last_seen_at),
+          }))
+          .sort((a, b) => {
+            // Convergence (2+ competitors) first, then by recency
+            const aConv = a.movements.length >= 2 ? 1 : 0;
+            const bConv = b.movements.length >= 2 ? 1 : 0;
+            if (aConv !== bConv) return bConv - aConv;
+            return b.latestAt.localeCompare(a.latestAt);
+          });
+      }
+    }
+  } catch { /* non-fatal */ }
+
+  // ── Fetch AI strategic insights ─────────────────────────────────────────────
   let insights: InsightRow[] = [];
   let fetchError  = false;
   let analysisAge = "";
@@ -93,10 +191,13 @@ export default async function StrategyPage({
   }
 
   // Section groupings (display-only — same underlying data)
-  const majorSignals   = insights.filter((i) => i.is_major);
-  const otherPatterns  = insights.filter((i) => !i.is_major);
-  const allPatterns    = insights;
-  const hasInsights    = insights.length > 0;
+  const majorSignals       = insights.filter((i) => i.is_major);
+  const otherPatterns      = insights.filter((i) => !i.is_major);
+  const allPatterns        = insights;
+  const hasInsights        = insights.length > 0;
+  const convergenceGroups  = movementGroups.filter((g) => g.movements.length >= 2);
+  const singleGroups       = movementGroups.filter((g) => g.movements.length === 1);
+  const hasMovements       = movementGroups.length > 0;
 
   return (
     <div className="min-h-screen bg-[#000200] text-white">
@@ -191,17 +292,8 @@ export default async function StrategyPage({
           </div>
         </div>
 
-        {/* ── Error state ───────────────────────────────────────────── */}
-        {fetchError && (
-          <div className="rounded-[14px] border border-[#1a2a1a] bg-[#0a140a] p-8 text-center">
-            <p className="text-[13px] text-slate-600">
-              Could not load strategic insights. This feature may not be enabled for your account yet.
-            </p>
-          </div>
-        )}
-
-        {/* ── Empty state ───────────────────────────────────────────── */}
-        {!fetchError && !hasInsights && (
+        {/* ── No data at all ────────────────────────────────────────── */}
+        {!hasMovements && !hasInsights && (
           <div
             className="flex flex-col items-center rounded-[18px] border border-[#0d2010] px-8 py-20 text-center"
             style={{ background: "rgba(2,8,2,0.5)" }}
@@ -210,7 +302,6 @@ export default async function StrategyPage({
               className="mb-5 flex h-14 w-14 items-center justify-center rounded-full border border-[#0d2010]"
               style={{ background: "rgba(46,230,166,0.04)" }}
             >
-              {/* Strategy crosshairs icon */}
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <circle cx="12" cy="12" r="9"   stroke="rgba(46,230,166,0.28)" strokeWidth="1.5" />
                 <circle cx="12" cy="12" r="4.5" stroke="rgba(46,230,166,0.40)" strokeWidth="1.5" />
@@ -220,28 +311,71 @@ export default async function StrategyPage({
                 <line x1="18" y1="12" x2="21" y2="12" stroke="rgba(46,230,166,0.40)" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </div>
-            <h2 className="text-[15px] font-semibold text-white">No patterns detected yet</h2>
+            <h2 className="text-[15px] font-semibold text-white">Pipeline building data</h2>
             <p className="mt-2 max-w-sm text-[13px] leading-relaxed text-slate-500">
-              Strategic analysis requires at least two competitors showing movement.
-              Patterns will appear here once your signal feed accumulates data — analysis runs daily.
+              Strategic patterns derive from accumulated signal data. Add competitors and allow
+              the monitoring pipeline to run — movement patterns typically emerge within 24–48 hours.
             </p>
           </div>
         )}
 
-        {hasInsights && (
+        {(hasMovements || hasInsights) && (
           <div className="flex flex-col gap-12">
 
             {/* ══════════════════════════════════════════════════════════
-                SECTION 1 — Strategic Signals
-                Major cross-competitor headlines that demand attention
+                SECTION 01 — Field Movements
+                Live movement registry — always populated once pipeline runs
             ═══════════════════════════════════════════════════════════ */}
+            {hasMovements && (
             <section>
               <SectionHeader
                 index="01"
+                title="Field Movements"
+                subtitle={`${movementGroups.length} movement vector${movementGroups.length !== 1 ? "s" : ""} detected across ${trackedIds.length} tracked competitors · 14-day window`}
+              />
+
+              {/* Convergence — 2+ competitors sharing a movement type */}
+              {convergenceGroups.length > 0 && (
+                <div className="mb-6">
+                  <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-600">
+                    Convergence Detected
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    {convergenceGroups.map((g) => (
+                      <ConvergenceCard key={g.movement_type} group={g} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Individual movements — single competitor */}
+              {singleGroups.length > 0 && (
+                <div>
+                  <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-600">
+                    Individual Vectors
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {singleGroups.map((g) => (
+                      <IndividualMovementCard key={g.movement_type + g.movements[0].competitor_id} group={g} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
+            )}
+
+            {/* ══════════════════════════════════════════════════════════
+                SECTION 02 — Strategic Signals (AI)
+                GPT-4o cross-competitor pattern analysis — runs daily
+            ═══════════════════════════════════════════════════════════ */}
+            {hasInsights && (
+            <section>
+              <SectionHeader
+                index={hasMovements ? "02" : "01"}
                 title="Strategic Signals"
                 subtitle={
                   majorSignals.length > 0
-                    ? `${majorSignals.length} high-priority pattern${majorSignals.length !== 1 ? "s" : ""} detected`
+                    ? `${majorSignals.length} high-priority pattern${majorSignals.length !== 1 ? "s" : ""} detected · AI analysis`
                     : "No major patterns this cycle"
                 }
               />
@@ -261,45 +395,35 @@ export default async function StrategyPage({
                 </div>
               )}
             </section>
+            )}
 
             {/* ══════════════════════════════════════════════════════════
-                SECTION 2 — Market Patterns
-                Non-major patterns with supporting context
+                SECTION 03 — Market Patterns (AI)
             ═══════════════════════════════════════════════════════════ */}
+            {hasInsights && otherPatterns.length > 0 && (
             <section>
               <SectionHeader
-                index="02"
+                index={hasMovements ? "03" : "02"}
                 title="Market Patterns"
-                subtitle={
-                  otherPatterns.length > 0
-                    ? `${otherPatterns.length} supporting pattern${otherPatterns.length !== 1 ? "s" : ""} detected`
-                    : "No additional patterns this cycle"
-                }
+                subtitle={`${otherPatterns.length} supporting pattern${otherPatterns.length !== 1 ? "s" : ""} detected`}
               />
-
-              {otherPatterns.length === 0 ? (
-                <div className="rounded-[14px] border border-[#0d2010] bg-[#020802] px-5 py-4">
-                  <p className="text-[13px] text-slate-600">
-                    All detected patterns this cycle are major signals — see Section 01 above.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {otherPatterns.map((insight) => (
-                    <PatternCard key={insight.id} insight={insight} />
-                  ))}
-                </div>
-              )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                {otherPatterns.map((insight) => (
+                  <PatternCard key={insight.id} insight={insight} />
+                ))}
+              </div>
             </section>
+            )}
 
             {/* ══════════════════════════════════════════════════════════
-                SECTION 3 — Recommended Responses
+                SECTION — Recommended Responses
                 Ordered by confidence — what to do first
             ═══════════════════════════════════════════════════════════ */}
+            {hasInsights && (
             <section>
               <SectionHeader
-                index="03"
-                title="Recommended Responses"
+                index={hasMovements ? "04" : "03"}
+                title="Response Advisories"
                 subtitle="Ordered by confidence · click to copy"
               />
 
@@ -311,12 +435,12 @@ export default async function StrategyPage({
                   ))}
               </div>
             </section>
+            )}
 
             {/* ══════════════════════════════════════════════════════════
-                SECTION 4 — Competitor Timeline
-                Per-competitor signal history from cross-competitor patterns
+                SECTION — Competitor Timeline
             ═══════════════════════════════════════════════════════════ */}
-            <StrategyTimeline insights={allPatterns} />
+            {hasInsights && <StrategyTimeline insights={allPatterns} />}
 
           </div>
         )}
@@ -355,6 +479,132 @@ function movementDisplayLabel(movementType: string | null): string {
         .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
         .join(" ");
   }
+}
+
+// ── Movement type color map (mirrors radar color system) ──────────────────────
+function getMovementColor(type: string): string {
+  switch (type) {
+    case "pricing_strategy_shift": return "#FF2AD4";
+    case "product_expansion":      return "#00F5FF";
+    case "market_reposition":      return "#FF7A00";
+    case "enterprise_push":        return "#9B5CFF";
+    case "ecosystem_expansion":    return "#4A9EFF";
+    default: return "#2EE6A6";
+  }
+}
+
+function formatRelativeShort(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const d = Math.floor(diff / 86400000);
+  const h = Math.floor(diff / 3600000);
+  if (d > 0) return `${d}d ago`;
+  if (h > 0) return `${h}h ago`;
+  return "just now";
+}
+
+// ── Convergence card — 2+ competitors sharing a movement type ─────────────────
+function ConvergenceCard({ group }: { group: MovementGroup }) {
+  const color = getMovementColor(group.movement_type);
+  const label = movementDisplayLabel(group.movement_type);
+  const pct = Math.round(group.avgConfidence * 100);
+  // Show a summary if any movement has one
+  const summary = group.movements.find((m) => m.movement_summary)?.movement_summary;
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-[16px] border p-5"
+      style={{
+        borderColor: `${color}35`,
+        background: `linear-gradient(135deg, ${color}08 0%, rgba(2,8,2,0.90) 60%)`,
+      }}
+    >
+      <div className="absolute inset-y-0 left-0 w-[3px] rounded-l-[16px]" style={{ backgroundColor: color }} />
+
+      <div className="ml-3">
+        {/* Header */}
+        <div className="mb-3 flex items-center gap-2.5">
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
+            style={{ background: `${color}18`, color, border: `1px solid ${color}30` }}
+          >
+            {label}
+          </span>
+          <span
+            className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.10em]"
+            style={{ background: "rgba(239,68,68,0.10)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.20)" }}
+          >
+            {group.movements.length} rivals converging
+          </span>
+        </div>
+
+        {/* Summary if available */}
+        {summary && (
+          <p className="mb-3 text-[13px] leading-relaxed text-slate-300">{summary}</p>
+        )}
+
+        {/* Competitors involved */}
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {group.movements.map((m) => (
+            <span
+              key={m.competitor_id}
+              className="rounded-full border px-2.5 py-0.5 text-[11px] text-slate-300"
+              style={{ borderColor: `${color}25`, background: `${color}0a` }}
+            >
+              {m.competitor_name}
+              <span className="ml-1.5 text-[10px]" style={{ color: `${color}99` }}>
+                {Math.round(m.confidence * 100)}%
+              </span>
+            </span>
+          ))}
+        </div>
+
+        {/* Stats row */}
+        <div className="flex items-center gap-4 border-t border-[#0d1f0d] pt-3 text-[11px] text-slate-600">
+          <span>Avg confidence <span style={{ color }} className="font-semibold">{pct}%</span></span>
+          <span>·</span>
+          <span>{group.totalSignals} signals</span>
+          <span>·</span>
+          <span>Last seen {formatRelativeShort(group.latestAt)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Individual movement card ───────────────────────────────────────────────────
+function IndividualMovementCard({ group }: { group: MovementGroup }) {
+  const m = group.movements[0];
+  const color = getMovementColor(m.movement_type);
+  const label = movementDisplayLabel(m.movement_type);
+  return (
+    <div
+      className="flex flex-col rounded-[14px] border bg-[#020802] p-4"
+      style={{ borderColor: `${color}20` }}
+    >
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <div>
+          <span
+            className="text-[10px] font-bold uppercase tracking-[0.12em]"
+            style={{ color }}
+          >
+            {label}
+          </span>
+          <p className="mt-0.5 text-[13px] font-medium text-slate-200">{m.competitor_name}</p>
+        </div>
+        <span className="shrink-0 font-mono text-[11px] tabular-nums text-slate-600">
+          {Math.round(m.confidence * 100)}%
+        </span>
+      </div>
+      {m.movement_summary && (
+        <p className="mb-2 text-[12px] leading-relaxed text-slate-500">{m.movement_summary}</p>
+      )}
+      <div className="mt-auto flex items-center gap-3 text-[10px] text-slate-700">
+        <span>{m.signal_count} signal{m.signal_count !== 1 ? "s" : ""}</span>
+        <span>·</span>
+        <span>{formatRelativeShort(m.last_seen_at)}</span>
+      </div>
+    </div>
+  );
 }
 
 function AlertContextBanner({

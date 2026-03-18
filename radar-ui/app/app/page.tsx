@@ -23,7 +23,6 @@ import MobileNav from "../../components/MobileNav";
 import AchievementsButton from "../../components/AchievementsButton";
 import SoundToggleButton from "../../components/SoundToggleButton";
 import InitBanner from "../../components/InitBanner";
-import TutorialHint from "../../components/TutorialHint";
 import KnowledgePanel from "../../components/KnowledgePanel";
 import RadarRealtimeSync from "../../components/RadarRealtimeSync";
 import { getRadarFeed } from "../../lib/api";
@@ -182,6 +181,14 @@ export default async function Page() {
     (sum, c) => sum + (c.signals_7d ?? 0),
     0
   );
+
+  const telescopeStats = {
+    total: competitors.length,
+    accelerating: competitors.filter((c) => Number(c.momentum_score ?? 0) >= 5).length,
+    rising: competitors.filter((c) => { const m = Number(c.momentum_score ?? 0); return m >= 3 && m < 5; }).length,
+    signals7d: totalSignals7d,
+    topMovement: competitors.find((c) => c.latest_movement_type && Number(c.momentum_score ?? 0) >= 3)?.latest_movement_type ?? null,
+  };
 
   // Sector news — fetched server-side, cached 1 hour. Non-blocking; falls back to [].
   const newsItems = await fetchSectorNews(sector);
@@ -359,7 +366,7 @@ export default async function Page() {
           className="hidden w-[190px] shrink-0 flex-col overflow-hidden border-r border-[#0e2210] bg-[rgba(0,0,0,0.98)] md:flex xl:w-[240px]"
           aria-label="App navigation"
         >
-          <SidebarNav />
+          <SidebarNav radarStats={telescopeStats} />
         </nav>
 
         {/* ── Radar content area ─────────────────────────────────────────── */}
@@ -391,9 +398,6 @@ export default async function Page() {
       {/* Fires once on mount: checks Stripe for an active sub the webhook missed. */}
       {/* On success: router.refresh() re-renders the page, clearing the lock screen. */}
       {trialExpired && !hasActiveSub && <SyncSubscription />}
-
-      {/* ── Time-based feature discovery hints ──────────────────────────── */}
-      {!trialExpired && <TutorialHint />}
 
       {/* ── Knowledge panel — encyclopaedia of intelligence, features, science ── */}
       {!trialExpired && <KnowledgePanel />}

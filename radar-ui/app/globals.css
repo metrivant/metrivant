@@ -12,6 +12,10 @@
   --font-sans: var(--font-inter);
 }
 
+html {
+  zoom: 0.9;
+}
+
 html,
 body {
   background: #000200;

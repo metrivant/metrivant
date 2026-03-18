@@ -3380,8 +3380,8 @@ export default function Radar({
               ))}
             </div>
 
-            {/* Signal ticker */}
-            {tickerItems.length > 0 && (
+            {/* Signal ticker — Gravity Field mode only */}
+            {gravityMode && tickerItems.length > 0 && (
               <div
                 className="relative h-7 overflow-hidden border-t border-[#0a1c0a]"
                 style={{
@@ -3640,6 +3640,21 @@ export default function Radar({
                 }}
               />
 
+              {/* ── Detected Change strip ───────────────────────── */}
+              {!detailLoading && primarySignal?.summary && (
+                <div
+                  className="mb-3 rounded-[10px] border border-[#0f1c0f] px-3.5 py-2.5"
+                  style={{ background: "#040904" }}
+                >
+                  <div className="mb-1 text-[9px] font-semibold uppercase tracking-[0.30em]" style={{ color: "rgba(100,116,139,0.55)" }}>
+                    Detected Change
+                  </div>
+                  <p className="text-[12px] leading-snug text-slate-300">
+                    {primarySignal.summary}
+                  </p>
+                </div>
+              )}
+
               {/* ── Assessment ──────────────────────────────────── */}
               <div className="overflow-hidden rounded-[14px] border border-[#152415]" style={{ background: "#071507" }}>
                 {/* Movement-color accent line */}
@@ -3651,7 +3666,7 @@ export default function Radar({
                 />
                 <div className="px-4 py-3.5">
                 <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: `${selectedColor}90` }}>
-                  Assessment
+                  Intelligence Assessment
                 </div>
                 {detailLoading ? (
                   // While detail loads, show pre-loaded interpretation summary if available
@@ -3722,7 +3737,7 @@ export default function Radar({
                 >
                   <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: `${selectedColor}95` }}>
                     <span style={{ opacity: 0.7 }}>→</span>
-                    <span>Recommended Action</span>
+                    <span>Strategic Advisory</span>
                   </div>
                   <p className="text-sm leading-relaxed text-slate-200">
                     {primarySignal.recommended_action}
