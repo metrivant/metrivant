@@ -233,7 +233,7 @@ Never use specific column names in REST queries before doing `limit=1&select=*` 
 ```
 Batch ≤50 IDs per REST call to avoid Supabase 8-second statement timeout (error 57014).
 
-### Token Efficiency Rules
+### Token Efficiency Rules — Tool Use
 
 - Parallel tool calls for independent queries — SQL + code read in the same message when not dependent.
 - Use `limit=1&select=*` to discover schema before using specific column filters.
@@ -241,13 +241,47 @@ Batch ≤50 IDs per REST call to avoid Supabase 8-second statement timeout (erro
 - Read git log before reading code — commit messages often explain "why" and prevent unnecessary file reads.
 - Count/distribution queries before full row fetches: confirm scale before fetching all data.
 - Stop reading when root cause is confirmed — do not continue for completeness.
-- For large components (Radar.tsx, 4000+ lines): use `grep -n "pattern"` first to get line numbers, then `Read offset+limit` on only the relevant block. Never read the full file for a targeted edit. (2026-03-18)
-- When a server component needs to pass live data to a child component that currently takes no props: compute a small typed stats struct in the page, thread it through one intermediate component as an optional prop. Avoids a new API route. Pattern: `page.tsx → ParentComponent({stats}) → ChildComponent({stats})`. (2026-03-18)
-- Multi-file search: `grep -n "pattern" file1 file2 file3 2>/dev/null` in one Bash call instead of separate Grep tool calls. Use when checking imports across 2–4 known files. (2026-03-18)
-- When user says "X is not showing / old panel still showing": check page.tsx imports + JSX first (single grep call) before reading component files. Root cause is almost always at the page level. (2026-03-18)
-- Layout "dead space at bottom" fix order: (1) check grid containers for missing `grid-rows-[1fr]` — auto rows don't fill `h-full` grid containers; (2) add `min-h-0` to intermediate flex containers; (3) verify `h-dvh` is on root. Grid track sizing is the most common culprit — check it first before reading child components. (2026-03-18)
-- Prefer `timeout 90 git push 2>&1` over background push. Background push requires 3 turns (launch + wait + read). Synchronous push with explicit timeout is 1 turn. Pre-push TS checks take ~60s — 90s is sufficient. (2026-03-18)
-- When editing a large component (e.g. Radar.tsx), run ALL edits in one message with parallel Edit tool calls where edits are independent (different line ranges, no ordering dependency). Do not interleave reads between edits. (2026-03-18)
+- For large components (Radar.tsx, 4000+ lines): `grep -n "pattern"` first → get line numbers → `Read offset+limit` on relevant block only. Never read the full file for a targeted edit. (2026-03-18)
+- Multi-file search: `grep -n "pattern" file1 file2 file3 2>/dev/null` in one Bash call. Use when checking imports across 2–4 known files. (2026-03-18)
+- When editing a large component, run ALL edits in one message with parallel Edit tool calls where line ranges are independent. Do not interleave reads between edits. (2026-03-18)
+- Prefer `timeout 90 git push 2>&1` over background push — synchronous, 1 turn. Pre-push TS checks take ~60s; 90s is sufficient. (2026-03-18)
+- Scan discipline: extract only function signatures, key conditions, queries, critical logic paths. Multiple matches → return top 2–3 only. Large files → scan, do not dump.
+- Prop threading: when a server component needs to pass live data to a stateless child, compute a typed stats struct in the page and thread it down. Avoids a new API route. Pattern: `page.tsx → Parent({stats}) → Child({stats})`. (2026-03-18)
+
+### Token Efficiency Rules — Response Format
+
+Default bias: **return less, not more**. Output only what changes understanding or unblocks action.
+
+**Task-type defaults:**
+
+| Task | Output |
+|---|---|
+| Audit / diagnose | findings only → `file:line → fact` |
+| Code change | changed lines only (no surrounding context) |
+| Debug | cause + fix only |
+| "Why?" follow-up | 1–2 sentences max |
+| Search / read | top 2–3 matches, not exhaustive list |
+
+**Format rules:**
+- Findings: `file:line → fact` — one line each, max 2–3 per file
+- Code blocks: max 5 lines, trimmed to the relevant change
+- No explanations unless explicitly requested
+- No repetition or restating context already in the conversation
+- Prefer `file:line` references over quoting code blocks
+- Never exceed 20 lines total without operator request
+
+**Prohibited:**
+- Long explanations of obvious decisions
+- Full file outputs when a reference suffices
+- Architecture summaries not requested
+- Restating what the user just said
+- Verbose reasoning chains — state the conclusion
+- Completionist searching (continuing after answer is found)
+
+**Self-check before every response:**
+1. Is this minimal?
+2. Can it be shorter without losing correctness?
+3. If >20 lines → reduce to ≤10
 
 ### Prompt Execution Rules
 
