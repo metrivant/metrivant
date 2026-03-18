@@ -4404,6 +4404,50 @@ export default function Radar({
                 </div>
               )}
 
+              {/* ── Running Hypothesis ──────────────────────────── */}
+              {!detailLoading && detail?.context?.hypothesis && (
+                <div
+                  className="mt-3 rounded-[14px] border border-[#1a2d18] px-4 py-3.5"
+                  style={{ background: "#070e07" }}
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: `${selectedColor}95` }}>
+                      <span style={{ opacity: 0.6 }}>◈</span>
+                      <span>Running Hypothesis</span>
+                    </div>
+                    {detail.context.confidence_level && (
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em]"
+                        style={{
+                          background:
+                            detail.context.confidence_level === "high"
+                              ? "rgba(46,230,166,0.12)"
+                              : detail.context.confidence_level === "medium"
+                              ? "rgba(245,158,11,0.12)"
+                              : "rgba(100,116,139,0.12)",
+                          color:
+                            detail.context.confidence_level === "high"
+                              ? "#2EE6A6"
+                              : detail.context.confidence_level === "medium"
+                              ? "#f59e0b"
+                              : "#64748b",
+                        }}
+                      >
+                        {detail.context.confidence_level}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm leading-relaxed text-slate-200">
+                    {detail.context.hypothesis}
+                  </p>
+                  {detail.context.strategic_arc && (
+                    <p className="mt-2.5 text-[12px] leading-relaxed text-slate-500">
+                      {detail.context.strategic_arc}
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* ── Stats grid ──────────────────────────────────── */}
               <div className="mt-4 grid grid-cols-3 gap-2.5">
                 <div className="rounded-[14px] border border-[#0f1c0f] bg-[#040904] p-4">

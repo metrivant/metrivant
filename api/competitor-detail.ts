@@ -137,12 +137,31 @@ async function handler(req: ApiReq, res: ApiRes) {
       });
     }
 
+    // 5. Competitor intelligence context (best-effort — non-fatal)
+    let context: {
+      hypothesis:        string | null;
+      confidence_level:  string;
+      strategic_arc:     string | null;
+      signal_count:      number;
+      last_updated_at:   string | null;
+    } | null = null;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: ctxRow } = await (supabase as any)
+        .from("competitor_contexts")
+        .select("hypothesis, confidence_level, strategic_arc, signal_count, last_updated_at")
+        .eq("competitor_id", id)
+        .maybeSingle();
+      context = ctxRow ?? null;
+    } catch { /* non-fatal — context is optional */ }
+
     const runtimeDurationMs = Date.now() - startedAt;
 
     Sentry.setContext("competitor_detail", {
       competitorId: id,
       movementsReturned: movementRows?.length ?? 0,
       signalsReturned: signals.length,
+      hasContext: context !== null,
       runtimeDurationMs,
     });
 
@@ -156,6 +175,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       movements: movementRows ?? [],
       signals,
       monitoredPages: typedPages.map((p) => ({ page_type: p.page_type })),
+      context,
       runtimeDurationMs,
     });
   } catch (error) {

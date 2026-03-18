@@ -69,11 +69,20 @@ export type MonitoredPage = {
   page_type: string;
 };
 
+export type CompetitorContext = {
+  hypothesis:       string | null;
+  confidence_level: string;
+  strategic_arc:    string | null;
+  signal_count:     number;
+  last_updated_at:  string | null;
+};
+
 export type CompetitorDetail = {
   competitor: { id: string; name: string; website_url: string | null };
   movements: CompetitorMovement[];
   signals: CompetitorSignal[];
   monitoredPages: MonitoredPage[];
+  context?: CompetitorContext | null;
 };
 
 export async function getRadarFeed(limit = 24, orgId?: string): Promise<RadarCompetitor[]> {
