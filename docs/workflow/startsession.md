@@ -253,6 +253,7 @@ Batch ≤50 IDs per REST call to avoid Supabase 8-second statement timeout (erro
 - Multiple simultaneous background push failures (exit 124) are always transient SSH timeouts. Verify `git status` vs `origin/main` — if "up to date", all failures are stale noise. Do not retry individually. (2026-03-18)
 - `vercel.json` crons use single-line compact JSON formatting — Edit tool string matching fails on multiline patterns. Use Python `json.load` + `json.dump` to modify vercel.json programmatically. (2026-03-18)
 - tsc incremental cache (`--incremental + tsBuildInfoFile`) does NOT meaningfully reduce check time on this CPU-constrained sandbox (still ~60s warm vs ~85s cold). Bottleneck is CPU not I/O. Async hook is the correct fix; incremental helps only on more capable machines. (2026-03-18)
+- After any Edit to `vercel.json`, immediately validate with `python3 -c "import json; json.load(open('vercel.json')); print('valid')"`. The file is compact single-line JSON — Edit tool brace-counting errors silently produce invalid JSON. Validation takes <1s and catches the class of bug before commit. (2026-03-18)
 
 ### Token Efficiency Rules — Response Format
 
@@ -307,6 +308,7 @@ Default bias: **return less, not more**. Output only what changes understanding 
 - "commit, push" or "commit + push" = stage relevant files, commit with descriptive message, then `git push`. Hook is async — push completes in <5s. No timeout needed. (2026-03-18)
 - "read endsession.md" = execute all endsession steps immediately from session context, no pauses between steps, no user prompts. (2026-03-18)
 - "implement all identified improvements now" or "implement all X now" = execute everything that is safe (low blast radius, no new deps, no schema changes) without requesting per-item approval. Name any skipped items + reason at the end. (2026-03-18)
+- Alert dedup pattern without a signal_id: when a row needs state-tracked one-time alerting but has no natural unique key to use in the `alerts` table, use a sentinel column on the source row itself (`_alerted_at TIMESTAMPTZ NULL`). `check-signals` queries `WHERE _alerted_at IS NULL`, sends email, then `UPDATE SET _alerted_at = now()`. No separate join table needed. Pattern used in `competitor_contexts.hypothesis_shift_alerted_at`. (2026-03-18)
 - When given a multi-part prompt (e.g. layout fix + grid visibility), execute ALL parts in one pass. Do not implement part 1, report, then ask to continue. Surface is already approved — complete the full scope. (2026-03-18)
 
 ---
@@ -380,7 +382,7 @@ print(json.dumps(rows, indent=2))
 
 ## 8. KNOWN SYSTEM BEHAVIOUR (do not mistake for bugs)
 
-**Quick triage index:** `radarClip` | `zoom-transform` | `background-tsc` | `cascade/FK` | `pipeline-tables` | `feeds-dormant` | `bootstrap-deadlock` | `onboard-url` | `CSS-grid/flex` | `sentry-monitors` | `maxDuration` | `pool-events-types` | `realtime-cdc` | `AI-handlers-timeout` | `competitor-sector`
+**Quick triage index:** `radarClip` | `zoom-transform` | `background-tsc` | `cascade/FK` | `pipeline-tables` | `feeds-dormant` | `bootstrap-deadlock` | `onboard-url` | `CSS-grid/flex` | `sentry-monitors` | `maxDuration` | `pool-events-types` | `realtime-cdc` | `AI-handlers-timeout` | `competitor-sector` | `scrapingbee-fallback` | `sentry-alerting` | `pool-zero-result`
 Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
 
 - [B] `competitors` table has NO `sector` column. Sector is stored on `organizations` and reached via
@@ -497,6 +499,25 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
 - Migrations 046 (`discovery_candidates`) and 047 (`last_fetched_at`) must be run in Supabase SQL Editor
   before their respective features activate. Both are swallowed-error non-blocking until applied.
 
+- [B] ScrapingBee fallback in `fetch-snapshots`: when `outcome.failureClass === "challenge_page"`,
+  the handler retries via ScrapingBee premium proxy (`render_js=false`, 15s timeout). Gated on
+  `SCRAPINGBEE_API_KEY` env var — if absent, fallback is silently skipped. Fallback does NOT increase
+  `last_fetched_at` on failure; it may still return `challenge_page` if ScrapingBee is also blocked.
+  URL still marked failed — health_state will remain `challenge` or `unresolved`. (2026-03-18)
+
+- [B] Sentry alerting is entirely Sentry UI-configured — no code path controls notification routing.
+  All `captureCheckIn`, `captureException`, and `captureMessage` calls emit correctly in code, but
+  whether the operator receives an email/Slack notification depends on alert rules in Sentry UI.
+  If a cron monitor fails at 2am and no alert rule exists, it is silently observable-only.
+  Action required at session end: verify Sentry UI → Alerts has rules for cron monitor missed/error
+  and for warning-level messages. (2026-03-18)
+
+- [B] Pool ingest zero-result warning pattern: all 6 active pool ingest handlers now emit
+  `captureMessage("ingest_X_empty_entries", "warning")` when feeds succeed but produce 0 new events
+  and 0 duplicates. Condition: `feedsTotal > 0 && feedsIngested > 0 && eventsInserted === 0 && eventsDuplicate === 0`.
+  Procurement/regulatory use `totalSources`/`sourcesIngested` instead of `feedsTotal`/`feedsIngested`.
+  ingest-media-feeds does NOT follow this pattern (writes to sector_narratives directly, not pool_events). (2026-03-18)
+
 - Sentry cron monitors must be created manually in the Sentry UI — they are NOT auto-created from
   check-in calls alone. If a handler emits `captureCheckIn` but no monitor exists, the check-in is
   silently discarded. After any new cron handler is added, create the matching monitor in
@@ -513,15 +534,17 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
   to prevent double-init when instrumentation.ts has already run.
 
 - Watchdog covers pipeline_events stages: snapshot, extract, diff, signal, interpret, baseline,
-  movement_synthesis (90m threshold), radar_narrative (120m threshold). It does NOT cover
-  generate-sector-intelligence (3×/week — too infrequent for freshness check), detect-movements,
-  or any once-daily/weekly cron. For those, rely on Sentry cron monitor "missed" detection.
+  movement_synthesis (90m), radar_narrative (120m), and all 6 pool ingest stages:
+  feed_ingest, careers_ingest, investor_ingest, product_ingest, procurement_ingest, regulatory_ingest
+  (each 90m threshold — 1.5× hourly cadence). Updated 2026-03-18.
+  NOT covered: generate-sector-intelligence (3×/week — too infrequent), detect-movements,
+  once-daily/weekly crons. For those, rely on Sentry cron monitor "missed" detection.
 
-- AI-heavy runtime handlers (interpret-signals, synthesize-movement-narratives,
-  generate-radar-narratives, generate-sector-intelligence, suggest-selector-repairs) require explicit
-  `maxDuration` in vercel.json `functions` block. Without it, Vercel Pro default (15s) applies and
-  AI calls time out silently. Set 2026-03-17: interpret-signals=30s, narratives=90s, sector=90s,
-  repairs=60s. Frontend cron routes require `export const maxDuration = N` in the route file itself.
+- All 36 runtime cron handlers now have explicit `maxDuration` in vercel.json `functions` block
+  (DB-only handlers: 30s; network/AI handlers: 60s; heavy AI handlers: 90s). Updated 2026-03-18.
+  Without explicit maxDuration, Vercel Pro default (15s) applies and any handler making external
+  network or OpenAI calls times out silently. Frontend cron routes require `export const maxDuration = N`
+  in the route file itself — vercel.json `functions` block only applies to runtime routes.
 
 ---
 
