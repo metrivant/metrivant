@@ -21,7 +21,6 @@ import { deriveActivityEchoes, isWeakSignal as getIsWeakSignal, detectHiringSurg
 import { confidenceLanguage, signalAgeColor } from "../lib/confidence";
 import { computeTensionLinks, getTensionDescription, type TensionLink } from "../lib/tension";
 import { computePressureIndex } from "../lib/pressure";
-import { generateMicroInsights } from "../lib/microInsights";
 import ActivityTimeline from "./ActivityTimeline";
 
 // ─── Radar geometry ──────────────────────────────────────────────────────────
@@ -279,16 +278,6 @@ function getZoneNodePosition(
     x: CENTER + r * Math.cos(angle),
     y: CENTER + r * Math.sin(angle),
   };
-}
-
-// Trail dots from center toward node — direction matches actual node position.
-function getTrailPointsFromPos(nx: number, ny: number): Point[] {
-  const dx = nx - CENTER;
-  const dy = ny - CENTER;
-  return [0.22, 0.40, 0.58, 0.76].map((factor) => ({
-    x: CENTER + dx * factor,
-    y: CENTER + dy * factor,
-  }));
 }
 
 function getNodeSize(momentum: number): number {
@@ -645,8 +634,6 @@ const BlipNode = memo(function BlipNode({
     Date.now() - new Date(competitor.last_signal_at).getTime() < 24 * 60 * 60 * 1000;
   const radius = radiusScale(momentum);
   const { x, y } = gravityPos ?? getNodePosition(index, total, radius);
-  // Trail dots: suppress for dormant (no movement history); direction follows actual position.
-  const trail = (gravityMode || isDormantNode) ? [] : getTrailPointsFromPos(x, y);
   const color = competitor.latest_movement_type
     ? getMovementColor(competitor.latest_movement_type)
     : competitor.latest_signal_type
@@ -683,18 +670,6 @@ const BlipNode = memo(function BlipNode({
       onHoverStart={() => { setHovered(true); getAudioManager().playBlip(momentum); }}
       onHoverEnd={() => setHovered(false)}
     >
-      {/* Trail dots — motion history leading to blip */}
-      {trail.map((point, pi) => (
-        <circle
-          key={pi}
-          cx={point.x}
-          cy={point.y}
-          r={2 + pi * 1}
-          fill={color}
-          opacity={0.06 + pi * 0.07}
-        />
-      ))}
-
       {/* Signal age atmospheric glow — larger + more diffuse in Gravity Mode (influence sphere) */}
       {!isDimmed && !timeDimmed && signalAgeGlow > 0.18 && (
         <circle
@@ -1288,23 +1263,6 @@ export default function Radar({
 
   // ── Pressure Index ───────────────────────────────────────────────────────
   const pressureState = useMemo(() => computePressureIndex(sorted), [sorted]);
-
-  // ── Micro Insights ───────────────────────────────────────────────────────
-  const insights = useMemo(() => generateMicroInsights(sorted), [sorted]);
-  const [insightIndex, setInsightIndex] = useState(0);
-  const [insightVisible, setInsightVisible] = useState(true);
-  useEffect(() => {
-    if (insights.length <= 1) return;
-    const id = setInterval(() => {
-      setInsightVisible(false);
-      setTimeout(() => {
-        setInsightIndex((prev) => (prev + 1) % insights.length);
-        setInsightVisible(true);
-      }, 400);
-    }, 9000);
-    return () => clearInterval(id);
-  }, [insights.length]);
-  const currentInsight = insights[insightIndex] ?? null;
 
   // ── Strategic Tension ────────────────────────────────────────────────────
   // Deterministic: requires shared movement_type + momentum ≥ 1.5 on both nodes.
@@ -2645,17 +2603,6 @@ export default function Radar({
                           }}
                           style={{ transformOrigin: `${cx}px ${cy}px` }}
                         />
-                        <text
-                          x={cx} y={cy - maxR - 6}
-                          textAnchor="middle"
-                          fill={color}
-                          fontSize="8"
-                          opacity={isHeated ? 0.42 : 0.28}
-                          letterSpacing="0.14em"
-                          fontFamily="Inter, system-ui, sans-serif" fontWeight="600"
-                        >
-                          {label} · {positions.length} rivals{isHeated ? " · rising" : ""}
-                        </text>
                       </g>
                     );
                   })}
@@ -3025,26 +2972,6 @@ export default function Radar({
                 </button>
               )}
             </div>
-
-            {/* ── Micro Insight overlay — rotating deterministic observation ── */}
-            {/* Shown only when no node is selected and no alert is active.       */}
-            {!selected && !alertActive && currentInsight && (
-              <div
-                className="pointer-events-none absolute bottom-[44px] left-0 right-0 flex justify-center"
-                style={{
-                  zIndex: 10,
-                  opacity: insightVisible ? 1 : 0,
-                  transition: "opacity 0.4s ease",
-                }}
-              >
-                <span
-                  className="text-[9px] uppercase tracking-[0.22em]"
-                  style={{ color: "rgba(46,230,166,0.26)" }}
-                >
-                  {currentInsight}
-                </span>
-              </div>
-            )}
 
             {/* ── Critical alert banner overlay ──────────────────────── */}
             {/* Positioned inside the radar SVG container so it overlays the
