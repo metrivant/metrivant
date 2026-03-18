@@ -44,6 +44,63 @@ interface PoolEventRow {
   program_name:    string | null;
 }
 
+// ── Procurement metadata extraction ───────────────────────────────────────────
+// Extracts buyer_name, currency, program_name, region, and deal value from
+// free-text title + summary. Best-effort; null on no match.
+
+function extractProcurementMetadata(title: string, summary: string | null): {
+  buyerName:   string | null;
+  currency:    string | null;
+  programName: string | null;
+  region:      string | null;
+  dealValueM:  number | null;
+} {
+  const text = `${title} ${summary ?? ""}`;
+
+  // buyer_name: "awarded by [Agency]", "issued by [Agency]", etc.
+  const buyerMatch = text.match(
+    /(?:awarded by|issued by|contract from|procured by|purchased by)\s+([A-Z][^.,\n]{2,60}?)(?:\s*[.,]|\s+for|\s+to\b)/i
+  );
+  const buyerName = buyerMatch?.[1]?.trim() ?? null;
+
+  // currency detection
+  const currencyMatch = text.match(/\b(USD|GBP|EUR|AUD|CAD|JPY|£|€|\$)/);
+  const currency = currencyMatch?.[1] ?? (text.includes("$") ? "USD" : null);
+
+  // program_name: "under the [Program] program/contract/initiative/framework/vehicle"
+  const programMatch = text.match(
+    /(?:under the?|via the?|through the?)\s+([A-Z][^.,\n]{2,80}?)\s+(?:program|contract|initiative|framework|vehicle)/i
+  );
+  const programName = programMatch?.[1]?.trim() ?? null;
+
+  // region: military commands, full country/region names, or US state abbreviations
+  const regionPatterns: RegExp[] = [
+    /\b(CONUS|OCONUS|CENTCOM|INDO-PACOM|EUCOM|AFRICOM)\b/,
+    /\b(United States|UK|United Kingdom|Australia|Germany|France|Canada|Middle East|Europe|Asia Pacific|Indo-Pacific)\b/i,
+    /\b([A-Z]{2})\b(?=\s+(?:state|region|territory))/,
+  ];
+  let region: string | null = null;
+  for (const p of regionPatterns) {
+    const m = text.match(p);
+    if (m) { region = m[1]; break; }
+  }
+
+  // deal value — normalised to $M equivalent
+  const valuePatterns: Array<{ r: RegExp; mult: number }> = [
+    { r: /\$\s*([\d,.]+)\s*B/i,   mult: 1000 },
+    { r: /\$\s*([\d,.]+)\s*M/i,   mult: 1    },
+    { r: /([\d,.]+)\s*billion/i,  mult: 1000 },
+    { r: /([\d,.]+)\s*million/i,  mult: 1    },
+  ];
+  let dealValueM: number | null = null;
+  for (const { r, mult } of valuePatterns) {
+    const m = text.match(r);
+    if (m) { dealValueM = parseFloat(m[1].replace(/,/g, "")) * mult; break; }
+  }
+
+  return { buyerName, currency, programName, region, dealValueM };
+}
+
 // ── Signal hash ────────────────────────────────────────────────────────────────
 // sha256(competitorId:procurementEventType:contentHash)[:32]
 // When a stable contract_id is available, anchor to that instead of content_hash
@@ -137,6 +194,31 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     for (const event of events) {
       const classification = classifyProcurementEvent(event.title, event.summary, event.contract_value);
+      let confidence = classification.confidence;
+
+      // ── Deal scale boost ────────────────────────────────────────────────────
+      // Extract structured metadata from free text; boost confidence for larger deals.
+      const { buyerName, currency, programName, region, dealValueM } =
+        extractProcurementMetadata(event.title, event.summary);
+
+      // Update pool_event with extracted metadata (best-effort, non-blocking).
+      // Only send the update when at least one field was extracted to avoid
+      // unnecessary round-trips on events that already have structured data.
+      if (buyerName || currency || programName || region) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        void (supabase as any)
+          .from("pool_events")
+          .update({ buyer_name: buyerName, currency, program_name: programName, region })
+          .eq("id", event.id)
+          .catch(() => {}); // non-blocking
+      }
+
+      if (dealValueM !== null) {
+        if (dealValueM >= 1000)      confidence = Math.min(1.0, confidence + 0.12); // $1B+
+        else if (dealValueM >= 100)  confidence = Math.min(1.0, confidence + 0.07); // $100M+
+        else if (dealValueM >= 10)   confidence = Math.min(1.0, confidence + 0.03); // $10M+
+      }
+
       const signalHash = computeProcurementSignalHash(
         event.competitor_id,
         classification.procurementEventType,
@@ -145,7 +227,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       );
       eventMeta.set(event.id, {
         procurementEventType: classification.procurementEventType,
-        confidence:           classification.confidence,
+        confidence,
         signalHash,
         isHighValue:          HIGH_VALUE_PROCUREMENT_TYPES.has(classification.procurementEventType as never),
       });

@@ -32,6 +32,31 @@ interface PoolEventRow {
   content_hash:   string;
 }
 
+// ── Deal value extraction ──────────────────────────────────────────────────────
+// Parses dollar / pound / euro amounts from event text.
+// Returns normalised value in $M equivalent, or null if no amount found.
+
+function extractDealValue(text: string): number | null {
+  const patterns: Array<[RegExp, boolean]> = [
+    [/\$\s*([\d,.]+)\s*B(?:illion)?/i,   true],
+    [/\$\s*([\d,.]+)\s*M(?:illion)?/i,   false],
+    [/£\s*([\d,.]+)\s*B(?:illion)?/i,    true],
+    [/£\s*([\d,.]+)\s*M(?:illion)?/i,    false],
+    [/EUR\s*([\d,.]+)\s*B(?:illion)?/i,  true],
+    [/EUR\s*([\d,.]+)\s*M(?:illion)?/i,  false],
+    [/([\d,.]+)\s*billion/i,             true],
+    [/([\d,.]+)\s*million/i,             false],
+  ];
+  for (const [p, isBillion] of patterns) {
+    const m = text.match(p);
+    if (m) {
+      const raw = parseFloat(m[1].replace(/,/g, ""));
+      return isBillion ? raw * 1000 : raw;
+    }
+  }
+  return null;
+}
+
 // ── Signal hash ────────────────────────────────────────────────────────────────
 // sha256(competitorId:investorEventType:contentHash)[:32]
 // Anchored to the pool_event's content_hash — one signal per unique investor event.
@@ -117,6 +142,19 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     for (const event of events) {
       const classification = classifyInvestorEvent(event.title, event.summary);
+      let confidence = classification.confidence;
+
+      // ── Deal scale boost ────────────────────────────────────────────────────
+      // Larger announced deal values are higher-certainty signals regardless of
+      // keyword tier. Boosts are additive and capped at 1.0.
+      const combinedText = `${event.title ?? ""} ${event.summary ?? ""}`;
+      const dealValueM = extractDealValue(combinedText);
+      if (dealValueM !== null) {
+        if (dealValueM >= 1000)      confidence = Math.min(1.0, confidence + 0.12); // $1B+
+        else if (dealValueM >= 100)  confidence = Math.min(1.0, confidence + 0.07); // $100M+
+        else if (dealValueM >= 10)   confidence = Math.min(1.0, confidence + 0.03); // $10M+
+      }
+
       const signalHash = computeInvestorSignalHash(
         event.competitor_id,
         classification.investorEventType,
@@ -124,7 +162,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       );
       eventMeta.set(event.id, {
         investorEventType: classification.investorEventType,
-        confidence:        classification.confidence,
+        confidence,
         signalHash,
       });
     }

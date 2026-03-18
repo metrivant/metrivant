@@ -39,6 +39,8 @@
     { "path": "/api/promote-baselines",                      "schedule": "0 2 * * *"     },
     { "path": "/api/retention",                              "schedule": "0 3 * * *"     },
     { "path": "/api/suggest-selector-repairs",               "schedule": "0 4 * * *"     },
-    { "path": "/api/watchdog",                               "schedule": "*/15 * * * *"  }
+    { "path": "/api/watchdog",                               "schedule": "*/15 * * * *"  },
+    { "path": "/api/reconcile-pool-events",                  "schedule": "30 22 * * *"   },
+    { "path": "/api/detect-pool-sequences",                  "schedule": "45 22 * * *"   }
   ]
 }
