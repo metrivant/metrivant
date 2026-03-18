@@ -249,6 +249,8 @@ Batch ≤50 IDs per REST call to avoid Supabase 8-second statement timeout (erro
 - Prop threading: when a server component needs to pass live data to a stateless child, compute a typed stats struct in the page and thread it down. Avoids a new API route. Pattern: `page.tsx → Parent({stats}) → Child({stats})`. (2026-03-18)
 - When a large component (~4000 lines) has a visual element that "doesn't appear": check `radarClip` / `clipPath` containment before reading the full render tree. One grep for the element key + one Read offset+limit to confirm its parent group resolves the issue in 2 tool calls. (2026-03-18)
 - Agent tool for Radar.tsx edits: prefer a single agent with full instructions over sequential back-and-forth. Agent reads the full file once, makes all edits, runs tsc, commits. Saves 4–6 turns per multi-edit session. (2026-03-18)
+- Supabase Security Advisor warnings (RLS Disabled, Security Definer Views): before hardening, grep for `.from('table_name')` and `.from('view_name')` across api/ + lib/ + radar-ui/ to confirm actual access pattern. In this codebase all flagged views are service-role-only — REVOKE from anon/authenticated resolves warnings with zero code changes. (2026-03-18)
+- Multiple simultaneous background push failures (exit 124) are always transient SSH timeouts. Verify `git status` vs `origin/main` — if "up to date", all failures are stale noise. Do not retry individually. (2026-03-18)
 
 ### Token Efficiency Rules — Response Format
 
