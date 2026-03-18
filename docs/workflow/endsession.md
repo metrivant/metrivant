@@ -88,6 +88,6 @@ Then continue with fast-path steps 2–4.
 
 ## STANDING QUESTION — ASK AT EVERY SESSION END
 
-> "From a birds-eye view of the current system state: what is the single highest-leverage objective that would maximise the model's capacity and capability in this system?"
+> "From a birds-eye view of the current system state: what is the single highest-leverage objective that Claude Code is capable of achieving at maximum capacity — the task that would take a human engineer the most calendar time, has a clear implementation path, and compounds the most value over time?"
 
 Answer in one paragraph. Do not implement unless explicitly approved.
