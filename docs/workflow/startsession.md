@@ -414,7 +414,11 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
   via `POST /api/activate-feed`.
 
 - `pipeline_events` stage names are short codes, NOT endpoint names:
-  `snapshot` | `extract` | `compare` | `diff` — use these in SQL queries, not full endpoint paths.
+  Cycle stages: `snapshot` | `extract` | `compare` | `diff` — run every crawl cycle, must have recent success.
+  Event-driven stages: `signal` | `interpret` | `movement_synthesis` — only write events when there is pending work.
+  Absence of recent events on signal/interpret/movement_synthesis = healthy quiet pipeline, NOT stale. Only flag
+  warn if active failures exist with no recent recovery in the past 2h. Treat `unknown` (no 48h history) as
+  the only unambiguous "not yet seen" state for event-driven stages.
 
 - The runtime pipeline processes ALL competitors unconditionally — `tracked_competitors` is a radar-ui
   overlay only. Ghost competitors with no org tracking still run through every cron stage.
@@ -460,6 +464,10 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
 - SVG `radarClip` visibility trap: any element inside `<g clipPath="url(#radarClip)">` is clipped to OUTER_RADIUS=420. Elements intended to render in the black space outside the radar circle (orbit rings, HUD corner panels) must be placed OUTSIDE this group. Symptom: element exists in code, is invisible at runtime. Triage: grep for the element key/id, confirm it is not a descendant of the radarClip `<g>`. (2026-03-18)
 
 - HUD zoom-independence pattern: SVG panels that must NOT scale with radar zoom must live in a separate overlay `<svg>` (`position:absolute; inset:0; pointerEvents:none`) sibling to the zoom canvas div — not inside it. The zoom canvas div carries `transform: scale(zoom)` which scales all children uniformly. Node-position connector lines in the overlay require: `overlayX = CENTER + (nodeX - CENTER + pan.x) * zoom`. (2026-03-18)
+
+- CSS `rotate` shorthand (`rotate: "45deg"`) in React inline styles is unreliable cross-browser (CSS Transforms
+  Level 2, not universally supported in React's style object). Always use `transform: "rotate(45deg)"` instead.
+  Applies to SVG arrowheads, rotated elements in inline style props. (2026-03-18)
 
 - Background tsc via `| head -N` reports exit code from `head`, not `tsc`. Exit code 0 does NOT confirm a clean typecheck — always read the output file content. Use `npx tsc --noEmit 2>&1` without piping to get a reliable exit code. (2026-03-18)
 
