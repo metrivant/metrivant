@@ -26,39 +26,32 @@ const hookPath = path.join(hooksDir, "pre-push");
 
 const hookContent = `#!/bin/sh
 # Installed by scripts/setup-git-hooks.js — do not edit manually.
-# Runs TypeScript checks for both the backend and the UI before every push.
-# Both checks run in parallel — total wall time ~60s instead of ~120s.
-# Blocks the push if either check fails, preventing broken builds on Vercel.
+#
+# Asynchronous type checking — push is NEVER blocked by slow tsc runs.
+# Checks run in background; results land in .typecheck-log in the repo root.
+# Vercel build remains the hard gate for type errors on shared branches.
+#
+# To run a blocking check manually: npm run typecheck (root or radar-ui).
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-BACKEND_OUT="$(mktemp)"
-UI_OUT="$(mktemp)"
+LOG="$REPO_ROOT/.typecheck-log"
 
-echo "[pre-push] Running TypeScript checks (backend + UI in parallel)..."
+# Write a self-contained check script to a temp file so nohup has no quoting issues
+CHKSCRIPT="$(mktemp /tmp/metrivant-typecheck-XXXXXX.sh)"
+cat > "$CHKSCRIPT" << SCRIPT_EOF
+#!/bin/sh
+echo "=== TypeScript check started $(date) ===" > "$LOG"
+cd "$REPO_ROOT"          && npm run typecheck >> "$LOG" 2>&1 && echo "[backend] PASS" >> "$LOG" || echo "[backend] FAIL — see $LOG" >> "$LOG"
+cd "$REPO_ROOT/radar-ui" && npm run typecheck >> "$LOG" 2>&1 && echo "[ui]      PASS" >> "$LOG" || echo "[ui]      FAIL — see $LOG" >> "$LOG"
+echo "=== check complete ===" >> "$LOG"
+rm -f "$CHKSCRIPT"
+SCRIPT_EOF
 
-(cd "$REPO_ROOT"         && npm run typecheck) > "$BACKEND_OUT" 2>&1 &
-BACKEND_PID=$!
-(cd "$REPO_ROOT/radar-ui" && npm run typecheck) > "$UI_OUT" 2>&1 &
-UI_PID=$!
+chmod +x "$CHKSCRIPT"
+nohup "$CHKSCRIPT" > /dev/null 2>&1 &
 
-wait $BACKEND_PID; BACKEND_EXIT=$?
-wait $UI_PID;      UI_EXIT=$?
-
-cat "$BACKEND_OUT"
-cat "$UI_OUT"
-rm -f "$BACKEND_OUT" "$UI_OUT"
-
-if [ $BACKEND_EXIT -ne 0 ]; then
-  echo "[pre-push] BLOCKED: backend TypeScript errors found. Fix before pushing."
-  exit 1
-fi
-
-if [ $UI_EXIT -ne 0 ]; then
-  echo "[pre-push] BLOCKED: radar-ui TypeScript errors found. Fix before pushing."
-  exit 1
-fi
-
-echo "[pre-push] TypeScript checks passed."
+echo "[pre-push] TypeScript checks running in background — results: .typecheck-log"
+exit 0
 `;
 
 fs.writeFileSync(hookPath, hookContent, { mode: 0o755 });

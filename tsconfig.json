@@ -5,6 +5,8 @@
     "moduleResolution": "node",
     "lib": ["ES2020"],
     "noEmit": true,
+    "incremental": true,
+    "tsBuildInfoFile": ".tsbuildinfo",
     "rootDir": ".",
     "strict": true,
     "esModuleInterop": true,
