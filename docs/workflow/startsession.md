@@ -246,6 +246,8 @@ Batch ≤50 IDs per REST call to avoid Supabase 8-second statement timeout (erro
 - Multi-file search: `grep -n "pattern" file1 file2 file3 2>/dev/null` in one Bash call instead of separate Grep tool calls. Use when checking imports across 2–4 known files. (2026-03-18)
 - When user says "X is not showing / old panel still showing": check page.tsx imports + JSX first (single grep call) before reading component files. Root cause is almost always at the page level. (2026-03-18)
 - Layout "dead space at bottom" fix order: (1) check grid containers for missing `grid-rows-[1fr]` — auto rows don't fill `h-full` grid containers; (2) add `min-h-0` to intermediate flex containers; (3) verify `h-dvh` is on root. Grid track sizing is the most common culprit — check it first before reading child components. (2026-03-18)
+- Prefer `timeout 90 git push 2>&1` over background push. Background push requires 3 turns (launch + wait + read). Synchronous push with explicit timeout is 1 turn. Pre-push TS checks take ~60s — 90s is sufficient. (2026-03-18)
+- When editing a large component (e.g. Radar.tsx), run ALL edits in one message with parallel Edit tool calls where edits are independent (different line ranges, no ordering dependency). Do not interleave reads between edits. (2026-03-18)
 
 ### Prompt Execution Rules
 
@@ -262,6 +264,10 @@ Batch ≤50 IDs per REST call to avoid Supabase 8-second statement timeout (erro
 - "analyse and improve X — nothing showing" = fix mode. Diagnose data pipeline first (is the source table populated? when does the cron run?) before redesigning UI. (2026-03-18)
 - "X panel is not showing / still seeing old panel" → check page.tsx imports first. If code is correct and deployed, cause is Vercel delay or browser cache. Tell user: Ctrl+Shift+R. (2026-03-18)
 - "commit and push all completions" = batch everything uncommitted into one commit, then push once. (2026-03-18)
+- "commit, push" or "commit + push" = stage relevant files, commit with descriptive message, then `git push` synchronously with 90s timeout. Do not use background push — use `timeout 90 git push 2>&1` so the result is immediate. No separate "wait and read" turns needed. (2026-03-18)
+- "read endsession.md" = execute all endsession steps immediately from session context, no pauses between steps, no user prompts. (2026-03-18)
+- "implement all identified improvements now" or "implement all X now" = execute everything that is safe (low blast radius, no new deps, no schema changes) without requesting per-item approval. Name any skipped items + reason at the end. (2026-03-18)
+- When given a multi-part prompt (e.g. layout fix + grid visibility), execute ALL parts in one pass. Do not implement part 1, report, then ask to continue. Surface is already approved — complete the full scope. (2026-03-18)
 
 ---
 
@@ -459,25 +465,15 @@ print(json.dumps(rows, indent=2))
 
 ## 9. END-OF-TASK CHECK (MANDATORY)
 
-Surface: frontend | runtime | both | none
-Mode: build | fix | diagnose | refactor | document
-Dependencies added: yes / no
-→ declared correctly: yes / no
-Contract changed: yes / no
-→ if yes: impacted surfaces stated: yes / no
-Commit/push: done | pending | not needed
-Expected Vercel target: metrivant-ui | metrivant-runtime | both | none
+**Fast path** — output one line when all pass:
+`surface=X | mode=X | deps=no | contract=no | commit+push=done | target=X`
 
-If task changed:
-- architecture
-- surfaces
-- pipeline
-- shared contracts
+**Slow path** — only expand items that fail or are non-trivial:
+- Dependencies added: name + package.json + surface correct?
+- Contract changed: which surfaces impacted + reviewed?
+- Commit/push pending: why + what action needed?
 
-→ verify this file is still accurate
-→ update if needed
-
-Done = committed → pushed → correct project deployed → no errors
+Done = committed → pushed → correct Vercel project deployed → no build errors
 
 ---
 
