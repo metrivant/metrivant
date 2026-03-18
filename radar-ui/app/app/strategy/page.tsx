@@ -166,7 +166,7 @@ export default async function StrategyPage({
   let analysisAge = "";
 
   try {
-    const { data, error } = await supabase
+    const query = supabase
       .from("strategic_insights")
       .select(
         "id, pattern_type, strategic_signal, description, " +
@@ -177,6 +177,8 @@ export default async function StrategyPage({
       .order("is_major",    { ascending: false })
       .order("confidence",  { ascending: false })
       .limit(20);
+    if (orgId) query.eq("org_id", orgId);
+    const { data, error } = await query;
 
     if (error) {
       fetchError = true;

@@ -2,9 +2,11 @@
 
 Read at start of every session.
 
+Reading order: ORIENTATION → GUARD RAILS → BEHAVIOUR → EXECUTION → REFERENCE → BOOKENDS
+
 ---
 
-## SYSTEM IDENTITY (ENFORCED)
+## 1. SYSTEM IDENTITY (ENFORCED)
 
 Metrivant = deterministic competitive intelligence system.
 
@@ -23,7 +25,7 @@ If architecture change is explicitly requested:
 
 ---
 
-## SURFACES & DEPLOYMENT (HARD BOUNDARY)
+## 2. SURFACES & DEPLOYMENT (HARD BOUNDARY)
 
 Runtime:
 - dirs: api/, lib/, migrations/
@@ -53,7 +55,7 @@ If missing → manually verify imports vs package.json
 
 ---
 
-## SESSION GATE (MANDATORY)
+## 3. SESSION GATE (MANDATORY)
 
 Before any work:
 
@@ -67,11 +69,7 @@ If mode changes mid-session:
 → restate mode
 → re-confirm surface
 
----
-
-## MODE INFERENCE RULE
-
-When the user does not state a mode explicitly:
+**MODE INFERENCE** — when mode is not stated explicitly:
 
 | Task description                          | Infer mode  |
 |-------------------------------------------|-------------|
@@ -79,12 +77,11 @@ When the user does not state a mode explicitly:
 | "fix", "it's broken", "not working"       | fix         |
 | "add", "build", "implement"               | build       |
 | "clean up", "simplify", "improve"         | refactor    |
+| "analyse and improve X — nothing showing" | fix         |
 
 State the inferred mode at the start of the session. Stop and ask only if genuinely ambiguous.
 
----
-
-## MODE RULES
+**MODE RULES:**
 
 diagnose:
 - read-only
@@ -101,7 +98,9 @@ build / fix:
 
 ---
 
-## HIGH BLAST RADIUS (SHARED DEFINITION)
+## 4. GUARD RAILS
+
+### High Blast Radius (shared definition)
 
 High blast radius =
 - affects pipeline behavior
@@ -113,9 +112,7 @@ High blast radius =
 
 Everything else = low blast radius
 
----
-
-## CONTRACT-CHANGE GATE (CRITICAL)
+### Contract-Change Gate (critical)
 
 If a change affects:
 - function signatures used elsewhere
@@ -130,9 +127,24 @@ If a change affects:
 → state impacted surface(s)
 → if cross-boundary or high blast radius: STOP and request approval
 
+### Stop Conditions (critical)
+
+STOP if:
+- surface unclear
+- mode unclear
+- dependency ownership unclear
+- deployment target unclear
+- high-risk mismatch detected
+- change crosses surfaces unintentionally
+- new external dependency introduced without verification
+
+Never guess.
+
 ---
 
-## ADAPTIVE REFINEMENT (CONTROLLED)
+## 5. BEHAVIOUR DURING WORK
+
+### Adaptive Refinement (controlled)
 
 If code reality differs from prompt/spec:
 
@@ -160,24 +172,99 @@ detect → classify → propose if needed → approve if high-risk → execute
 
 Never silently refine architecture or system behavior.
 
+### Opportunistic Improvement (auto-apply)
+
+If a clearly scoped, low-risk, high-leverage improvement or clarification is identified during the session,
+implement it immediately without expanding scope.
+
+Criteria for auto-apply (ALL must be true):
+- contained within one file or one component
+- improves correctness, visibility, or determinism
+- no new abstractions, no new systems, no new dependencies
+- no change to contracts, exports, API shapes, or cross-surface behavior
+
+If any criterion is uncertain → treat as high-risk mismatch (propose first).
+
+Do NOT use this rule to:
+- add features not requested
+- refactor working code for style
+- introduce new patterns
+
 ---
 
-## STOP CONDITIONS (CRITICAL)
+## 6. EXECUTION PROTOCOLS
 
-STOP if:
-- surface unclear
-- mode unclear
-- dependency ownership unclear
-- deployment target unclear
-- high-risk mismatch detected
-- change crosses surfaces unintentionally
-- new external dependency introduced without verification
+### Diagnostic Efficiency Protocol
 
-Never guess.
+Use this order for diagnose sessions. Stop at the level that answers the question.
+
+```
+1. Health endpoint          → system-wide snapshot (fastest, one call)
+2. pipeline_events          → which stage is failing and when
+3. Targeted SQL             → count/distribution before reading code
+4. Code (offset+limit)      → only if SQL doesn't explain the cause
+5. git log                  → always check recent commits before concluding
+```
+
+Never read source files before checking health + pipeline_events first.
+Never use specific column names in REST queries before doing `limit=1&select=*` to learn the schema.
+
+**UI "missing data" triage order:** (2026-03-18)
+```
+1. Check page.tsx imports + JSX (grep -n "ComponentName" page.tsx) — stale import most common cause
+2. Check if source table is populated (REST count query)
+3. Check when the populating cron last ran (pipeline_events or Vercel cron logs)
+4. If code + data are correct → deployment delay or browser cache (tell user: Ctrl+Shift+R)
+```
+
+**Bulk delete order for non-CASCADE tables (competitor cleanup):**
+```
+1. signal_feedback          (references signals)
+2. interpretations          (references signals)
+3. signals                  (references section_diffs)
+4. section_diffs            (references page_sections)
+5. page_sections            (references snapshots)
+6. section_baselines        (references monitored_pages)
+7. snapshots                (references monitored_pages)
+8. monitored_pages          (references competitors)
+9. strategic_movements      (references competitors — no CASCADE)
+10. tracked_competitors     (references competitors)
+11. competitors             (root row)
+```
+Batch ≤50 IDs per REST call to avoid Supabase 8-second statement timeout (error 57014).
+
+### Token Efficiency Rules
+
+- Parallel tool calls for independent queries — SQL + code read in the same message when not dependent.
+- Use `limit=1&select=*` to discover schema before using specific column filters.
+- Use `offset+limit` when reading large files — read only the relevant section.
+- Read git log before reading code — commit messages often explain "why" and prevent unnecessary file reads.
+- Count/distribution queries before full row fetches: confirm scale before fetching all data.
+- Stop reading when root cause is confirmed — do not continue for completeness.
+- For large components (Radar.tsx, 4000+ lines): use `grep -n "pattern"` first to get line numbers, then `Read offset+limit` on only the relevant block. Never read the full file for a targeted edit. (2026-03-18)
+- When a server component needs to pass live data to a child component that currently takes no props: compute a small typed stats struct in the page, thread it through one intermediate component as an optional prop. Avoids a new API route. Pattern: `page.tsx → ParentComponent({stats}) → ChildComponent({stats})`. (2026-03-18)
+- Multi-file search: `grep -n "pattern" file1 file2 file3 2>/dev/null` in one Bash call instead of separate Grep tool calls. Use when checking imports across 2–4 known files. (2026-03-18)
+- When user says "X is not showing / old panel still showing": check page.tsx imports + JSX first (single grep call) before reading component files. Root cause is almost always at the page level. (2026-03-18)
+
+### Prompt Execution Rules
+
+- One step at a time means: do the step, report findings, wait. Do not auto-advance to next step.
+- Report findings before proposing fixes. In diagnose mode, findings first, fix proposal second.
+- When a fix is approved: state the plan (1–3 lines), list the file(s), implement, type-check, commit, push.
+- Do not summarise what was done after a commit — the diff speaks for itself. Skip trailing summaries.
+- "pipeline audit" = diagnose mode, both surfaces. Proceed stage-by-stage, one stage per turn.
+- "comprehensive report" with open questions = document mode. Generate the report to a file in docs/, commit it. List the open questions to the user at the end — do not guess answers.
+- When Supabase REST returns error 57014 (statement timeout): switch to batched deletes ≤50 rows per call. Never retry the same large delete — it will time out again.
+- When asked "are there other high-leverage improvements?" → give a structured tier analysis (impact × effort), do not implement unless explicitly approved.
+- When user says "implement all tiers" or "proceed" → implement everything safe; explicitly name what is skipped and why (risk, complexity, missing prerequisite).
+- Multiple rapid user messages during a session accumulate as a queue. Complete the current task fully before addressing the next. Do not stop mid-implementation to acknowledge queued messages. (2026-03-18)
+- "analyse and improve X — nothing showing" = fix mode. Diagnose data pipeline first (is the source table populated? when does the cron run?) before redesigning UI. (2026-03-18)
+- "X panel is not showing / still seeing old panel" → check page.tsx imports first. If code is correct and deployed, cause is Vercel delay or browser cache. Tell user: Ctrl+Shift+R. (2026-03-18)
+- "commit and push all completions" = batch everything uncommitted into one commit, then push once. (2026-03-18)
 
 ---
 
-## QUERY EXECUTION — NO SUPABASE CLI
+## 7. QUERY EXECUTION — NO SUPABASE CLI
 
 `supabase` CLI is NOT installed. `grep` and `head` are NOT available in the shell environment.
 
@@ -228,63 +315,7 @@ print(json.dumps(rows, indent=2))
 
 ---
 
-## DIAGNOSTIC EFFICIENCY PROTOCOL
-
-Use this order for diagnose sessions. Stop at the level that answers the question.
-
-```
-1. Health endpoint          → system-wide snapshot (fastest, one call)
-2. pipeline_events          → which stage is failing and when
-3. Targeted SQL             → count/distribution before reading code
-4. Code (offset+limit)      → only if SQL doesn't explain the cause
-5. git log                  → always check recent commits before concluding
-```
-
-Never read source files before checking health + pipeline_events first.
-Never use specific column names in REST queries before doing `limit=1&select=*` to learn the schema.
-
-**UI "missing data" triage order:** (2026-03-18)
-```
-1. Check page.tsx imports + JSX (grep -n "ComponentName" page.tsx) — stale import most common cause
-2. Check if source table is populated (REST count query)
-3. Check when the populating cron last ran (pipeline_events or Vercel cron logs)
-4. If code + data are correct → deployment delay or browser cache (tell user: Ctrl+Shift+R)
-```
-
-**Bulk delete order for non-CASCADE tables (competitor cleanup):**
-```
-1. signal_feedback          (references signals)
-2. interpretations          (references signals)
-3. signals                  (references section_diffs)
-4. section_diffs            (references page_sections)
-5. page_sections            (references snapshots)
-6. section_baselines        (references monitored_pages)
-7. snapshots                (references monitored_pages)
-8. monitored_pages          (references competitors)
-9. strategic_movements      (references competitors — no CASCADE)
-10. tracked_competitors     (references competitors)
-11. competitors             (root row)
-```
-Batch ≤50 IDs per REST call to avoid Supabase 8-second statement timeout (error 57014).
-
----
-
-## TOKEN EFFICIENCY RULES
-
-- Parallel tool calls for independent queries — SQL + code read in the same message when not dependent.
-- Use `limit=1&select=*` to discover schema before using specific column filters.
-- Use `offset+limit` when reading large files — read only the relevant section.
-- Read git log before reading code — commit messages often explain "why" and prevent unnecessary file reads.
-- Count/distribution queries before full row fetches: confirm scale before fetching all data.
-- Stop reading when root cause is confirmed — do not continue for completeness.
-- For large components (Radar.tsx, 4000+ lines): use `grep -n "pattern"` first to get line numbers, then `Read offset+limit` on only the relevant block. Never read the full file for a targeted edit. (2026-03-18)
-- When a server component needs to pass live data to a child component that currently takes no props: compute a small typed stats struct in the page, thread it through one intermediate component as an optional prop. Avoids a new API route. Pattern: `page.tsx → ParentComponent({stats}) → ChildComponent({stats})`. (2026-03-18)
-- Multi-file search: `grep -n "pattern" file1 file2 file3 2>/dev/null` in one Bash call instead of separate Grep tool calls. Use when checking imports across 2–4 known files. (2026-03-18)
-- When user says "X is not showing / old panel still showing": check page.tsx imports + JSX first (single grep call) before reading component files. Root cause is almost always at the page level. (2026-03-18)
-
----
-
-## KNOWN SYSTEM BEHAVIOUR (do not mistake for bugs)
+## 8. KNOWN SYSTEM BEHAVIOUR (do not mistake for bugs)
 
 - `strategic_insights` is populated by `/api/strategic-analysis` cron (daily 08:00 UTC). It will be empty
   on a fresh deployment until the cron fires. The Strategy page now has a fallback layer:
@@ -398,28 +429,7 @@ Batch ≤50 IDs per REST call to avoid Supabase 8-second statement timeout (erro
 
 ---
 
-## PROMPT EXECUTION RULES
-
-- One step at a time means: do the step, report findings, wait. Do not auto-advance to next step.
-- Report findings before proposing fixes. In diagnose mode, findings first, fix proposal second.
-- When a fix is approved: state the plan (1–3 lines), list the file(s), implement, type-check, commit, push.
-- Do not summarise what was done after a commit — the diff speaks for itself. Skip trailing summaries.
-- "pipeline audit" = diagnose mode, both surfaces. Proceed stage-by-stage, one stage per turn.
-- "comprehensive report" with open questions = document mode. Generate the report to a file in docs/, commit it. List the open questions to the user at the end — do not guess answers.
-- When Supabase REST returns error 57014 (statement timeout): switch to batched deletes ≤50 rows per call.
-  Never retry the same large delete — it will time out again.
-- When asked "are there other high-leverage improvements?" → give a structured tier analysis (impact × effort),
-  do not implement unless explicitly approved.
-- When user says "implement all tiers" or "proceed" → implement everything safe; explicitly name what is
-  skipped and why (risk, complexity, missing prerequisite).
-- Multiple rapid user messages during a session accumulate as a queue. Complete the current task fully before addressing the next. Do not stop mid-implementation to acknowledge queued messages. (2026-03-18)
-- "analyse and improve X — no patterns/data showing" = fix mode. Always diagnose data pipeline first (is the source table populated? when does the cron run?) before redesigning UI. (2026-03-18)
-- "X panel is not showing / still seeing old panel" — do NOT redesign. Check page.tsx imports first. If code is correct and cron deployed, root cause is Vercel deployment delay or browser cache. Tell user: hard refresh (Ctrl+Shift+R). (2026-03-18)
-- "commit and push all completions during this session" = commit everything uncommitted, then push once. Do not push per-feature — batch into one commit unless features are already partially committed. (2026-03-18)
-
----
-
-## END-OF-TASK CHECK (MANDATORY)
+## 9. END-OF-TASK CHECK (MANDATORY)
 
 Surface: frontend | runtime | both | none
 Mode: build | fix | diagnose | refactor | document
@@ -443,7 +453,7 @@ Done = committed → pushed → correct project deployed → no errors
 
 ---
 
-## END OF SESSION — MANDATORY UPDATE
+## 10. END OF SESSION — MANDATORY UPDATE
 
 At the end of every session, run `docs/workflow/endsession.md` as a checklist.
 
@@ -455,16 +465,16 @@ Sections to update:
 1. **DIAGNOSTIC EFFICIENCY PROTOCOL** — new ordered steps or shortcuts
 2. **TOKEN EFFICIENCY RULES** — patterns that reduced unnecessary reads or calls
 3. **KNOWN SYSTEM BEHAVIOUR** — behaviours confirmed as intentional (not bugs)
-4. **MODE INFERENCE RULE** — new task phrasings mapped to correct session mode
-5. **PROMPT EXECUTION RULES** — new rules about how to interpret and execute instructions
-6. **QUERY EXECUTION** — new REST patterns or shell constraints discovered
+4. **PROMPT EXECUTION RULES** — new rules about how to interpret and execute instructions
+5. **QUERY EXECUTION** — new REST patterns or shell constraints discovered
+6. **OPPORTUNISTIC IMPROVEMENT** — criteria confirmed or refined this session
 
 Commit the update with:
   docs(workflow): update startsession.md — [one-line description of what was learned]
 
 ---
 
-## DOCUMENT AUTHORITY
+## 11. DOCUMENT AUTHORITY
 
 Source of truth:
 - docs/workflow/startsession.md  ← this file
@@ -493,7 +503,7 @@ Rule:
 
 ---
 
-## REFERENCE
+## 12. REFERENCE
 
 Surface rules:
 docs/workflow/SURFACE_OWNERSHIP_RULES.md
