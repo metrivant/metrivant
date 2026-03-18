@@ -210,7 +210,7 @@ export default async function Page() {
   }
 
   return (
-    <main className="page-enter flex h-dvh w-full flex-col overflow-hidden bg-black text-white">
+    <main className="page-enter flex h-full w-full flex-col overflow-hidden bg-black text-white">
 
       {/* ── Realtime sync — invisible, pushes router.refresh() on pipeline events */}
       {orgId && <RadarRealtimeSync orgId={orgId} />}
