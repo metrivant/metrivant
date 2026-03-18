@@ -107,6 +107,23 @@ type ErrorEventRow = {
   created_at:  string;
 };
 
+type CoverageHealthRow = {
+  id:           string;
+  url:          string;
+  page_type:    string;
+  health_state: string | null;
+  competitors:  { name: string } | null;
+};
+
+type RepairSuggestionRow = {
+  id:                string;
+  section_type:      string;
+  proposed_selector: string;
+  confidence:        number;
+  rationale:         string | null;
+  created_at:        string;
+};
+
 // ── Aggregation helpers ───────────────────────────────────────────────────────
 
 type StageStat = {
@@ -249,6 +266,26 @@ function aggregateActivity(rows: ActivityEventRow[]): ActivityStat[] {
     .sort((a, b) => b.count - a.count);
 }
 
+const HEALTH_STATE_COLORS: Record<string, string> = {
+  blocked:    "#ef4444",
+  challenge:  "#f59e0b",
+  degraded:   "#f59e0b",
+  unresolved: "#ef4444",
+};
+
+type HealthStatSummary = { state: string; count: number; color: string };
+
+function aggregateCoverageHealth(rows: CoverageHealthRow[]): HealthStatSummary[] {
+  const byState = new Map<string, number>();
+  for (const r of rows) {
+    const s = r.health_state ?? "unknown";
+    byState.set(s, (byState.get(s) ?? 0) + 1);
+  }
+  return [...byState.entries()]
+    .map(([state, count]) => ({ state, count, color: HEALTH_STATE_COLORS[state] ?? "#64748b" }))
+    .sort((a, b) => b.count - a.count);
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function OpsPage() {
@@ -264,12 +301,14 @@ export default async function OpsPage() {
 
   // ── Data fetches (all non-fatal) ─────────────────────────────────────────────
 
-  let cronRows:     CronRow[]          = [];
-  let pipelineEvts: PipelineEvent[]    = [];
-  let signalRows:   SignalRow[]         = [];
-  let poolRows:     PoolEventRow[]      = [];
-  let activityRows: ActivityEventRow[] = [];
-  let errorRows:    ErrorEventRow[]    = [];
+  let cronRows:     CronRow[]           = [];
+  let pipelineEvts: PipelineEvent[]     = [];
+  let signalRows:   SignalRow[]          = [];
+  let poolRows:     PoolEventRow[]       = [];
+  let activityRows: ActivityEventRow[]  = [];
+  let errorRows:    ErrorEventRow[]     = [];
+  let coverageRows: CoverageHealthRow[] = [];
+  let repairRows:   RepairSuggestionRow[] = [];
   let pendingCount = 0, pendingReviewCount = 0;
 
   try {
@@ -343,6 +382,28 @@ export default async function OpsPage() {
       if (r.status === "pending")        pendingCount++;
       if (r.status === "pending_review") pendingReviewCount++;
     }
+  } catch { /* non-fatal */ }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (service as any)
+      .from("monitored_pages")
+      .select("id, url, page_type, health_state, competitors(name)")
+      .in("health_state", ["blocked", "challenge", "degraded", "unresolved"])
+      .order("health_state")
+      .limit(50);
+    coverageRows = (data ?? []) as CoverageHealthRow[];
+  } catch { /* non-fatal */ }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (service as any)
+      .from("selector_repair_suggestions")
+      .select("id, section_type, proposed_selector, confidence, rationale, created_at")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(20);
+    repairRows = (data ?? []) as RepairSuggestionRow[];
   } catch { /* non-fatal */ }
 
   // ── Aggregations ─────────────────────────────────────────────────────────────
@@ -678,6 +739,109 @@ export default async function OpsPage() {
             </section>
           )}
 
+          {/* ═══════════════════════════════════════════════════════════════
+              SECTION 07 — Coverage Health
+          ═══════════════════════════════════════════════════════════════ */}
+          <section>
+            <SectionHeader
+              index="07"
+              title="Coverage Health"
+              subtitle={
+                coverageRows.length === 0
+                  ? "All monitored pages healthy"
+                  : `${coverageRows.length} page${coverageRows.length !== 1 ? "s" : ""} degraded, blocked, or unresponsive`
+              }
+            />
+            {coverageRows.length === 0 ? (
+              <EmptyState message="All monitored pages reporting healthy status." />
+            ) : (
+              <>
+                <div className="mb-4 flex flex-wrap gap-2">
+                  {aggregateCoverageHealth(coverageRows).map((s) => (
+                    <div
+                      key={s.state}
+                      className="rounded-full px-3 py-1.5 font-mono text-[11px]"
+                      style={{
+                        color:           s.color,
+                        backgroundColor: `${s.color}0e`,
+                        border:          `1px solid ${s.color}30`,
+                      }}
+                    >
+                      {s.state} <span className="opacity-60">{s.count}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="overflow-hidden rounded-[14px] border border-[#0e1e0e]">
+                  <table className="w-full text-[12px]">
+                    <thead>
+                      <tr className="border-b border-[#0e1e0e] bg-[#020802]">
+                        <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Competitor</th>
+                        <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Page</th>
+                        <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">URL</th>
+                        <th className="px-4 py-2.5 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">State</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {coverageRows.map((row) => {
+                        const color = HEALTH_STATE_COLORS[row.health_state ?? ""] ?? "#64748b";
+                        return (
+                          <tr
+                            key={row.id}
+                            className="border-b border-[#0a1a0a] last:border-0 transition-colors hover:bg-[#040c04]"
+                          >
+                            <td className="px-4 py-3 font-mono text-[11px] text-slate-300">
+                              {row.competitors?.name ?? "—"}
+                            </td>
+                            <td className="px-4 py-3 font-mono text-[11px] text-slate-500">
+                              {row.page_type}
+                            </td>
+                            <td className="max-w-[240px] truncate px-4 py-3 font-mono text-[11px] text-slate-700">
+                              {row.url}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <span
+                                className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-mono text-[10px] font-bold"
+                                style={{
+                                  color,
+                                  backgroundColor: `${color}10`,
+                                  border:          `1px solid ${color}28`,
+                                }}
+                              >
+                                <span
+                                  className="h-1.5 w-1.5 rounded-full"
+                                  style={{ backgroundColor: color }}
+                                />
+                                {row.health_state}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </section>
+
+          {/* ═══════════════════════════════════════════════════════════════
+              SECTION 08 — Selector Repair Queue
+          ═══════════════════════════════════════════════════════════════ */}
+          {repairRows.length > 0 && (
+            <section>
+              <SectionHeader
+                index="08"
+                title="Selector Repair Queue"
+                subtitle={`${repairRows.length} pending proposal${repairRows.length !== 1 ? "s" : ""} — AI-generated, awaiting operator review`}
+              />
+              <div className="flex flex-col gap-2">
+                {repairRows.map((r) => (
+                  <RepairRow key={r.id} repair={r} />
+                ))}
+              </div>
+            </section>
+          )}
+
         </div>
       </div>
     </div>
@@ -907,6 +1071,40 @@ function ErrorRow({ error }: { error: ErrorEventRow }) {
             {formatDuration(error.duration_ms)}
           </span>
         )}
+      </div>
+    </div>
+  );
+}
+
+function RepairRow({ repair }: { repair: RepairSuggestionRow }) {
+  const confColor =
+    repair.confidence >= 0.70 ? "#2EE6A6" :
+    repair.confidence >= 0.40 ? "#f59e0b" :
+    "#ef4444";
+  return (
+    <div className="relative overflow-hidden rounded-[12px] border border-[#0e2010] bg-[#020802] px-4 py-3">
+      <div
+        className="absolute inset-y-0 left-0 w-[3px] rounded-l-[12px]"
+        style={{ backgroundColor: "rgba(46,230,166,0.35)" }}
+      />
+      <div className="ml-3 flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[11px] font-bold text-slate-300">{repair.section_type}</span>
+            <span className="text-[10px] text-slate-700">·</span>
+            <span className="font-mono text-[10px] text-slate-600">{formatAge(repair.created_at)}</span>
+          </div>
+          <div className="mt-1 font-mono text-[11px] text-[#2EE6A6]">{repair.proposed_selector}</div>
+          {repair.rationale && (
+            <p className="mt-0.5 text-[11px] text-slate-600">{repair.rationale}</p>
+          )}
+        </div>
+        <div className="shrink-0 text-right">
+          <span className="font-mono text-[13px] font-bold tabular-nums" style={{ color: confColor }}>
+            {Math.round(repair.confidence * 100)}%
+          </span>
+          <div className="mt-0.5 font-mono text-[10px] text-slate-700">confidence</div>
+        </div>
       </div>
     </div>
   );
