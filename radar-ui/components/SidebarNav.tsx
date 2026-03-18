@@ -38,7 +38,7 @@ const NAV_ITEMS: {
   },
   {
     href: "/app/gravity-map",
-    label: "Gravity Map",
+    label: "Gravity Field",
     overlayKey: "map",
     keyBadge: "M",
     icon: (
