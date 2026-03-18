@@ -16,6 +16,7 @@ import { discoverInvestorFeed } from "../lib/investor-feed-discovery";
 import { discoverProductFeed } from "../lib/product-feed-discovery";
 import { discoverEdgarFeed } from "../lib/edgar-discovery";
 import type { Category } from "../lib/url-scorer";
+import { seedSmartRules, getStaticRules, SmartRule } from "../lib/onboarding-selectors";
 
 // Shape written to monitored_pages.discovery_candidates — operator audit trail only.
 // Not read by any pipeline stage.
@@ -39,14 +40,10 @@ type CandidatePage = {
   discovery_candidates?: DiscoveryCandidatesJson;
 };
 
-type ExtractionRule = {
-  section_type: string;
-  selector:     string;
-};
-
 interface InsertedPage {
   id:        string;
   page_type: string;
+  url:       string;
 }
 
 function normalizeUrl(input: string): string {
@@ -68,45 +65,6 @@ const CATEGORY_TO_PAGE: Record<Category, { page_type: string; page_class: Candid
   pricing:                  { page_type: "pricing",   page_class: "high_value" },
 };
 
-// ── Extraction rules per page type ────────────────────────────────────────────
-
-function rulesForPage(pageType: string): ExtractionRule[] {
-  switch (pageType) {
-    case "homepage":
-      return [
-        { section_type: "hero",             selector: "h1"   },
-        { section_type: "headline",         selector: "h2"   },
-        { section_type: "product_mentions", selector: "main" },
-      ];
-    case "pricing":
-      return [
-        { section_type: "pricing_plans",      selector: "main" },
-        { section_type: "pricing_references", selector: "main" },
-      ];
-    case "changelog":
-    case "blog":
-      return [
-        { section_type: "release_feed", selector: "main" },
-        { section_type: "headline",     selector: "h1"   },
-      ];
-    case "features":
-      return [
-        { section_type: "features_overview", selector: "main" },
-        { section_type: "headline",          selector: "h1"   },
-      ];
-    case "newsroom":
-      return [
-        { section_type: "announcements", selector: "main" },
-        { section_type: "headline",      selector: "h1"   },
-      ];
-    case "careers":
-      return [
-        { section_type: "careers_feed", selector: "main" },
-      ];
-    default:
-      return [];
-  }
-}
 
 // ── URL discovery and resolution ───────────────────────────────────────────────
 //
@@ -398,11 +356,25 @@ async function handler(req: ApiReq, res: ApiRes) {
     }
 
     /*
-      3. Ensure extraction rules exist for each page
+      3. Seed extraction rules — LLM-proposed selectors where possible, static fallback otherwise.
+         All pages are seeded in parallel (one HTML fetch + N parallel LLM calls per page).
+         Never throws: seedSmartRules always returns at least the static fallback rules.
     */
 
+    const smartRuleMap = new Map<string, SmartRule[]>();
+    await Promise.all(
+      createdPages.map(async (cp) => {
+        const rules = await seedSmartRules(cp.url, cp.page_type, openaiKey ?? "")
+          .catch(() => getStaticRules(cp.page_type).map((r) => ({ ...r, llm_seeded: false })));
+        smartRuleMap.set(cp.id, rules);
+      })
+    );
+
+    let llmSeededRulesCount = 0;
+
     for (const page of createdPages) {
-      const rules = rulesForPage(page.page_type);
+      const rules = smartRuleMap.get(page.id) ?? getStaticRules(page.page_type).map((r) => ({ ...r, llm_seeded: false }));
+      llmSeededRulesCount += rules.filter((r) => r.llm_seeded).length;
       for (const rule of rules) {
         const { error: ruleError } = await supabase
           .from("extraction_rules")
@@ -741,6 +713,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       unresolved_categories:    unresolved,
       pages_rejected:           rejections.length,
       rejected_pages:           rejections,
+      llm_seeded_rules:         llmSeededRulesCount,
       feed_discovery:           feedDiscoveryStatus,
       ats_discovery:            atsDiscoveryStatus,
       investor_discovery:       investorDiscoveryStatus,
@@ -760,6 +733,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       pages_resolved:           resolved,
       unresolved_categories:    unresolved,
       rejected_pages:           rejections,
+      llm_seeded_rules:         llmSeededRulesCount,
       feed_discovery:           feedDiscoveryStatus,
       ats_discovery:            atsDiscoveryStatus,
       investor_discovery:       investorDiscoveryStatus,
