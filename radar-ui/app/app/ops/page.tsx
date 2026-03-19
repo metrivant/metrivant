@@ -7,6 +7,7 @@ import Link from "next/link";
 import { createClient } from "../../../lib/supabase/server";
 import { createServiceClient } from "../../../lib/supabase/service";
 import { RepairActionRow } from "./RepairActionRow";
+import PipelineTrigger from "../../../components/PipelineTrigger";
 
 export const dynamic = "force-dynamic";
 
@@ -527,6 +528,9 @@ export default async function OpsPage() {
               Real-time view of pipeline health, signal quality, and cron execution.
               Data refreshes on each page load.
             </p>
+            <div className="mt-3">
+              <PipelineTrigger />
+            </div>
           </div>
           <div className="shrink-0 pt-1 text-right">
             <SystemStatusBadge ok={systemOk} staleCrons={staleCrons.length} warnCrons={warnCrons.length} />

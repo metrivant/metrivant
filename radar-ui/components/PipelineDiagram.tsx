@@ -21,76 +21,72 @@ const STAGES: StageInfo[] = [
     id:    "capture",
     index: "01",
     label: "CAPTURE",
-    role:  "Page Acquisition",
+    role:  "Intake",
     description:
-      "Every 30 minutes, Metrivant fetches the full content of every monitored competitor page. " +
-      "Pages are tiered by strategic importance — pricing and changelog pages are captured more " +
-      "frequently than standard pages, which run on a 3-hour cycle. Each fetch is stored verbatim " +
-      "as a timestamped snapshot. No processing occurs at this stage — it is pure data collection.",
-    input:  "Monitored competitor URLs",
-    output: "Raw page snapshots stored with timestamp",
+      "Raw inputs enter the system. Monitored pages are fetched at configured intervals — " +
+      "high-priority targets on tight cycles, standard pages on wider rotations. Each fetch " +
+      "is stored verbatim as a timestamped snapshot. No processing occurs at this stage.",
+    input:  "Monitored page URLs",
+    output: "Timestamped raw snapshots",
     steps: [
-      "URL resolved, redirects followed",
-      "HTTP fetch with timeout and retry",
-      "Raw HTML stored verbatim in Supabase",
-      "Page classified by priority tier (high_value / standard / ambient)",
+      "Target URLs resolved and fetched",
+      "Content stored verbatim with timestamp",
+      "Priority tier determines cycle frequency",
+      "Fetch quality and health state recorded",
     ],
   },
   {
     id:    "parse",
     index: "02",
-    label: "PARSE",
-    role:  "Content Segmentation",
+    label: "EXTRACT",
+    role:  "Segmentation",
     description:
-      "Raw snapshots are segmented into logical sections — pricing tables, feature blocks, " +
-      "headings, body copy, navigation items. Each section is typed and labelled by its role " +
-      "on the page. This segmentation is what enables surgical diff detection: instead of comparing " +
-      "entire pages, Metrivant compares like-for-like sections, reducing false positives dramatically.",
-    input:  "Raw HTML snapshot",
-    output: "Typed page sections (pricing, features, changelog, etc.)",
+      "Structure is isolated from noise. Raw snapshots are segmented into typed content " +
+      "blocks — pricing, features, navigation, body copy. Each section is classified by " +
+      "function and position. This granularity enables surgical change detection downstream.",
+    input:  "Raw page snapshot",
+    output: "Typed content sections",
     steps: [
-      "HTML parsed with CSS selector extraction",
-      "Sections typed by content pattern",
-      "Position and hierarchy recorded",
-      "Extraction quality validated against historical section count",
+      "Content parsed into logical sections",
+      "Each section typed by structural role",
+      "Position and hierarchy indexed",
+      "Extraction quality validated against history",
     ],
   },
   {
     id:    "baseline",
     index: "03",
     label: "BASELINE",
-    role:  "Reference State",
+    role:  "Reference",
     description:
-      "For each section, the first stable version becomes its baseline — the canonical " +
-      "'before' state against which all future content is measured. Baselines are insert-only: " +
-      "they never overwrite, which means Metrivant always knows what a page looked like before " +
-      "any detected change. A new baseline is only established when a section has no prior record.",
-    input:  "Extracted page sections",
-    output: "Immutable reference content per section",
+      "A stable reference state is established for each section. Baselines are immutable — " +
+      "once written, they anchor all future comparisons. Every detected change is measured " +
+      "against a known, stable origin.",
+    input:  "Extracted content sections",
+    output: "Immutable reference per section",
     steps: [
-      "Check if section baseline already exists",
-      "If new section: create baseline from current content",
-      "Baseline is write-once — never updated automatically",
-      "Baseline instability warnings fire when >5 new baselines per page in 7 days",
+      "Existing baseline checked for each section",
+      "New sections anchored with initial reference",
+      "Write-once constraint enforced",
+      "Instability monitored across rolling window",
     ],
   },
   {
     id:    "diff",
     index: "04",
     label: "DIFF",
-    role:  "Change Detection",
+    role:  "Detection",
     description:
-      "New section content is compared against its baseline. Differences are recorded with the " +
-      "full before-and-after text. Noise filters run before any diff is persisted: whitespace-only " +
-      "changes, dynamic timestamps, and UTM parameter variations are discarded. Only substantive " +
-      "content changes advance to the next stage.",
-    input:  "New section content + section baseline",
-    output: "Section diff with change magnitude and before/after excerpts",
+      "Meaningful changes are identified. Current content is compared against its baseline " +
+      "and substantive differences are recorded with full context. Noise filters discard " +
+      "cosmetic variations — only real changes advance.",
+    input:  "Current content + baseline reference",
+    output: "Verified content differences",
     steps: [
       "Character-level comparison against baseline",
-      "Whitespace normalization filter applied",
-      "Dynamic content stripped (timestamps, UTM params)",
-      "Observation count tracked — repeated changes increase confidence",
+      "Noise filters applied (whitespace, dynamic content)",
+      "Change magnitude and context recorded",
+      "Observation count tracked for confidence",
     ],
   },
   {
@@ -99,79 +95,70 @@ const STAGES: StageInfo[] = [
     label: "SIGNAL",
     role:  "Classification",
     description:
-      "Each meaningful diff is classified by signal type: pricing shift, feature launch, " +
-      "positioning change, hiring surge, or content update. A confidence score (0–1) is assigned " +
-      "based on section type, change magnitude, and recency. Low-confidence signals are suppressed " +
-      "automatically. Duplicate signals — the same change detected twice — are eliminated by a " +
-      "content hash. Only unique, high-confidence changes advance to interpretation.",
-    input:  "Section diff",
-    output: "Typed signal with confidence score and strategic context",
+      "Changes are evaluated and classified. Each verified diff is assigned a signal type, " +
+      "confidence score, and strategic context. Low-confidence signals are suppressed. " +
+      "Duplicates are eliminated by content hash. Only unique, high-confidence changes proceed.",
+    input:  "Verified content differences",
+    output: "Typed signals with confidence scores",
     steps: [
-      "Signal typed by section pattern (pricing_strategy_shift, feature_launch, etc.)",
-      "Confidence scored: section weight + recency bonus + observation bonus",
-      "Signals below 0.35 confidence suppressed",
-      "SHA-256 hash deduplication — one unique signal per change",
-      "Signals ≥0.65 confidence sent immediately to intelligence",
+      "Signal type assigned by content pattern",
+      "Confidence scored from multiple factors",
+      "Low-confidence signals suppressed at gate",
+      "Hash-based deduplication enforced",
     ],
   },
   {
     id:    "intelligence",
     index: "06",
     label: "INTELLIGENCE",
-    role:  "AI Interpretation",
+    role:  "Contextualisation",
     description:
-      "Signals are grouped per competitor and interpreted by GPT-4o-mini. The model assesses " +
-      "strategic intent — what the change likely means for the competitor's direction — and writes " +
-      "a concise analyst-quality summary. Each competitor's accumulated intelligence history is " +
-      "prepended as context, so interpretations improve as more signals are observed over time. " +
-      "Temperature is kept low for consistency.",
-    input:  "Grouped signals per competitor",
-    output: "Interpretation: strategic summary, implication, recommended action",
+      "Signals are processed and contextualised. Grouped by competitor, each signal is " +
+      "evaluated for strategic intent — what the change indicates about direction and " +
+      "positioning. Context accumulates over time, improving interpretation quality.",
+    input:  "Classified signals per competitor",
+    output: "Strategic interpretation with context",
     steps: [
-      "Competitor's intelligence context prepended (hypothesis, evidence trail)",
-      "Signals batched per competitor for efficiency",
-      "GPT-4o-mini called at low temperature (0.25) for determinism",
-      "Context updated after each batch — hypothesis evolves with evidence",
+      "Signals grouped by competitor",
+      "Historical context prepended for continuity",
+      "Strategic intent evaluated and summarised",
+      "Context updated with new evidence",
     ],
   },
   {
     id:    "movement",
     index: "07",
     label: "MOVEMENT",
-    role:  "Pattern Confirmation",
+    role:  "Synthesis",
     description:
-      "Interpretations are analyzed for patterns over a 14-day rolling window. A single signal " +
-      "is an observation. A confirmed movement requires multiple signals of coherent type, " +
-      "sufficient confidence, and measurable velocity. When confirmed, the movement is labelled " +
-      "by type (pricing shift, market reposition, enterprise push) and given a narrative summary " +
-      "written by GPT-4o — the most capable model, used specifically for synthesis.",
-    input:  "Interpretations over 14-day window",
-    output: "Confirmed strategic movement with type, confidence, and narrative",
+      "Outputs are synthesised into structured intelligence. Interpretations are analysed " +
+      "across a rolling window for coherent patterns. Confirmed movements require multiple " +
+      "signals, sufficient confidence, and measurable velocity.",
+    input:  "Interpretations across time window",
+    output: "Confirmed strategic movements",
     steps: [
-      "Signals grouped by competitor and movement type",
-      "Minimum confidence threshold and signal count required",
-      "Velocity computed from first-seen to last-seen timestamps",
-      "GPT-4o writes a 2-sentence analyst narrative per movement",
+      "Signals evaluated for pattern coherence",
+      "Confidence and count thresholds enforced",
+      "Velocity computed from temporal spread",
+      "Narrative generated for confirmed movements",
     ],
   },
   {
     id:    "radar",
     index: "08",
     label: "RADAR",
-    role:  "Intelligence Surface",
+    role:  "Output",
     description:
-      "All confirmed movements and signals are assembled into the live radar feed — one record " +
-      "per competitor, ordered by momentum score. Momentum is a composite of signal density, " +
-      "recency, confidence, and movement velocity. The radar renders this as a precision " +
-      "instrument: node position encodes momentum, size reflects activity, and the intelligence " +
-      "drawer surfaces the full evidence chain behind every detected movement.",
-    input:  "Strategic movements + signals + interpretations",
-    output: "Live radar with ranked competitors, momentum scores, and intelligence drawers",
+      "Intelligence is delivered. All confirmed movements and signals are assembled into " +
+      "the live radar surface — one record per competitor, ranked by momentum. The full " +
+      "evidence chain remains accessible behind every detection.",
+    input:  "Movements + signals + interpretations",
+    output: "Live intelligence surface",
     steps: [
-      "Radar feed view computed — one row per competitor",
-      "Competitors ranked by momentum score (accelerating / rising / stable / cooling)",
-      "Evidence chain assembled: movement → signals → diffs → raw content",
-      "UI renders nodes as radar blips; selected competitor reveals full intelligence",
+      "Feed computed — one record per competitor",
+      "Competitors ranked by momentum score",
+      "Evidence chain assembled end-to-end",
+      "Surface rendered with full drill-down",
     ],
   },
 ];
@@ -258,31 +245,35 @@ export default function PipelineDiagram({ initialStages }: Props) {
       {/* ── Keyframe animations ──────────────────────────────────────────── */}
       <style>{`
         @keyframes flow-right {
-          0%   { left: -8px;  opacity: 0; }
-          10%  { opacity: 1; }
-          90%  { opacity: 1; }
-          100% { left: calc(100% + 8px); opacity: 0; }
+          0%   { left: -6px;  opacity: 0; }
+          8%   { opacity: 1; }
+          92%  { opacity: 1; }
+          100% { left: calc(100% + 6px); opacity: 0; }
         }
         @keyframes flow-down {
-          0%   { top: -8px;  opacity: 0; }
-          10%  { opacity: 1; }
-          90%  { opacity: 1; }
-          100% { top: calc(100% + 8px); opacity: 0; }
+          0%   { top: -6px;  opacity: 0; }
+          8%   { opacity: 1; }
+          92%  { opacity: 1; }
+          100% { top: calc(100% + 6px); opacity: 0; }
         }
         @keyframes pulse-ring {
-          0%, 100% { opacity: 0.5; transform: scale(1);   }
-          50%       { opacity: 1;   transform: scale(1.15); }
+          0%, 100% { opacity: 0.4; transform: scale(1);   }
+          50%       { opacity: 0.9; transform: scale(1.12); }
         }
         @keyframes slide-in-panel {
           from { opacity: 0; transform: translateX(24px); }
           to   { opacity: 1; transform: translateX(0);    }
+        }
+        @keyframes line-glow {
+          0%, 100% { opacity: 1; }
+          50%      { opacity: 1.6; }
         }
       `}</style>
 
       {/* ── System status bar ─────────────────────────────────────────────── */}
       <div className="mb-10 flex items-center justify-between">
         <div>
-          <div className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.28em] text-slate-700">
+          <div className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.20em] text-slate-700">
             System Status
           </div>
           <div className="flex items-center gap-2">
@@ -290,17 +281,17 @@ export default function PipelineDiagram({ initialStages }: Props) {
               className="h-2 w-2 rounded-full"
               style={{
                 backgroundColor: STATUS_COLOR[systemStatus],
-                boxShadow: `0 0 8px ${STATUS_COLOR[systemStatus]}`,
+                boxShadow: `0 0 8px ${STATUS_COLOR[systemStatus]}, 0 0 16px ${STATUS_COLOR[systemStatus]}30`,
               }}
             />
-            <span className="font-mono text-[13px] font-semibold" style={{ color: STATUS_COLOR[systemStatus] }}>
+            <span className="font-mono text-[13px] font-medium tracking-[0.04em]" style={{ color: STATUS_COLOR[systemStatus] }}>
               {STATUS_LABEL[systemStatus]}
             </span>
-            <span className="text-[12px] text-slate-700">— all 8 pipeline stages monitored</span>
+            <span className="text-[11px] text-slate-700">— 8 stages active</span>
           </div>
         </div>
         <div className="text-right">
-          <div className="font-mono text-[10px] text-slate-700">Updates every 60s</div>
+          <div className="font-mono text-[10px] text-slate-700">60s refresh</div>
           <div className="mt-0.5 flex items-center justify-end gap-3">
             {(["ok","warn","stale","unknown"] as StageStatus[]).map((s) => (
               <span key={s} className="flex items-center gap-1 font-mono text-[10px] text-slate-600">
@@ -349,7 +340,7 @@ export default function PipelineDiagram({ initialStages }: Props) {
                   className="absolute right-0 top-0 w-px"
                   style={{
                     height: "48px",
-                    background: `linear-gradient(180deg, rgba(46,230,166,0.25), rgba(46,230,166,0.15))`,
+                    background: `linear-gradient(180deg, rgba(46,230,166,0.25), rgba(46,230,166,0.12))`,
                   }}
                 />
                 {/* Horizontal return line at the bottom */}
@@ -359,13 +350,13 @@ export default function PipelineDiagram({ initialStages }: Props) {
                     height: "1px",
                     width: "calc(800%)",
                     right: "0",
-                    background: "rgba(46,230,166,0.12)",
+                    background: "linear-gradient(270deg, rgba(46,230,166,0.18), rgba(46,230,166,0.06))",
                   }}
                 />
                 {/* Corner arrow indicator */}
                 <div
                   className="absolute bottom-0 right-[-4px] font-mono text-[10px]"
-                  style={{ color: "rgba(46,230,166,0.35)", lineHeight: 1 }}
+                  style={{ color: "rgba(46,230,166,0.30)", lineHeight: 1 }}
                 >
                   ↙
                 </div>
@@ -424,19 +415,20 @@ export default function PipelineDiagram({ initialStages }: Props) {
             <div className="flex items-center gap-4">
               <span
                 className="font-mono text-[11px] font-bold"
-                style={{ color: "rgba(46,230,166,0.35)" }}
+                style={{ color: "rgba(46,230,166,0.30)" }}
               >
                 {selectedInfo.index}
               </span>
+              <StageSymbol id={selectedInfo.id} color={`${STATUS_COLOR[selectedStatus]}90`} size={14} />
               <div>
-                <div className="font-mono text-[15px] font-bold tracking-[0.14em] text-white">
+                <div className="font-mono text-[15px] font-bold tracking-[0.12em] text-white">
                   {selectedInfo.label}
                 </div>
                 <div className="mt-0.5 text-[11px] text-slate-500">{selectedInfo.role}</div>
               </div>
               {/* Status badge */}
               <span
-                className="ml-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.12em]"
+                className="ml-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.10em]"
                 style={{
                   color:      STATUS_COLOR[selectedStatus],
                   background: `${STATUS_COLOR[selectedStatus]}12`,
@@ -468,24 +460,24 @@ export default function PipelineDiagram({ initialStages }: Props) {
           <div className="grid gap-8 px-6 py-6 sm:grid-cols-3">
             {/* Description */}
             <div className="sm:col-span-2">
-              <div className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.20em] text-slate-600">
-                How it works
+              <div className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600">
+                Function
               </div>
-              <p className="text-[13px] leading-[1.75] text-slate-400">
+              <p className="text-[13px] leading-[1.7] text-slate-400">
                 {selectedInfo.description}
               </p>
 
               {/* Sub-steps */}
               <div className="mt-5">
-                <div className="mb-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.20em] text-slate-600">
-                  Process
+                <div className="mb-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600">
+                  Sequence
                 </div>
                 <div className="flex flex-col gap-2">
                   {selectedInfo.steps.map((step, i) => (
                     <div key={i} className="flex items-start gap-3">
                       <span
                         className="mt-[3px] shrink-0 font-mono text-[10px] font-bold tabular-nums"
-                        style={{ color: `${STATUS_COLOR[selectedStatus]}70` }}
+                        style={{ color: `${STATUS_COLOR[selectedStatus]}60` }}
                       >
                         {String(i + 1).padStart(2, "0")}
                       </span>
@@ -501,12 +493,12 @@ export default function PipelineDiagram({ initialStages }: Props) {
               <div
                 className="rounded-[12px] border border-[#0e2210] bg-[#010501] p-4"
               >
-                <div className="mb-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.22em] text-slate-700">
+                <div className="mb-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.20em] text-slate-700">
                   Input
                 </div>
                 <div className="flex items-start gap-2">
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="mt-0.5 shrink-0" aria-hidden>
-                    <path d="M2 6h8M7 3l3 3-3 3" stroke="rgba(46,230,166,0.4)" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M2 6h8M7 3l3 3-3 3" stroke="rgba(46,230,166,0.35)" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                   <span className="text-[12px] leading-snug text-slate-400">{selectedInfo.input}</span>
                 </div>
@@ -519,7 +511,7 @@ export default function PipelineDiagram({ initialStages }: Props) {
                 }}
               >
                 <div
-                  className="mb-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.22em]"
+                  className="mb-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.20em]"
                   style={{ color: `${STATUS_COLOR[selectedStatus]}80` }}
                 >
                   Output
@@ -534,7 +526,7 @@ export default function PipelineDiagram({ initialStages }: Props) {
 
               {/* Pipeline position indicator */}
               <div className="rounded-[12px] border border-[#0e1e0e] bg-[#010501] p-4">
-                <div className="mb-2 font-mono text-[9px] font-bold uppercase tracking-[0.22em] text-slate-700">
+                <div className="mb-2 font-mono text-[9px] font-bold uppercase tracking-[0.20em] text-slate-700">
                   Position
                 </div>
                 <div className="flex items-center gap-1">
@@ -546,7 +538,7 @@ export default function PipelineDiagram({ initialStages }: Props) {
                         backgroundColor:
                           s.id === selected
                             ? STATUS_COLOR[selectedStatus]
-                            : "rgba(46,230,166,0.12)",
+                            : "rgba(46,230,166,0.10)",
                         boxShadow:
                           s.id === selected
                             ? `0 0 4px ${STATUS_COLOR[selectedStatus]}`
@@ -556,8 +548,8 @@ export default function PipelineDiagram({ initialStages }: Props) {
                   ))}
                 </div>
                 <div className="mt-1.5 flex justify-between font-mono text-[9px] text-slate-700">
-                  <span>START</span>
-                  <span>RADAR</span>
+                  <span>INTAKE</span>
+                  <span>OUTPUT</span>
                 </div>
               </div>
             </div>
@@ -566,6 +558,81 @@ export default function PipelineDiagram({ initialStages }: Props) {
       )}
     </>
   );
+}
+
+// ── Stage symbol ─────────────────────────────────────────────────────────────
+
+function StageSymbol({ id, color, size = 12 }: { id: string; color: string; size?: number }) {
+  const vb = "0 0 12 12";
+  const sw = 1.2;
+  const lc: "round" = "round";
+  const lj: "round" = "round";
+
+  switch (id) {
+    case "capture":
+      return (
+        <svg width={size} height={size} viewBox={vb} fill="none" aria-hidden>
+          <path d="M6 2v5.5M3.5 5L6 7.5 8.5 5" stroke={color} strokeWidth={sw} strokeLinecap={lc} strokeLinejoin={lj} />
+          <line x1="3" y1="10" x2="9" y2="10" stroke={color} strokeWidth={sw} strokeLinecap={lc} />
+        </svg>
+      );
+    case "parse":
+      return (
+        <svg width={size} height={size} viewBox={vb} fill="none" aria-hidden>
+          <line x1="3" y1="3" x2="9" y2="3" stroke={color} strokeWidth={sw} strokeLinecap={lc} />
+          <line x1="3" y1="6" x2="9" y2="6" stroke={color} strokeWidth={sw} strokeLinecap={lc} />
+          <line x1="3" y1="9" x2="7" y2="9" stroke={color} strokeWidth={sw} strokeLinecap={lc} />
+        </svg>
+      );
+    case "baseline":
+      return (
+        <svg width={size} height={size} viewBox={vb} fill="none" aria-hidden>
+          <line x1="2" y1="6" x2="10" y2="6" stroke={color} strokeWidth={sw} strokeLinecap={lc} />
+          <line x1="4" y1="4.5" x2="4" y2="7.5" stroke={color} strokeWidth={1} strokeLinecap={lc} />
+          <line x1="8" y1="4.5" x2="8" y2="7.5" stroke={color} strokeWidth={1} strokeLinecap={lc} />
+        </svg>
+      );
+    case "diff":
+      return (
+        <svg width={size} height={size} viewBox={vb} fill="none" aria-hidden>
+          <path d="M6 2.5L9.5 9.5H2.5Z" stroke={color} strokeWidth={sw} strokeLinejoin={lj} />
+        </svg>
+      );
+    case "signal":
+      return (
+        <svg width={size} height={size} viewBox={vb} fill="none" aria-hidden>
+          <polyline points="1,6 3,6 4.5,2.5 6,9.5 7.5,4 9,6 11,6" stroke={color} strokeWidth={sw} strokeLinecap={lc} strokeLinejoin={lj} />
+        </svg>
+      );
+    case "intelligence":
+      return (
+        <svg width={size} height={size} viewBox={vb} fill="none" aria-hidden>
+          <circle cx="6" cy="6" r="2.5" stroke={color} strokeWidth={sw} />
+          <circle cx="6" cy="6" r="0.7" fill={color} />
+          <line x1="6" y1="1.5" x2="6" y2="3.5" stroke={color} strokeWidth={1} strokeLinecap={lc} />
+          <line x1="6" y1="8.5" x2="6" y2="10.5" stroke={color} strokeWidth={1} strokeLinecap={lc} />
+          <line x1="1.5" y1="6" x2="3.5" y2="6" stroke={color} strokeWidth={1} strokeLinecap={lc} />
+          <line x1="8.5" y1="6" x2="10.5" y2="6" stroke={color} strokeWidth={1} strokeLinecap={lc} />
+        </svg>
+      );
+    case "movement":
+      return (
+        <svg width={size} height={size} viewBox={vb} fill="none" aria-hidden>
+          <path d="M2.5 6h6.5M7 3.5L9.5 6 7 8.5" stroke={color} strokeWidth={sw} strokeLinecap={lc} strokeLinejoin={lj} />
+        </svg>
+      );
+    case "radar":
+      return (
+        <svg width={size} height={size} viewBox={vb} fill="none" aria-hidden>
+          <circle cx="6" cy="6" r="1.5" stroke={color} strokeWidth={sw} />
+          <path d="M6 6l2.5-2.5" stroke={color} strokeWidth={1} strokeLinecap={lc} />
+          <path d="M9.5 3A5 5 0 0 1 9.5 9" stroke={color} strokeWidth={0.8} />
+          <path d="M2.5 3A5 5 0 0 0 2.5 9" stroke={color} strokeWidth={0.8} />
+        </svg>
+      );
+    default:
+      return null;
+  }
 }
 
 // ── StageNode ─────────────────────────────────────────────────────────────────
@@ -582,6 +649,7 @@ function StageNode({
   onClick:  () => void;
 }) {
   const color = STATUS_COLOR[status];
+  const isActive = status === "ok";
 
   return (
     <button
@@ -592,7 +660,11 @@ function StageNode({
         background:  selected
           ? `linear-gradient(135deg, ${color}10 0%, rgba(2,8,2,0.95) 60%)`
           : "rgba(2,8,2,0.80)",
-        boxShadow:   selected ? `0 0 20px ${color}15, inset 0 0 20px ${color}06` : "none",
+        boxShadow: selected
+          ? `0 0 24px ${color}15, inset 0 0 20px ${color}06`
+          : isActive
+            ? `0 0 12px ${color}08`
+            : "none",
         minHeight:   "104px",
       }}
     >
@@ -602,46 +674,47 @@ function StageNode({
           className="h-2 w-2 rounded-full"
           style={{
             backgroundColor: color,
-            boxShadow:        `0 0 6px ${color}`,
-            animation:        status === "ok" ? "pulse-ring 3s ease-in-out infinite" : "none",
+            boxShadow: isActive
+              ? `0 0 6px ${color}, 0 0 12px ${color}40`
+              : `0 0 4px ${color}`,
+            animation: isActive ? "pulse-ring 3s ease-in-out infinite" : "none",
           }}
         />
       </div>
 
       {/* Stage index */}
       <div
-        className="mb-1 font-mono text-[9px] font-bold"
-        style={{ color: "rgba(46,230,166,0.28)" }}
+        className="mb-1.5 font-mono text-[9px] font-bold"
+        style={{ color: "rgba(46,230,166,0.25)" }}
       >
         {stage.index}
       </div>
 
-      {/* Stage label */}
-      <div
-        className="font-mono text-[12px] font-bold tracking-[0.16em] transition-colors"
-        style={{ color: selected ? color : "rgba(255,255,255,0.85)" }}
-      >
-        {stage.label}
+      {/* Stage symbol + label */}
+      <div className="flex items-center gap-1.5">
+        <StageSymbol
+          id={stage.id}
+          color={selected ? color : "rgba(46,230,166,0.35)"}
+        />
+        <div
+          className="font-mono text-[12px] font-bold tracking-[0.14em] transition-colors"
+          style={{ color: selected ? color : "rgba(255,255,255,0.85)" }}
+        >
+          {stage.label}
+        </div>
       </div>
 
-      {/* Role description */}
-      <div className="mt-1 text-[10px] text-slate-600 transition-colors group-hover:text-slate-500">
+      {/* Role */}
+      <div className="mt-1 text-[10px] tracking-[0.02em] text-slate-600 transition-colors group-hover:text-slate-500">
         {stage.role}
       </div>
 
       {/* Status label — bottom */}
       <div
-        className="mt-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em]"
-        style={{ color: `${color}80` }}
+        className="mt-auto pt-2 font-mono text-[9px] font-bold uppercase tracking-[0.12em]"
+        style={{ color: `${color}70` }}
       >
         {STATUS_LABEL[status]}
-      </div>
-
-      {/* Hover hint */}
-      <div
-        className="absolute bottom-3 right-3 font-mono text-[9px] text-slate-700 opacity-0 transition-opacity group-hover:opacity-100"
-      >
-        tap
       </div>
     </button>
   );
@@ -658,6 +731,7 @@ function Connector({
 }) {
   const color = STATUS_COLOR[status];
   const isHorizontal = direction === "right";
+  const isActive = status === "ok" || status === "warn";
 
   return (
     <div
@@ -668,7 +742,7 @@ function Connector({
           : { width: "100%", height: "40px" }
       }
     >
-      {/* The line */}
+      {/* The line — with subtle glow when active */}
       <div
         className="absolute"
         style={
@@ -679,7 +753,12 @@ function Connector({
                 right: "4px",
                 height: "1px",
                 transform: "translateY(-50%)",
-                background: `rgba(46,230,166,0.18)`,
+                background: isActive
+                  ? "rgba(46,230,166,0.22)"
+                  : "rgba(46,230,166,0.12)",
+                boxShadow: status === "ok"
+                  ? "0 0 4px rgba(46,230,166,0.08)"
+                  : "none",
               }
             : {
                 left: "50%",
@@ -687,36 +766,43 @@ function Connector({
                 bottom: "4px",
                 width: "1px",
                 transform: "translateX(-50%)",
-                background: `rgba(46,230,166,0.18)`,
+                background: isActive
+                  ? "rgba(46,230,166,0.22)"
+                  : "rgba(46,230,166,0.12)",
+                boxShadow: status === "ok"
+                  ? "0 0 4px rgba(46,230,166,0.08)"
+                  : "none",
               }
         }
       />
 
-      {/* Animated travelling dot */}
-      <div
-        className="absolute rounded-full"
-        style={
-          isHorizontal
-            ? {
-                top:             "50%",
-                width:           "5px",
-                height:          "5px",
-                marginTop:       "-2.5px",
-                backgroundColor: color,
-                boxShadow:       `0 0 6px ${color}`,
-                animation:       `flow-right 2.4s linear infinite`,
-              }
-            : {
-                left:            "50%",
-                width:           "5px",
-                height:          "5px",
-                marginLeft:      "-2.5px",
-                backgroundColor: color,
-                boxShadow:       `0 0 6px ${color}`,
-                animation:       `flow-down 2.4s linear infinite`,
-              }
-        }
-      />
+      {/* Animated travelling dot — neon pulse */}
+      {isActive && (
+        <div
+          className="absolute rounded-full"
+          style={
+            isHorizontal
+              ? {
+                  top:             "50%",
+                  width:           "4px",
+                  height:          "4px",
+                  marginTop:       "-2px",
+                  backgroundColor: color,
+                  boxShadow:       `0 0 6px ${color}, 0 0 14px ${color}50, 0 0 22px ${color}18`,
+                  animation:       `flow-right ${status === "ok" ? "3.2s" : "4.5s"} ease-in-out infinite`,
+                }
+              : {
+                  left:            "50%",
+                  width:           "4px",
+                  height:          "4px",
+                  marginLeft:      "-2px",
+                  backgroundColor: color,
+                  boxShadow:       `0 0 6px ${color}, 0 0 14px ${color}50, 0 0 22px ${color}18`,
+                  animation:       `flow-down ${status === "ok" ? "3.2s" : "4.5s"} ease-in-out infinite`,
+                }
+          }
+        />
+      )}
 
       {/* Arrowhead */}
       <div
@@ -729,8 +815,8 @@ function Connector({
                 transform: "translateY(-50%) rotate(45deg)",
                 width:     "5px",
                 height:    "5px",
-                borderTop:   "1px solid rgba(46,230,166,0.35)",
-                borderRight: "1px solid rgba(46,230,166,0.35)",
+                borderTop:   `1px solid ${isActive ? "rgba(46,230,166,0.40)" : "rgba(46,230,166,0.25)"}`,
+                borderRight: `1px solid ${isActive ? "rgba(46,230,166,0.40)" : "rgba(46,230,166,0.25)"}`,
               }
             : {
                 bottom:    "2px",
@@ -738,8 +824,8 @@ function Connector({
                 transform: "translateX(-50%) rotate(45deg)",
                 width:     "5px",
                 height:    "5px",
-                borderBottom: "1px solid rgba(46,230,166,0.35)",
-                borderRight:  "1px solid rgba(46,230,166,0.35)",
+                borderBottom: `1px solid ${isActive ? "rgba(46,230,166,0.40)" : "rgba(46,230,166,0.25)"}`,
+                borderRight:  `1px solid ${isActive ? "rgba(46,230,166,0.40)" : "rgba(46,230,166,0.25)"}`,
               }
         }
       />
