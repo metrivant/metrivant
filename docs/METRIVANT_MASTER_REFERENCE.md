@@ -945,33 +945,44 @@ Pool 1 — Newsroom (ACTIVE)
   Signal types: feed_press_release, feed_newsroom_post
   Status:     active and running
 
-Pool 2 — Careers (DORMANT)
+Pool 2 — Careers (SCHEDULED — PENDING MIGRATION 056)
   Migration:  039_careers_pool.sql
-  Ingest:     api/ingest-careers.ts — code complete, NOT in vercel.json
+  Ingest:     api/ingest-careers.ts — :11 hourly (vercel.json)
+  Promote:    api/promote-careers-signals.ts — :13 hourly (vercel.json)
   Signal types: hiring_spike, new_function, new_region, role_cluster
-  Status:     dormant — activation-ready (add cron entry to vercel.json)
+  Feeds:      11/15 fintech competitors seeded (Greenhouse/Lever/Ashby ATS APIs)
+  Status:     scheduled + feeds configured; BLOCKED by migration 056 (section_diff_id NOT NULL)
+              Apply migrations/056_signals_section_diff_nullable.sql in Supabase SQL Editor to activate
 
-Pool 3 — Investor (DORMANT)
+Pool 3 — Investor (SCHEDULED — PENDING MIGRATION 056)
   Migration:  040_investor_pool.sql
-  Ingest:     api/ingest-investor-feeds.ts — code complete, NOT in vercel.json
+  Ingest:     api/ingest-investor-feeds.ts — :14 hourly (vercel.json)
+  Promote:    api/promote-investor-signals.ts — :16 hourly (vercel.json)
   Signal types: earnings_release, acquisition, divestiture, guidance_update, major_contract,
                 capital_raise, strategic_investment, partnership, investor_presentation
-  Status:     dormant — activation-ready
+  Feeds:      3/15 fintech competitors seeded (Affirm, Marqeta, Robinhood — SEC EDGAR 8-K Atom)
+  Status:     scheduled + feeds configured; BLOCKED by migration 056
 
-Pool 4 — Product (DORMANT)
+Pool 4 — Product (SCHEDULED — PENDING MIGRATION 056)
   Migration:  041_product_pool.sql
-  Ingest:     api/ingest-product-feeds.ts — code complete, NOT in vercel.json
-  Status:     dormant — activation-ready
+  Ingest:     api/ingest-product-feeds.ts — :29 hourly (vercel.json)
+  Promote:    api/promote-product-signals.ts — :31 hourly (vercel.json)
+  Feeds:      4/15 fintech competitors seeded (Stripe, Plaid, Robinhood, Mercury — blog RSS)
+  Status:     scheduled + feeds configured; BLOCKED by migration 056
 
-Pool 5 — Procurement (DORMANT)
+Pool 5 — Procurement (SCHEDULED — NO FEEDS)
   Migration:  042_procurement_pool.sql
-  Ingest:     api/ingest-procurement-feeds.ts — code complete, NOT in vercel.json
-  Status:     dormant — activation-ready
+  Ingest:     api/ingest-procurement-feeds.ts — :32 hourly (vercel.json)
+  Promote:    api/promote-procurement-signals.ts — :34 hourly (vercel.json)
+  Feeds:      0/15 — fintech B2B sector has no procurement announcement feeds
+  Status:     scheduled; no feeds to ingest
 
-Pool 6 — Regulatory (DORMANT)
+Pool 6 — Regulatory (SCHEDULED — PENDING MIGRATION 056)
   Migration:  043_regulatory_pool.sql
-  Ingest:     api/ingest-regulatory-feeds.ts — code complete, NOT in vercel.json
-  Status:     dormant — activation-ready
+  Ingest:     api/ingest-regulatory-feeds.ts — :43 hourly (vercel.json)
+  Promote:    api/promote-regulatory-signals.ts — :46 hourly (vercel.json)
+  Feeds:      3/15 fintech competitors seeded (Affirm, Marqeta, Robinhood — SEC EDGAR 10-K Atom)
+  Status:     scheduled + feeds configured; BLOCKED by migration 056
 
 Pool 7 — Media (SCHEMA COMPLETE, INGESTION NOT IMPLEMENTED)
   Migration:  044_media_pool.sql
