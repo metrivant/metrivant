@@ -7,6 +7,7 @@ import { parseFeed } from "../lib/feed-parser";
 import { compileCompetitorMatchers, matchCompetitors } from "../lib/procurement-matcher";
 import { extractFilingType, ALLOWED_FILING_TYPES } from "../lib/regulatory-classifier";
 import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
+import type { Database } from "../lib/database.types";
 
 // Maximum pool_events entries to look back when checking for duplicates.
 const DEDUP_LOOKBACK = 200;
@@ -115,8 +116,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   try {
     // ── Phase 1: Load competitor-scoped regulatory feeds (e.g., EDGAR Atom) ──
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: competitorFeedRows, error: cfError } = await (supabase as any)
+    const { data: competitorFeedRows, error: cfError } = await supabase
       .from("competitor_feeds")
       .select("id, competitor_id, feed_url, source_type")
       .eq("pool_type", "regulatory")
@@ -129,8 +129,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     // ── Phase 2: Load sector/regulator-scoped regulatory sources ──────────────
     // These are operator-configured feeds (FDA, FERC, etc.) that span multiple
     // companies. Entries require competitor name matching.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: regulatorySourceRows, error: rsError } = await (supabase as any)
+    const { data: regulatorySourceRows, error: rsError } = await supabase
       .from("regulatory_sources")
       .select("id, feed_url, source_type, source_name")
       .eq("active", true)
@@ -182,8 +181,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       if (freshEntries.length === 0) return { inserted: 0, duplicate: 0, filtered: 0 };
 
       // Load existing events for this competitor to detect duplicates.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: existingRows } = await (supabase as any)
+      const { data: existingRows } = await supabase
         .from("pool_events")
         .select("content_hash, filing_id, event_url")
         .eq("competitor_id", competitorId)
@@ -209,7 +207,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       let duplicate = 0;
       let filtered  = 0;
 
-      const newRows: Record<string, unknown>[] = [];
+      const newRows: Database["public"]["Tables"]["pool_events"]["Insert"][] = [];
 
       for (const entry of freshEntries) {
         // ── Filing whitelist filter ──────────────────────────────────────────
@@ -255,10 +253,9 @@ async function handler(req: ApiReq, res: ApiRes) {
       }
 
       if (newRows.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error: insertError } = await (supabase as any)
+        const { error: insertError } = await supabase
           .from("pool_events")
-          .upsert(newRows as any[], { onConflict: "competitor_id,content_hash", ignoreDuplicates: true });
+          .upsert(newRows, { onConflict: "competitor_id,content_hash", ignoreDuplicates: true });
 
         if (insertError) {
           Sentry.captureException(insertError);
@@ -281,8 +278,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         const entries = parseFeed(xml).slice(0, MAX_ENTRIES_PER_FEED);
 
         if (entries.length === 0) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any)
+          await supabase
             .from("competitor_feeds")
             .update({ last_fetched_at: new Date().toISOString() })
             .eq("id", feed.id);
@@ -302,8 +298,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         eventsDuplicate += duplicate;
         eventsFiltered  += filtered;
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any)
+        await supabase
           .from("competitor_feeds")
           .update({
             last_fetched_at:      new Date().toISOString(),
@@ -332,15 +327,13 @@ async function handler(req: ApiReq, res: ApiRes) {
         Sentry.captureException(feedError);
 
         try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { data: currentFeed } = await (supabase as any)
+          const { data: currentFeed } = await supabase
             .from("competitor_feeds")
             .select("consecutive_failures")
             .eq("id", feed.id)
             .single();
           const failures = ((currentFeed as { consecutive_failures: number } | null)?.consecutive_failures ?? 0) + 1;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any)
+          await supabase
             .from("competitor_feeds")
             .update({
               consecutive_failures: failures,
@@ -376,8 +369,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         const entries = parseFeed(xml).slice(0, MAX_ENTRIES_PER_FEED);
 
         if (entries.length === 0) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any)
+          await supabase
             .from("regulatory_sources")
             .update({ last_fetched_at: new Date().toISOString() })
             .eq("id", source.id);
@@ -434,8 +426,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         eventsFiltered  += sourceFiltered;
         eventsNoMatch   += sourceNoMatch;
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any)
+        await supabase
           .from("regulatory_sources")
           .update({
             last_fetched_at:      new Date().toISOString(),
@@ -466,15 +457,13 @@ async function handler(req: ApiReq, res: ApiRes) {
         Sentry.captureException(sourceError);
 
         try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { data: currentSource } = await (supabase as any)
+          const { data: currentSource } = await supabase
             .from("regulatory_sources")
             .select("consecutive_failures")
             .eq("id", source.id)
             .single();
           const failures = ((currentSource as { consecutive_failures: number } | null)?.consecutive_failures ?? 0) + 1;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any)
+          await supabase
             .from("regulatory_sources")
             .update({
               consecutive_failures: failures,

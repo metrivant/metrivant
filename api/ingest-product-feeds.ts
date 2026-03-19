@@ -6,6 +6,7 @@ import { verifyCronSecret } from "../lib/withCronAuth";
 import { parseFeed } from "../lib/feed-parser";
 import { extractVersionTag } from "../lib/product-classifier";
 import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
+import type { Database } from "../lib/database.types";
 
 // Maximum pool_events entries to look back for dedup per competitor.
 const DEDUP_LOOKBACK = 300;
@@ -59,8 +60,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     // ── Load active product feed configurations ────────────────────────────────
     // Scoped to pool_type='product'. GitHub releases.atom feeds are standard Atom
     // and parsed by the same parseFeed() function as all other feeds.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: feedRows, error: feedsError } = await (supabase as any)
+    const { data: feedRows, error: feedsError } = await supabase
       .from("competitor_feeds")
       .select("id, competitor_id, feed_url, source_type")
       .eq("pool_type", "product")
@@ -84,8 +84,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         const entries = parseFeed(xml).slice(0, MAX_ENTRIES_PER_FEED);
 
         if (entries.length === 0) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any)
+          await supabase
             .from("competitor_feeds")
             .update({ last_fetched_at: new Date().toISOString() })
             .eq("id", feed.id);
@@ -100,8 +99,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         );
 
         // Load existing content_hashes + event_urls for this competitor's product events
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: existingRows } = await (supabase as any)
+        const { data: existingRows } = await supabase
           .from("pool_events")
           .select("content_hash, event_url")
           .eq("competitor_id", feed.competitor_id)
@@ -119,7 +117,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         );
 
         // Build rows for new entries only
-        const newRows: Record<string, unknown>[] = [];
+        const newRows: Database["public"]["Tables"]["pool_events"]["Insert"][] = [];
         for (const entry of freshEntries) {
           if (existingHashes.has(entry.content_hash)) {
             eventsDuplicate += 1;
@@ -153,10 +151,9 @@ async function handler(req: ApiReq, res: ApiRes) {
         }
 
         if (newRows.length > 0) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { error: insertError } = await (supabase as any)
+          const { error: insertError } = await supabase
             .from("pool_events")
-            .upsert(newRows as any[], { onConflict: "competitor_id,content_hash", ignoreDuplicates: true });
+            .upsert(newRows, { onConflict: "competitor_id,content_hash", ignoreDuplicates: true });
 
           if (insertError) {
             Sentry.captureException(insertError);
@@ -166,8 +163,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         }
 
         // Update feed metadata
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any)
+        await supabase
           .from("competitor_feeds")
           .update({
             last_fetched_at:      new Date().toISOString(),
@@ -197,16 +193,14 @@ async function handler(req: ApiReq, res: ApiRes) {
         Sentry.captureException(feedError);
 
         try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { data: currentFeed } = await (supabase as any)
+          const { data: currentFeed } = await supabase
             .from("competitor_feeds")
             .select("consecutive_failures")
             .eq("id", feed.id)
             .single();
 
           const failures = ((currentFeed as { consecutive_failures: number } | null)?.consecutive_failures ?? 0) + 1;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any)
+          await supabase
             .from("competitor_feeds")
             .update({
               consecutive_failures: failures,
