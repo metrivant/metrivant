@@ -477,6 +477,10 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
 
 - HUD zoom-independence pattern: SVG panels that must NOT scale with radar zoom must live in a separate overlay `<svg>` (`position:absolute; inset:0; pointerEvents:none`) sibling to the zoom canvas div — not inside it. The zoom canvas div carries `transform: scale(zoom)` which scales all children uniformly. Node-position connector lines in the overlay require: `overlayX = CENTER + (nodeX - CENTER + pan.x) * zoom`. (2026-03-18)
 
+- SVG font size calibration in 1000×1000 viewBox: CSS pixel size = fontSize_SVG × (container_px / 1000). At a 700px display, fontSize=6 → 4.2px (invisible). Minimum readable: fontSize=10 (body labels), fontSize=12 (values), fontSize=16 (large display). Panel stroke widths: minimum 0.9 for visible borders, 2.0 for accent brackets. Apply this when diagnosing "invisible" SVG HUD panels or text elements. (2026-03-19)
+
+- SVG corner panel overlap pattern: when a panel can appear at two positions (left/right or top/left+below), always verify that the fallback position does not share the same (x, y) as a statically-positioned sibling panel. Fix: when fallback position conflicts, stack vertically (py = sibling_y + sibling_h + gap). (2026-03-19)
+
 - CSS `rotate` shorthand (`rotate: "45deg"`) in React inline styles is unreliable cross-browser (CSS Transforms
   Level 2, not universally supported in React's style object). Always use `transform: "rotate(45deg)"` instead.
   Applies to SVG arrowheads, rotated elements in inline style props. (2026-03-18)
