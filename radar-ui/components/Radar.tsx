@@ -3368,13 +3368,16 @@ export default function Radar({
                   4 corner quadrants outside radarClip. No overlay SVG needed.
                   ══════════════════════════════════════════════════════════════ */}
               {orbitMode && sorted.length > 0 && (() => {
-                const PW = 188;
-                const PH1 = 225;
-                const PH2 = 196;
-                const PH4 = 212;
-                const PAD = 6;
+                // Scaled up for readability at typical display sizes
+                const PW  = 242;  // panel width
+                const PH1 = 285;  // FIELD INTEL height (8 rows)
+                const PH2 = 260;  // NODE STREAM height (4 items)
+                const PH4 = 260;  // FIELD ASSESSMENT height (6 rows)
+                const PAD = 8;
+                const BK  = 24;   // corner bracket arm length
+                const NT  = 16;   // notch size
 
-                const hudPos = orbitMode ? animatedOrbitPositions : standardPositions;
+                const hudPos = animatedOrbitPositions;
                 const criticalCount    = sorted.filter(c => Number(c.momentum_score ?? 0) >= 5).length;
                 const convergenceCount = tensionLinks.filter(l => l.intensity > 0.70).length;
                 const totalSignals     = sorted.reduce((s, c) => s + (c.signals_7d ?? 0), 0);
@@ -3391,37 +3394,37 @@ export default function Radar({
                     <rect x={x} y={y} width={w} height={h} rx="1" fill="#030c18" fillOpacity="0.93" />
                     <rect x={x} y={y} width={w} height={h} rx="1" fill="url(#hudScanlines)" />
                     <rect x={x} y={y} width={w} height={h * 0.45} rx="1" fill="url(#hudGlassSheen)" />
-                    <polygon points={`${x+w-10},${y} ${x+w},${y+10} ${x+w},${y}`} fill="#030c18" fillOpacity="0.98" />
-                    <line x1={x+w-10} y1={y} x2={x+w} y2={y+10} stroke={accent} strokeWidth="0.8" strokeOpacity="0.65" />
-                    <rect x={x} y={y} width={w} height={h} rx="1" fill="none" stroke={accent} strokeWidth="0.55" strokeOpacity="0.38" />
-                    <rect x={x+1} y={y+1} width={w-2} height={h-2} rx="1" fill="none" stroke={accent} strokeWidth="0.25" strokeOpacity="0.10" />
-                    <line x1={x} y1={y+18} x2={x} y2={y} stroke={accent} strokeWidth="1.6" strokeOpacity="0.95" />
-                    <line x1={x} y1={y} x2={x+18} y2={y} stroke={accent} strokeWidth="1.6" strokeOpacity="0.95" />
-                    <line x1={x+w-18} y1={y} x2={x+w} y2={y} stroke={accent} strokeWidth="1.6" strokeOpacity="0.95" />
-                    <line x1={x+w} y1={y} x2={x+w} y2={y+18} stroke={accent} strokeWidth="1.6" strokeOpacity="0.95" />
-                    <line x1={x} y1={y+h-18} x2={x} y2={y+h} stroke={accent} strokeWidth="1.6" strokeOpacity="0.95" />
-                    <line x1={x} y1={y+h} x2={x+18} y2={y+h} stroke={accent} strokeWidth="1.6" strokeOpacity="0.95" />
-                    <line x1={x+w-18} y1={y+h} x2={x+w} y2={y+h} stroke={accent} strokeWidth="1.6" strokeOpacity="0.95" />
-                    <line x1={x+w} y1={y+h-18} x2={x+w} y2={y+h} stroke={accent} strokeWidth="1.6" strokeOpacity="0.95" />
-                    <line x1={x+1} y1={y+24} x2={x+w-1} y2={y+24} stroke={accent} strokeWidth="0.5" strokeOpacity="0.35" />
-                    <line x1={x} y1={y+36} x2={x+3} y2={y+36} stroke={accent} strokeWidth="0.6" strokeOpacity="0.45" />
-                    <line x1={x} y1={y+h-36} x2={x+3} y2={y+h-36} stroke={accent} strokeWidth="0.6" strokeOpacity="0.45" />
+                    <polygon points={`${x+w-NT},${y} ${x+w},${y+NT} ${x+w},${y}`} fill="#030c18" fillOpacity="0.98" />
+                    <line x1={x+w-NT} y1={y} x2={x+w} y2={y+NT} stroke={accent} strokeWidth="1.2" strokeOpacity="0.65" />
+                    <rect x={x} y={y} width={w} height={h} rx="1" fill="none" stroke={accent} strokeWidth="0.9" strokeOpacity="0.38" />
+                    <rect x={x+1} y={y+1} width={w-2} height={h-2} rx="1" fill="none" stroke={accent} strokeWidth="0.4" strokeOpacity="0.10" />
+                    <line x1={x}   y1={y+BK} x2={x}   y2={y}    stroke={accent} strokeWidth="2.4" strokeOpacity="0.95" />
+                    <line x1={x}   y1={y}    x2={x+BK} y2={y}    stroke={accent} strokeWidth="2.4" strokeOpacity="0.95" />
+                    <line x1={x+w-BK} y1={y} x2={x+w} y2={y}    stroke={accent} strokeWidth="2.4" strokeOpacity="0.95" />
+                    <line x1={x+w} y1={y}    x2={x+w} y2={y+BK} stroke={accent} strokeWidth="2.4" strokeOpacity="0.95" />
+                    <line x1={x}   y1={y+h-BK} x2={x}   y2={y+h}   stroke={accent} strokeWidth="2.4" strokeOpacity="0.95" />
+                    <line x1={x}   y1={y+h}    x2={x+BK} y2={y+h}   stroke={accent} strokeWidth="2.4" strokeOpacity="0.95" />
+                    <line x1={x+w-BK} y1={y+h} x2={x+w} y2={y+h}   stroke={accent} strokeWidth="2.4" strokeOpacity="0.95" />
+                    <line x1={x+w} y1={y+h-BK} x2={x+w} y2={y+h}   stroke={accent} strokeWidth="2.4" strokeOpacity="0.95" />
+                    <line x1={x+1} y1={y+30} x2={x+w-1} y2={y+30} stroke={accent} strokeWidth="0.8" strokeOpacity="0.35" />
+                    <line x1={x}   y1={y+44}   x2={x+4} y2={y+44}   stroke={accent} strokeWidth="1.0" strokeOpacity="0.45" />
+                    <line x1={x}   y1={y+h-44} x2={x+4} y2={y+h-44} stroke={accent} strokeWidth="1.0" strokeOpacity="0.45" />
                   </g>
                 );
 
                 return (
-                  <g style={{ opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.6s ease" }} pointerEvents="none">
+                  <g style={{ opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.6s ease" }}>
 
                     {/* ── PANEL 1 (TL): FIELD INTEL ─────────────────────── */}
                     {sciPanel(PAD, PAD, PW, PH1, "hud-tl-bg")}
-                    <text x={PAD+10} y={PAD+16}
+                    <text x={PAD+10} y={PAD+20}
                       fill="#00e5ff" fillOpacity="0.85" filter="url(#hudNeonGlow)"
-                      fontFamily="'Courier New', Monaco, monospace" fontSize="6" fontWeight="700" letterSpacing="0.28em">
+                      fontFamily="'Courier New', Monaco, monospace" fontSize="10.5" fontWeight="700" letterSpacing="0.22em">
                       FIELD INTEL
                     </text>
-                    <text x={PAD+PW-8} y={PAD+16}
+                    <text x={PAD+PW-8} y={PAD+20}
                       fill="#00e5ff" fillOpacity="0.35" textAnchor="end"
-                      fontFamily="'Courier New', Monaco, monospace" fontSize="5" letterSpacing="0.06em">
+                      fontFamily="'Courier New', Monaco, monospace" fontSize="8.5" letterSpacing="0.06em">
                       SYS·ACTIVE
                     </text>
                     {([
@@ -3442,46 +3445,46 @@ export default function Radar({
                           onMouseLeave={() => setHudHighlight(null)}
                         >
                           {hover && (
-                            <rect x={PAD+1} y={PAD+28+ri*22-1} width={PW-2} height={20} rx="1"
+                            <rect x={PAD+1} y={PAD+34+ri*27-1} width={PW-2} height={24} rx="1"
                               fill={color} fillOpacity={isHovered ? 0.07 : 0}
                               style={{ transition: "fill-opacity 0.12s ease" }} />
                           )}
-                          <text x={PAD+10} y={PAD+40+ri*22}
+                          <text x={PAD+10} y={PAD+47+ri*27}
                             fill="#2a5070" fillOpacity="0.90"
-                            fontFamily="'Courier New', Monaco, monospace" fontSize="5.5" letterSpacing="0.14em">
+                            fontFamily="'Courier New', Monaco, monospace" fontSize="9.5" letterSpacing="0.12em">
                             {label}
                           </text>
-                          <text x={PAD+PW-8} y={PAD+40+ri*22}
+                          <text x={PAD+PW-8} y={PAD+47+ri*27}
                             textAnchor="end"
                             fill={color} fillOpacity="0.90"
                             filter={color !== "#334a5e" && color !== "#3a6080" ? "url(#hudNeonGlow)" : undefined}
-                            fontFamily="'Courier New', Monaco, monospace" fontSize="6.5" fontWeight="bold" letterSpacing="0.06em">
+                            fontFamily="'Courier New', Monaco, monospace" fontSize="12" fontWeight="bold" letterSpacing="0.06em">
                             {value}
                           </text>
-                          <line x1={PAD+8} y1={PAD+43+ri*22} x2={PAD+PW-8} y2={PAD+43+ri*22}
-                            stroke="#00e5ff" strokeWidth="0.2" strokeOpacity="0.08" />
+                          <line x1={PAD+8} y1={PAD+50+ri*27} x2={PAD+PW-8} y2={PAD+50+ri*27}
+                            stroke="#00e5ff" strokeWidth="0.3" strokeOpacity="0.08" />
                         </g>
                       );
                     })}
 
                     {/* ── PANEL 2 (BL): NODE STREAM ─────────────────────── */}
                     {sciPanel(PAD, 1000 - PH2 - PAD, PW, PH2, "hud-bl-bg", "#00ff88")}
-                    <text x={PAD+10} y={1000 - PH2 - PAD + 16}
+                    <text x={PAD+10} y={1000 - PH2 - PAD + 20}
                       fill="#00ff88" fillOpacity="0.85" filter="url(#hudNeonGlow)"
-                      fontFamily="'Courier New', Monaco, monospace" fontSize="6" fontWeight="700" letterSpacing="0.28em">
+                      fontFamily="'Courier New', Monaco, monospace" fontSize="10.5" fontWeight="700" letterSpacing="0.22em">
                       NODE STREAM
                     </text>
-                    <text x={PAD+PW-8} y={1000 - PH2 - PAD + 16}
+                    <text x={PAD+PW-8} y={1000 - PH2 - PAD + 20}
                       fill="#00ff88" fillOpacity="0.35" textAnchor="end"
-                      fontFamily="'Courier New', Monaco, monospace" fontSize="5" letterSpacing="0.06em">
+                      fontFamily="'Courier New', Monaco, monospace" fontSize="8.5" letterSpacing="0.06em">
                       TOP·4
                     </text>
                     {sorted.slice(0, 4).map((c, ri) => {
                       const momentum = Number(c.momentum_score ?? 0);
                       const mCfg = getMomentumConfig(momentum);
                       const movAbbr = c.latest_movement_type ? movAbbreviation(c.latest_movement_type) : "—";
-                      const barW = Math.min(100, momentum * 11);
-                      const baseY = 1000 - PH2 - PAD + 28 + ri * 42;
+                      const barW = Math.min(130, momentum * 14);
+                      const baseY = 1000 - PH2 - PAD + 30 + ri * 53;
                       const isHighlighted = hudHighlight?.type === 'node' && hudHighlight.id === c.competitor_id;
                       return (
                         <g key={`hud-bl-${ri}`}
@@ -3489,49 +3492,51 @@ export default function Radar({
                           onMouseEnter={() => setHudHighlight({ type: 'node', id: c.competitor_id })}
                           onMouseLeave={() => setHudHighlight(null)}
                         >
-                          <rect x={PAD+1} y={baseY-4} width={PW-2} height={38} rx="1"
+                          <rect x={PAD+1} y={baseY-3} width={PW-2} height={46} rx="1"
                             fill={mCfg.color} fillOpacity={isHighlighted ? 0.07 : 0}
                             style={{ transition: "fill-opacity 0.12s ease" }} />
-                          <text x={PAD+9} y={baseY+9}
+                          <text x={PAD+9} y={baseY+13}
                             fill="#00ff88" fillOpacity="0.30"
-                            fontFamily="'Courier New', Monaco, monospace" fontSize="8.5" fontWeight="700">
+                            fontFamily="'Courier New', Monaco, monospace" fontSize="14" fontWeight="700">
                             {`0${ri + 1}`}
                           </text>
-                          <text x={PAD+26} y={baseY+9}
+                          <text x={PAD+30} y={baseY+13}
                             fill="#d0e8f0" fillOpacity="0.80"
-                            fontFamily="'Courier New', Monaco, monospace" fontSize="6.5" fontWeight="600" letterSpacing="0.10em">
-                            {c.competitor_name.toUpperCase().slice(0, 11)}
+                            fontFamily="'Courier New', Monaco, monospace" fontSize="11" fontWeight="600" letterSpacing="0.10em">
+                            {c.competitor_name.toUpperCase().slice(0, 13)}
                           </text>
-                          <text x={PAD+PW-8} y={baseY+9}
+                          <text x={PAD+PW-8} y={baseY+13}
                             textAnchor="end" fill={mCfg.color} fillOpacity="0.70"
-                            fontFamily="'Courier New', Monaco, monospace" fontSize="5.5" letterSpacing="0.08em">
+                            fontFamily="'Courier New', Monaco, monospace" fontSize="9.5" letterSpacing="0.08em">
                             {movAbbr}
                           </text>
-                          <rect x={PAD+26} y={baseY+13} width={100} height={2.5} rx="1.25"
+                          <rect x={PAD+30} y={baseY+18} width={130} height={4} rx="2"
                             fill="#ffffff" fillOpacity="0.05" />
-                          <rect x={PAD+26} y={baseY+13} width={barW} height={2.5} rx="1.25"
+                          <rect x={PAD+30} y={baseY+18} width={barW} height={4} rx="2"
                             fill={mCfg.color} fillOpacity="0.70" />
-                          <text x={PAD+PW-8} y={baseY+23}
+                          <text x={PAD+PW-8} y={baseY+32}
                             textAnchor="end" fill={mCfg.color} fillOpacity="0.55"
-                            fontFamily="'Courier New', Monaco, monospace" fontSize="5" letterSpacing="0.06em">
+                            fontFamily="'Courier New', Monaco, monospace" fontSize="9" letterSpacing="0.06em">
                             {`M·${momentum.toFixed(1)}`}
                           </text>
                           {ri < 3 && (
-                            <line x1={PAD+8} y1={baseY+32} x2={PAD+PW-8} y2={baseY+32}
-                              stroke="#00ff88" strokeWidth="0.25" strokeOpacity="0.10" />
+                            <line x1={PAD+8} y1={baseY+43} x2={PAD+PW-8} y2={baseY+43}
+                              stroke="#00ff88" strokeWidth="0.3" strokeOpacity="0.10" />
                           )}
                         </g>
                       );
                     })}
 
-                    {/* ── PANEL 3 (TR or TL): TARGET LOCKED ─────────────── */}
+                    {/* ── PANEL 3 (TR or below TL): TARGET LOCKED ────────── */}
+                    {/* panelOnRight=true → top-right corner                  */}
+                    {/* panelOnRight=false → left side below Panel 1           */}
                     <AnimatePresence>
                       {selected && (() => {
                         const selPos = hudPos.get(selected.competitor_id);
                         const panelOnRight = !selPos || selPos.x >= CENTER;
                         const px = panelOnRight ? 1000 - PW - PAD : PAD;
-                        const py = PAD;
-                        const ph = 248;
+                        const py = panelOnRight ? PAD : PAD + PH1 + 10;
+                        const ph = 290;
                         const momentum    = Number(selected.momentum_score ?? 0);
                         const mCfg        = getMomentumConfig(momentum);
                         const threatLevel = momentum >= 7 ? "CRITICAL THREAT" : momentum >= 5 ? "HIGH THREAT" : momentum >= 3 ? "ELEVATED" : "NOMINAL";
@@ -3539,7 +3544,7 @@ export default function Radar({
                         const rivalCount  = tensionLinks.filter(l => l.idA === selected.competitor_id || l.idB === selected.competitor_id).length;
                         const lastSig     = selected.last_signal_at ? formatRelative(selected.last_signal_at).toUpperCase() : "—";
                         const movAbbr     = selected.latest_movement_type ? movAbbreviation(selected.latest_movement_type) : "—";
-                        const barW        = Math.min(PW - 20, momentum * 14);
+                        const barW        = Math.min(PW - 20, momentum * 16);
                         const connectorPt = selPos ? { x: selPos.x, y: selPos.y } : null;
                         return (
                           <motion.g
@@ -3550,39 +3555,39 @@ export default function Radar({
                             transition={{ type: "spring", stiffness: 280, damping: 22 }}
                           >
                             {sciPanel(px, py, PW, ph, "hud-tr-bg", threatColor)}
-                            <text x={px+10} y={py+16}
+                            <text x={px+10} y={py+20}
                               fill={threatColor} fillOpacity="0.90" filter="url(#hudNeonGlow)"
-                              fontFamily="'Courier New', Monaco, monospace" fontSize="6" fontWeight="700" letterSpacing="0.28em">
+                              fontFamily="'Courier New', Monaco, monospace" fontSize="10.5" fontWeight="700" letterSpacing="0.22em">
                               TARGET LOCKED
                             </text>
-                            <text x={px+PW/2} y={py+36}
+                            <text x={px+PW/2} y={py+41}
                               textAnchor="middle"
                               fill="#ffffff" fillOpacity="0.95" filter="url(#hudNeonGlow)"
-                              fontFamily="'Courier New', Monaco, monospace" fontSize="9.5" fontWeight="bold" letterSpacing="0.14em">
+                              fontFamily="'Courier New', Monaco, monospace" fontSize="17" fontWeight="bold" letterSpacing="0.12em">
                               {selected.competitor_name.toUpperCase().slice(0, 14)}
                             </text>
-                            <rect x={px+PW/2-38} y={py+40} width={76} height={13} rx="1.5"
+                            <rect x={px+PW/2-50} y={py+48} width={100} height={17} rx="2"
                               fill={threatColor} fillOpacity="0.12" />
-                            <rect x={px+PW/2-38} y={py+40} width={76} height={13} rx="1.5"
-                              fill="none" stroke={threatColor} strokeWidth="0.6" strokeOpacity="0.55" />
-                            <text x={px+PW/2} y={py+48.5}
+                            <rect x={px+PW/2-50} y={py+48} width={100} height={17} rx="2"
+                              fill="none" stroke={threatColor} strokeWidth="0.7" strokeOpacity="0.55" />
+                            <text x={px+PW/2} y={py+58.5}
                               textAnchor="middle" dominantBaseline="middle"
                               fill={threatColor} fillOpacity="0.90" filter="url(#hudNeonGlow)"
-                              fontFamily="'Courier New', Monaco, monospace" fontSize="5.5" fontWeight="700" letterSpacing="0.22em">
+                              fontFamily="'Courier New', Monaco, monospace" fontSize="9.5" fontWeight="700" letterSpacing="0.20em">
                               {threatLevel}
                             </text>
-                            <text x={px+10} y={py+66}
-                              fill="#2a5070" fontFamily="'Courier New', Monaco, monospace" fontSize="5.5" letterSpacing="0.14em">
+                            <text x={px+10} y={py+80}
+                              fill="#2a5070" fontFamily="'Courier New', Monaco, monospace" fontSize="9.5" letterSpacing="0.12em">
                               MOMENTUM
                             </text>
-                            <text x={px+PW-10} y={py+66}
+                            <text x={px+PW-10} y={py+80}
                               textAnchor="end" fill={mCfg.color} fillOpacity="0.90" filter="url(#hudNeonGlow)"
-                              fontFamily="'Courier New', Monaco, monospace" fontSize="6.5" fontWeight="bold">
+                              fontFamily="'Courier New', Monaco, monospace" fontSize="12" fontWeight="bold">
                               {momentum.toFixed(1)}
                             </text>
-                            <rect x={px+10} y={py+69} width={PW-20} height={3} rx="1.5"
+                            <rect x={px+10} y={py+84} width={PW-20} height={4} rx="2"
                               fill="#ffffff" fillOpacity="0.05" />
-                            <rect x={px+10} y={py+69} width={barW} height={3} rx="1.5"
+                            <rect x={px+10} y={py+84} width={barW} height={4} rx="2"
                               fill={mCfg.color} fillOpacity="0.70" />
                             {([
                               { label: "VECTOR",       value: movAbbr,                                                   color: "#7ad4f0" },
@@ -3592,29 +3597,29 @@ export default function Radar({
                               { label: "PRESSURE IDX", value: (selected.pressure_index ?? 0).toFixed(1),                 color: "#7ad4f0" },
                             ] as Array<{ label: string; value: string; color: string }>).map(({ label, value, color }, ri) => (
                               <g key={`hud-sel-${ri}`}>
-                                <text x={px+10} y={py+88+ri*22}
+                                <text x={px+10} y={py+106+ri*30}
                                   fill="#2a5070" fillOpacity="0.90"
-                                  fontFamily="'Courier New', Monaco, monospace" fontSize="5.5" letterSpacing="0.14em">
+                                  fontFamily="'Courier New', Monaco, monospace" fontSize="9.5" letterSpacing="0.12em">
                                   {label}
                                 </text>
-                                <text x={px+PW-10} y={py+88+ri*22}
+                                <text x={px+PW-10} y={py+106+ri*30}
                                   textAnchor="end" fill={color} fillOpacity="0.90"
                                   filter={color !== "#334a5e" && color !== "#3a6080" ? "url(#hudNeonGlow)" : undefined}
-                                  fontFamily="'Courier New', Monaco, monospace" fontSize="6" fontWeight="bold" letterSpacing="0.08em">
+                                  fontFamily="'Courier New', Monaco, monospace" fontSize="11" fontWeight="bold" letterSpacing="0.08em">
                                   {value}
                                 </text>
-                                <line x1={px+8} y1={py+91+ri*22} x2={px+PW-8} y2={py+91+ri*22}
-                                  stroke={threatColor} strokeWidth="0.2" strokeOpacity="0.08" />
+                                <line x1={px+8} y1={py+109+ri*30} x2={px+PW-8} y2={py+109+ri*30}
+                                  stroke={threatColor} strokeWidth="0.3" strokeOpacity="0.08" />
                               </g>
                             ))}
                             {selected.latest_movement_type && (
                               <>
-                                <line x1={px+8} y1={py+ph-22} x2={px+PW-8} y2={py+ph-22}
-                                  stroke={threatColor} strokeWidth="0.4" strokeOpacity="0.22" />
-                                <text x={px+PW/2} y={py+ph-10}
+                                <line x1={px+8} y1={py+ph-26} x2={px+PW-8} y2={py+ph-26}
+                                  stroke={threatColor} strokeWidth="0.5" strokeOpacity="0.22" />
+                                <text x={px+PW/2} y={py+ph-11}
                                   textAnchor="middle"
                                   fill={threatColor} fillOpacity="0.60"
-                                  fontFamily="'Courier New', Monaco, monospace" fontSize="5" letterSpacing="0.16em">
+                                  fontFamily="'Courier New', Monaco, monospace" fontSize="8.5" letterSpacing="0.16em">
                                   {selected.latest_movement_type.replace(/_/g, " ").toUpperCase()}
                                 </text>
                               </>
@@ -3626,9 +3631,9 @@ export default function Radar({
                                 <path
                                   d={`M ${connectorPt.x + (panelOnRight ? -nodeR : nodeR)} ${connectorPt.y} L ${panelEdgeX} ${connectorPt.y} L ${panelEdgeX} ${py + ph / 2}`}
                                   fill="none"
-                                  stroke={threatColor} strokeWidth="0.4"
+                                  stroke={threatColor} strokeWidth="0.6"
                                   strokeOpacity="0.30"
-                                  strokeDasharray="3 5"
+                                  strokeDasharray="4 6"
                                 />
                               );
                             })()}
@@ -3639,35 +3644,35 @@ export default function Radar({
 
                     {/* ── PANEL 4 (BR): FIELD ASSESSMENT ───────────────── */}
                     {sciPanel(1000 - PW - PAD, 1000 - PH4 - PAD, PW, PH4, "hud-br-bg", "#bb66ff")}
-                    <text x={1000 - PW - PAD + 10} y={1000 - PH4 - PAD + 16}
+                    <text x={1000 - PW - PAD + 10} y={1000 - PH4 - PAD + 20}
                       fill="#bb66ff" fillOpacity="0.85" filter="url(#hudNeonGlow)"
-                      fontFamily="'Courier New', Monaco, monospace" fontSize="6" fontWeight="700" letterSpacing="0.28em">
+                      fontFamily="'Courier New', Monaco, monospace" fontSize="10.5" fontWeight="700" letterSpacing="0.22em">
                       FIELD ASSESSMENT
                     </text>
                     {([
-                      { label: "CRITICAL VECTORS",   value: criticalCount.toString(),            color: criticalCount > 0 ? "#ff2255" : "#334a5e" },
-                      { label: "CONVERGENCE ZONES",  value: convergenceCount.toString(),          color: convergenceCount > 0 ? "#bb66ff" : "#334a5e" },
-                      { label: "SIGNALS·7D",         value: totalSignals.toString(),              color: "#7ad4f0" },
-                      { label: "ORBIT MODE",         value: orbitMode ? "ACTIVE" : "STANDBY",  color: orbitMode ? "#00ff88" : "#334a5e" },
-                      { label: "FIELD AGE",          value: fieldAgeStr,                          color: "#3a6080" },
-                      { label: "HOT SECTOR",         value: hottestStr,                           color: "#bb66ff" },
+                      { label: "CRITICAL VECTORS",   value: criticalCount.toString(),           color: criticalCount > 0 ? "#ff2255" : "#334a5e" },
+                      { label: "CONVERGENCE ZONES",  value: convergenceCount.toString(),         color: convergenceCount > 0 ? "#bb66ff" : "#334a5e" },
+                      { label: "SIGNALS·7D",         value: totalSignals.toString(),             color: "#7ad4f0" },
+                      { label: "ORBIT MODE",         value: "ACTIVE",                           color: "#00ff88" },
+                      { label: "FIELD AGE",          value: fieldAgeStr,                         color: "#3a6080" },
+                      { label: "HOT SECTOR",         value: hottestStr,                          color: "#bb66ff" },
                     ] as Array<{ label: string; value: string; color: string }>).map(({ label, value, color }, ri) => (
                       <g key={`hud-br-${ri}`}>
-                        <text x={1000 - PW - PAD + 10} y={1000 - PH4 - PAD + 32 + ri * 26}
+                        <text x={1000 - PW - PAD + 10} y={1000 - PH4 - PAD + 40 + ri * 32}
                           fill="#2a5070" fillOpacity="0.90"
-                          fontFamily="'Courier New', Monaco, monospace" fontSize="5.5" letterSpacing="0.14em">
+                          fontFamily="'Courier New', Monaco, monospace" fontSize="9.5" letterSpacing="0.12em">
                           {`▸ ${label}`}
                         </text>
-                        <text x={1000 - PAD - 8} y={1000 - PH4 - PAD + 32 + ri * 26}
+                        <text x={1000 - PAD - 8} y={1000 - PH4 - PAD + 40 + ri * 32}
                           textAnchor="end"
                           fill={color} fillOpacity="0.90"
                           filter={color !== "#334a5e" && color !== "#3a6080" ? "url(#hudNeonGlow)" : undefined}
-                          fontFamily="'Courier New', Monaco, monospace" fontSize="6" fontWeight="bold" letterSpacing="0.08em">
+                          fontFamily="'Courier New', Monaco, monospace" fontSize="11" fontWeight="bold" letterSpacing="0.08em">
                           {value}
                         </text>
-                        <line x1={1000 - PW - PAD + 8} y1={1000 - PH4 - PAD + 35 + ri * 26}
-                              x2={1000 - PAD - 8}       y2={1000 - PH4 - PAD + 35 + ri * 26}
-                          stroke="#bb66ff" strokeWidth="0.2" strokeOpacity="0.08" />
+                        <line x1={1000 - PW - PAD + 8} y1={1000 - PH4 - PAD + 43 + ri * 32}
+                              x2={1000 - PAD - 8}       y2={1000 - PH4 - PAD + 43 + ri * 32}
+                          stroke="#bb66ff" strokeWidth="0.3" strokeOpacity="0.08" />
                       </g>
                     ))}
 

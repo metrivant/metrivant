@@ -50,10 +50,10 @@ export function randomDelay(minMs: number, maxMs: number): number {
   return Math.floor(minMs + Math.random() * (maxMs - minMs));
 }
 
-// ── Cycle timer: 3 min → 5 min → 2 min → repeat ───────────────────────────────
+// ── Cycle timer: 1:45 → 2:15 → 1:45 → repeat ─────────────────────────────────
 
 const CYCLE_INDEX_KEY  = "mv_panel_cycle_idx";
-const CYCLE_DELAYS_MS  = [180_000, 300_000, 120_000]; // 3 min, 5 min, 2 min
+const CYCLE_DELAYS_MS  = [105_000, 135_000, 105_000]; // 1:45, 2:15, 1:45
 
 /**
  * Returns the next delay in the 3min→5min→2min cycle and advances the index.

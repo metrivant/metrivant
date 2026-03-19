@@ -771,6 +771,14 @@ export default function KnowledgePanel() {
   const [seenCount, setSeenCount] = useState(0);
   const [entryNumber, setEntryNumber] = useState(1);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [panelEnabled, setPanelEnabled] = useState(true);
+  useEffect(() => {
+    const v = localStorage.getItem("mv_knowledge_panel");
+    if (v === "false") setPanelEnabled(false);
+    const handler = () => setPanelEnabled(localStorage.getItem("mv_knowledge_panel") !== "false");
+    window.addEventListener("storage", handler);
+    return () => window.removeEventListener("storage", handler);
+  }, []);
 
   // SSR guard — wait for client mount before reading sessionStorage
   useEffect(() => {
@@ -823,6 +831,7 @@ export default function KnowledgePanel() {
   }, [slide, handleClose]);
 
   if (!ready) return null;
+  if (!panelEnabled) return null;
 
   const accentColor = slide?.accent ?? "#2EE6A6";
   const typeColor = slide ? badgeColor(slide.type) : "#2EE6A6";
@@ -846,6 +855,8 @@ export default function KnowledgePanel() {
             right: "16px",
             width: "320px",
             zIndex: 55,
+            maxHeight: "calc(100vh - 88px)",
+            overflowY: "auto" as const,
             background: "rgba(4, 8, 5, 0.96)",
             backdropFilter: "blur(28px)",
             WebkitBackdropFilter: "blur(28px)",
@@ -936,6 +947,26 @@ export default function KnowledgePanel() {
             >
               Entry {entryNumber}
             </span>
+
+            {/* Gear / settings link */}
+            <a
+              href="/app/settings"
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: "22px", height: "22px", borderRadius: "6px",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                color: "rgba(255,255,255,0.35)",
+                textDecoration: "none", fontSize: "12px",
+                transition: "color 0.15s, background 0.15s",
+                flexShrink: 0,
+              }}
+              title="Knowledge panel settings"
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.70)"; (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.08)"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.35)"; (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; }}
+            >
+              ⚙
+            </a>
 
             {/* Close button */}
             <button

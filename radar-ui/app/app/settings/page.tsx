@@ -3,6 +3,7 @@ import { createClient } from "../../../lib/supabase/server";
 import Link from "next/link";
 import SoundSettings from "../../../components/SoundSettings";
 import TimezoneSettings from "../../../components/TimezoneSettings";
+import KnowledgePanelToggle from "./KnowledgePanelToggle";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -89,7 +90,7 @@ export default async function SettingsPage() {
         </section>
 
         {/* ── Session ─────────────────────────────────────────────────── */}
-        <section className="rounded-[14px] border border-[#0d2010] bg-[#020802] p-6">
+        <section className="mb-6 rounded-[14px] border border-[#0d2010] bg-[#020802] p-6">
           <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
             Session
           </h2>
@@ -101,6 +102,17 @@ export default async function SettingsPage() {
               Sign out
             </button>
           </form>
+        </section>
+
+        <section className="mt-6 rounded-[14px] border border-[#0d2010] bg-[#020802] p-6">
+          <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-[#2EE6A6]">Interface</h2>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-200">Knowledge Panel</p>
+              <p className="mt-0.5 text-xs text-slate-500">Ambient intelligence slides — historical, feature, and science entries</p>
+            </div>
+            <KnowledgePanelToggle />
+          </div>
         </section>
       </main>
     </div>
