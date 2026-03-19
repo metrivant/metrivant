@@ -11,6 +11,12 @@ import { openai } from "./openai";
 
 export type RelevanceLevel = "high" | "medium" | "low";
 
+export interface NoiseExample {
+  noise_category:  string;
+  previous_excerpt: string;
+  current_excerpt:  string;
+}
+
 export interface SignalRelevanceInput {
   competitor_name: string;
   section_type:    string;
@@ -18,6 +24,7 @@ export interface SignalRelevanceInput {
   signal_type:     string;
   previous_excerpt: string;
   current_excerpt:  string;
+  noiseExamples?:  NoiseExample[];
 }
 
 export interface RelevanceResult {
@@ -25,7 +32,7 @@ export interface RelevanceResult {
   rationale:       string;
 }
 
-const SYSTEM_PROMPT = `You classify competitor website changes for strategic relevance.
+const SYSTEM_PROMPT_BASE = `You classify competitor website changes for strategic relevance.
 
 Return JSON with exactly:
 - relevance_level: "high" | "medium" | "low"
@@ -40,6 +47,17 @@ Default bias: permissive. When uncertain, prefer medium over low.
 high_value page class (pricing, changelog, newsroom): never return low.
 
 Return only valid JSON.`;
+
+function buildSystemPrompt(noiseExamples?: NoiseExample[]): string {
+  if (!noiseExamples || noiseExamples.length === 0) return SYSTEM_PROMPT_BASE;
+  const examples = noiseExamples
+    .slice(0, 5)
+    .map(e =>
+      `- [${e.noise_category}] Prev: "${e.previous_excerpt.slice(0, 80)}" → Curr: "${e.current_excerpt.slice(0, 80)}"`
+    )
+    .join("\n");
+  return `${SYSTEM_PROMPT_BASE}\n\nOperator-labeled noise examples (classify similar patterns as low):\n${examples}`;
+}
 
 export async function classifySignalRelevance(
   signal: SignalRelevanceInput
@@ -63,7 +81,7 @@ export async function classifySignalRelevance(
     max_tokens:      80,
     response_format: { type: "json_object" },
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: buildSystemPrompt(signal.noiseExamples) },
       { role: "user",   content: userPrompt },
     ],
   });

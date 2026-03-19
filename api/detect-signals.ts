@@ -71,9 +71,10 @@ function computeConfidence(
   sectionType: string,
   observationCount: number,
   lastSeenAt: string | null,
-  pageClass: string
+  pageClass: string,
+  weights: Record<string, number> = SECTION_WEIGHTS
 ): number {
-  const base = SECTION_WEIGHTS[sectionType] ?? DEFAULT_WEIGHT;
+  const base = weights[sectionType] ?? DEFAULT_WEIGHT;
 
   // Recency bonus: fresher detections carry more weight.
   const ageMs = lastSeenAt
@@ -320,6 +321,30 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     rowsClaimed = eligibleDiffs.length;
 
+    // ── Load calibrated weights (latest report within 30d, fallback to hardcoded) ──
+    // calibrate-weights runs weekly; detect-signals uses the snapshot to adjust
+    // SECTION_WEIGHTS for section_types with sufficient operator feedback.
+    const effectiveWeights: Record<string, number> = { ...SECTION_WEIGHTS };
+    {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: calibRow } = await (supabase as any)
+        .from("calibration_reports")
+        .select("section_stats")
+        .gte("computed_at", thirtyDaysAgo)
+        .order("computed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (calibRow?.section_stats) {
+        for (const stat of (calibRow.section_stats as Array<{ section_type: string; adjusted_weight: number }>)) {
+          if (typeof stat.section_type === "string" && typeof stat.adjusted_weight === "number") {
+            effectiveWeights[stat.section_type] = stat.adjusted_weight;
+          }
+        }
+      }
+    }
+
     // ── Pre-batch: load all referenced page_sections in 2 queries ─────────────
     // Avoids N+1 (previously 2 individual queries per diff × up to 50 diffs).
     const allSectionIds = [
@@ -453,7 +478,8 @@ async function handler(req: ApiReq, res: ApiRes) {
           diff.section_type,
           diff.observation_count ?? 1,
           diff.last_seen_at,
-          diff.page_class
+          diff.page_class,
+          effectiveWeights
         );
 
         if (confidenceScore < CONFIDENCE_SUPPRESS) {

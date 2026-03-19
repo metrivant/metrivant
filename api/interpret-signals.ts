@@ -6,7 +6,7 @@ import { openai } from "../lib/openai";
 import { verifyCronSecret } from "../lib/withCronAuth";
 import { createHash } from "crypto";
 import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
-import { classifySignalRelevance } from "../lib/signal-relevance";
+import { classifySignalRelevance, NoiseExample } from "../lib/signal-relevance";
 import { getCompetitorContext, formatContextForPrompt } from "../lib/competitor-context";
 import { updateCompetitorContext } from "../lib/context-updater";
 
@@ -338,6 +338,33 @@ async function handler(req: ApiReq, res: ApiRes) {
         });
       }
 
+      // ── Pre-load operator-labeled noise examples for few-shot relevance classification ──
+      // Loaded once before the parallel map — avoids N+1 per signal.
+      // Graceful degradation: errors are silently ignored (classifier falls back to zero-shot).
+      const noiseExamples: NoiseExample[] = [];
+      {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: noiseFb } = await (supabase as any)
+          .from("signal_feedback")
+          .select("noise_category, signals!signal_id ( signal_data )")
+          .eq("verdict", "noise")
+          .not("noise_category", "is", null)
+          .limit(5);
+
+        for (const row of (noiseFb ?? []) as Array<{
+          noise_category: string;
+          signals: { signal_data: Record<string, string> | null } | null;
+        }>) {
+          if (row.noise_category && row.signals?.signal_data) {
+            noiseExamples.push({
+              noise_category:   row.noise_category,
+              previous_excerpt: row.signals.signal_data.previous_excerpt ?? "",
+              current_excerpt:  row.signals.signal_data.current_excerpt  ?? "",
+            });
+          }
+        }
+      }
+
       // ── Relevance classification — parallel, best-effort ──────────────────
       const relevanceMap = new Map<string, "high" | "medium" | "low">();
 
@@ -356,6 +383,7 @@ async function handler(req: ApiReq, res: ApiRes) {
             signal_type:      signal.signal_type,
             previous_excerpt: prev,
             current_excerpt:  curr,
+            noiseExamples:    noiseExamples.length > 0 ? noiseExamples : undefined,
           });
 
           relevanceMap.set(id, result.relevance_level);
