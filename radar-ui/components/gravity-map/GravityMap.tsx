@@ -214,7 +214,8 @@ export default function GravityMap() {
           const el = nodeRefsMap.current.get(node.competitor_id);
           if (!el) continue;
 
-          vec3Ref.current.set(node.gridX, 0, node.gridZ).project(camera);
+          const nodeY = -computeGaussianDepth(node.gridX, node.gridZ, nodes, sigma) * MAX_DEPTH;
+          vec3Ref.current.set(node.gridX, nodeY, node.gridZ).project(camera);
 
           if (vec3Ref.current.z >= 1) {
             el.style.display = "none";

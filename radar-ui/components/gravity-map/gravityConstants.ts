@@ -20,8 +20,8 @@ export const MASS_EXPONENT = 0.4;
 // sigma = GRID_SIZE / (nodeCount * SIGMA_DIVISOR)
 // Increase SIGMA_DIVISOR → narrower wells (more distinct when dense)
 // Decrease SIGMA_DIVISOR → wider wells (better for sparse data)
-export const SIGMA_DIVISOR = 0.9;
-export const SIGMA_FLOOR   = 10;  // minimum sigma, prevents point-like wells for single nodes
+export const SIGMA_DIVISOR = 2.0;  // raised from 0.9 — narrows wells so each node reads distinctly
+export const SIGMA_FLOOR   = 7;   // lowered from 10 — allows tighter wells for sparse layouts
 
 // Depth-based color stops: [normalizedDepth 0–1, [r, g, b] as 0–1 floats]
 // 0.0 = flat surface, 1.0 = maximum well depth
@@ -32,12 +32,12 @@ export const DEPTH_COLOR_STOPS: [number, [number, number, number]][] = [
   [1.0, [200 / 255,  60 / 255,  40 / 255]],  // red-orange  — deepest well
 ];
 
-// Camera — ~17° elevation angle: profile-biased for cross-section reading.
+// Camera — ~27° elevation angle: raised from 20° for deeper well legibility.
 // Nodes form a horizontal line; wells read as downward displacement beneath them.
 export const CAMERA_FOV      = 45;
 export const CAMERA_NEAR     = 0.1;
 export const CAMERA_FAR      = 500;
-export const CAMERA_POSITION = { x: 0, y: 28, z: 92 } as const;
+export const CAMERA_POSITION = { x: 0, y: 40, z: 80 } as const;
 export const CAMERA_LOOK_AT  = { x: 0, y: -6, z: 0 } as const;
 
 // Node sizing (pixel units for the HTML overlay circles)
