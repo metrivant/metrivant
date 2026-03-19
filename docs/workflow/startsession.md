@@ -554,13 +554,14 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
   EDGAR URL pattern: https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={cik}&type={form}&dateb=&owner=include&count=40&search_text=&output=atom
   User-Agent for EDGAR requests (already set in ingest-regulatory-feeds.ts): "Metrivant Regulatory Monitor (research@metrivant.com)"
 
-- [I] `promote-careers-signals` fails with `error: "[object Object]"` in pipeline_events when a
-  signal insert hits a CHECK constraint violation. Root cause: migration 039 extended
-  signals.signal_type (adds hiring_spike, new_function, new_region, role_cluster) and
-  signals.source_type (adds 'pool_event') — if only partially applied, careers signal inserts
-  fail silently. Fix: apply migration 055 in Supabase SQL Editor. The `String(PostgrestError)`
-  serialisation bug was also fixed in promote-careers-signals.ts (line 491) →
-  `compError instanceof Error ? compError.message : JSON.stringify(compError)`. (2026-03-19)
+- [I] `promote-careers-signals` fails with error code 23502 (NOT NULL violation) on
+  `signals.section_diff_id`. Root cause: signals table was created manually pre-migration with
+  section_diff_id NOT NULL. Migration 013 defined it nullable but was skipped (CREATE TABLE IF
+  NOT EXISTS). Pool event signals have no section_diff_id (they come from feeds, not page diffs) —
+  promote handlers set it to null, hitting the constraint. Fix: apply migration 056 in Supabase
+  SQL Editor (`ALTER TABLE signals ALTER COLUMN section_diff_id DROP NOT NULL`). Migration 056
+  also idempotently applies the cumulative signal_type + source_type CHECK constraints from 055.
+  Apply 056 only — it supersedes 055. (2026-03-19)
 
 - [B] `heal-coverage` does NOT emit pipeline_events. It uses Sentry check-ins + captureMessage
   only. After adding recordEvent (2026-03-19), stage name is "heal" — visible in pipeline_events
