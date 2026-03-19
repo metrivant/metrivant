@@ -25,11 +25,13 @@ export const SIGMA_FLOOR   = 7;   // lowered from 10 — allows tighter wells fo
 
 // Depth-based color stops: [normalizedDepth 0–1, [r, g, b] as 0–1 floats]
 // 0.0 = flat surface, 1.0 = maximum well depth
+// Kept very dark so the white wireframe reads as the primary structural cue.
+// MeshBasicMaterial renders these flat (no lighting), so values show as-is.
 export const DEPTH_COLOR_STOPS: [number, [number, number, number]][] = [
-  [0.0, [40  / 255, 80  / 255, 140 / 255]],  // deep blue   — flat surface
-  [0.3, [60  / 255, 120 / 255, 160 / 255]],  // mid-blue    — shallow slope
-  [0.6, [180 / 255, 120 / 255,  60 / 255]],  // amber-ochre — active zone
-  [1.0, [200 / 255,  60 / 255,  40 / 255]],  // red-orange  — deepest well
+  [0.0, [ 8 / 255,  14 / 255,  26 / 255]],  // near-black navy   — flat surface
+  [0.4, [12 / 255,  20 / 255,  36 / 255]],  // marginally lifted  — shallow slope
+  [0.7, [18 / 255,  20 / 255,  32 / 255]],  // dark slate-blue    — moderate depth
+  [1.0, [30 / 255,  14 / 255,  22 / 255]],  // dark wine          — deepest well
 ];
 
 // Camera — ~27° elevation angle: raised from 20° for deeper well legibility.

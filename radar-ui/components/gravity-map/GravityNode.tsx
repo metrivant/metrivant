@@ -24,14 +24,39 @@ export default function GravityNodeMarker({ node, selected, onSelect, divRef }: 
     ? NODE_RADIUS_ZERO
     : NODE_RADIUS_MIN + (NODE_RADIUS_MAX - NODE_RADIUS_MIN) * visual;
 
-  // Opacity: zero-mass dim, active scales 0.30–0.70
-  const opacity = isZero ? 0.15 : 0.30 + visual * 0.40;
+  // Outline color — reflects signal quality state
+  // Priority: movement (neon green) > recent signals (amber) > pressure (cold blue) > zero (ghost)
+  const outlineColor = isZero
+    ? "rgba(255,255,255,0.12)"
+    : node.movement_count > 0
+      ? `rgba(46,230,166,${(0.45 + visual * 0.40).toFixed(2)})`
+      : node.signal_count_7d > 0
+        ? `rgba(245,158,11,${(0.40 + visual * 0.40).toFixed(2)})`
+        : node.pressure_index > 0
+          ? `rgba(100,160,220,${(0.35 + visual * 0.35).toFixed(2)})`
+          : "rgba(255,255,255,0.12)";
 
-  // Glow radius (soft drop-shadow) for high-mass active nodes
-  const glowSize = isZero ? 0 : Math.round(visual * 10);
+  // Glow color matches outline signal state (RGB only, for use in boxShadow)
+  const glowRGB = isZero
+    ? "255,255,255"
+    : node.movement_count > 0
+      ? "46,230,166"
+      : node.signal_count_7d > 0
+        ? "245,158,11"
+        : node.pressure_index > 0
+          ? "100,160,220"
+          : "255,255,255";
+
+  // Neon glow scaled by visual mass — faint for low-mass, strong for high-mass
+  const glowOuter = isZero ? 0 : Math.round(4 + visual * 20);
+  const glowInner = isZero ? 0 : Math.round(1 + visual * 7);
+  const glowAlpha = isZero ? 0 : 0.18 + visual * 0.55;
 
   const ringRadius = radius + SELECTED_RING_OFFSET;
   const totalSize  = (ringRadius + 2) * 2; // enough room for ring
+
+  // Label opacity: direct scale (not derived from parent opacity)
+  const labelOpacity = isZero ? 0.20 : 0.50 + visual * 0.35;
 
   return (
     <div
@@ -85,7 +110,7 @@ export default function GravityNodeMarker({ node, selected, onSelect, divRef }: 
         />
       )}
 
-      {/* Node circle */}
+      {/* Node circle — white core, colored outline, neon glow scaled by mass */}
       <div
         style={{
           position:     "absolute",
@@ -95,11 +120,10 @@ export default function GravityNodeMarker({ node, selected, onSelect, divRef }: 
           width:        radius * 2,
           height:       radius * 2,
           borderRadius: "50%",
-          background:   "rgba(255,255,255,0.92)",
-          border:       "1px solid rgba(255,255,255,0.60)",
-          opacity,
-          boxShadow:    glowSize > 0
-            ? `0 0 ${glowSize}px ${Math.round(glowSize * 0.6)}px rgba(180,220,255,0.18)`
+          background:   isZero ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.90)",
+          border:       `1.5px solid ${outlineColor}`,
+          boxShadow:    glowOuter > 0
+            ? `0 0 ${glowOuter}px ${glowInner}px rgba(${glowRGB},${glowAlpha.toFixed(2)})`
             : "none",
           pointerEvents: "none",
         }}
@@ -117,9 +141,7 @@ export default function GravityNodeMarker({ node, selected, onSelect, divRef }: 
           fontSize:     "9px",
           fontWeight:   600,
           letterSpacing: "0.08em",
-          color:        isZero
-            ? "rgba(255,255,255,0.20)"
-            : `rgba(255,255,255,${Math.max(0.30, opacity - 0.05).toFixed(2)})`,
+          color:        `rgba(255,255,255,${labelOpacity.toFixed(2)})`,
           textTransform: "uppercase",
           pointerEvents: "none",
           textShadow:   "0 1px 4px rgba(0,0,0,0.70)",

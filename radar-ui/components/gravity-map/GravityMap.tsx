@@ -101,10 +101,12 @@ function buildSurface(
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
   geo.computeVertexNormals();
 
+  // MeshBasicMaterial: no lighting — vertex colors render flat and clean (schematic read).
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-  const mat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  // White wireframe at readable opacity — primary structural element.
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-  const wireMat = new THREE.LineBasicMaterial({ color: 0x1a3a5a, transparent: true, opacity: 0.08 });
+  const wireMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.18 });
 
   return { geo, mat, wireMat };
 }
@@ -169,14 +171,7 @@ export default function GravityMap() {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
       const scene: { add(o: object): void } = new THREE.Scene();
 
-      // Lights
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      scene.add(new THREE.AmbientLight(0xffffff, 0.75));
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      const dirLight = new THREE.DirectionalLight(0xffffff, 0.60);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-      (dirLight as unknown as { position: { set(x: number, y: number, z: number): void } }).position.set(0, 40, 30);
-      scene.add(dirLight);
+      // No lights needed — surface uses MeshBasicMaterial (unlit vertex colors).
 
       // Surface
       const sigma = computeSigma(nodes.length);
