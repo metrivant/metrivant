@@ -537,7 +537,22 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
   promote-investor-signals (:16), ingest-product-feeds (:29), promote-product-signals (:31),
   ingest-procurement-feeds (:32), promote-procurement-signals (:34), ingest-regulatory-feeds (:43),
   promote-regulatory-signals (:46). Pool signal production depends on competitor_feeds configuration,
-  not on scheduling. Pools 3–6 produce zero events because no feed URLs are configured. (2026-03-19)
+  not on scheduling. (2026-03-19)
+
+- [B] competitor_feeds seeded state as of 2026-03-19 (fintech sector, 15 competitors):
+  careers: 11/15 active (Adyen, Affirm, Brex, Checkout.com, Chime, Marqeta, Mercury, Plaid, Ramp, Robinhood, Stripe)
+    source_types: greenhouse (most), lever (Plaid), ashby (Checkout.com, Ramp)
+    missing: Klarna (no public ATS API), Nuvei, Rippling, Wise (use proprietary/Workday)
+  investor: 3/15 active (Affirm CIK=1820953, Marqeta CIK=1522540, Robinhood CIK=1783879)
+    source_type: sec_feed — EDGAR 8-K Atom feeds for US public companies
+  product: 4/15 active (Stripe blog, Plaid blog, Robinhood engineering Medium, Mercury Medium)
+  regulatory: 3/15 active (Affirm, Marqeta, Robinhood) — EDGAR 10-K Atom feeds
+  newsroom: 4/15 active (Affirm, Marqeta, Robinhood IR RSS, Stripe blog RSS)
+  procurement: 0/15 — skipped (fintech B2B, no procurement announcement feeds)
+  ATS URL patterns: greenhouse=boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=true
+    lever=api.lever.co/v0/postings/{slug}?mode=json  ashby=api.ashbyhq.com/posting-api/job-board/{slug}
+  EDGAR URL pattern: https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={cik}&type={form}&dateb=&owner=include&count=40&search_text=&output=atom
+  User-Agent for EDGAR requests (already set in ingest-regulatory-feeds.ts): "Metrivant Regulatory Monitor (research@metrivant.com)"
 
 - [I] `promote-careers-signals` fails with `error: "[object Object]"` in pipeline_events when a
   signal insert hits a CHECK constraint violation. Root cause: migration 039 extended
