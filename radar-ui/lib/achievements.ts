@@ -121,7 +121,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: "gravity_shift",
     name: "Gravity Shift",
-    description: "Activated the Gravity Field — the market bends toward mass.",
+    description: "Activated ORBIT mode — the market bends toward mass.",
     points: 30,
   },
   {

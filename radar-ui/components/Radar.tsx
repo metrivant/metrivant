@@ -587,10 +587,10 @@ type BlipNodeProps = {
   isDimmed: boolean;
   isAlerted: boolean;
   onSelect: (id: string) => void;
-  /** Gravity Field mode: override position (skips golden-spiral layout) */
+  /** ORBIT mode: override position (skips golden-spiral layout) */
   gravityPos?: Point;
-  /** Gravity Field mode: suppress trail dots */
-  gravityMode?: boolean;
+  /** ORBIT mode: suppress trail dots */
+  orbitMode?: boolean;
   /** Temporal filter: node has no signal in the active time window */
   timeDimmed?: boolean;
   /** Signal age glow intensity 0–1: 1.0=fresh<6h, 0.60=recent<24h, 0.22=old */
@@ -627,7 +627,7 @@ const BlipNode = memo(function BlipNode({
   isAlerted,
   onSelect,
   gravityPos,
-  gravityMode,
+  orbitMode,
   timeDimmed,
   signalAgeGlow = 0.22,
   signalAgeColor: ageColor = "rgba(100,116,139,0.45)",
@@ -697,10 +697,10 @@ const BlipNode = memo(function BlipNode({
         <circle
           cx={x}
           cy={y}
-          r={gravityMode ? nodeSize + 34 : nodeSize + 16}
+          r={orbitMode ? nodeSize + 34 : nodeSize + 16}
           fill={color}
-          fillOpacity={gravityMode ? signalAgeGlow * 0.12 : signalAgeGlow * 0.08}
-          filter={gravityMode ? "url(#gravityGlow)" : "url(#blipGlow)"}
+          fillOpacity={orbitMode ? signalAgeGlow * 0.12 : signalAgeGlow * 0.08}
+          filter={orbitMode ? "url(#gravityGlow)" : "url(#blipGlow)"}
           style={{ pointerEvents: "none" }}
         />
       )}
@@ -973,18 +973,18 @@ const BlipNode = memo(function BlipNode({
       {(!isDormantNode || isSelected || hovered) && (
         <text
           x={gravityLabelOverride ? gravityLabelOverride.x : (() => {
-            if (!gravityMode) return x;
+            if (!orbitMode) return x;
             const nx = (x - CENTER) / (Math.sqrt((x - CENTER) ** 2 + (y - CENTER) ** 2) || 1);
             return x + nx * (nodeSize + 13);
           })()}
           y={gravityLabelOverride ? gravityLabelOverride.y : (() => {
-            if (!gravityMode) return y + nodeSize + 14;
+            if (!orbitMode) return y + nodeSize + 14;
             const dy = y - CENTER;
             const ny = dy / (Math.sqrt((x - CENTER) ** 2 + dy ** 2) || 1);
             return y + ny * (nodeSize + 13) + 4;
           })()}
           textAnchor={gravityLabelOverride ? gravityLabelOverride.anchor : (() => {
-            if (!gravityMode) return "middle";
+            if (!orbitMode) return "middle";
             const nx = (x - CENTER) / (Math.sqrt((x - CENTER) ** 2 + (y - CENTER) ** 2) || 1);
             return nx > 0.3 ? "start" : nx < -0.3 ? "end" : "middle";
           })()}
@@ -1311,10 +1311,10 @@ export default function Radar({
   }, [sorted, tensionLinks]);
 
   // ── Gravity Field mode ───────────────────────────────────────────────────
-  const [gravityMode, setGravityMode] = useState(false);
+  const [orbitMode, setOrbitMode] = useState(false);
   // Enhanced sub-mode inside Gravity Field — deeper contours + label avoidance
-  const [gravityEnhanced, setGravityEnhanced] = useState(false);
-  const gravityEverRef = useRef(false);
+  const [orbitHudActive, setOrbitHudActive] = useState(false);
+  const orbitEverRef = useRef(false);
   // HUD panel hover — highlights matching nodes on the radar
   const [hudHighlight, setHudHighlight] = useState<
     | { type: 'category'; value: 'critical' | 'rising' | 'active' | 'convergence' }
@@ -1337,7 +1337,7 @@ export default function Radar({
   // Updates React state at ≈15fps (66ms budget) — enough for graceful orbital motion.
   const lastTickRef = useRef(0);
   useAnimationFrame((t) => {
-    if (!gravityMode) return;
+    if (!orbitMode) return;
     orbitTimeRef.current = t;
     if (t - lastTickRef.current > 66) {
       setOrbitTick(t);
@@ -1345,15 +1345,15 @@ export default function Radar({
     }
   });
   // Reset tick when leaving orbit mode
-  useEffect(() => { if (!gravityMode) { setOrbitTick(0); lastTickRef.current = 0; } }, [gravityMode]);
+  useEffect(() => { if (!orbitMode) { setOrbitTick(0); lastTickRef.current = 0; } }, [orbitMode]);
 
   // Dispatch gravity_shift achievement on first activation
   useEffect(() => {
-    if (gravityMode && !gravityEverRef.current) {
-      gravityEverRef.current = true;
+    if (orbitMode && !orbitEverRef.current) {
+      orbitEverRef.current = true;
       window.dispatchEvent(new CustomEvent("mv:achieve", { detail: "gravity_shift" }));
     }
-  }, [gravityMode]);
+  }, [orbitMode]);
 
   // Orbit metadata — stable per sorted set. Drives Items 2, 3, 5, 6.
   const orbitDataMap = useMemo(() => computeOrbitData(sorted), [sorted]);
@@ -1368,7 +1368,7 @@ export default function Radar({
 
   // ── Migration detection — fires when sorted changes in ORBIT mode ────────
   useEffect(() => {
-    if (!gravityMode || orbitDataMap.size === 0) return;
+    if (!orbitMode || orbitDataMap.size === 0) return;
     const now = performance.now();
     let hasMigration = false;
     for (const [id, data] of orbitDataMap) {
@@ -1382,19 +1382,19 @@ export default function Radar({
       prevOrbitShells.current.set(id, data.shell);
     }
     if (hasMigration) setMigrationTick(t => t + 1);
-  }, [gravityMode, orbitDataMap, sorted]);
+  }, [orbitMode, orbitDataMap, sorted]);
 
   // Positions are computed once per sorted set — memoized, deterministic, ~1ms
-  const gravityPositions = useMemo(
+  const orbitPositions = useMemo(
     () => computeOrbitPositions(sorted),
     [sorted],
   );
 
   // Animated positions — updated at ≈15fps when ORBIT mode is active.
   // Uses orbitTick (which changes at ~15fps) to trigger recomputation.
-  // Contours and other field geometry still use gravityPositions (static t=0 snapshot).
+  // Contours and other field geometry still use orbitPositions (static t=0 snapshot).
   const animatedOrbitPositions = useMemo(() => {
-    if (!gravityMode) return gravityPositions;
+    if (!orbitMode) return orbitPositions;
     // Build positions respecting paused shells
     const orbitData = orbitDataMap;
     const result    = new Map<string, Point>();
@@ -1416,28 +1416,28 @@ export default function Radar({
     }
     return result;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gravityMode, sorted, orbitTick, orbitDataMap]);
+  }, [orbitMode, sorted, orbitTick, orbitDataMap]);
 
 
   // Spacetime grid — warped mesh showing gravitational influence of high-momentum nodes
-  const gravityContours = useMemo(() => {
-    if (!gravityMode || gravityPositions.size === 0) return [];
-    return computeGravityContours(sorted, gravityPositions);
-  }, [gravityMode, sorted, gravityPositions]);
+  const orbitContours = useMemo(() => {
+    if (!orbitMode || orbitPositions.size === 0) return [];
+    return computeGravityContours(sorted, orbitPositions);
+  }, [orbitMode, sorted, orbitPositions]);
 
   // Enhanced contours — deeper deformation, more rings, depth fills (enhanced sub-mode only)
   const enhancedContours = useMemo(() => {
-    if (!gravityMode || !gravityEnhanced || gravityPositions.size === 0) return [];
-    return computeEnhancedContours(sorted, gravityPositions);
-  }, [gravityMode, gravityEnhanced, sorted, gravityPositions]);
+    if (!orbitMode || !orbitHudActive || orbitPositions.size === 0) return [];
+    return computeEnhancedContours(sorted, orbitPositions);
+  }, [orbitMode, orbitHudActive, sorted, orbitPositions]);
 
   // Enhanced label positions — collision-resolved radial placement (enhanced sub-mode only)
   const enhancedLabelPositions = useMemo(() => {
-    if (!gravityMode || !gravityEnhanced) {
+    if (!orbitMode || !orbitHudActive) {
       return new Map<string, { x: number; y: number; anchor: "start" | "end" | "middle" }>();
     }
-    return computeEnhancedLabelPositions(sorted, gravityPositions);
-  }, [gravityMode, gravityEnhanced, sorted, gravityPositions]);
+    return computeEnhancedLabelPositions(sorted, orbitPositions);
+  }, [orbitMode, orbitHudActive, sorted, orbitPositions]);
 
   // Standard-mode node positions: zone-aware, ID-anchored placement.
   // Competitors are grouped by radial zone then spread across the zone's radius band.
@@ -1461,10 +1461,10 @@ export default function Radar({
     return map;
   }, [sorted]);
 
-  // ── HUD sector density — stable (uses gravityPositions/standardPositions, not animated) ──
+  // ── HUD sector density — stable (uses orbitPositions/standardPositions, not animated) ──
   // Prevents sector density from recomputing on every orbitTick re-render.
   const hudSectorDensity = useMemo(() => {
-    const positions = gravityMode ? gravityPositions : standardPositions;
+    const positions = orbitMode ? orbitPositions : standardPositions;
     const counts = Array(6).fill(0) as number[];
     for (const c of sorted) {
       if (Number(c.momentum_score ?? 0) < 1.5) continue;
@@ -1476,7 +1476,7 @@ export default function Radar({
       counts[sector]++;
     }
     return counts;
-  }, [gravityMode, sorted, gravityPositions, standardPositions]);
+  }, [orbitMode, sorted, orbitPositions, standardPositions]);
 
   // ── Record positions for temporal trails ─────────────────────────────────
   // Fire-and-forget POST after each layout. Server dedup prevents more than
@@ -1703,7 +1703,7 @@ export default function Radar({
 
   // Pauses the orbital shell of the hovered node so it can be clicked precisely.
   const handleOrbitHover = useCallback((shell: number | null, competitorId: string) => {
-    if (!gravityMode) return;
+    if (!orbitMode) return;
     if (shell !== null && shell > 0) {
       if (!pausedShells.current.has(shell)) {
         const data = orbitDataMap.get(competitorId);
@@ -1716,7 +1716,7 @@ export default function Radar({
     } else {
       pausedShells.current.clear();
     }
-  }, [gravityMode, orbitDataMap]);
+  }, [orbitMode, orbitDataMap]);
 
   const handleBlipClick = useCallback((id: string) => {
     getAudioManager().play("echo");
@@ -1771,7 +1771,7 @@ export default function Radar({
     const snapRadius = 60 / ctm.a;
     let nearest: string | null = null;
     let nearestDist = Infinity;
-    const positions = gravityMode ? gravityPositions : standardPositions;
+    const positions = orbitMode ? orbitPositions : standardPositions;
     for (const [id, pos] of positions) {
       const dist = Math.sqrt((svgPt.x - pos.x) ** 2 + (svgPt.y - pos.y) ** 2);
       if (dist < snapRadius && dist < nearestDist) {
@@ -1783,7 +1783,7 @@ export default function Radar({
       e.preventDefault();
       handleBlipClick(nearest);
     }
-  }, [isMobile, gravityMode, gravityPositions, standardPositions, handleBlipClick]);
+  }, [isMobile, orbitMode, orbitPositions, standardPositions, handleBlipClick]);
 
   const [detail, setDetail] = useState<CompetitorDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -1898,8 +1898,8 @@ export default function Radar({
         className={`flex min-h-0 flex-1 flex-col overflow-hidden${isolated ? "" : " rounded-[20px]"}`}
         style={{
           background: "#000000",
-          border: `1px solid ${gravityMode ? "#1a1040" : "#0d2010"}`,
-          boxShadow: gravityMode
+          border: `1px solid ${orbitMode ? "#1a1040" : "#0d2010"}`,
+          boxShadow: orbitMode
             ? "inset 0 1px 0 0 rgba(129,140,248,0.06), 0 0 80px rgba(0,0,0,0.95), 0 0 140px rgba(76,29,149,0.07)"
             : "inset 0 1px 0 0 rgba(46,230,166,0.08), 0 0 80px rgba(0,0,0,0.9)",
           transition: "border-radius 0.2s ease, border-color 0.8s ease, box-shadow 0.8s ease",
@@ -1912,7 +1912,7 @@ export default function Radar({
           <div
             className="shrink-0 px-5 py-3"
             style={{
-              borderBottom: `1px solid ${gravityMode ? "#150f30" : "#0a1c0a"}`,
+              borderBottom: `1px solid ${orbitMode ? "#150f30" : "#0a1c0a"}`,
               opacity: entryPhase >= 1 ? 1 : 0,
               transition: "border-color 0.8s ease, opacity 0.5s ease",
             }}
@@ -1964,30 +1964,30 @@ export default function Radar({
                 <div
                   className="flex items-center gap-0.5 rounded-[8px] p-0.5"
                   style={{
-                    background: gravityMode ? "#07051a" : "#020602",
-                    border: `1px solid ${gravityMode ? "#1e1545" : "#0e2210"}`,
+                    background: orbitMode ? "#07051a" : "#020602",
+                    border: `1px solid ${orbitMode ? "#1e1545" : "#0e2210"}`,
                     transition: "background 0.8s ease, border-color 0.8s ease",
                   }}
                 >
                   <button
-                    onClick={() => { if (gravityMode) { setGravityMode(false); getAudioManager().play("gravity-exit"); } }}
+                    onClick={() => { if (orbitMode) { setOrbitMode(false); getAudioManager().play("orbit-exit"); } }}
                     className="rounded-[6px] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all duration-200"
                     style={{
-                      background: !gravityMode ? "rgba(46,230,166,0.09)" : "transparent",
-                      color: !gravityMode ? "#2EE6A6" : gravityMode ? G.dim : "#3a5a3a",
-                      boxShadow: !gravityMode ? "inset 0 0 0 1px rgba(46,230,166,0.18)" : "none",
+                      background: !orbitMode ? "rgba(46,230,166,0.09)" : "transparent",
+                      color: !orbitMode ? "#2EE6A6" : orbitMode ? G.dim : "#3a5a3a",
+                      boxShadow: !orbitMode ? "inset 0 0 0 1px rgba(46,230,166,0.18)" : "none",
                       transition: "color 0.6s ease, background 0.6s ease",
                     }}
                   >
                     Radar
                   </button>
                   <button
-                    onClick={() => { if (!gravityMode) { setGravityMode(true); getAudioManager().play("gravity-enter"); } }}
+                    onClick={() => { if (!orbitMode) { setOrbitMode(true); getAudioManager().play("orbit-enter"); } }}
                     className="rounded-[6px] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all duration-200"
                     style={{
-                      background: gravityMode ? "rgba(129,140,248,0.12)" : "transparent",
-                      color: gravityMode ? G.primary : "#3a5a3a",
-                      boxShadow: gravityMode ? `inset 0 0 0 1px rgba(129,140,248,0.28)` : "none",
+                      background: orbitMode ? "rgba(129,140,248,0.12)" : "transparent",
+                      color: orbitMode ? G.primary : "#3a5a3a",
+                      boxShadow: orbitMode ? `inset 0 0 0 1px rgba(129,140,248,0.28)` : "none",
                       transition: "color 0.6s ease, background 0.6s ease, box-shadow 0.6s ease",
                     }}
                   >
@@ -1997,17 +1997,17 @@ export default function Radar({
 
                 {/* Enhanced sub-toggle — HUD overlay */}
                 <button
-                  onClick={() => setGravityEnhanced((v) => !v)}
+                  onClick={() => setOrbitHudActive((v) => !v)}
                   className="rounded-[6px] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] transition-all duration-300"
                   style={{
-                    background: gravityEnhanced ? "rgba(203,213,225,0.10)" : "transparent",
-                    color: gravityEnhanced ? "#e2e8f0" : "#3a4a5a",
-                    boxShadow: gravityEnhanced
+                    background: orbitHudActive ? "rgba(203,213,225,0.10)" : "transparent",
+                    color: orbitHudActive ? "#e2e8f0" : "#3a4a5a",
+                    boxShadow: orbitHudActive
                       ? "inset 0 0 0 1px rgba(203,213,225,0.28)"
                       : "inset 0 0 0 1px rgba(30,30,40,0.6)",
                     marginLeft: "4px",
                   }}
-                  aria-label={gravityEnhanced ? "Disable HUD overlay" : "Enable HUD overlay"}
+                  aria-label={orbitHudActive ? "Disable HUD overlay" : "Enable HUD overlay"}
                   title="HUD — tactical intelligence overlay"
                 >
                   HUD
@@ -2218,7 +2218,7 @@ export default function Radar({
                 y="0"
                 width={SIZE}
                 height={SIZE}
-                fill={gravityMode ? G.bg : "#010201"}
+                fill={orbitMode ? G.bg : "#010201"}
                 style={{ transition: "fill 0.9s ease" }}
               />
 
@@ -2226,7 +2226,7 @@ export default function Radar({
               <rect
                 x="0" y="0" width={SIZE} height={SIZE}
                 fill="url(#panelSheen)"
-                style={{ opacity: gravityMode ? 0 : 0.6, transition: "opacity 0.9s ease" }}
+                style={{ opacity: orbitMode ? 0 : 0.6, transition: "opacity 0.9s ease" }}
               />
               <rect
                 x="0" y="0" width={SIZE} height={SIZE}
@@ -2236,15 +2236,15 @@ export default function Radar({
 
               {/* Central atmospheric glow — Standard Mode only; suppressed in Orbit */}
               <circle cx={CENTER} cy={CENTER} r={OUTER_RADIUS} fill="url(#radarCore)"
-                style={{ opacity: gravityMode ? 0 : 1, transition: "opacity 0.9s ease" }}
+                style={{ opacity: orbitMode ? 0 : 1, transition: "opacity 0.9s ease" }}
               />
               <circle cx={CENTER} cy={CENTER} r={OUTER_RADIUS} fill="url(#radarCoreGravity)"
                 style={{ opacity: 0 }}
               />
 
               {/* ── Rotating grid layer — rings, crosshairs, ticks ─── */}
-              {/* Hidden in Deep Field mode — the circular instrument dissolves. */}
-              <g style={{ opacity: gravityMode || gravityEnhanced ? 0 : 1, transition: "opacity 0.8s ease" }}>
+              {/* Hidden in ORBIT mode — the circular instrument dissolves. */}
+              <g style={{ opacity: orbitMode || orbitHudActive ? 0 : 1, transition: "opacity 0.8s ease" }}>
               <motion.g
                 animate={{ rotate: 360 }}
                 transition={{ duration: 120, repeat: Infinity, ease: "linear" }}
@@ -2259,7 +2259,7 @@ export default function Radar({
                     cy={CENTER}
                     r={OUTER_RADIUS * factor}
                     fill="none"
-                    stroke={gravityMode ? G.ring : "#1e5c40"}
+                    stroke={orbitMode ? G.ring : "#1e5c40"}
                     strokeWidth="1.8"
                     opacity={factor <= 0.3 ? 0.88 : factor <= 0.6 ? 0.70 : factor <= 0.9 ? 0.58 : 0.46}
                     style={{ transition: "stroke 0.8s ease, opacity 0.8s ease" }}
@@ -2278,7 +2278,7 @@ export default function Radar({
                       y1={CENTER - dy}
                       x2={CENTER + dx}
                       y2={CENTER + dy}
-                      stroke={gravityMode ? G.ring : "#1e5c40"}
+                      stroke={orbitMode ? G.ring : "#1e5c40"}
                       strokeWidth="1.2"
                       opacity="0.72"
                       style={{ transition: "stroke 0.8s ease" }}
@@ -2294,7 +2294,7 @@ export default function Radar({
                     y1={tick.y1}
                     x2={tick.x2}
                     y2={tick.y2}
-                    stroke={gravityMode ? G.ring : "#1e5c40"}
+                    stroke={orbitMode ? G.ring : "#1e5c40"}
                     strokeWidth={tick.isMajor ? 1.5 : tick.isMedium ? 1.0 : 0.7}
                     opacity={tick.isMajor ? 0.90 : tick.isMedium ? 0.65 : 0.42}
                     style={{ transition: "stroke 0.8s ease" }}
@@ -2307,7 +2307,7 @@ export default function Radar({
               {/* Cardinal labels rendered outside clip (see below) */}
 
               {/* ── Sonar pulse field — Standard Mode (fades out in Gravity) ── */}
-              <g style={{ opacity: gravityMode ? 0 : 1, transition: "opacity 1.0s ease", pointerEvents: "none" }}>
+              <g style={{ opacity: orbitMode ? 0 : 1, transition: "opacity 1.0s ease", pointerEvents: "none" }}>
                 {[0, 1].map((i) => (
                   <motion.circle
                     key={`sonar-main-${i}`}
@@ -2383,7 +2383,7 @@ export default function Radar({
 
               {/* Center atmospheric fill — Standard Mode only */}
               <circle cx={CENTER} cy={CENTER} r={44} fill="url(#radarCore)"
-                style={{ opacity: gravityMode ? 0 : 0.95, transition: "opacity 0.9s ease" }}
+                style={{ opacity: orbitMode ? 0 : 0.95, transition: "opacity 0.9s ease" }}
               />
               <circle cx={CENTER} cy={CENTER} r={44} fill="url(#radarCoreGravity)"
                 style={{ opacity: 0 }}
@@ -2393,7 +2393,7 @@ export default function Radar({
               <circle
                 cx={CENTER} cy={CENTER} r={30}
                 fill="#2EE6A6"
-                opacity={gravityMode ? 0 : 0.14}
+                opacity={orbitMode ? 0 : 0.14}
                 filter="url(#blipGlowStrong)"
                 style={{ transition: "opacity 0.8s ease" }}
               />
@@ -2403,7 +2403,7 @@ export default function Radar({
                 cx={CENTER} cy={CENTER} r={7}
                 fill="#dcfce7"
                 filter="url(#blipGlow)"
-                animate={{ opacity: gravityMode ? 0 : [1.0, 0.55, 1.0], scale: [1, 1.18, 1] }}
+                animate={{ opacity: orbitMode ? 0 : [1.0, 0.55, 1.0], scale: [1, 1.18, 1] }}
                 transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
                 style={{ transformOrigin: `${CENTER}px ${CENTER}px` }}
               />
@@ -2412,12 +2412,12 @@ export default function Radar({
               <circle
                 cx={CENTER} cy={CENTER} r={3}
                 fill="#ffffff"
-                opacity={gravityMode ? 0 : 0.98}
+                opacity={orbitMode ? 0 : 0.98}
                 style={{ transition: "opacity 0.8s ease" }}
               />
 
               {/* ── Gravity Field layers ────────────────────────────────────── */}
-              {gravityMode && (
+              {orbitMode && (
                 <g style={{ opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.55s ease" }}>
 
                   {/* ── ORBIT: orbital shell guide rings — rendered below other gravity layers ── */}
@@ -2426,7 +2426,7 @@ export default function Radar({
 
                   {/* ── ORBIT: Central star — bright white, sun flare, neon corona ── */}
                   {centralStarId && (() => {
-                    const starPos = gravityPositions.get(centralStarId);
+                    const starPos = orbitPositions.get(centralStarId);
                     if (!starPos) return null;
                     const starC = sorted.find(c => c.competitor_id === centralStarId);
                     const starR = getNodeSize(Number(starC?.momentum_score ?? 0)) + 6;
@@ -2540,8 +2540,8 @@ export default function Radar({
                   {/* ── GRAVITY FIELD: deformed field contours — white, minimal ── */}
                   {false && (
                     <g style={{ pointerEvents: "none" }}>
-                      {gravityContours.map((d, i) => {
-                        const t = i / (gravityContours.length - 1);
+                      {orbitContours.map((d, i) => {
+                        const t = i / (orbitContours.length - 1);
                         return (
                           <path key={`gc-${i}`} d={d} fill="none"
                             stroke="#ffffff"
@@ -2555,7 +2555,7 @@ export default function Radar({
 
                   {/* ── GRAVITY FIELD: per-node mass aura — soft radial depth well ── */}
                   {false && sorted.map((c) => {
-                    const mPos = gravityPositions.get(c.competitor_id);
+                    const mPos = orbitPositions.get(c.competitor_id);
                     if (!mPos) return null;
                     const mass = getNodeMass(c);
                     if (mass < 0.5) return null;
@@ -2584,8 +2584,8 @@ export default function Radar({
                         const tKey = `${a.competitor_id}|${b.competitor_id}`;
                         if (seen.has(tKey)) continue;
                         seen.add(tKey);
-                        const tPosA = gravityPositions.get(a.competitor_id);
-                        const tPosB = gravityPositions.get(b.competitor_id);
+                        const tPosA = orbitPositions.get(a.competitor_id);
+                        const tPosB = orbitPositions.get(b.competitor_id);
                         if (!tPosA || !tPosB) continue;
                         const _tPosA = tPosA, _tPosB = tPosB;
                         threads.push(
@@ -2629,7 +2629,7 @@ export default function Radar({
                     const dfEntries = sorted
                       .map((c) => ({
                         id: c.competitor_id,
-                        pos: gravityPositions.get(c.competitor_id),
+                        pos: orbitPositions.get(c.competitor_id),
                         mass: getNodeMass(c),
                       }))
                       .filter((e): e is { id: string; pos: Point; mass: number } => e.pos !== undefined);
@@ -2670,7 +2670,7 @@ export default function Radar({
                   {selected && (() => {
                     const selPos = animatedOrbitPositions.get(selected.competitor_id);
                     if (!selPos || !selected.latest_movement_type) return null;
-                    const relColor = gravityEnhanced
+                    const relColor = orbitHudActive
                       ? "rgba(255,255,255,0.50)"
                       : selectedColor;
                     return sorted
@@ -2783,7 +2783,7 @@ export default function Radar({
                     .sort((a, b) => a.ageHours - b.ageHours)
                     .slice(0, 3)
                     .map((echo, i) => {
-                      const pos = gravityMode
+                      const pos = orbitMode
                         ? animatedOrbitPositions.get(echo.competitorId)
                         : standardPositions.get(echo.competitorId);
                       if (!pos) return null;
@@ -2813,7 +2813,7 @@ export default function Radar({
               {/* ── Temporal movement trails — rendered behind blips ──────── */}
               {/* Shows each competitor's historical SVG positions as a fading   */}
               {/* line, newest-to-oldest, with a directional arrowhead.          */}
-              {!gravityMode && entryPhase >= 2 && sorted.some((c) => (c.trail ?? []).length > 0) && (
+              {!orbitMode && entryPhase >= 2 && sorted.some((c) => (c.trail ?? []).length > 0) && (
                 <g style={{ pointerEvents: "none" }} aria-hidden>
                   {sorted.map((competitor) => {
                     const trail = competitor.trail ?? [];
@@ -2922,11 +2922,11 @@ export default function Radar({
               )}
 
               {/* ── Competitor blips — revealed at entry phase 2 ──────── */}
-              {/* Deep Field: desaturate + brighten to white-star monochrome aesthetic */}
+              {/* ORBIT + HUD: desaturate + brighten to white-star monochrome aesthetic */}
               <g style={{
                 opacity: entryPhase >= 2 ? 1 : 0,
                 transition: "opacity 0.4s ease, filter 0.8s ease",
-                filter: gravityMode && gravityEnhanced ? "saturate(0) brightness(3.2)" : "none",
+                filter: orbitMode && orbitHudActive ? "saturate(0) brightness(3.2)" : "none",
               }}>
               {sorted.map((competitor, index) => (
                 <BlipNode
@@ -2956,11 +2956,11 @@ export default function Radar({
                   onSelect={handleBlipClick}
                   isMobile={isMobile}
                   gravityPos={
-                    gravityMode
+                    orbitMode
                       ? animatedOrbitPositions.get(competitor.competitor_id)
                       : standardPositions.get(competitor.competitor_id)
                   }
-                  gravityMode={gravityMode}
+                  orbitMode={orbitMode}
                   timeDimmed={
                     timeDimmedSet.has(competitor.competitor_id) &&
                     !(alertActive && competitor.competitor_id === criticalAlert?.competitor_id)
@@ -2977,19 +2977,19 @@ export default function Radar({
                   tensionDescription={tensionDescriptionMap.get(competitor.competitor_id) ?? null}
                   isHiringSurge={hiringSurgeSet.has(competitor.competitor_id)}
                   gravityLabelOverride={
-                    gravityMode && gravityEnhanced
+                    orbitMode && orbitHudActive
                       ? enhancedLabelPositions.get(competitor.competitor_id)
                       : undefined
                   }
-                  orbitShell={gravityMode ? (orbitDataMap.get(competitor.competitor_id)?.shell ?? null) : null}
-                  onOrbitHover={gravityMode ? handleOrbitHover : undefined}
+                  orbitShell={orbitMode ? (orbitDataMap.get(competitor.competitor_id)?.shell ?? null) : null}
+                  onOrbitHover={orbitMode ? handleOrbitHover : undefined}
                 />
               ))}
               </g>
 
               {/* ── HUD: in-circle tactical layer (brackets, scan lines, callout lines, convergence) */}
-              {gravityEnhanced && sorted.length > 0 && (() => {
-                const hudPos = gravityMode ? animatedOrbitPositions : standardPositions;
+              {orbitHudActive && sorted.length > 0 && (() => {
+                const hudPos = orbitMode ? animatedOrbitPositions : standardPositions;
 
                 // Sector density — use the memoized computation (avoids per-orbitTick recompute)
                 const sectorCounts = hudSectorDensity;
@@ -3132,7 +3132,7 @@ export default function Radar({
                       })}
 
                     {/* G: Central star annotation in ORBIT+HUD */}
-                    {gravityMode && centralStarId && (() => {
+                    {orbitMode && centralStarId && (() => {
                       const starPos = hudPos.get(centralStarId);
                       if (!starPos) return null;
                       const starC = sorted.find(c => c.competitor_id === centralStarId);
@@ -3252,7 +3252,7 @@ export default function Radar({
                 height={SIZE}
                 fill="url(#vignette)"
                 pointerEvents="none"
-                style={{ opacity: gravityMode ? 0 : 1 }}
+                style={{ opacity: orbitMode ? 0 : 1 }}
               />
 
               {/* Glass highlight — very faint top-left reflection, instrument polish */}
@@ -3270,7 +3270,7 @@ export default function Radar({
                 cy={CENTER}
                 r={OUTER_RADIUS * 0.38}
                 fill="url(#radarCore)"
-                animate={{ opacity: gravityMode ? 0 : [0.0, 0.09, 0.0] }}
+                animate={{ opacity: orbitMode ? 0 : [0.0, 0.09, 0.0] }}
                 transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
                 style={{ pointerEvents: "none" }}
               />
@@ -3281,7 +3281,7 @@ export default function Radar({
               {/* in the full 1000×1000 SVG space without being clipped to r=420.           */}
               {/* Radii 95–360 are all within OUTER_RADIUS=420 so they stay inside the      */}
               {/* visible instrument face, but the group itself is unclipped.               */}
-              {gravityMode && (
+              {orbitMode && (
                 <g style={{ pointerEvents: "none", opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.55s ease" }}>
                   {([
                     { r: 95,  stroke: "rgba(80,150,255,0.58)",  dash: "2 5",  width: 0.80 },
@@ -3353,7 +3353,7 @@ export default function Radar({
                   y={y}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fill={gravityMode ? "rgba(40,35,80,0.85)" : "rgba(30,41,59,0.7)"}
+                  fill={orbitMode ? "rgba(40,35,80,0.85)" : "rgba(30,41,59,0.7)"}
                   fontSize="11"
                   fontWeight="600"
                   fontFamily="Inter, system-ui, sans-serif"
@@ -3368,14 +3368,14 @@ export default function Radar({
                   HUD QUADRANT PANELS — inside main SVG, zooms with radar.
                   4 corner quadrants outside radarClip. No overlay SVG needed.
                   ══════════════════════════════════════════════════════════════ */}
-              {gravityEnhanced && sorted.length > 0 && (() => {
+              {orbitHudActive && sorted.length > 0 && (() => {
                 const PW = 188;
                 const PH1 = 225;
                 const PH2 = 196;
                 const PH4 = 212;
                 const PAD = 6;
 
-                const hudPos = gravityMode ? animatedOrbitPositions : standardPositions;
+                const hudPos = orbitMode ? animatedOrbitPositions : standardPositions;
                 const criticalCount    = sorted.filter(c => Number(c.momentum_score ?? 0) >= 5).length;
                 const convergenceCount = tensionLinks.filter(l => l.intensity > 0.70).length;
                 const totalSignals     = sorted.reduce((s, c) => s + (c.signals_7d ?? 0), 0);
@@ -3649,7 +3649,7 @@ export default function Radar({
                       { label: "CRITICAL VECTORS",   value: criticalCount.toString(),            color: criticalCount > 0 ? "#ff2255" : "#334a5e" },
                       { label: "CONVERGENCE ZONES",  value: convergenceCount.toString(),          color: convergenceCount > 0 ? "#bb66ff" : "#334a5e" },
                       { label: "SIGNALS·7D",         value: totalSignals.toString(),              color: "#7ad4f0" },
-                      { label: "ORBIT MODE",         value: gravityMode ? "ACTIVE" : "STANDBY",  color: gravityMode ? "#00ff88" : "#334a5e" },
+                      { label: "ORBIT MODE",         value: orbitMode ? "ACTIVE" : "STANDBY",  color: orbitMode ? "#00ff88" : "#334a5e" },
                       { label: "FIELD AGE",          value: fieldAgeStr,                          color: "#3a6080" },
                       { label: "HOT SECTOR",         value: hottestStr,                           color: "#bb66ff" },
                     ] as Array<{ label: string; value: string; color: string }>).map(({ label, value, color }, ri) => (
@@ -3685,17 +3685,17 @@ export default function Radar({
             {/* Gravity toggle + zoom reset, positioned top-right of radar canvas */}
             <div className="pointer-events-auto absolute right-3 top-3 z-20 flex flex-col gap-2 md:hidden">
               <button
-                onClick={() => { setGravityMode((g) => !g); getAudioManager().play("swoosh"); }}
+                onClick={() => { setOrbitMode((g) => !g); getAudioManager().play("swoosh"); }}
                 className="flex h-11 w-11 items-center justify-center rounded-[12px] transition-all active:scale-90"
                 style={{
-                  background: gravityMode ? "rgba(129,140,248,0.14)" : "rgba(46,230,166,0.08)",
-                  border: `1px solid ${gravityMode ? "rgba(129,140,248,0.28)" : "rgba(46,230,166,0.14)"}`,
+                  background: orbitMode ? "rgba(129,140,248,0.14)" : "rgba(46,230,166,0.08)",
+                  border: `1px solid ${orbitMode ? "rgba(129,140,248,0.28)" : "rgba(46,230,166,0.14)"}`,
                   backdropFilter: "blur(8px)",
                   WebkitBackdropFilter: "blur(8px)",
                 }}
-                aria-label={gravityMode ? "Switch to Standard mode" : "Switch to Gravity Field mode"}
+                aria-label={orbitMode ? "Switch to Standard mode" : "Switch to Gravity Field mode"}
               >
-                {gravityMode ? (
+                {orbitMode ? (
                   <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
                     <circle cx="9" cy="9" r="3.5" fill="#818cf8" fillOpacity="0.85" />
                     <circle cx="9" cy="9" r="7" stroke="#818cf8" strokeWidth="1" strokeOpacity="0.45" />
@@ -3953,17 +3953,17 @@ export default function Radar({
                   <div
                     className="pointer-events-none absolute bottom-5 left-5 flex flex-col gap-2 rounded-[12px] px-4 py-3"
                     style={{
-                      background: gravityMode ? "rgba(2,1,20,0.90)" : "rgba(0,0,0,0.82)",
-                      border: `1px solid ${gravityMode ? "#1e1545" : "#0e2210"}`,
+                      background: orbitMode ? "rgba(2,1,20,0.90)" : "rgba(0,0,0,0.82)",
+                      border: `1px solid ${orbitMode ? "#1e1545" : "#0e2210"}`,
                       backdropFilter: "blur(8px)",
                       transition: "background 0.8s ease, border-color 0.8s ease",
                     }}
                   >
                     <div
                       className="mb-0.5 text-[8px] font-bold uppercase tracking-[0.24em]"
-                      style={{ color: gravityMode ? "rgba(129,140,248,0.5)" : "rgb(71,85,105)", transition: "color 0.8s ease" }}
+                      style={{ color: orbitMode ? "rgba(129,140,248,0.5)" : "rgb(71,85,105)", transition: "color 0.8s ease" }}
                     >
-                      {gravityMode ? "Field Type" : "Signal Type"}
+                      {orbitMode ? "Field Type" : "Signal Type"}
                     </div>
                     {(
                       [
@@ -3990,8 +3990,8 @@ export default function Radar({
                   <div
                     className="pointer-events-auto absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-0.5 rounded-[10px] p-1"
                     style={{
-                      background: gravityMode ? "rgba(2,1,20,0.90)" : "rgba(0,0,0,0.82)",
-                      border: `1px solid ${gravityMode ? "#1e1545" : "#0e2210"}`,
+                      background: orbitMode ? "rgba(2,1,20,0.90)" : "rgba(0,0,0,0.82)",
+                      border: `1px solid ${orbitMode ? "#1e1545" : "#0e2210"}`,
                       backdropFilter: "blur(8px)",
                       transition: "background 0.8s ease, border-color 0.8s ease",
                     }}
@@ -4003,13 +4003,13 @@ export default function Radar({
                         className="rounded-[7px] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all duration-200"
                         style={{
                           background: temporalFilter === f
-                            ? gravityMode ? "rgba(129,140,248,0.10)" : "rgba(46,230,166,0.09)"
+                            ? orbitMode ? "rgba(129,140,248,0.10)" : "rgba(46,230,166,0.09)"
                             : "transparent",
                           color: temporalFilter === f
-                            ? gravityMode ? G.primary : "#2EE6A6"
-                            : gravityMode ? G.dim : "#3a5a3a",
+                            ? orbitMode ? G.primary : "#2EE6A6"
+                            : orbitMode ? G.dim : "#3a5a3a",
                           boxShadow: temporalFilter === f
-                            ? gravityMode ? "inset 0 0 0 1px rgba(129,140,248,0.22)" : "inset 0 0 0 1px rgba(46,230,166,0.2)"
+                            ? orbitMode ? "inset 0 0 0 1px rgba(129,140,248,0.22)" : "inset 0 0 0 1px rgba(46,230,166,0.2)"
                             : "none",
                         }}
                       >
@@ -4035,7 +4035,7 @@ export default function Radar({
           <div
             className="shrink-0"
             style={{
-              borderTop: `1px solid ${gravityMode ? "#150f30" : "#0a1c0a"}`,
+              borderTop: `1px solid ${orbitMode ? "#150f30" : "#0a1c0a"}`,
               transition: "border-color 0.8s ease",
             }}
           >
@@ -4064,7 +4064,7 @@ export default function Radar({
             </div>
 
             {/* Signal ticker — Gravity Field mode only */}
-            {gravityMode && !isolated && tickerItems.length > 0 && (
+            {orbitMode && !isolated && tickerItems.length > 0 && (
               <div
                 className="relative h-7 overflow-hidden border-t border-[#0a1c0a]"
                 style={{

@@ -13,7 +13,7 @@
 
 const STORAGE_KEY = "mv_sound_enabled";
 
-export type SoundName = "blip" | "echo" | "swoosh" | "alert" | "success" | "achieve" | "gravity-enter" | "gravity-exit" | "hint";
+export type SoundName = "blip" | "echo" | "swoosh" | "alert" | "success" | "achieve" | "orbit-enter" | "orbit-exit" | "hint";
 
 class AudioManager {
   private ctx: AudioContext | null = null;
@@ -79,8 +79,8 @@ class AudioManager {
         case "alert":         this._alert(ctx);          break;
         case "success":       this._success(ctx);        break;
         case "achieve":       this._achieve(ctx);        break;
-        case "gravity-enter": this._gravityEnter(ctx);   break;
-        case "gravity-exit":  this._gravityExit(ctx);    break;
+        case "orbit-enter": this._orbitEnter(ctx);   break;
+        case "orbit-exit":  this._orbitExit(ctx);    break;
         case "hint":          this._hint(ctx);           break;
       }
     } catch {
@@ -323,11 +323,11 @@ class AudioManager {
   }
 
   /**
-   * GRAVITY-ENTER — activate gravity field mode.
+   * ORBIT-ENTER — activate ORBIT mode.
    * Deep descending sine with a slow LFO wobble — implies mass and pull.
    * Two layers: low fundamental + subtle harmonic overtone.
    */
-  private _gravityEnter(ctx: AudioContext): void {
+  private _orbitEnter(ctx: AudioContext): void {
     const t = ctx.currentTime;
 
     // Low fundamental — deep gravitational pull
@@ -364,11 +364,11 @@ class AudioManager {
   }
 
   /**
-   * GRAVITY-EXIT — return to standard mode.
+   * ORBIT-EXIT — return to standard mode.
    * Light ascending ping — nodes dispersing back to their orbits.
-   * Higher and airier than gravity-enter; implies release/expansion.
+   * Higher and airier than orbit-enter; implies release/expansion.
    */
-  private _gravityExit(ctx: AudioContext): void {
+  private _orbitExit(ctx: AudioContext): void {
     const t = ctx.currentTime;
 
     // Primary ping — ascending chime

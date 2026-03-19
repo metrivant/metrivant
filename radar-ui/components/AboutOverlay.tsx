@@ -290,9 +290,9 @@ const FEATURES = [
   },
   {
     Icon: IconGravity,
-    tag: "Gravity Field",
+    tag: "ORBIT Mode",
     headline: "The market as spacetime. Mass is momentum.",
-    body: "Switch to Gravity Field mode and the radar transforms into a physics simulation grounded in general relativity. High-momentum competitors warp the field around them — the spacetime grid visibly bends toward their position, just as mass curves spacetime. Tension filaments pulse between rivals converging on the same strategy. Gravitational well rings orbit accelerating nodes. It is not decoration. It is a different way to read force.",
+    body: "Switch to ORBIT mode and the radar transforms into a physics simulation grounded in general relativity. High-momentum competitors warp the field around them — the spacetime grid visibly bends toward their position, just as mass curves spacetime. Tension filaments pulse between rivals converging on the same strategy. Gravitational well rings orbit accelerating nodes. It is not decoration. It is a different way to read force.",
   },
   {
     Icon: IconCaveman,
