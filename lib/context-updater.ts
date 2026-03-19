@@ -17,6 +17,17 @@ type NewEvidence = {
   detected_at: string;
 };
 
+// Jaccard word-overlap similarity between two hypothesis strings.
+// Returns true when word overlap is < 50% — indicating a significant strategic pivot.
+function hypothesisShifted(prev: string | null, next: string): boolean {
+  if (!prev || !next) return false;
+  const prevWords = new Set<string>(prev.toLowerCase().match(/\w+/g) ?? []);
+  const nextWords = new Set<string>(next.toLowerCase().match(/\w+/g) ?? []);
+  const intersection = [...prevWords].filter((w) => nextWords.has(w)).length;
+  const union = new Set([...prevWords, ...nextWords]).size;
+  return union > 0 && intersection / union < 0.50;
+}
+
 // Resolve org_id from tracked_competitors for a given competitor.
 // Returns the first org that tracks this competitor, or null if none found.
 async function resolveOrgId(competitorId: string): Promise<string | null> {
@@ -132,15 +143,23 @@ Rules:
     ...newItems,
   ].slice(-20); // Keep last 20 items max
 
+  const newHypothesis = parsed.hypothesis ?? existing?.hypothesis ?? null;
+  const shifted = newHypothesis !== null && hypothesisShifted(existing?.hypothesis ?? null, newHypothesis);
+
   await upsertCompetitorContext({
     competitor_id: competitorId,
     org_id: resolvedOrgId,
     competitor_name: competitorName,
-    hypothesis: parsed.hypothesis ?? existing?.hypothesis ?? null,
+    hypothesis:       newHypothesis,
     confidence_level: parsed.confidence_level ?? existing?.confidence_level ?? "low",
-    evidence_trail: updatedTrail,
-    open_questions: parsed.open_questions ?? existing?.open_questions ?? [],
-    strategic_arc: parsed.strategic_arc ?? existing?.strategic_arc ?? null,
-    signal_count: (existing?.signal_count ?? 0) + newEvidence.length,
+    evidence_trail:   updatedTrail,
+    open_questions:   parsed.open_questions ?? existing?.open_questions ?? [],
+    strategic_arc:    parsed.strategic_arc ?? existing?.strategic_arc ?? null,
+    signal_count:     (existing?.signal_count ?? 0) + newEvidence.length,
+    // Hypothesis shift tracking: snapshot old hypothesis, clear alerted flag so
+    // check-signals will send a "Strategy Pivot Detected" email on next run.
+    previous_hypothesis:         shifted ? (existing?.hypothesis ?? null) : (existing?.previous_hypothesis ?? null),
+    hypothesis_changed_at:       shifted ? new Date().toISOString() : (existing?.hypothesis_changed_at ?? null),
+    hypothesis_shift_alerted_at: shifted ? null : (existing?.hypothesis_shift_alerted_at ?? null),
   });
 }

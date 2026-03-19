@@ -70,11 +70,13 @@ export type MonitoredPage = {
 };
 
 export type CompetitorContext = {
-  hypothesis:       string | null;
-  confidence_level: string;
-  strategic_arc:    string | null;
-  signal_count:     number;
-  last_updated_at:  string | null;
+  hypothesis:            string | null;
+  confidence_level:      string;
+  strategic_arc:         string | null;
+  signal_count:          number;
+  last_updated_at:       string | null;
+  previous_hypothesis:   string | null;
+  hypothesis_changed_at: string | null;
 };
 
 export type CompetitorDetail = {

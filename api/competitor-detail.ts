@@ -139,17 +139,19 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     // 5. Competitor intelligence context (best-effort — non-fatal)
     let context: {
-      hypothesis:        string | null;
-      confidence_level:  string;
-      strategic_arc:     string | null;
-      signal_count:      number;
-      last_updated_at:   string | null;
+      hypothesis:              string | null;
+      confidence_level:        string;
+      strategic_arc:           string | null;
+      signal_count:            number;
+      last_updated_at:         string | null;
+      previous_hypothesis:     string | null;
+      hypothesis_changed_at:   string | null;
     } | null = null;
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: ctxRow } = await (supabase as any)
         .from("competitor_contexts")
-        .select("hypothesis, confidence_level, strategic_arc, signal_count, last_updated_at")
+        .select("hypothesis, confidence_level, strategic_arc, signal_count, last_updated_at, previous_hypothesis, hypothesis_changed_at")
         .eq("competitor_id", id)
         .maybeSingle();
       context = ctxRow ?? null;

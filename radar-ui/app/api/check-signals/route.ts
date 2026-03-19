@@ -6,6 +6,8 @@ import { buildAlertEmailHtml, type AlertRow } from "../../../lib/alert";
 import {
   sendEmail,
   buildFirstSignalEmailHtml,
+  buildHypothesisShiftEmailHtml,
+  type HypothesisShiftRow,
   FROM_ALERTS,
 } from "../../../lib/email";
 import { createServiceClient } from "../../../lib/supabase/service";
@@ -315,7 +317,74 @@ async function runCheck(): Promise<NextResponse> {
 
   await Promise.allSettled(emailTasks);
 
-  // 7 — PostHog events (best-effort)
+  // 7 — Hypothesis shift alerting (best-effort, parallel to signal alerts)
+  try {
+    // Fetch all unalerted hypothesis shifts from the last 72h
+    type ShiftRow = {
+      org_id:                string;
+      competitor_name:       string;
+      previous_hypothesis:   string;
+      hypothesis:            string;
+      confidence_level:      string;
+      hypothesis_changed_at: string;
+    };
+
+    const { data: shiftRows } = await supabase
+      .from("competitor_contexts")
+      .select("org_id, competitor_name, previous_hypothesis, hypothesis, confidence_level, hypothesis_changed_at")
+      .is("hypothesis_shift_alerted_at", null)
+      .not("hypothesis_changed_at", "is", null)
+      .not("previous_hypothesis", "is", null)
+      .gte("hypothesis_changed_at", new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString());
+
+    if (shiftRows && shiftRows.length > 0) {
+      // Group shifts by org_id
+      const shiftsByOrg = new Map<string, ShiftRow[]>();
+      for (const row of shiftRows as ShiftRow[]) {
+        const arr = shiftsByOrg.get(row.org_id) ?? [];
+        arr.push(row);
+        shiftsByOrg.set(row.org_id, arr);
+      }
+
+      // Send email per org + mark alerted
+      const shiftEmailTasks = (orgs as Array<{ id: string; owner_id: string }>)
+        .filter((org) => shiftsByOrg.has(org.id))
+        .map(async (org) => {
+          const owner = users.find((u) => u.id === org.owner_id);
+          if (!owner?.email) return;
+
+          const shifts = shiftsByOrg.get(org.id)!;
+          const shiftParams: HypothesisShiftRow[] = shifts.map((s) => ({
+            competitor_name:       s.competitor_name,
+            previous_hypothesis:   s.previous_hypothesis,
+            hypothesis:            s.hypothesis ?? "",
+            confidence_level:      s.confidence_level,
+            hypothesis_changed_at: s.hypothesis_changed_at,
+          }));
+
+          await sendEmail({
+            to:      owner.email,
+            subject: `Strategy pivot detected — ${shifts.length === 1 ? shifts[0].competitor_name : `${shifts.length} competitors`}`,
+            html:    buildHypothesisShiftEmailHtml(shiftParams, siteUrl),
+            from:    FROM_ALERTS,
+          });
+
+          // Mark alerted so we don't re-send
+          const competitorNames = shifts.map((s) => s.competitor_name);
+          await supabase
+            .from("competitor_contexts")
+            .update({ hypothesis_shift_alerted_at: new Date().toISOString() })
+            .eq("org_id", org.id)
+            .in("competitor_name", competitorNames);
+        });
+
+      await Promise.allSettled(shiftEmailTasks);
+    }
+  } catch {
+    // Non-fatal — signal alert path already completed
+  }
+
+  // 8 — PostHog events (best-effort)
   const posthogKey = process.env.POSTHOG_API_KEY;
   if (posthogKey) {
     const events = qualifying.map((q) => ({

@@ -107,6 +107,67 @@ function emailShell(title: string, bodyHtml: string, footerHtml = ""): string {
 </html>`;
 }
 
+// ── Hypothesis shift email ────────────────────────────────────────────────────
+
+export type HypothesisShiftRow = {
+  competitor_name:     string;
+  previous_hypothesis: string;
+  hypothesis:          string;
+  confidence_level:    string;
+  hypothesis_changed_at: string;
+};
+
+export function buildHypothesisShiftEmailHtml(
+  shifts: HypothesisShiftRow[],
+  siteUrl: string,
+): string {
+  const rowsHtml = shifts.map((s) => {
+    const changedDate = new Date(s.hypothesis_changed_at).toLocaleDateString("en-GB", {
+      day: "numeric", month: "short", year: "numeric",
+    });
+    const confColor =
+      s.confidence_level === "high"   ? "#2EE6A6" :
+      s.confidence_level === "medium" ? "#f59e0b" : "#9ca3af";
+
+    return `
+      <tr>
+        <td style="padding:18px 0;border-bottom:1px solid #f3f4f6;vertical-align:top;">
+          <div style="margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+            <span style="font-weight:700;color:#111827;font-size:14px;">${s.competitor_name}</span>
+            <span style="display:inline-block;margin-left:8px;background:rgba(155,92,255,0.10);color:#9B5CFF;font-size:10px;font-weight:700;letter-spacing:0.08em;padding:2px 8px;border-radius:99px;text-transform:uppercase;">Strategy Pivot</span>
+            <span style="display:inline-block;margin-left:4px;font-size:10px;font-weight:700;color:${confColor};text-transform:uppercase;letter-spacing:0.06em;">${s.confidence_level} confidence</span>
+          </div>
+          <div style="font-size:11px;color:#9ca3af;margin-bottom:10px;">${changedDate}</div>
+          <div style="background:#fef9f0;border-left:3px solid #f59e0b;padding:10px 14px;border-radius:0 6px 6px 0;margin-bottom:8px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;color:#f59e0b;margin-bottom:4px;">Previously</div>
+            <div style="font-size:13px;line-height:1.55;color:#6b7280;">${s.previous_hypothesis}</div>
+          </div>
+          <div style="background:#f0fdf4;border-left:3px solid #2EE6A6;padding:10px 14px;border-radius:0 6px 6px 0;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;color:#2EE6A6;margin-bottom:4px;">Now</div>
+            <div style="font-size:13px;line-height:1.55;color:#374151;font-weight:500;">${s.hypothesis}</div>
+          </div>
+        </td>
+      </tr>`;
+  }).join("");
+
+  return emailShell(
+    `Strategy Pivot${shifts.length > 1 ? "s" : ""} Detected`,
+    `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">
+      Metrivant detected a significant shift in the strategic direction of ${shifts.length === 1 ? "a competitor" : `${shifts.length} competitors`} you are monitoring.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+      ${rowsHtml}
+    </table>
+    <a href="${siteUrl}/app/strategy"
+       style="display:inline-block;background:#9B5CFF;color:#ffffff;font-weight:700;font-size:13px;padding:10px 22px;border-radius:99px;text-decoration:none;">
+      View Strategic Landscape &rarr;
+    </a>`,
+    `<div style="font-size:11px;color:#9ca3af;">
+      <a href="${siteUrl}/app" style="color:#2EE6A6;text-decoration:none;">Open radar &rarr;</a>
+    </div>`
+  );
+}
+
 // ── Welcome email ─────────────────────────────────────────────────────────────
 
 export function buildWelcomeEmailHtml(siteUrl: string): string {

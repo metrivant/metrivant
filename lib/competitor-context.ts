@@ -23,6 +23,9 @@ export type CompetitorContext = {
   strategic_arc: string | null;
   signal_count: number;
   last_updated_at: string;
+  previous_hypothesis:         string | null;
+  hypothesis_changed_at:       string | null;
+  hypothesis_shift_alerted_at: string | null;
 };
 
 export async function getCompetitorContext(

@@ -2180,6 +2180,24 @@ export default function Radar({
                 <clipPath id="radarClip">
                   <circle cx={CENTER} cy={CENTER} r={OUTER_RADIUS} />
                 </clipPath>
+                {/* HUD: tight neon glow for text + key values */}
+                <filter id="hudNeonGlow" x="-30%" y="-60%" width="160%" height="220%">
+                  <feGaussianBlur stdDeviation="1.8" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+                {/* HUD: scanline pattern for glass panels */}
+                <pattern id="hudScanlines" x="0" y="0" width="1" height="3" patternUnits="userSpaceOnUse">
+                  <line x1="0" y1="0" x2="1000" y2="0" stroke="#ffffff" strokeWidth="0.35" strokeOpacity="0.03" />
+                </pattern>
+                {/* HUD: glass sheen gradient */}
+                <linearGradient id="hudGlassSheen" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#00e5ff" stopOpacity="0.05" />
+                  <stop offset="40%" stopColor="#ffffff" stopOpacity="0.02" />
+                  <stop offset="100%" stopColor="#000000" stopOpacity="0" />
+                </linearGradient>
               </defs>
 
               {/* All radar content clipped to a perfect circle */}
@@ -3251,8 +3269,7 @@ export default function Radar({
                 </g>
               )}
 
-              {/* HUD CORNER PANELS — moved to overlay SVG outside zoom canvas for zoom-sync */}
-              {/* See the hudOverlay SVG rendered after </div> end zoom canvas below.      */}
+              {/* HUD CORNER PANELS — rendered below, inside main SVG, zoom-synced with radar */}
 
               {/* ── Alert mode: radar boundary rings ─────────────────── */}
               {/* Rendered outside radarClip so they appear at the instrument edge.
@@ -3314,303 +3331,273 @@ export default function Radar({
                   {label}
                 </text>
               ))}
-            </svg>
-            </div>{/* end zoom canvas */}
 
-            {/* ══════════════════════════════════════════════════════════════════════ */}
-            {/* HUD OVERLAY SVG — outside zoom canvas so panels don't zoom with radar */}
-            {/* Same viewBox=0 0 1000 1000 / xMidYMid meet — coordinate space matches. */}
-            {/* Node positions from animatedOrbitPositions/standardPositions must be   */}
-            {/* transformed via toOverlay() for connector lines that bridge node→panel. */}
-            {/* ══════════════════════════════════════════════════════════════════════ */}
-            {gravityEnhanced && sorted.length > 0 && (() => {
-              // Converts a node SVG position (zoomed+panned space) to overlay SVG space.
-              const toOverlay = (svgX: number, svgY: number) => ({
-                x: CENTER + (svgX - CENTER + pan.x) * zoom,
-                y: CENTER + (svgY - CENTER + pan.y) * zoom,
-              });
-              // Panel size scales inversely with zoom so panels stay legible when radar zooms in.
-              const hudScale = Math.min(2.0, Math.max(0.85, 1 / zoom));
-              const panelW = Math.round(170 * hudScale);
+              {/* ══════════════════════════════════════════════════════════════
+                  HUD QUADRANT PANELS — inside main SVG, zooms with radar.
+                  4 corner quadrants outside radarClip. No overlay SVG needed.
+                  ══════════════════════════════════════════════════════════════ */}
+              {gravityEnhanced && sorted.length > 0 && (() => {
+                const PW = 188;
+                const PH1 = 225;
+                const PH2 = 196;
+                const PH4 = 212;
+                const PAD = 6;
 
-              const hudPos = gravityMode ? animatedOrbitPositions : standardPositions;
-              const criticalCount    = sorted.filter(c => Number(c.momentum_score ?? 0) >= 5).length;
-              const convergenceCount = tensionLinks.filter(l => l.intensity > 0.70).length;
-              const totalSignals     = sorted.reduce((s, c) => s + (c.signals_7d ?? 0), 0);
-              const fieldAgeStr      = latestSignalAt ? formatRelative(latestSignalAt).toUpperCase() : "PENDING";
-              const activeCount      = sorted.filter(c => Number(c.momentum_score ?? 0) >= 1.5).length;
-              const risingCount      = sorted.filter(c => Number(c.momentum_score ?? 0) >= 3).length;
+                const hudPos = gravityMode ? animatedOrbitPositions : standardPositions;
+                const criticalCount    = sorted.filter(c => Number(c.momentum_score ?? 0) >= 5).length;
+                const convergenceCount = tensionLinks.filter(l => l.intensity > 0.70).length;
+                const totalSignals     = sorted.reduce((s, c) => s + (c.signals_7d ?? 0), 0);
+                const fieldAgeStr      = latestSignalAt ? formatRelative(latestSignalAt).toUpperCase() : "PENDING";
+                const activeCount      = sorted.filter(c => Number(c.momentum_score ?? 0) >= 1.5).length;
+                const risingCount      = sorted.filter(c => Number(c.momentum_score ?? 0) >= 3).length;
+                const sectorCounts     = hudSectorDensity;
+                const hottestIdx       = sectorCounts.indexOf(Math.max(...sectorCounts));
+                const sectorLabels     = ["I", "II", "III", "IV", "V", "VI"] as const;
+                const hottestStr       = sectorCounts[hottestIdx] > 0 ? `SECTOR ${sectorLabels[hottestIdx]}` : "UNIFORM";
 
-              // Sector density — use the memoized computation (avoids per-orbitTick recompute)
-              const sectorCountsOuter = hudSectorDensity;
-              const hottestSectorOuter = sectorCountsOuter.indexOf(Math.max(...sectorCountsOuter));
-              const sectorLabels = ["I", "II", "III", "IV", "V", "VI"] as const;
-              const hottestSectorStr = sectorCountsOuter[hottestSectorOuter] > 0
-                ? `SECTOR ${sectorLabels[hottestSectorOuter]}`
-                : "UNIFORM";
+                const sciPanel = (x: number, y: number, w: number, h: number, key: string, accent = "#00e5ff") => (
+                  <g key={key}>
+                    <rect x={x} y={y} width={w} height={h} rx="1" fill="#030c18" fillOpacity="0.93" />
+                    <rect x={x} y={y} width={w} height={h} rx="1" fill="url(#hudScanlines)" />
+                    <rect x={x} y={y} width={w} height={h * 0.45} rx="1" fill="url(#hudGlassSheen)" />
+                    <polygon points={`${x+w-10},${y} ${x+w},${y+10} ${x+w},${y}`} fill="#030c18" fillOpacity="0.98" />
+                    <line x1={x+w-10} y1={y} x2={x+w} y2={y+10} stroke={accent} strokeWidth="0.8" strokeOpacity="0.65" />
+                    <rect x={x} y={y} width={w} height={h} rx="1" fill="none" stroke={accent} strokeWidth="0.55" strokeOpacity="0.38" />
+                    <rect x={x+1} y={y+1} width={w-2} height={h-2} rx="1" fill="none" stroke={accent} strokeWidth="0.25" strokeOpacity="0.10" />
+                    <line x1={x} y1={y+18} x2={x} y2={y} stroke={accent} strokeWidth="1.6" strokeOpacity="0.95" />
+                    <line x1={x} y1={y} x2={x+18} y2={y} stroke={accent} strokeWidth="1.6" strokeOpacity="0.95" />
+                    <line x1={x+w-18} y1={y} x2={x+w} y2={y} stroke={accent} strokeWidth="1.6" strokeOpacity="0.95" />
+                    <line x1={x+w} y1={y} x2={x+w} y2={y+18} stroke={accent} strokeWidth="1.6" strokeOpacity="0.95" />
+                    <line x1={x} y1={y+h-18} x2={x} y2={y+h} stroke={accent} strokeWidth="1.6" strokeOpacity="0.95" />
+                    <line x1={x} y1={y+h} x2={x+18} y2={y+h} stroke={accent} strokeWidth="1.6" strokeOpacity="0.95" />
+                    <line x1={x+w-18} y1={y+h} x2={x+w} y2={y+h} stroke={accent} strokeWidth="1.6" strokeOpacity="0.95" />
+                    <line x1={x+w} y1={y+h-18} x2={x+w} y2={y+h} stroke={accent} strokeWidth="1.6" strokeOpacity="0.95" />
+                    <line x1={x+1} y1={y+24} x2={x+w-1} y2={y+24} stroke={accent} strokeWidth="0.5" strokeOpacity="0.35" />
+                    <line x1={x} y1={y+36} x2={x+3} y2={y+36} stroke={accent} strokeWidth="0.6" strokeOpacity="0.45" />
+                    <line x1={x} y1={y+h-36} x2={x+3} y2={y+h-36} stroke={accent} strokeWidth="0.6" strokeOpacity="0.45" />
+                  </g>
+                );
 
-              // Glass panel SVG helper
-              const glassPanelBg = (x: number, y: number, w: number, h: number, key: string) => (
-                <g key={key}>
-                  <rect x={x} y={y} width={w} height={h} rx="3"
-                    fill="#000000" fillOpacity="0.80" />
-                  <rect x={x} y={y} width={w} height={h} rx="3"
-                    fill="none" stroke="#ffffff" strokeWidth="0.45" strokeOpacity="0.16" />
-                  <line x1={x + 4} y1={y + 0.5} x2={x + w - 4} y2={y + 0.5}
-                    stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.22" />
-                  <line x1={x} y1={y + 10} x2={x} y2={y} stroke="#ffffff" strokeWidth="1.0" strokeOpacity="0.35" />
-                  <line x1={x} y1={y} x2={x + 10} y2={y} stroke="#ffffff" strokeWidth="1.0" strokeOpacity="0.35" />
-                  <line x1={x + w - 10} y1={y} x2={x + w} y2={y} stroke="#ffffff" strokeWidth="1.0" strokeOpacity="0.35" />
-                  <line x1={x + w} y1={y} x2={x + w} y2={y + 10} stroke="#ffffff" strokeWidth="1.0" strokeOpacity="0.35" />
-                </g>
-              );
+                return (
+                  <g style={{ opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.6s ease" }} pointerEvents="none">
 
-              const panelH1 = Math.round(215 * hudScale);
-              const panelH2 = Math.round(182 * hudScale);
-              const panelH4 = Math.round(200 * hudScale);
-              const fs = (base: number) => (base * hudScale).toFixed(1);
-
-              return (
-                <svg
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    width: "100%",
-                    height: "100%",
-                    pointerEvents: "none",
-                    overflow: "visible",
-                    zIndex: 5,
-                  }}
-                  viewBox="0 0 1000 1000"
-                  preserveAspectRatio="xMidYMid meet"
-                >
-                  <g style={{ opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.6s ease" }}>
-
-                    {/* ── PANEL 1 (top-left): FIELD INTELLIGENCE STATUS ── */}
-                    {glassPanelBg(10, 10, panelW, panelH1, "hud-tl-bg")}
-                    <text x={18} y={26} fill="#ffffff" fillOpacity="0.50"
-                      fontFamily="'Courier New', Monaco, monospace" fontSize={fs(6)} letterSpacing="0.26em">
-                      FIELD INTELLIGENCE
+                    {/* ── PANEL 1 (TL): FIELD INTEL ─────────────────────── */}
+                    {sciPanel(PAD, PAD, PW, PH1, "hud-tl-bg")}
+                    <text x={PAD+10} y={PAD+16}
+                      fill="#00e5ff" fillOpacity="0.85" filter="url(#hudNeonGlow)"
+                      fontFamily="'Courier New', Monaco, monospace" fontSize="6" fontWeight="700" letterSpacing="0.28em">
+                      FIELD INTEL
                     </text>
-                    <line x1={18} y1={30} x2={10 + panelW - 8} y2={30} stroke="#ffffff" strokeWidth="0.3" strokeOpacity="0.16" />
-                    {[
-                      { label: "NODES TRACKED",  value: sorted.length.toString(),           color: "#cbd5e1" },
-                      { label: "ACTIVE",         value: activeCount.toString(),             color: "#2EE6A6" },
-                      { label: "RISING",         value: risingCount.toString(),             color: "#f59e0b" },
-                      { label: "CRITICAL",       value: criticalCount.toString(),           color: criticalCount > 0 ? "#ef4444" : "#64748b" },
-                      { label: "CONVERGENCE",    value: convergenceCount.toString(),        color: convergenceCount > 0 ? "#818cf8" : "#64748b" },
-                      { label: "SIG / 7D",       value: totalSignals.toString(),            color: "#94a3b8" },
-                      { label: "LAST SIGNAL",    value: fieldAgeStr,                        color: "#64748b" },
-                      { label: "HOT SECTOR",     value: hottestSectorStr,                   color: "#818cf8" },
-                    ].map(({ label, value, color }, ri) => {
-                      const hoverCat =
-                        label === "ACTIVE"      ? 'active'      :
-                        label === "RISING"      ? 'rising'      :
-                        label === "CRITICAL"    ? 'critical'    :
-                        label === "CONVERGENCE" ? 'convergence' : null;
-                      const isHovered = hudHighlight?.type === 'category' && hudHighlight.value === hoverCat;
+                    <text x={PAD+PW-8} y={PAD+16}
+                      fill="#00e5ff" fillOpacity="0.35" textAnchor="end"
+                      fontFamily="'Courier New', Monaco, monospace" fontSize="5" letterSpacing="0.06em">
+                      SYS·ACTIVE
+                    </text>
+                    {([
+                      { label: "NODES TRACKED",  value: sorted.length.toString(),    color: "#e8f4ff",  hover: null },
+                      { label: "ACTIVE",         value: activeCount.toString(),       color: activeCount > 0 ? "#00ff88" : "#334a5e",      hover: "active" as const },
+                      { label: "RISING",         value: risingCount.toString(),       color: risingCount > 0 ? "#ffaa00" : "#334a5e",      hover: "rising" as const },
+                      { label: "CRITICAL",       value: criticalCount.toString(),     color: criticalCount > 0 ? "#ff2255" : "#334a5e",    hover: "critical" as const },
+                      { label: "CONVERGENCE",    value: convergenceCount.toString(),  color: convergenceCount > 0 ? "#bb66ff" : "#334a5e", hover: "convergence" as const },
+                      { label: "SIG·7D",         value: totalSignals.toString(),      color: "#7ad4f0",  hover: null },
+                      { label: "LAST SIGNAL",    value: fieldAgeStr,                  color: "#3a6080",  hover: null },
+                      { label: "HOT SECTOR",     value: hottestStr,                   color: "#bb66ff",  hover: null },
+                    ] as Array<{ label: string; value: string; color: string; hover: 'critical' | 'rising' | 'active' | 'convergence' | null }>).map(({ label, value, color, hover }, ri) => {
+                      const isHovered = hudHighlight?.type === 'category' && hudHighlight.value === hover;
                       return (
                         <g key={`hud-tl-${ri}`}
-                          style={{ cursor: hoverCat ? 'pointer' : 'default', pointerEvents: hoverCat ? 'auto' : 'none' }}
-                          onMouseEnter={() => hoverCat && setHudHighlight({ type: 'category', value: hoverCat as 'critical' | 'rising' | 'active' | 'convergence' })}
+                          style={{ cursor: hover ? 'pointer' : 'default', pointerEvents: hover ? 'auto' : 'none' }}
+                          onMouseEnter={() => hover && setHudHighlight({ type: 'category', value: hover })}
                           onMouseLeave={() => setHudHighlight(null)}
                         >
-                          {hoverCat && (
-                            <rect x={10} y={37 + ri * 20} width={panelW} height={16} rx="2"
-                              fill="#ffffff" fillOpacity={isHovered ? 0.06 : 0}
-                              style={{ transition: "fill-opacity 0.15s ease" }}
-                            />
+                          {hover && (
+                            <rect x={PAD+1} y={PAD+28+ri*22-1} width={PW-2} height={20} rx="1"
+                              fill={color} fillOpacity={isHovered ? 0.07 : 0}
+                              style={{ transition: "fill-opacity 0.12s ease" }} />
                           )}
-                          <text x={18} y={44 + ri * 20}
-                            fill="#475569" fillOpacity="0.85"
-                            fontFamily="'Courier New', Monaco, monospace" fontSize={fs(5.5)} letterSpacing="0.12em">
+                          <text x={PAD+10} y={PAD+40+ri*22}
+                            fill="#2a5070" fillOpacity="0.90"
+                            fontFamily="'Courier New', Monaco, monospace" fontSize="5.5" letterSpacing="0.14em">
                             {label}
                           </text>
-                          <text x={10 + panelW - 8} y={44 + ri * 20}
-                            textAnchor="end" fill={color} fillOpacity="0.80"
-                            fontFamily="'Courier New', Monaco, monospace" fontSize={fs(6.5)} fontWeight="bold" letterSpacing="0.06em">
+                          <text x={PAD+PW-8} y={PAD+40+ri*22}
+                            textAnchor="end"
+                            fill={color} fillOpacity="0.90"
+                            filter={color !== "#334a5e" && color !== "#3a6080" ? "url(#hudNeonGlow)" : undefined}
+                            fontFamily="'Courier New', Monaco, monospace" fontSize="6.5" fontWeight="bold" letterSpacing="0.06em">
                             {value}
                           </text>
-                          <line x1={18} y1={47 + ri * 20} x2={10 + panelW - 8} y2={47 + ri * 20}
-                            stroke="#ffffff" strokeWidth="0.2" strokeOpacity="0.06" />
+                          <line x1={PAD+8} y1={PAD+43+ri*22} x2={PAD+PW-8} y2={PAD+43+ri*22}
+                            stroke="#00e5ff" strokeWidth="0.2" strokeOpacity="0.08" />
                         </g>
                       );
                     })}
 
-                    {/* ── PANEL 2 (bottom-left): NODE STREAM — top 4 by momentum ── */}
-                    {glassPanelBg(10, 1000 - panelH2 - 8, panelW, panelH2, "hud-bl-bg")}
-                    <text x={18} y={1000 - panelH2 + 8} fill="#ffffff" fillOpacity="0.50"
-                      fontFamily="'Courier New', Monaco, monospace" fontSize={fs(6)} letterSpacing="0.26em">
+                    {/* ── PANEL 2 (BL): NODE STREAM ─────────────────────── */}
+                    {sciPanel(PAD, 1000 - PH2 - PAD, PW, PH2, "hud-bl-bg", "#00ff88")}
+                    <text x={PAD+10} y={1000 - PH2 - PAD + 16}
+                      fill="#00ff88" fillOpacity="0.85" filter="url(#hudNeonGlow)"
+                      fontFamily="'Courier New', Monaco, monospace" fontSize="6" fontWeight="700" letterSpacing="0.28em">
                       NODE STREAM
                     </text>
-                    <line x1={18} y1={1000 - panelH2 + 12} x2={10 + panelW - 8} y2={1000 - panelH2 + 12}
-                      stroke="#ffffff" strokeWidth="0.3" strokeOpacity="0.16" />
+                    <text x={PAD+PW-8} y={1000 - PH2 - PAD + 16}
+                      fill="#00ff88" fillOpacity="0.35" textAnchor="end"
+                      fontFamily="'Courier New', Monaco, monospace" fontSize="5" letterSpacing="0.06em">
+                      TOP·4
+                    </text>
                     {sorted.slice(0, 4).map((c, ri) => {
                       const momentum = Number(c.momentum_score ?? 0);
                       const mCfg = getMomentumConfig(momentum);
                       const movAbbr = c.latest_movement_type ? movAbbreviation(c.latest_movement_type) : "—";
-                      const barW = Math.min(80 * hudScale, momentum * 10 * hudScale);
-                      const rowY = 1000 - panelH2 + 18 + ri * Math.round(38 * hudScale);
+                      const barW = Math.min(100, momentum * 11);
+                      const baseY = 1000 - PH2 - PAD + 28 + ri * 42;
+                      const isHighlighted = hudHighlight?.type === 'node' && hudHighlight.id === c.competitor_id;
                       return (
                         <g key={`hud-bl-${ri}`}
                           style={{ cursor: 'pointer', pointerEvents: 'auto' }}
                           onMouseEnter={() => setHudHighlight({ type: 'node', id: c.competitor_id })}
                           onMouseLeave={() => setHudHighlight(null)}
                         >
-                          <rect x={10} y={rowY - 4} width={panelW} height={Math.round(36 * hudScale)} rx="2"
-                            fill="#ffffff"
-                            fillOpacity={hudHighlight?.type === 'node' && hudHighlight.id === c.competitor_id ? 0.05 : 0}
-                            style={{ transition: "fill-opacity 0.15s ease" }}
-                          />
-                          <text x={18} y={rowY + 8}
-                            fill="#ffffff" fillOpacity="0.22"
-                            fontFamily="'Courier New', Monaco, monospace" fontSize={fs(8)} letterSpacing="0.06em">
+                          <rect x={PAD+1} y={baseY-4} width={PW-2} height={38} rx="1"
+                            fill={mCfg.color} fillOpacity={isHighlighted ? 0.07 : 0}
+                            style={{ transition: "fill-opacity 0.12s ease" }} />
+                          <text x={PAD+9} y={baseY+9}
+                            fill="#00ff88" fillOpacity="0.30"
+                            fontFamily="'Courier New', Monaco, monospace" fontSize="8.5" fontWeight="700">
                             {`0${ri + 1}`}
                           </text>
-                          <text x={34} y={rowY + 8}
-                            fill="#e2e8f0" fillOpacity="0.70"
-                            fontFamily="'Courier New', Monaco, monospace" fontSize={fs(6.5)} letterSpacing="0.10em">
-                            {c.competitor_name.toUpperCase().slice(0, 12)}
+                          <text x={PAD+26} y={baseY+9}
+                            fill="#d0e8f0" fillOpacity="0.80"
+                            fontFamily="'Courier New', Monaco, monospace" fontSize="6.5" fontWeight="600" letterSpacing="0.10em">
+                            {c.competitor_name.toUpperCase().slice(0, 11)}
                           </text>
-                          <rect x={34} y={rowY + 11} width={Math.round(80 * hudScale)} height={2} rx="1"
-                            fill="#ffffff" fillOpacity="0.06" />
-                          <rect x={34} y={rowY + 11} width={barW} height={2} rx="1"
-                            fill={mCfg.color} fillOpacity="0.55" />
-                          <text x={34} y={rowY + 20}
-                            fill="#64748b" fillOpacity="0.80"
-                            fontFamily="'Courier New', Monaco, monospace" fontSize={fs(5)} letterSpacing="0.08em">
-                            {`▲ ${movAbbr}  ·  M ${momentum.toFixed(1)}`}
+                          <text x={PAD+PW-8} y={baseY+9}
+                            textAnchor="end" fill={mCfg.color} fillOpacity="0.70"
+                            fontFamily="'Courier New', Monaco, monospace" fontSize="5.5" letterSpacing="0.08em">
+                            {movAbbr}
+                          </text>
+                          <rect x={PAD+26} y={baseY+13} width={100} height={2.5} rx="1.25"
+                            fill="#ffffff" fillOpacity="0.05" />
+                          <rect x={PAD+26} y={baseY+13} width={barW} height={2.5} rx="1.25"
+                            fill={mCfg.color} fillOpacity="0.70" />
+                          <text x={PAD+PW-8} y={baseY+23}
+                            textAnchor="end" fill={mCfg.color} fillOpacity="0.55"
+                            fontFamily="'Courier New', Monaco, monospace" fontSize="5" letterSpacing="0.06em">
+                            {`M·${momentum.toFixed(1)}`}
                           </text>
                           {ri < 3 && (
-                            <line x1={18} y1={rowY + 24} x2={10 + panelW - 8} y2={rowY + 24}
-                              stroke="#ffffff" strokeWidth="0.2" strokeOpacity="0.06" />
+                            <line x1={PAD+8} y1={baseY+32} x2={PAD+PW-8} y2={baseY+32}
+                              stroke="#00ff88" strokeWidth="0.25" strokeOpacity="0.10" />
                           )}
                         </g>
                       );
                     })}
 
-                    {/* ── PANEL 3 (top-right): SELECTED NODE DETAIL ── */}
+                    {/* ── PANEL 3 (TR or TL): TARGET LOCKED ─────────────── */}
                     <AnimatePresence>
                       {selected && (() => {
                         const selPos = hudPos.get(selected.competitor_id);
                         const panelOnRight = !selPos || selPos.x >= CENTER;
-                        const pw = panelW;
-                        const ph = Math.round(235 * hudScale);
-                        const px = panelOnRight ? 1000 - pw - 8 : 8;
-                        const py = 10;
-                        const momentum   = Number(selected.momentum_score ?? 0);
-                        const mCfg       = getMomentumConfig(momentum);
-                        const threatLevel = momentum >= 7 ? "CRITICAL" : momentum >= 5 ? "HIGH" : momentum >= 3 ? "ELEVATED" : "NOMINAL";
-                        const threatColor = momentum >= 7 ? "#ef4444" : momentum >= 5 ? "#f59e0b" : momentum >= 3 ? "#818cf8" : "#64748b";
+                        const px = panelOnRight ? 1000 - PW - PAD : PAD;
+                        const py = PAD;
+                        const ph = 248;
+                        const momentum    = Number(selected.momentum_score ?? 0);
+                        const mCfg        = getMomentumConfig(momentum);
+                        const threatLevel = momentum >= 7 ? "CRITICAL THREAT" : momentum >= 5 ? "HIGH THREAT" : momentum >= 3 ? "ELEVATED" : "NOMINAL";
+                        const threatColor = momentum >= 7 ? "#ff2255" : momentum >= 5 ? "#ffaa00" : momentum >= 3 ? "#bb66ff" : "#334a5e";
                         const rivalCount  = tensionLinks.filter(l => l.idA === selected.competitor_id || l.idB === selected.competitor_id).length;
                         const lastSig     = selected.last_signal_at ? formatRelative(selected.last_signal_at).toUpperCase() : "—";
                         const movAbbr     = selected.latest_movement_type ? movAbbreviation(selected.latest_movement_type) : "—";
-                        const barW        = Math.min(Math.round(130 * hudScale), momentum * Math.round(14 * hudScale));
-
-                        // Connector line from node to panel — transform node position to overlay space
-                        const connectorNode = selPos ? toOverlay(selPos.x, selPos.y) : null;
-
+                        const barW        = Math.min(PW - 20, momentum * 14);
+                        const connectorPt = selPos ? { x: selPos.x, y: selPos.y } : null;
                         return (
                           <motion.g
-                            key={`hud-selected-${selected.competitor_id}`}
-                            initial={{ opacity: 0, x: panelOnRight ? 18 : -18 }}
+                            key={`hud-target-${selected.competitor_id}`}
+                            initial={{ opacity: 0, x: panelOnRight ? 16 : -16 }}
                             animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: panelOnRight ? 18 : -18 }}
+                            exit={{ opacity: 0, x: panelOnRight ? 16 : -16 }}
                             transition={{ type: "spring", stiffness: 280, damping: 22 }}
                           >
-                            <rect x={px} y={py} width={pw} height={ph} rx="3"
-                              fill="#000000" fillOpacity="0.88" />
-                            <rect x={px} y={py} width={pw} height={ph} rx="3"
-                              fill="none" stroke="#ffffff" strokeWidth="0.55" strokeOpacity="0.22" />
-                            <line x1={px + 4} y1={py + 0.5} x2={px + pw - 4} y2={py + 0.5}
-                              stroke="#ffffff" strokeWidth="0.6" strokeOpacity="0.28" />
-                            <line x1={px} y1={py + 12} x2={px} y2={py} stroke="#ffffff" strokeWidth="1.1" strokeOpacity="0.40" />
-                            <line x1={px} y1={py} x2={px + 12} y2={py} stroke="#ffffff" strokeWidth="1.1" strokeOpacity="0.40" />
-                            <line x1={px + pw - 12} y1={py} x2={px + pw} y2={py} stroke="#ffffff" strokeWidth="1.1" strokeOpacity="0.40" />
-                            <line x1={px + pw} y1={py} x2={px + pw} y2={py + 12} stroke="#ffffff" strokeWidth="1.1" strokeOpacity="0.40" />
-                            <text x={px + 10} y={py + 16}
-                              fill="#ffffff" fillOpacity="0.55"
-                              fontFamily="'Courier New', Monaco, monospace" fontSize={fs(6)} letterSpacing="0.28em">
-                              TARGET ACQUIRED
+                            {sciPanel(px, py, PW, ph, "hud-tr-bg", threatColor)}
+                            <text x={px+10} y={py+16}
+                              fill={threatColor} fillOpacity="0.90" filter="url(#hudNeonGlow)"
+                              fontFamily="'Courier New', Monaco, monospace" fontSize="6" fontWeight="700" letterSpacing="0.28em">
+                              TARGET LOCKED
                             </text>
-                            <line x1={px + 10} y1={py + 20} x2={px + pw - 10} y2={py + 20}
-                              stroke="#ffffff" strokeWidth="0.3" strokeOpacity="0.18" />
-                            <text x={px + pw / 2} y={py + 32}
+                            <text x={px+PW/2} y={py+36}
                               textAnchor="middle"
-                              fill="#ffffff" fillOpacity="0.90"
-                              fontFamily="'Courier New', Monaco, monospace" fontSize={fs(9)} letterSpacing="0.14em" fontWeight="bold">
+                              fill="#ffffff" fillOpacity="0.95" filter="url(#hudNeonGlow)"
+                              fontFamily="'Courier New', Monaco, monospace" fontSize="9.5" fontWeight="bold" letterSpacing="0.14em">
                               {selected.competitor_name.toUpperCase().slice(0, 14)}
                             </text>
-                            <rect x={px + pw / 2 - 30} y={py + 36} width={60} height={12} rx="2"
+                            <rect x={px+PW/2-38} y={py+40} width={76} height={13} rx="1.5"
                               fill={threatColor} fillOpacity="0.12" />
-                            <rect x={px + pw / 2 - 30} y={py + 36} width={60} height={12} rx="2"
-                              fill="none" stroke={threatColor} strokeWidth="0.5" strokeOpacity="0.50" />
-                            <text x={px + pw / 2} y={py + 44}
+                            <rect x={px+PW/2-38} y={py+40} width={76} height={13} rx="1.5"
+                              fill="none" stroke={threatColor} strokeWidth="0.6" strokeOpacity="0.55" />
+                            <text x={px+PW/2} y={py+48.5}
                               textAnchor="middle" dominantBaseline="middle"
-                              fill={threatColor} fillOpacity="0.85"
-                              fontFamily="'Courier New', Monaco, monospace" fontSize={fs(5.5)} letterSpacing="0.20em">
+                              fill={threatColor} fillOpacity="0.90" filter="url(#hudNeonGlow)"
+                              fontFamily="'Courier New', Monaco, monospace" fontSize="5.5" fontWeight="700" letterSpacing="0.22em">
                               {threatLevel}
                             </text>
-                            <text x={px + 10} y={py + 60}
-                              fill="#475569" fontFamily="'Courier New', Monaco, monospace" fontSize={fs(5.5)} letterSpacing="0.12em">
+                            <text x={px+10} y={py+66}
+                              fill="#2a5070" fontFamily="'Courier New', Monaco, monospace" fontSize="5.5" letterSpacing="0.14em">
                               MOMENTUM
                             </text>
-                            <rect x={px + 10} y={py + 63} width={pw - 20} height={3} rx="1.5"
-                              fill="#ffffff" fillOpacity="0.06" />
-                            <rect x={px + 10} y={py + 63} width={barW} height={3} rx="1.5"
-                              fill={mCfg.color} fillOpacity="0.65" />
-                            <text x={px + pw - 10} y={py + 60}
-                              textAnchor="end" fill={mCfg.color} fillOpacity="0.80"
-                              fontFamily="'Courier New', Monaco, monospace" fontSize={fs(6.5)} fontWeight="bold">
+                            <text x={px+PW-10} y={py+66}
+                              textAnchor="end" fill={mCfg.color} fillOpacity="0.90" filter="url(#hudNeonGlow)"
+                              fontFamily="'Courier New', Monaco, monospace" fontSize="6.5" fontWeight="bold">
                               {momentum.toFixed(1)}
                             </text>
-                            {[
-                              { label: "VECTOR",       value: movAbbr,                                        color: "#94a3b8" },
-                              { label: "SIG / 7D",     value: (selected.signals_7d ?? 0).toString(),          color: "#cbd5e1" },
-                              { label: "LAST SIGNAL",  value: lastSig,                                        color: "#64748b" },
-                              { label: "RIVALS",       value: rivalCount > 0 ? `${rivalCount} CONVERGING` : "ISOLATED", color: rivalCount > 0 ? "#818cf8" : "#475569" },
-                              { label: "PRESSURE IDX", value: (selected.pressure_index ?? 0).toFixed(1),      color: "#94a3b8" },
-                            ].map(({ label, value, color }, ri) => (
-                              <g key={`hud-sel-row-${ri}`}>
-                                <text x={px + 10} y={py + 82 + ri * 22}
-                                  fill="#475569" fillOpacity="0.85"
-                                  fontFamily="'Courier New', Monaco, monospace" fontSize={fs(5.5)} letterSpacing="0.12em">
+                            <rect x={px+10} y={py+69} width={PW-20} height={3} rx="1.5"
+                              fill="#ffffff" fillOpacity="0.05" />
+                            <rect x={px+10} y={py+69} width={barW} height={3} rx="1.5"
+                              fill={mCfg.color} fillOpacity="0.70" />
+                            {([
+                              { label: "VECTOR",       value: movAbbr,                                                   color: "#7ad4f0" },
+                              { label: "SIG·7D",       value: (selected.signals_7d ?? 0).toString(),                     color: "#e8f4ff" },
+                              { label: "LAST SIGNAL",  value: lastSig,                                                   color: "#3a6080" },
+                              { label: "RIVALS",       value: rivalCount > 0 ? `${rivalCount} CONVERGING` : "ISOLATED",  color: rivalCount > 0 ? "#bb66ff" : "#334a5e" },
+                              { label: "PRESSURE IDX", value: (selected.pressure_index ?? 0).toFixed(1),                 color: "#7ad4f0" },
+                            ] as Array<{ label: string; value: string; color: string }>).map(({ label, value, color }, ri) => (
+                              <g key={`hud-sel-${ri}`}>
+                                <text x={px+10} y={py+88+ri*22}
+                                  fill="#2a5070" fillOpacity="0.90"
+                                  fontFamily="'Courier New', Monaco, monospace" fontSize="5.5" letterSpacing="0.14em">
                                   {label}
                                 </text>
-                                <text x={px + pw - 10} y={py + 82 + ri * 22}
-                                  textAnchor="end" fill={color} fillOpacity="0.80"
-                                  fontFamily="'Courier New', Monaco, monospace" fontSize={fs(6)} letterSpacing="0.08em">
+                                <text x={px+PW-10} y={py+88+ri*22}
+                                  textAnchor="end" fill={color} fillOpacity="0.90"
+                                  filter={color !== "#334a5e" && color !== "#3a6080" ? "url(#hudNeonGlow)" : undefined}
+                                  fontFamily="'Courier New', Monaco, monospace" fontSize="6" fontWeight="bold" letterSpacing="0.08em">
                                   {value}
                                 </text>
-                                <line x1={px + 10} y1={py + 85 + ri * 22} x2={px + pw - 10} y2={py + 85 + ri * 22}
-                                  stroke="#ffffff" strokeWidth="0.2" strokeOpacity="0.06" />
+                                <line x1={px+8} y1={py+91+ri*22} x2={px+PW-8} y2={py+91+ri*22}
+                                  stroke={threatColor} strokeWidth="0.2" strokeOpacity="0.08" />
                               </g>
                             ))}
                             {selected.latest_movement_type && (
                               <>
-                                <line x1={px + 10} y1={py + ph - 24} x2={px + pw - 10} y2={py + ph - 24}
-                                  stroke="#ffffff" strokeWidth="0.3" strokeOpacity="0.16" />
-                                <text x={px + pw / 2} y={py + ph - 12}
+                                <line x1={px+8} y1={py+ph-22} x2={px+PW-8} y2={py+ph-22}
+                                  stroke={threatColor} strokeWidth="0.4" strokeOpacity="0.22" />
+                                <text x={px+PW/2} y={py+ph-10}
                                   textAnchor="middle"
-                                  fill="#475569" fillOpacity="0.70"
-                                  fontFamily="'Courier New', Monaco, monospace" fontSize={fs(5)} letterSpacing="0.14em">
+                                  fill={threatColor} fillOpacity="0.60"
+                                  fontFamily="'Courier New', Monaco, monospace" fontSize="5" letterSpacing="0.16em">
                                   {selected.latest_movement_type.replace(/_/g, " ").toUpperCase()}
                                 </text>
                               </>
                             )}
-                            {/* Connector line: node (in overlay coords) → panel edge */}
-                            {connectorNode && (() => {
+                            {connectorPt && (() => {
                               const nodeR = getNodeSize(momentum) + 10;
-                              const panelEdgeX = panelOnRight ? px : px + pw;
+                              const panelEdgeX = panelOnRight ? px : px + PW;
                               return (
-                                <line
-                                  x1={connectorNode.x + (panelOnRight ? -nodeR : nodeR)}
-                                  y1={connectorNode.y}
-                                  x2={panelEdgeX}
-                                  y2={connectorNode.y}
-                                  stroke="#ffffff" strokeWidth="0.35"
-                                  strokeOpacity="0.18"
-                                  strokeDasharray="3 6"
+                                <path
+                                  d={`M ${connectorPt.x + (panelOnRight ? -nodeR : nodeR)} ${connectorPt.y} L ${panelEdgeX} ${connectorPt.y} L ${panelEdgeX} ${py + ph / 2}`}
+                                  fill="none"
+                                  stroke={threatColor} strokeWidth="0.4"
+                                  strokeOpacity="0.30"
+                                  strokeDasharray="3 5"
                                 />
                               );
                             })()}
@@ -3619,43 +3606,48 @@ export default function Radar({
                       })()}
                     </AnimatePresence>
 
-                    {/* ── PANEL 4 (bottom-right): FIELD ASSESSMENT ── */}
-                    {glassPanelBg(1000 - panelW - 8, 1000 - panelH4 - 8, panelW, panelH4, "hud-br-bg")}
-                    <text x={1000 - panelW} y={1000 - panelH4 + 8} fill="#ffffff" fillOpacity="0.50"
-                      fontFamily="'Courier New', Monaco, monospace" fontSize={fs(6)} letterSpacing="0.26em">
+                    {/* ── PANEL 4 (BR): FIELD ASSESSMENT ───────────────── */}
+                    {sciPanel(1000 - PW - PAD, 1000 - PH4 - PAD, PW, PH4, "hud-br-bg", "#bb66ff")}
+                    <text x={1000 - PW - PAD + 10} y={1000 - PH4 - PAD + 16}
+                      fill="#bb66ff" fillOpacity="0.85" filter="url(#hudNeonGlow)"
+                      fontFamily="'Courier New', Monaco, monospace" fontSize="6" fontWeight="700" letterSpacing="0.28em">
                       FIELD ASSESSMENT
                     </text>
-                    <line x1={1000 - panelW} y1={1000 - panelH4 + 12} x2={1000 - panelW + panelW - 8} y2={1000 - panelH4 + 12}
-                      stroke="#ffffff" strokeWidth="0.3" strokeOpacity="0.16" />
-                    {[
-                      { label: "CRITICAL VECTORS",  value: criticalCount.toString(),    color: criticalCount > 0 ? "#ef4444" : "#64748b" },
-                      { label: "CONVERGENCE ZONES", value: convergenceCount.toString(), color: convergenceCount > 0 ? "#818cf8" : "#64748b" },
-                      { label: "ACTIVE SIGNALS/7D", value: totalSignals.toString(),     color: "#94a3b8" },
-                      { label: "ORBIT MODE",        value: gravityMode ? "ACTIVE" : "INACTIVE", color: gravityMode ? "#2EE6A6" : "#64748b" },
-                      { label: "FIELD AGE",         value: fieldAgeStr,                 color: "#64748b" },
-                      { label: "HOT SECTOR",        value: hottestSectorStr,             color: "#818cf8" },
-                    ].map(({ label, value, color }, ri) => (
+                    {([
+                      { label: "CRITICAL VECTORS",   value: criticalCount.toString(),            color: criticalCount > 0 ? "#ff2255" : "#334a5e" },
+                      { label: "CONVERGENCE ZONES",  value: convergenceCount.toString(),          color: convergenceCount > 0 ? "#bb66ff" : "#334a5e" },
+                      { label: "SIGNALS·7D",         value: totalSignals.toString(),              color: "#7ad4f0" },
+                      { label: "ORBIT MODE",         value: gravityMode ? "ACTIVE" : "STANDBY",  color: gravityMode ? "#00ff88" : "#334a5e" },
+                      { label: "FIELD AGE",          value: fieldAgeStr,                          color: "#3a6080" },
+                      { label: "HOT SECTOR",         value: hottestStr,                           color: "#bb66ff" },
+                    ] as Array<{ label: string; value: string; color: string }>).map(({ label, value, color }, ri) => (
                       <g key={`hud-br-${ri}`}>
-                        <text x={1000 - panelW} y={1000 - panelH4 + 26 + ri * Math.round(26 * hudScale)}
-                          fill="#475569" fillOpacity="0.85"
-                          fontFamily="'Courier New', Monaco, monospace" fontSize={fs(5.5)} letterSpacing="0.12em">
-                          {`■ ${label}`}
+                        <text x={1000 - PW - PAD + 10} y={1000 - PH4 - PAD + 32 + ri * 26}
+                          fill="#2a5070" fillOpacity="0.90"
+                          fontFamily="'Courier New', Monaco, monospace" fontSize="5.5" letterSpacing="0.14em">
+                          {`▸ ${label}`}
                         </text>
-                        <text x={992 - 8} y={1000 - panelH4 + 26 + ri * Math.round(26 * hudScale)}
-                          textAnchor="end" fill={color} fillOpacity="0.80"
-                          fontFamily="'Courier New', Monaco, monospace" fontSize={fs(6)} letterSpacing="0.06em">
+                        <text x={1000 - PAD - 8} y={1000 - PH4 - PAD + 32 + ri * 26}
+                          textAnchor="end"
+                          fill={color} fillOpacity="0.90"
+                          filter={color !== "#334a5e" && color !== "#3a6080" ? "url(#hudNeonGlow)" : undefined}
+                          fontFamily="'Courier New', Monaco, monospace" fontSize="6" fontWeight="bold" letterSpacing="0.08em">
                           {value}
                         </text>
-                        <line x1={1000 - panelW} y1={1000 - panelH4 + 29 + ri * Math.round(26 * hudScale)}
-                              x2={992 - 8}          y2={1000 - panelH4 + 29 + ri * Math.round(26 * hudScale)}
-                          stroke="#ffffff" strokeWidth="0.2" strokeOpacity="0.06" />
+                        <line x1={1000 - PW - PAD + 8} y1={1000 - PH4 - PAD + 35 + ri * 26}
+                              x2={1000 - PAD - 8}       y2={1000 - PH4 - PAD + 35 + ri * 26}
+                          stroke="#bb66ff" strokeWidth="0.2" strokeOpacity="0.08" />
                       </g>
                     ))}
 
                   </g>
-                </svg>
-              );
-            })()}
+                );
+              })()}
+
+            </svg>
+            </div>{/* end zoom canvas */}
+
+            {/* HUD panels moved inside main SVG above — zoom-synced with radar */}
 
             {/* ── Floating controls — mobile only ─────────────────────────── */}
             {/* Gravity toggle + zoom reset, positioned top-right of radar canvas */}
@@ -4437,6 +4429,25 @@ export default function Radar({
                       </span>
                     )}
                   </div>
+                  {/* Strategy Pivot banner — shown when hypothesis changed in last 48h */}
+                  {detail.context.hypothesis_changed_at &&
+                    detail.context.previous_hypothesis &&
+                    Date.now() - new Date(detail.context.hypothesis_changed_at).getTime() < 48 * 60 * 60 * 1000 && (
+                    <div
+                      className="mb-2.5 rounded-[8px] border px-3 py-2"
+                      style={{
+                        background: "rgba(155,92,255,0.08)",
+                        borderColor: "rgba(155,92,255,0.22)",
+                      }}
+                    >
+                      <div className="mb-1 text-[9px] font-bold uppercase tracking-[0.18em]" style={{ color: "#9B5CFF" }}>
+                        Strategy Pivot Detected
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-slate-500 line-through">
+                        {detail.context.previous_hypothesis}
+                      </p>
+                    </div>
+                  )}
                   <p className="text-sm leading-relaxed text-slate-200">
                     {detail.context.hypothesis}
                   </p>

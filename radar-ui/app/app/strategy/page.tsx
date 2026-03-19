@@ -72,15 +72,17 @@ type EvidenceItem = {
 };
 
 type ContextRow = {
-  competitor_id:    string;
-  competitor_name:  string;
-  hypothesis:       string | null;
-  confidence_level: string;
-  strategic_arc:    string | null;
-  open_questions:   string[];
-  evidence_trail:   EvidenceItem[];
-  signal_count:     number;
-  last_updated_at:  string;
+  competitor_id:         string;
+  competitor_name:       string;
+  hypothesis:            string | null;
+  confidence_level:      string;
+  strategic_arc:         string | null;
+  open_questions:        string[];
+  evidence_trail:        EvidenceItem[];
+  signal_count:          number;
+  last_updated_at:       string;
+  previous_hypothesis:   string | null;
+  hypothesis_changed_at: string | null;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -229,7 +231,7 @@ export default async function StrategyPage({
     if (orgId) {
       const { data: ctxData } = await supabase
         .from("competitor_contexts")
-        .select("competitor_id, competitor_name, hypothesis, confidence_level, strategic_arc, open_questions, evidence_trail, signal_count, last_updated_at")
+        .select("competitor_id, competitor_name, hypothesis, confidence_level, strategic_arc, open_questions, evidence_trail, signal_count, last_updated_at, previous_hypothesis, hypothesis_changed_at")
         .eq("org_id", orgId)
         .order("signal_count", { ascending: false });
       contexts = ((ctxData ?? []) as ContextRow[]).filter((c) => c.hypothesis);
@@ -1149,8 +1151,35 @@ function ContextCard({
         </span>
       </div>
 
-      {/* Hypothesis */}
-      <p className="mb-3 text-[13px] leading-relaxed text-slate-200">{ctx.hypothesis}</p>
+      {/* Strategy Pivot — was/now block when hypothesis changed in last 7 days */}
+      {ctx.previous_hypothesis &&
+        ctx.hypothesis_changed_at &&
+        Date.now() - new Date(ctx.hypothesis_changed_at).getTime() < 7 * 24 * 60 * 60 * 1000 && (
+        <div
+          className="mb-3 overflow-hidden rounded-[10px] border"
+          style={{ borderColor: "rgba(155,92,255,0.22)" }}
+        >
+          <div
+            className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.18em]"
+            style={{ background: "rgba(155,92,255,0.10)", color: "#9B5CFF" }}
+          >
+            Strategy Pivot Detected
+          </div>
+          <div className="border-t px-3 py-2" style={{ borderColor: "rgba(155,92,255,0.12)" }}>
+            <div className="mb-0.5 text-[9px] uppercase tracking-[0.12em] text-slate-600">Previously</div>
+            <p className="text-[12px] leading-relaxed text-slate-600 line-through">{ctx.previous_hypothesis}</p>
+          </div>
+          <div className="border-t px-3 py-2" style={{ borderColor: "rgba(155,92,255,0.12)" }}>
+            <div className="mb-0.5 text-[9px] uppercase tracking-[0.12em]" style={{ color: confColor }}>Now</div>
+            <p className="text-[12px] leading-relaxed text-slate-200">{ctx.hypothesis}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Hypothesis — shown directly when no recent pivot */}
+      {!(ctx.previous_hypothesis && ctx.hypothesis_changed_at && Date.now() - new Date(ctx.hypothesis_changed_at).getTime() < 7 * 24 * 60 * 60 * 1000) && (
+        <p className="mb-3 text-[13px] leading-relaxed text-slate-200">{ctx.hypothesis}</p>
+      )}
 
       {/* Strategic arc */}
       {ctx.strategic_arc && (
