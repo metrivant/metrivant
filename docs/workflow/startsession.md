@@ -308,6 +308,7 @@ Default bias: **return less, not more**. Output only what changes understanding 
 - "commit and push all completions" = batch everything uncommitted into one commit, then push once. (2026-03-18)
 - "commit, push" or "commit + push" = stage relevant files, commit with descriptive message, then `git push`. Hook is async — push completes in <5s. No timeout needed. (2026-03-18)
 - "read endsession.md" = execute all endsession steps immediately from session context, no pauses between steps, no user prompts. (2026-03-18)
+- When any answer involves SQL that must be manually applied in Supabase SQL Editor, include the full SQL block at the end of that answer — even if the SQL was already shown earlier in the session. (2026-03-19)
 - "implement all identified improvements now" or "implement all X now" = execute everything that is safe (low blast radius, no new deps, no schema changes) without requesting per-item approval. Name any skipped items + reason at the end. (2026-03-18)
 - Alert dedup pattern without a signal_id: when a row needs state-tracked one-time alerting but has no natural unique key to use in the `alerts` table, use a sentinel column on the source row itself (`_alerted_at TIMESTAMPTZ NULL`). `check-signals` queries `WHERE _alerted_at IS NULL`, sends email, then `UPDATE SET _alerted_at = now()`. No separate join table needed. Pattern used in `competitor_contexts.hypothesis_shift_alerted_at`. (2026-03-18)
 - When given a multi-part prompt (e.g. layout fix + grid visibility), execute ALL parts in one pass. Do not implement part 1, report, then ask to continue. Surface is already approved — complete the full scope. (2026-03-18)
@@ -554,14 +555,14 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
   EDGAR URL pattern: https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={cik}&type={form}&dateb=&owner=include&count=40&search_text=&output=atom
   User-Agent for EDGAR requests (already set in ingest-regulatory-feeds.ts): "Metrivant Regulatory Monitor (research@metrivant.com)"
 
-- [I] `promote-careers-signals` fails with error code 23502 (NOT NULL violation) on
+- [I] `promote-careers-signals` was failing with error code 23502 (NOT NULL violation) on
   `signals.section_diff_id`. Root cause: signals table was created manually pre-migration with
   section_diff_id NOT NULL. Migration 013 defined it nullable but was skipped (CREATE TABLE IF
   NOT EXISTS). Pool event signals have no section_diff_id (they come from feeds, not page diffs) —
-  promote handlers set it to null, hitting the constraint. Fix: apply migration 056 in Supabase
-  SQL Editor (`ALTER TABLE signals ALTER COLUMN section_diff_id DROP NOT NULL`). Migration 056
-  also idempotently applies the cumulative signal_type + source_type CHECK constraints from 055.
-  Apply 056 only — it supersedes 055. (2026-03-19)
+  promote handlers set it to null, hitting the constraint. Fixed 2026-03-19: migration 056 applied
+  in Supabase SQL Editor (`ALTER TABLE signals ALTER COLUMN section_diff_id DROP NOT NULL`).
+  Migration 056 also idempotently applied cumulative signal_type + source_type CHECK constraints.
+  Pools 2–6 promote handlers are now unblocked. (2026-03-19)
 
 - [B] `heal-coverage` does NOT emit pipeline_events. It uses Sentry check-ins + captureMessage
   only. After adding recordEvent (2026-03-19), stage name is "heal" — visible in pipeline_events

@@ -169,9 +169,8 @@ Pool system (additive signal pipeline — parallel to page-diff monitoring):
                       schema + code + cron entries complete (all 12 cron entries in vercel.json)
                       competitor_feeds seeded: careers=11/15, investor=3/15, product=4/15,
                         regulatory=3/15, newsroom=4/15 (fintech sector, ATS/SEC EDGAR/RSS URLs)
-                      BLOCKED: migration 056 must be applied in Supabase SQL Editor first —
-                        signals.section_diff_id NOT NULL blocks all promote handlers (error 23502)
-                      After migration 056: pools are live with no further code changes needed
+                      migration 056 applied 2026-03-19 — section_diff_id NOT NULL removed
+                      pools are live; signal production active on next cron run
   Pool 7 (media):     schema complete (migration 044), ingestion not implemented
                       produces sector_narratives (currently empty table)
                       weekly briefs query sector_narratives as optional input; run without it
