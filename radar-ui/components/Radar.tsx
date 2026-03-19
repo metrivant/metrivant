@@ -2198,6 +2198,15 @@ export default function Radar({
                   <stop offset="40%" stopColor="#ffffff" stopOpacity="0.02" />
                   <stop offset="100%" stopColor="#000000" stopOpacity="0" />
                 </linearGradient>
+
+                {/* ORBIT: wide bloom for central star sun flare */}
+                <filter id="sunFlareGlow" x="-150%" y="-150%" width="400%" height="400%">
+                  <feGaussianBlur stdDeviation="22" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
               </defs>
 
               {/* All radar content clipped to a perfect circle */}
@@ -2213,29 +2222,29 @@ export default function Radar({
                 style={{ transition: "fill 0.9s ease" }}
               />
 
-              {/* Panel sheen — green in Standard, violet in Gravity */}
+              {/* Panel sheen — Standard Mode only; suppressed in Orbit (pure black) */}
               <rect
                 x="0" y="0" width={SIZE} height={SIZE}
                 fill="url(#panelSheen)"
-                style={{ opacity: gravityMode ? 0.08 : 0.6, transition: "opacity 0.9s ease" }}
+                style={{ opacity: gravityMode ? 0 : 0.6, transition: "opacity 0.9s ease" }}
               />
               <rect
                 x="0" y="0" width={SIZE} height={SIZE}
                 fill="url(#panelSheenGravity)"
-                style={{ opacity: gravityMode ? 0.55 : 0, transition: "opacity 0.9s ease" }}
+                style={{ opacity: 0 }}
               />
 
-              {/* Central atmospheric glow — cross-fades between scan-green and gravity-violet */}
+              {/* Central atmospheric glow — Standard Mode only; suppressed in Orbit */}
               <circle cx={CENTER} cy={CENTER} r={OUTER_RADIUS} fill="url(#radarCore)"
                 style={{ opacity: gravityMode ? 0 : 1, transition: "opacity 0.9s ease" }}
               />
               <circle cx={CENTER} cy={CENTER} r={OUTER_RADIUS} fill="url(#radarCoreGravity)"
-                style={{ opacity: gravityMode ? 1 : 0, transition: "opacity 0.9s ease" }}
+                style={{ opacity: 0 }}
               />
 
               {/* ── Rotating grid layer — rings, crosshairs, ticks ─── */}
               {/* Hidden in Deep Field mode — the circular instrument dissolves. */}
-              <g style={{ opacity: gravityEnhanced ? 0 : 1, transition: "opacity 0.8s ease" }}>
+              <g style={{ opacity: gravityMode || gravityEnhanced ? 0 : 1, transition: "opacity 0.8s ease" }}>
               <motion.g
                 animate={{ rotate: 360 }}
                 transition={{ duration: 120, repeat: Infinity, ease: "linear" }}
@@ -2333,8 +2342,8 @@ export default function Radar({
                 />
               </g>
 
-              {/* ── Gravity field propagation — slow, heavy, deep (fades in in Gravity Mode) ── */}
-              <g style={{ opacity: gravityMode && !gravityEnhanced ? 1 : 0, transition: "opacity 1.0s ease", pointerEvents: "none" }}>
+              {/* ── Gravity field propagation — suppressed in Orbit (pure black) ── */}
+              <g style={{ opacity: 0, pointerEvents: "none" }}>
                 {/* Primary field waves — slower than sonar, heavy gravitational cadence */}
                 {[0, 1].map((i) => (
                   <motion.circle
@@ -2372,49 +2381,39 @@ export default function Radar({
                 />
               </g>
 
-              {/* Center atmospheric fill — cross-fades on mode switch */}
+              {/* Center atmospheric fill — Standard Mode only */}
               <circle cx={CENTER} cy={CENTER} r={44} fill="url(#radarCore)"
                 style={{ opacity: gravityMode ? 0 : 0.95, transition: "opacity 0.9s ease" }}
               />
               <circle cx={CENTER} cy={CENTER} r={44} fill="url(#radarCoreGravity)"
-                style={{ opacity: gravityMode ? 0.95 : 0, transition: "opacity 0.9s ease" }}
+                style={{ opacity: 0 }}
               />
 
-              {/* Emitter bloom — shifts to violet singularity in Gravity Mode */}
+              {/* Emitter bloom — Standard Mode only */}
               <circle
-                cx={CENTER}
-                cy={CENTER}
-                r={30}
-                fill={gravityMode ? G.core : "#2EE6A6"}
-                opacity={gravityMode ? 0.22 : 0.14}
-                filter={gravityMode ? "url(#gravityGlow)" : "url(#blipGlowStrong)"}
+                cx={CENTER} cy={CENTER} r={30}
+                fill="#2EE6A6"
+                opacity={gravityMode ? 0 : 0.14}
+                filter="url(#blipGlowStrong)"
                 style={{ transition: "opacity 0.8s ease" }}
               />
 
-              {/* Breathing emitter dot */}
+              {/* Breathing emitter dot — Standard Mode only */}
               <motion.circle
-                cx={CENTER}
-                cy={CENTER}
-                r={7}
-                fill={gravityMode ? G.dot : "#dcfce7"}
+                cx={CENTER} cy={CENTER} r={7}
+                fill="#dcfce7"
                 filter="url(#blipGlow)"
-                animate={{ opacity: [1.0, 0.55, 1.0], scale: [1, 1.18, 1] }}
-                transition={{
-                  duration: 3.2,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
+                animate={{ opacity: gravityMode ? 0 : [1.0, 0.55, 1.0], scale: [1, 1.18, 1] }}
+                transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
                 style={{ transformOrigin: `${CENTER}px ${CENTER}px` }}
               />
 
-              {/* Hard center point */}
+              {/* Hard center point — Standard Mode only */}
               <circle
-                cx={CENTER}
-                cy={CENTER}
-                r={3}
-                fill={gravityMode ? "#e0d7ff" : "#ffffff"}
-                opacity="0.98"
-                style={{ transition: "fill 0.8s ease" }}
+                cx={CENTER} cy={CENTER} r={3}
+                fill="#ffffff"
+                opacity={gravityMode ? 0 : 0.98}
+                style={{ transition: "opacity 0.8s ease" }}
               />
 
               {/* ── Gravity Field layers ────────────────────────────────────── */}
@@ -2425,64 +2424,95 @@ export default function Radar({
                   {/* Moved outside radarClip (see below) so they render in full SVG space.       */}
                   {null /* rings rendered after radarClip group — see orbit-ring-outer below */}
 
-                  {/* ── ORBIT: Central star corona — radiating rings for the dominant competitor */}
+                  {/* ── ORBIT: Central star — bright white, sun flare, neon corona ── */}
                   {centralStarId && (() => {
                     const starPos = gravityPositions.get(centralStarId);
                     if (!starPos) return null;
                     const starC = sorted.find(c => c.competitor_id === centralStarId);
-                    const starR = getNodeSize(Number(starC?.momentum_score ?? 0));
+                    const starR = getNodeSize(Number(starC?.momentum_score ?? 0)) + 6;
                     return (
                       <g style={{ pointerEvents: "none" }}>
-                        {/* Slow outer corona pulse */}
+                        {/* Wide bloom — fills space around star */}
+                        <circle cx={starPos.x} cy={starPos.y} r={starR + 8}
+                          fill="#ffffff" fillOpacity="0.90"
+                          filter="url(#sunFlareGlow)" />
+                        {/* Solid white star disc */}
+                        <circle cx={starPos.x} cy={starPos.y} r={starR}
+                          fill="#ffffff" fillOpacity="1.0" />
+                        {/* Inner hard rim */}
+                        <circle cx={starPos.x} cy={starPos.y} r={starR + 3}
+                          fill="none" stroke="#ffffff" strokeWidth="1.2" strokeOpacity="0.55" />
+                        {/* Rotating flare spokes — 12 rays, slow 18s rotation */}
+                        <motion.g
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
+                          style={{ transformOrigin: `${starPos.x}px ${starPos.y}px` }}
+                        >
+                          {Array.from({ length: 12 }, (_, i) => {
+                            const a = (i / 12) * Math.PI * 2;
+                            const isMajor = i % 3 === 0;
+                            const inner = starR + 4;
+                            const outer = isMajor ? starR + 52 : starR + 28;
+                            return (
+                              <line key={`flare-${i}`}
+                                x1={starPos.x + Math.cos(a) * inner}
+                                y1={starPos.y + Math.sin(a) * inner}
+                                x2={starPos.x + Math.cos(a) * outer}
+                                y2={starPos.y + Math.sin(a) * outer}
+                                stroke="#ffffff"
+                                strokeWidth={isMajor ? 0.9 : 0.45}
+                                strokeOpacity={isMajor ? 0.70 : 0.35}
+                              />
+                            );
+                          })}
+                        </motion.g>
+                        {/* Slow corona pulse rings */}
                         {[0, 1, 2].map((i) => (
                           <motion.circle
                             key={`corona-${i}`}
                             cx={starPos.x} cy={starPos.y}
-                            r={starR + 18}
-                            fill="none"
-                            stroke="#ffffff"
-                            strokeWidth="0.6"
+                            r={starR + 10}
+                            fill="none" stroke="#ffffff" strokeWidth="0.8"
                             animate={{
-                              r:       [starR + 18, starR + 52 + i * 16, starR + 18],
-                              opacity: [0.18,        0,                    0.18],
+                              r:       [starR + 10, starR + 70 + i * 22, starR + 10],
+                              opacity: [0.55,        0,                    0.55],
                             }}
                             transition={{
-                              duration: 5 + i * 2.2,
+                              duration: 4 + i * 1.8,
                               repeat: Infinity,
                               ease: "easeOut",
-                              delay: i * 1.4,
+                              delay: i * 1.2,
                             }}
                           />
                         ))}
-                        {/* Static inner glow ring */}
-                        <circle
-                          cx={starPos.x} cy={starPos.y}
-                          r={starR + 12}
-                          fill="none"
-                          stroke="#ffffff"
-                          strokeWidth="0.5"
-                          strokeOpacity="0.22"
-                        />
-                        {/* Radial spoke lines (8 spokes, very faint) */}
-                        {Array.from({ length: 8 }, (_, i) => {
-                          const a = (i / 8) * Math.PI * 2;
-                          return (
-                            <line key={`spoke-${i}`}
-                              x1={starPos.x + Math.cos(a) * (starR + 14)}
-                              y1={starPos.y + Math.sin(a) * (starR + 14)}
-                              x2={starPos.x + Math.cos(a) * (starR + 28)}
-                              y2={starPos.y + Math.sin(a) * (starR + 28)}
-                              stroke="#ffffff" strokeWidth="0.35" strokeOpacity="0.14"
-                            />
-                          );
-                        })}
+                        {/* Counter-rotating secondary flare — offset 15° */}
+                        <motion.g
+                          animate={{ rotate: -360 }}
+                          transition={{ duration: 32, repeat: Infinity, ease: "linear" }}
+                          style={{ transformOrigin: `${starPos.x}px ${starPos.y}px` }}
+                        >
+                          {Array.from({ length: 4 }, (_, i) => {
+                            const a = (i / 4) * Math.PI * 2 + Math.PI / 12;
+                            const inner = starR + 6;
+                            const outer = starR + 38;
+                            return (
+                              <line key={`flare2-${i}`}
+                                x1={starPos.x + Math.cos(a) * inner}
+                                y1={starPos.y + Math.sin(a) * inner}
+                                x2={starPos.x + Math.cos(a) * outer}
+                                y2={starPos.y + Math.sin(a) * outer}
+                                stroke="#ffffff" strokeWidth="0.6" strokeOpacity="0.28"
+                              />
+                            );
+                          })}
+                        </motion.g>
                       </g>
                     );
                   })()}
 
                   {/* ── GRAVITY FIELD: Cartesian measurement grid ── */}
                   {/* Replaces decorative halos with a quiet coordinate substrate. */}
-                  {!gravityEnhanced && (
+                  {false && (
                     <g style={{ pointerEvents: "none" }}>
                       {Array.from({ length: 13 }, (_, i) => {
                         const gx = CENTER - OUTER_RADIUS + (i / 12) * OUTER_RADIUS * 2;
@@ -2508,7 +2538,7 @@ export default function Radar({
                   )}
 
                   {/* ── GRAVITY FIELD: deformed field contours — white, minimal ── */}
-                  {!gravityEnhanced && gravityContours.length > 0 && (
+                  {false && (
                     <g style={{ pointerEvents: "none" }}>
                       {gravityContours.map((d, i) => {
                         const t = i / (gravityContours.length - 1);
@@ -2524,7 +2554,7 @@ export default function Radar({
                   )}
 
                   {/* ── GRAVITY FIELD: per-node mass aura — soft radial depth well ── */}
-                  {!gravityEnhanced && sorted.map((c) => {
+                  {false && sorted.map((c) => {
                     const mPos = gravityPositions.get(c.competitor_id);
                     if (!mPos) return null;
                     const mass = getNodeMass(c);
@@ -2544,7 +2574,7 @@ export default function Radar({
                   })}
 
                   {/* ── GRAVITY FIELD: relationship threads — same movement type ── */}
-                  {!gravityEnhanced && (() => {
+                  {false && (() => {
                     const threads: React.ReactNode[] = [];
                     const seen = new Set<string>();
                     for (let i = 0; i < sorted.length; i++) {
@@ -2557,9 +2587,10 @@ export default function Radar({
                         const tPosA = gravityPositions.get(a.competitor_id);
                         const tPosB = gravityPositions.get(b.competitor_id);
                         if (!tPosA || !tPosB) continue;
+                        const _tPosA = tPosA, _tPosB = tPosB;
                         threads.push(
                           <line key={tKey}
-                            x1={tPosA.x} y1={tPosA.y} x2={tPosB.x} y2={tPosB.y}
+                            x1={_tPosA.x} y1={_tPosA.y} x2={_tPosB.x} y2={_tPosB.y}
                             stroke="#ffffff" strokeWidth="0.8" strokeOpacity="0.28"
                             style={{ pointerEvents: "none" }}
                           />,
@@ -2570,7 +2601,7 @@ export default function Radar({
                   })()}
 
                   {/* ── GRAVITY FIELD: center anchor ── */}
-                  {!gravityEnhanced && (
+                  {false && (
                     <circle cx={CENTER} cy={CENTER} r={3.5}
                       fill="#ffffff" fillOpacity={0.25}
                       style={{ pointerEvents: "none" }}
@@ -2578,7 +2609,7 @@ export default function Radar({
                   )}
 
                   {/* ── DEEP FIELD: iso-contour terrain — topographic mass landscape ── */}
-                  {gravityEnhanced && enhancedContours.length > 0 && (
+                  {false && (
                     <g style={{ pointerEvents: "none" }}>
                       {enhancedContours.map(({ path, fillOpacity: _ }, i) => {
                         const t = i / (enhancedContours.length - 1);
@@ -2594,7 +2625,7 @@ export default function Radar({
                   )}
 
                   {/* ── DEEP FIELD: thread fabric — nearest-neighbor connections ── */}
-                  {gravityEnhanced && (() => {
+                  {false && (() => {
                     const dfEntries = sorted
                       .map((c) => ({
                         id: c.competitor_id,
@@ -3221,6 +3252,7 @@ export default function Radar({
                 height={SIZE}
                 fill="url(#vignette)"
                 pointerEvents="none"
+                style={{ opacity: gravityMode ? 0 : 1 }}
               />
 
               {/* Glass highlight — very faint top-left reflection, instrument polish */}
@@ -3232,13 +3264,13 @@ export default function Radar({
                 pointerEvents="none"
               />
 
-              {/* Radar breathing state — near-invisible slow oscillation, idle life */}
+              {/* Radar breathing state — Standard Mode only */}
               <motion.circle
                 cx={CENTER}
                 cy={CENTER}
                 r={OUTER_RADIUS * 0.38}
-                fill={gravityMode ? "url(#radarCoreGravity)" : "url(#radarCore)"}
-                animate={{ opacity: [0.0, 0.09, 0.0] }}
+                fill="url(#radarCore)"
+                animate={{ opacity: gravityMode ? 0 : [0.0, 0.09, 0.0] }}
                 transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
                 style={{ pointerEvents: "none" }}
               />
@@ -3252,10 +3284,10 @@ export default function Radar({
               {gravityMode && (
                 <g style={{ pointerEvents: "none", opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.55s ease" }}>
                   {([
-                    { r: 95,  stroke: "rgba(255,255,255,0.45)", dash: "3 6",  width: 0.70 },
-                    { r: 175, stroke: "rgba(200,210,230,0.24)", dash: "4 8",  width: 0.55 },
-                    { r: 265, stroke: "rgba(160,180,210,0.16)", dash: "5 10", width: 0.46 },
-                    { r: 360, stroke: "rgba(120,140,170,0.11)", dash: "6 12", width: 0.38 },
+                    { r: 95,  stroke: "rgba(80,150,255,0.58)",  dash: "2 5",  width: 0.80 },
+                    { r: 175, stroke: "rgba(60,120,230,0.40)",  dash: "3 7",  width: 0.65 },
+                    { r: 265, stroke: "rgba(45,95,200,0.28)",   dash: "4 9",  width: 0.52 },
+                    { r: 360, stroke: "rgba(35,70,170,0.18)",   dash: "5 11", width: 0.40 },
                   ] as const).map(({ r, stroke, dash, width }, i) => (
                     <circle
                       key={`orbit-ring-outer-${i}`}
