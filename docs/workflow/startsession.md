@@ -512,6 +512,13 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
   Action required at session end: verify Sentry UI → Alerts has rules for cron monitor missed/error
   and for warning-level messages. (2026-03-18)
 
+- [B] `heal-coverage` (daily 05:00 UTC, maxDuration 90s) — automated URL repair for monitored_pages
+  with health_state IN ('unresolved', 'blocked'). Flow: self-heal check (re-validate current URL) →
+  discoverCandidates() once per competitor → scored candidates + template fallbacks → validateUrl +
+  rejectPageUrl → UPDATE url + health_state='healthy'. If replacement URL already exists in
+  monitored_pages, deactivates the broken duplicate instead. No LLM. 'challenge' and 'degraded'
+  excluded (ScrapingBee handles challenge at fetch time). Sentry monitor slug: heal-coverage. (2026-03-19)
+
 - [B] Pool ingest zero-result warning pattern: all 6 active pool ingest handlers now emit
   `captureMessage("ingest_X_empty_entries", "warning")` when feeds succeed but produce 0 new events
   and 0 duplicates. Condition: `feedsTotal > 0 && feedsIngested > 0 && eventsInserted === 0 && eventsDuplicate === 0`.
@@ -522,9 +529,12 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
   check-in calls alone. If a handler emits `captureCheckIn` but no monitor exists, the check-in is
   silently discarded. After any new cron handler is added, create the matching monitor in
   Sentry UI → Crons → Create Monitor. Slug must match exactly. Use schedule type Crontab, UTC,
-  check-in margin 5 min, max runtime 10 min, failure tolerance 1, environment = production.
-  Confirmed missing on 2026-03-17: `ingest-careers` (11 * * * *) and `promote-careers-signals`
-  (13 * * * *) — created manually.
+  check-in margin 5 min, failure tolerance 1, environment = production.
+  Max runtime by handler type:
+    - maxDuration 30–90s (hourly pool/pipeline handlers): max runtime = 3 min
+    - maxDuration 90s + heavy work (expand-coverage, reconcile-pool-events, detect-pool-sequences,
+      generate-brief, strategic-analysis, generate-actions): max runtime = 10 min
+  All 37 runtime + frontend cron monitors confirmed created in Sentry UI 2026-03-19.
 
 - `@sentry/nextjs` in radar-ui requires `instrumentation.ts` + `sentry.server.config.ts` +
   `sentry.edge.config.ts` for automatic server/edge error capture. Without these files, only
