@@ -3,7 +3,6 @@ import {
   SIGMA_FLOOR,
   SIGMA_DIVISOR,
   GRID_SIZE,
-  Y_SPREAD_RANGE,
   DEPTH_COLOR_STOPS,
   MASS_CAPS,
 } from "./gravityConstants";
@@ -176,8 +175,8 @@ export function positionNodes(
   return sorted.map((node, rank) => {
     const mass_score_visual = computeMassVisual(node.mass_score_raw);
     const gridX = count === 1 ? 0 : xStart + rank * xStep;
-    // Stable deterministic Z jitter — no semantic meaning
-    const gridZ = ((hashCode(node.competitor_id) % 100) / 100 - 0.5) * Y_SPREAD_RANGE;
+    // All nodes share the Z=0 centerline — straight-line horizontal alignment model
+    const gridZ = 0;
 
     return {
       ...node,

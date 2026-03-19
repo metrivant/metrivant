@@ -263,6 +263,16 @@ function movAbbreviation(type: string): string {
   }
 }
 
+// SVG arc path for radial HUD segments.
+// Angles in degrees: 0° = 3 o'clock, 90° = 6 o'clock (clockwise in SVG).
+function hudArcD(cx: number, cy: number, r: number, startDeg: number, endDeg: number): string {
+  const s = startDeg * Math.PI / 180;
+  const e = endDeg   * Math.PI / 180;
+  const x1 = cx + r * Math.cos(s), y1 = cy + r * Math.sin(s);
+  const x2 = cx + r * Math.cos(e), y2 = cy + r * Math.sin(e);
+  return `M ${x1.toFixed(2)},${y1.toFixed(2)} A ${r},${r} 0 0,1 ${x2.toFixed(2)},${y2.toFixed(2)}`;
+}
+
 // FNV-1a 32-bit hash → stable 0–1 float from competitor_id.
 // Same id always maps to the same angle across refreshes.
 function idHash(id: string): number {
@@ -476,102 +486,6 @@ function computeOrbitPositions(
   return result;
 }
 
-// ─── Enhanced Gravity Field: high-fidelity scalar-field contour deformation ──
-// Same model as computeGravityContours but with tighter wells, more rings,
-// and higher base opacity so warping is legible at a glance.
-// Returns { path, fillOpacity } per ring — inner rings carry a depth fill.
-function computeEnhancedContours(
-  competitors: RadarCompetitor[],
-  gravPositions: Map<string, Point>,
-): { path: string; fillOpacity: number }[] {
-  const N_RINGS  = 16;
-  const N_PTS    = 80;
-  const R_MIN    = 32;
-  const R_MAX    = OUTER_RADIUS * 0.85;
-  const EPSILON  = 1600;   // tighter than classic (2800) — sharper local wells
-  const P_EXP    = 1.55;   // more localised falloff than classic (1.4)
-  const MAX_DISP = 88;     // 2× classic (42) — dramatic field curvature
-
-  const masses = competitors
-    .map((c) => ({ pos: gravPositions.get(c.competitor_id), mass: getNodeMass(c) }))
-    .filter((m): m is { pos: Point; mass: number } => m.pos !== undefined && m.mass > 0.3);
-
-  if (masses.length === 0) return [];
-
-  return Array.from({ length: N_RINGS }, (_, ri) => {
-    const t = ri / (N_RINGS - 1);
-    const r0 = R_MIN * Math.pow(R_MAX / R_MIN, t);
-    const ringMaxDisp = MAX_DISP * (1 - t * 0.50);
-
-    const pts: Point[] = Array.from({ length: N_PTS }, (_, pi) => {
-      const angle = (pi / N_PTS) * Math.PI * 2;
-      const bx = CENTER + r0 * Math.cos(angle);
-      const by = CENTER + r0 * Math.sin(angle);
-      let dx = 0, dy = 0;
-      for (const { pos, mass } of masses) {
-        const ddx = pos.x - bx;
-        const ddy = pos.y - by;
-        const dist2 = ddx * ddx + ddy * ddy;
-        const f = mass / (Math.pow(dist2, P_EXP / 2) + EPSILON);
-        dx += ddx * f;
-        dy += ddy * f;
-      }
-      const mag = Math.sqrt(dx * dx + dy * dy);
-      if (mag > ringMaxDisp) { dx = (dx / mag) * ringMaxDisp; dy = (dy / mag) * ringMaxDisp; }
-      return { x: bx + dx, y: by + dy };
-    });
-
-    return {
-      path: ptsToSmoothPath(pts),
-      // Inner 6 rings carry a very faint depth fill to suggest gravitational depth
-      fillOpacity: ri < 6 ? 0.011 * (1 - ri / 6) : 0,
-    };
-  });
-}
-
-// Label positions for enhanced mode: radial outward placement + 4 repulsion passes.
-// Prevents vertical label overlap for nodes within 80px horizontal proximity.
-function computeEnhancedLabelPositions(
-  competitors: RadarCompetitor[],
-  positions: Map<string, Point>,
-): Map<string, { x: number; y: number; anchor: "start" | "end" | "middle" }> {
-  const result = new Map<string, { x: number; y: number; anchor: "start" | "end" | "middle" }>();
-
-  for (const c of competitors) {
-    const pos = positions.get(c.competitor_id);
-    if (!pos) continue;
-    const nodeR = getNodeSize(Number(c.momentum_score ?? 0));
-    const dist = Math.sqrt((pos.x - CENTER) ** 2 + (pos.y - CENTER) ** 2) || 1;
-    const nx = (pos.x - CENTER) / dist;
-    const ny = (pos.y - CENTER) / dist;
-    result.set(c.competitor_id, {
-      x: pos.x + nx * (nodeR + 16),
-      y: pos.y + ny * (nodeR + 16) + 4,
-      anchor: nx > 0.3 ? "start" : nx < -0.3 ? "end" : "middle",
-    });
-  }
-
-  // Vertical repulsion: 4 passes, labels within 80px horizontal proximity
-  const MIN_SEP = 16;
-  const H_PROX  = 80;
-  const entries = [...result.values()];
-  for (let pass = 0; pass < 4; pass++) {
-    for (let i = 0; i < entries.length; i++) {
-      for (let j = i + 1; j < entries.length; j++) {
-        const a = entries[i], b = entries[j];
-        if (Math.abs(b.x - a.x) >= H_PROX) continue;
-        const dy = b.y - a.y;
-        const gap = MIN_SEP - Math.abs(dy);
-        if (gap <= 0) continue;
-        const push = gap * 0.45;
-        if (dy >= 0) { a.y -= push; b.y += push; }
-        else         { a.y += push; b.y -= push; }
-      }
-    }
-  }
-
-  return result;
-}
 
 
 // ─── BlipNode sub-component ───────────────────────────────────────────────────
@@ -1315,12 +1229,6 @@ export default function Radar({
   // Enhanced sub-mode inside Gravity Field — deeper contours + label avoidance
   const [orbitHudActive, setOrbitHudActive] = useState(false);
   const orbitEverRef = useRef(false);
-  // HUD panel hover — highlights matching nodes on the radar
-  const [hudHighlight, setHudHighlight] = useState<
-    | { type: 'category'; value: 'critical' | 'rising' | 'active' | 'convergence' }
-    | { type: 'node'; id: string }
-    | null
-  >(null);
 
   // ── ORBIT animation — useAnimationFrame loop ─────────────────────────────
   // orbitTimeRef stores raw timestamp (ms). orbitTick triggers re-renders at ≈15fps.
@@ -1425,19 +1333,6 @@ export default function Radar({
     return computeGravityContours(sorted, orbitPositions);
   }, [orbitMode, sorted, orbitPositions]);
 
-  // Enhanced contours — deeper deformation, more rings, depth fills (enhanced sub-mode only)
-  const enhancedContours = useMemo(() => {
-    if (!orbitMode || !orbitHudActive || orbitPositions.size === 0) return [];
-    return computeEnhancedContours(sorted, orbitPositions);
-  }, [orbitMode, orbitHudActive, sorted, orbitPositions]);
-
-  // Enhanced label positions — collision-resolved radial placement (enhanced sub-mode only)
-  const enhancedLabelPositions = useMemo(() => {
-    if (!orbitMode || !orbitHudActive) {
-      return new Map<string, { x: number; y: number; anchor: "start" | "end" | "middle" }>();
-    }
-    return computeEnhancedLabelPositions(sorted, orbitPositions);
-  }, [orbitMode, orbitHudActive, sorted, orbitPositions]);
 
   // Standard-mode node positions: zone-aware, ID-anchored placement.
   // Competitors are grouped by radial zone then spread across the zone's radius band.
@@ -1461,22 +1356,6 @@ export default function Radar({
     return map;
   }, [sorted]);
 
-  // ── HUD sector density — stable (uses orbitPositions/standardPositions, not animated) ──
-  // Prevents sector density from recomputing on every orbitTick re-render.
-  const hudSectorDensity = useMemo(() => {
-    const positions = orbitMode ? orbitPositions : standardPositions;
-    const counts = Array(6).fill(0) as number[];
-    for (const c of sorted) {
-      if (Number(c.momentum_score ?? 0) < 1.5) continue;
-      const pos = positions.get(c.competitor_id);
-      if (!pos) continue;
-      const angle = Math.atan2(pos.y - CENTER, pos.x - CENTER);
-      const norm = ((angle + Math.PI / 2) + Math.PI * 2) % (Math.PI * 2);
-      const sector = Math.floor(norm / (Math.PI / 3)) % 6;
-      counts[sector]++;
-    }
-    return counts;
-  }, [orbitMode, sorted, orbitPositions, standardPositions]);
 
   // ── Record positions for temporal trails ─────────────────────────────────
   // Fire-and-forget POST after each layout. Server dedup prevents more than
@@ -2188,25 +2067,6 @@ export default function Radar({
                     <feMergeNode in="SourceGraphic" />
                   </feMerge>
                 </filter>
-                {/* HUD: scanline pattern for glass panels */}
-                <pattern id="hudScanlines" x="0" y="0" width="1" height="3" patternUnits="userSpaceOnUse">
-                  <line x1="0" y1="0" x2="1000" y2="0" stroke="#ffffff" strokeWidth="0.35" strokeOpacity="0.03" />
-                </pattern>
-                {/* HUD: glass sheen gradient */}
-                <linearGradient id="hudGlassSheen" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#00e5ff" stopOpacity="0.05" />
-                  <stop offset="40%" stopColor="#ffffff" stopOpacity="0.02" />
-                  <stop offset="100%" stopColor="#000000" stopOpacity="0" />
-                </linearGradient>
-
-                {/* ORBIT: wide bloom for central star sun flare */}
-                <filter id="sunFlareGlow" x="-150%" y="-150%" width="400%" height="400%">
-                  <feGaussianBlur stdDeviation="22" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
               </defs>
 
               {/* All radar content clipped to a perfect circle */}
@@ -2424,7 +2284,7 @@ export default function Radar({
                   {/* Moved outside radarClip (see below) so they render in full SVG space.       */}
                   {null /* rings rendered after radarClip group — see orbit-ring-outer below */}
 
-                  {/* ── ORBIT: Central star — bright white, sun flare, neon corona ── */}
+                  {/* ── ORBIT: Central star — clean white dot, no bloom or flares ── */}
                   {centralStarId && (() => {
                     const starPos = orbitPositions.get(centralStarId);
                     if (!starPos) return null;
@@ -2432,109 +2292,14 @@ export default function Radar({
                     const starR = getNodeSize(Number(starC?.momentum_score ?? 0)) + 6;
                     return (
                       <g style={{ pointerEvents: "none" }}>
-                        {/* Wide bloom — fills space around star */}
-                        <circle cx={starPos.x} cy={starPos.y} r={starR + 8}
-                          fill="#ffffff" fillOpacity="0.90"
-                          filter="url(#sunFlareGlow)" />
-                        {/* Solid white star disc */}
                         <circle cx={starPos.x} cy={starPos.y} r={starR}
                           fill="#ffffff" fillOpacity="1.0" />
-                        {/* Inner hard rim */}
                         <circle cx={starPos.x} cy={starPos.y} r={starR + 3}
-                          fill="none" stroke="#ffffff" strokeWidth="1.2" strokeOpacity="0.55" />
-                        {/* Rotating flare spokes — 12 rays, slow 18s rotation */}
-                        <motion.g
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
-                          style={{ transformOrigin: `${starPos.x}px ${starPos.y}px` }}
-                        >
-                          {Array.from({ length: 12 }, (_, i) => {
-                            const a = (i / 12) * Math.PI * 2;
-                            const isMajor = i % 3 === 0;
-                            const inner = starR + 4;
-                            const outer = isMajor ? starR + 52 : starR + 28;
-                            return (
-                              <line key={`flare-${i}`}
-                                x1={starPos.x + Math.cos(a) * inner}
-                                y1={starPos.y + Math.sin(a) * inner}
-                                x2={starPos.x + Math.cos(a) * outer}
-                                y2={starPos.y + Math.sin(a) * outer}
-                                stroke="#ffffff"
-                                strokeWidth={isMajor ? 0.9 : 0.45}
-                                strokeOpacity={isMajor ? 0.70 : 0.35}
-                              />
-                            );
-                          })}
-                        </motion.g>
-                        {/* Slow corona pulse rings */}
-                        {[0, 1, 2].map((i) => (
-                          <motion.circle
-                            key={`corona-${i}`}
-                            cx={starPos.x} cy={starPos.y}
-                            r={starR + 10}
-                            fill="none" stroke="#ffffff" strokeWidth="0.8"
-                            animate={{
-                              r:       [starR + 10, starR + 70 + i * 22, starR + 10],
-                              opacity: [0.55,        0,                    0.55],
-                            }}
-                            transition={{
-                              duration: 4 + i * 1.8,
-                              repeat: Infinity,
-                              ease: "easeOut",
-                              delay: i * 1.2,
-                            }}
-                          />
-                        ))}
-                        {/* Counter-rotating secondary flare — offset 15° */}
-                        <motion.g
-                          animate={{ rotate: -360 }}
-                          transition={{ duration: 32, repeat: Infinity, ease: "linear" }}
-                          style={{ transformOrigin: `${starPos.x}px ${starPos.y}px` }}
-                        >
-                          {Array.from({ length: 4 }, (_, i) => {
-                            const a = (i / 4) * Math.PI * 2 + Math.PI / 12;
-                            const inner = starR + 6;
-                            const outer = starR + 38;
-                            return (
-                              <line key={`flare2-${i}`}
-                                x1={starPos.x + Math.cos(a) * inner}
-                                y1={starPos.y + Math.sin(a) * inner}
-                                x2={starPos.x + Math.cos(a) * outer}
-                                y2={starPos.y + Math.sin(a) * outer}
-                                stroke="#ffffff" strokeWidth="0.6" strokeOpacity="0.28"
-                              />
-                            );
-                          })}
-                        </motion.g>
+                          fill="none" stroke="#ffffff" strokeWidth="0.8" strokeOpacity="0.30" />
                       </g>
                     );
                   })()}
 
-                  {/* ── GRAVITY FIELD: Cartesian grid — black field, blue lines ── */}
-                  {orbitMode && (
-                    <g style={{ pointerEvents: "none" }}>
-                      {Array.from({ length: 13 }, (_, i) => {
-                        const gx = CENTER - OUTER_RADIUS + (i / 12) * OUTER_RADIUS * 2;
-                        return (
-                          <line key={`gv-${i}`}
-                            x1={gx} y1={CENTER - OUTER_RADIUS}
-                            x2={gx} y2={CENTER + OUTER_RADIUS}
-                            stroke="#3b82f6" strokeWidth="0.55" strokeOpacity="0.28"
-                          />
-                        );
-                      })}
-                      {Array.from({ length: 13 }, (_, i) => {
-                        const gy = CENTER - OUTER_RADIUS + (i / 12) * OUTER_RADIUS * 2;
-                        return (
-                          <line key={`gh-${i}`}
-                            x1={CENTER - OUTER_RADIUS} y1={gy}
-                            x2={CENTER + OUTER_RADIUS} y2={gy}
-                            stroke="#3b82f6" strokeWidth="0.55" strokeOpacity="0.28"
-                          />
-                        );
-                      })}
-                    </g>
-                  )}
 
                   {/* ── GRAVITY FIELD: deformed field contours — white, minimal ── */}
                   {false && (
@@ -2606,21 +2371,6 @@ export default function Radar({
                     />
                   )}
 
-                  {/* ── DEEP FIELD: iso-contour terrain — topographic mass landscape ── */}
-                  {false && (
-                    <g style={{ pointerEvents: "none" }}>
-                      {enhancedContours.map(({ path, fillOpacity: _ }, i) => {
-                        const t = i / (enhancedContours.length - 1);
-                        return (
-                          <path key={`ec-${i}`} d={path} fill="none"
-                            stroke="#ffffff"
-                            strokeWidth={0.55 - t * 0.35}
-                            strokeOpacity={0.058 - t * 0.040}
-                          />
-                        );
-                      })}
-                    </g>
-                  )}
 
                   {/* ── DEEP FIELD: thread fabric — nearest-neighbor connections ── */}
                   {false && (() => {
@@ -2695,7 +2445,7 @@ export default function Radar({
                   })()}
 
                   {/* ── ORBIT: Conjunction arcs — brief arc when same-type nodes approach ── */}
-                  {(() => {
+                  {orbitHudActive && (() => {
                     const conjunctions: React.ReactNode[] = [];
                     const CONJ_DIST = 70;
                     const seen = new Set<string>();
@@ -2775,7 +2525,8 @@ export default function Radar({
 
               {/* ── Ambient pulse lines — faint trajectory toward recently-active nodes */}
               {/* At most 3 lines (freshest echoes); very low opacity, slow pulse cycle.     */}
-              {activityEchoMap.size > 0 && (
+              {/* Suppressed in ORBIT mode — clean solar-system composition.                */}
+              {!orbitMode && activityEchoMap.size > 0 && (
                 <g style={{ pointerEvents: "none", opacity: entryPhase >= 2 ? 1 : 0 }}>
                   {[...activityEchoMap.values()]
                     .sort((a, b) => a.ageHours - b.ageHours)
@@ -2934,22 +2685,7 @@ export default function Radar({
                   total={sorted.length}
                   radiusScale={radiusScale}
                   isSelected={competitor.competitor_id === selectedId}
-                  isDimmed={
-                    (selectedId !== null && competitor.competitor_id !== selectedId) ||
-                    (hudHighlight !== null && !(
-                      hudHighlight.type === 'node'
-                        ? hudHighlight.id === competitor.competitor_id
-                        : hudHighlight.value === 'critical'
-                          ? Number(competitor.momentum_score ?? 0) >= 5
-                          : hudHighlight.value === 'rising'
-                            ? Number(competitor.momentum_score ?? 0) >= 3
-                            : hudHighlight.value === 'active'
-                              ? Number(competitor.momentum_score ?? 0) >= 1.5
-                              : /* convergence */ tensionLinks.some(
-                                  l => l.idA === competitor.competitor_id || l.idB === competitor.competitor_id
-                                )
-                    ))
-                  }
+                  isDimmed={selectedId !== null && competitor.competitor_id !== selectedId}
                   isAlerted={alertActive && competitor.competitor_id === criticalAlert?.competitor_id}
                   onSelect={handleBlipClick}
                   isMobile={isMobile}
@@ -2980,242 +2716,11 @@ export default function Radar({
                   isWeakSignal={weakSignalSet.has(competitor.competitor_id)}
                   tensionDescription={tensionDescriptionMap.get(competitor.competitor_id) ?? null}
                   isHiringSurge={hiringSurgeSet.has(competitor.competitor_id)}
-                  gravityLabelOverride={
-                    orbitMode && orbitHudActive
-                      ? enhancedLabelPositions.get(competitor.competitor_id)
-                      : undefined
-                  }
                   orbitShell={orbitMode ? (orbitDataMap.get(competitor.competitor_id)?.shell ?? null) : null}
                   onOrbitHover={orbitMode ? handleOrbitHover : undefined}
                 />
               ))}
               </g>
-
-              {/* ── HUD: in-circle tactical layer (brackets, scan lines, callout lines, convergence) */}
-              {orbitMode && sorted.length > 0 && (() => {
-                const hudPos = orbitMode ? animatedOrbitPositions : standardPositions;
-
-                // Sector density — use the memoized computation (avoids per-orbitTick recompute)
-                const sectorCounts = hudSectorDensity;
-                const maxSectorCount = Math.max(...sectorCounts, 1);
-                const hottestSector  = sectorCounts.indexOf(Math.max(...sectorCounts));
-                void hottestSector; // used in G annotation below
-
-                // Corner brackets
-                const BR = OUTER_RADIUS * 0.66;
-                const BL = 20;
-                const bracketCorners = [
-                  { x: CENTER - BR, y: CENTER - BR, sx:  1, sy:  1 },
-                  { x: CENTER + BR, y: CENTER - BR, sx: -1, sy:  1 },
-                  { x: CENTER + BR, y: CENTER + BR, sx: -1, sy: -1 },
-                  { x: CENTER - BR, y: CENTER + BR, sx:  1, sy: -1 },
-                ];
-
-                return (
-                  <g style={{ pointerEvents: "none", opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.6s ease" }}>
-
-                    {/* A: Corner targeting brackets */}
-                    {bracketCorners.map(({ x, y, sx, sy }, bi) => (
-                      <g key={`hud-bracket-${bi}`}>
-                        <line x1={x} y1={y} x2={x + sx * BL} y2={y} stroke="#ffffff" strokeWidth="1.1" strokeOpacity="0.30" />
-                        <line x1={x} y1={y} x2={x} y2={y + sy * BL} stroke="#ffffff" strokeWidth="1.1" strokeOpacity="0.30" />
-                      </g>
-                    ))}
-
-                    {/* B: Field status header arc text — top of circle */}
-                    <text
-                      x={CENTER} y={CENTER - OUTER_RADIUS + 24}
-                      textAnchor="middle" dominantBaseline="middle"
-                      fill="#ffffff" fillOpacity="0.32"
-                      fontFamily="'Courier New', Monaco, monospace"
-                      fontSize="6.5" letterSpacing="0.22em"
-                    >
-                      {`◈ METRIVANT INTELLIGENCE FIELD  ·  ${sorted.length} NODES`}
-                    </text>
-
-                    {/* C: Sector radial dividers + Roman numeral labels */}
-                    {Array.from({ length: 6 }, (_, si) => {
-                      const angle    = (si / 6) * Math.PI * 2 - Math.PI / 2;
-                      const midAngle = angle + Math.PI / 6;
-                      const x2 = CENTER + OUTER_RADIUS * 0.96 * Math.cos(angle);
-                      const y2 = CENTER + OUTER_RADIUS * 0.96 * Math.sin(angle);
-                      const labelR = OUTER_RADIUS * 0.82;
-                      return (
-                        <g key={`hud-sector-${si}`}>
-                          {/* Sector density fill — wedge from center to perimeter */}
-                          {sectorCounts[si] > 0 && (() => {
-                            const density = sectorCounts[si] / maxSectorCount;
-                            const nextAngle = ((si + 1) / 6) * Math.PI * 2 - Math.PI / 2;
-                            const r = OUTER_RADIUS * 0.95;
-                            const x1w = CENTER + r * Math.cos(angle);
-                            const y1w = CENTER + r * Math.sin(angle);
-                            const x2w = CENTER + r * Math.cos(nextAngle);
-                            const y2w = CENTER + r * Math.sin(nextAngle);
-                            return (
-                              <path
-                                d={`M ${CENTER},${CENTER} L ${x1w.toFixed(1)},${y1w.toFixed(1)} A ${r},${r} 0 0,1 ${x2w.toFixed(1)},${y2w.toFixed(1)} Z`}
-                                fill="#ffffff"
-                                fillOpacity={density * 0.035}
-                                style={{ pointerEvents: "none" }}
-                              />
-                            );
-                          })()}
-                          <line x1={CENTER} y1={CENTER} x2={x2} y2={y2}
-                            stroke="#ffffff" strokeWidth="0.28" strokeOpacity="0.055" />
-                          <text
-                            x={CENTER + labelR * Math.cos(midAngle)}
-                            y={CENTER + labelR * Math.sin(midAngle)}
-                            textAnchor="middle" dominantBaseline="middle"
-                            fill="#ffffff" fillOpacity="0.10"
-                            fontFamily="'Courier New', Monaco, monospace"
-                            fontSize="9" letterSpacing="0.18em"
-                          >
-                            {(["I", "II", "III", "IV", "V", "VI"] as const)[si]}
-                          </text>
-                        </g>
-                      );
-                    })}
-
-                    {/* D: Node callout lines — top 5 by momentum — minimal by default */}
-                    {sorted.slice(0, 5).map((c) => {
-                      const pos = hudPos.get(c.competitor_id);
-                      if (!pos) return null;
-                      const isSelected = c.competitor_id === selectedId;
-                      const nodeR = getNodeSize(Number(c.momentum_score ?? 0));
-                      const dx = pos.x - CENTER, dy = pos.y - CENTER;
-                      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                      const nx = dx / dist, ny = dy / dist;
-                      const lx1 = pos.x + nx * (nodeR + 3);
-                      const ly1 = pos.y + ny * (nodeR + 3);
-                      const lx2 = pos.x + nx * (nodeR + 28);
-                      const ly2 = pos.y + ny * (nodeR + 28);
-                      return (
-                        <g key={`hud-callout-${c.competitor_id}`} opacity={isSelected ? 0 : 1}>
-                          <line x1={lx1} y1={ly1} x2={lx2} y2={ly2}
-                            stroke="#ffffff" strokeWidth="0.4" strokeOpacity="0.30" />
-                          <circle cx={lx2} cy={ly2} r={1.0} fill="#ffffff" fillOpacity="0.40" />
-                          <text
-                            x={lx2 + (nx > 0.25 ? 3 : nx < -0.25 ? -3 : 0)}
-                            y={ly2 - 3}
-                            textAnchor={nx > 0.25 ? "start" : nx < -0.25 ? "end" : "middle"}
-                            fill="#ffffff" fillOpacity="0.45"
-                            fontFamily="'Courier New', Monaco, monospace"
-                            fontSize="5.5" letterSpacing="0.10em"
-                          >
-                            {c.competitor_name.toUpperCase().slice(0, 8)}
-                          </text>
-                        </g>
-                      );
-                    })}
-
-                    {/* E: Convergence markers at tension link midpoints */}
-                    {tensionLinks
-                      .filter(l => l.intensity > 0.72)
-                      .slice(0, 6)
-                      .map(link => {
-                        const pA = hudPos.get(link.idA);
-                        const pB = hudPos.get(link.idB);
-                        if (!pA || !pB) return null;
-                        const mx = (pA.x + pB.x) / 2;
-                        const my = (pA.y + pB.y) / 2;
-                        return (
-                          <g key={`hud-conv-${link.idA}-${link.idB}`}>
-                            <text x={mx} y={my - 2} textAnchor="middle" dominantBaseline="middle"
-                              fill="#ffffff" fillOpacity="0.35"
-                              fontFamily="'Courier New', Monaco, monospace" fontSize="8">
-                              ◈
-                            </text>
-                            <text x={mx} y={my + 8} textAnchor="middle"
-                              fill="#ffffff" fillOpacity="0.20"
-                              fontFamily="'Courier New', Monaco, monospace"
-                              fontSize="4.5" letterSpacing="0.16em">
-                              CONVERGING
-                            </text>
-                          </g>
-                        );
-                      })}
-
-                    {/* G: Central star annotation in ORBIT+HUD */}
-                    {orbitMode && centralStarId && (() => {
-                      const starPos = hudPos.get(centralStarId);
-                      if (!starPos) return null;
-                      const starC = sorted.find(c => c.competitor_id === centralStarId);
-                      const starR = getNodeSize(Number(starC?.momentum_score ?? 0));
-                      return (
-                        <g style={{ pointerEvents: "none" }}>
-                          <text
-                            x={starPos.x}
-                            y={starPos.y - starR - 22}
-                            textAnchor="middle"
-                            fill="#ffffff" fillOpacity="0.42"
-                            fontFamily="'Courier New', Monaco, monospace"
-                            fontSize="5.5" letterSpacing="0.24em"
-                          >
-                            ★ PRIMARY MASS
-                          </text>
-                          <text
-                            x={starPos.x}
-                            y={starPos.y - starR - 13}
-                            textAnchor="middle"
-                            fill="#ffffff" fillOpacity="0.22"
-                            fontFamily="'Courier New', Monaco, monospace"
-                            fontSize="4.5" letterSpacing="0.16em"
-                          >
-                            ANCHORED · SHELL 0
-                          </text>
-                        </g>
-                      );
-                    })()}
-
-                    {/* F: Selected node targeting reticle (in-circle) — brackets + TRACKING label only */}
-                    {selected && (() => {
-                      const selPos = hudPos.get(selected.competitor_id);
-                      if (!selPos) return null;
-                      const nodeR = getNodeSize(Number(selected.momentum_score ?? 0)) + 10;
-                      const B = 10;
-                      const corners2 = [
-                        { x: selPos.x - nodeR, y: selPos.y - nodeR, sx:  1, sy:  1 },
-                        { x: selPos.x + nodeR, y: selPos.y - nodeR, sx: -1, sy:  1 },
-                        { x: selPos.x + nodeR, y: selPos.y + nodeR, sx: -1, sy: -1 },
-                        { x: selPos.x - nodeR, y: selPos.y + nodeR, sx:  1, sy: -1 },
-                      ];
-                      return (
-                        <g>
-                          {corners2.map(({ x, y, sx, sy }, ci) => (
-                            <g key={`hud-tgt-${ci}`}>
-                              <line x1={x} y1={y} x2={x + sx * B} y2={y} stroke="#ffffff" strokeWidth="1.0" strokeOpacity="0.65" />
-                              <line x1={x} y1={y} x2={x} y2={y + sy * B} stroke="#ffffff" strokeWidth="1.0" strokeOpacity="0.65" />
-                            </g>
-                          ))}
-                          <text x={selPos.x} y={selPos.y - nodeR - 7}
-                            textAnchor="middle"
-                            fill="#ffffff" fillOpacity="0.55"
-                            fontFamily="'Courier New', Monaco, monospace"
-                            fontSize="6" letterSpacing="0.26em">
-                            TRACKING
-                          </text>
-                          {/* Connector line from node toward the corner panel */}
-                          {(() => {
-                            const panelOnRight = selPos.x < CENTER;
-                            const edgeX = panelOnRight ? selPos.x + nodeR + 1 : selPos.x - nodeR - 1;
-                            const targetX = panelOnRight ? 820 : 180;
-                            return (
-                              <line
-                                x1={edgeX} y1={selPos.y}
-                                x2={targetX} y2={selPos.y}
-                                stroke="#ffffff" strokeWidth="0.35"
-                                strokeOpacity="0.18"
-                                strokeDasharray="3 6"
-                              />
-                            );
-                          })()}
-                        </g>
-                      );
-                    })()}
-
-                  </g>
-                );
-              })()}
 
               {/* ── Empty state — no blips ──────────────────────────── */}
               {sorted.length === 0 && (
@@ -3288,24 +2793,21 @@ export default function Radar({
               {orbitMode && (
                 <g style={{ pointerEvents: "none", opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.55s ease" }}>
                   {([
-                    { r: 95,  stroke: "rgba(80,150,255,0.58)",  dash: "2 5",  width: 0.80 },
-                    { r: 175, stroke: "rgba(60,120,230,0.40)",  dash: "3 7",  width: 0.65 },
-                    { r: 265, stroke: "rgba(45,95,200,0.28)",   dash: "4 9",  width: 0.52 },
-                    { r: 360, stroke: "rgba(35,70,170,0.18)",   dash: "5 11", width: 0.40 },
-                  ] as const).map(({ r, stroke, dash, width }, i) => (
+                    { r: 95,  stroke: "rgba(110,150,255,0.52)", width: 0.85 },
+                    { r: 175, stroke: "rgba(85,125,235,0.36)",  width: 0.70 },
+                    { r: 265, stroke: "rgba(65,105,215,0.24)",  width: 0.58 },
+                    { r: 360, stroke: "rgba(50,85,195,0.15)",   width: 0.45 },
+                  ] as const).map(({ r, stroke, width }, i) => (
                     <circle
                       key={`orbit-ring-outer-${i}`}
                       cx={CENTER} cy={CENTER} r={r}
                       fill="none"
                       stroke={stroke}
                       strokeWidth={width}
-                      strokeDasharray={dash}
                     />
                   ))}
                 </g>
               )}
-
-              {/* HUD CORNER PANELS — rendered below, inside main SVG, zoom-synced with radar */}
 
               {/* ── Alert mode: radar boundary rings ─────────────────── */}
               {/* Rendered outside radarClip so they appear at the instrument edge.
@@ -3368,318 +2870,243 @@ export default function Radar({
                 </text>
               ))}
 
-              {/* ══════════════════════════════════════════════════════════════
-                  HUD QUADRANT PANELS — inside main SVG, zooms with radar.
-                  4 corner quadrants outside radarClip. No overlay SVG needed.
-                  ══════════════════════════════════════════════════════════════ */}
-              {orbitMode && sorted.length > 0 && (() => {
-                // Scaled up for readability at typical display sizes
-                const PW  = 242;  // panel width
-                const PH1 = 285;  // FIELD INTEL height (8 rows)
-                const PH2 = 260;  // NODE STREAM height (4 items)
-                const PH4 = 260;  // FIELD ASSESSMENT height (6 rows)
-                const PAD = 8;
-                const BK  = 24;   // corner bracket arm length
-                const NT  = 16;   // notch size
+              {/* ── Radial HUD overlay ─────────────────────────────────────
+                  Perimeter-bound instrumentation ring. Concentric with the
+                  radar/orbit circle at HUD_R = OUTER_RADIUS + 22. Contains
+                  4 arc quadrants encoding signal quality, movement state,
+                  momentum, and evidence recency for the selected node.
+                  OFF → not rendered. No layout effect. No pointer intercept.
+                  ─────────────────────────────────────────────────────────── */}
+              {orbitHudActive && (() => {
+                const HUD_R = OUTER_RADIUS + 22; // 442 — just outside instrument face
 
-                const hudPos = animatedOrbitPositions;
-                const criticalCount    = sorted.filter(c => Number(c.momentum_score ?? 0) >= 5).length;
-                const convergenceCount = tensionLinks.filter(l => l.intensity > 0.70).length;
-                const totalSignals     = sorted.reduce((s, c) => s + (c.signals_7d ?? 0), 0);
-                const fieldAgeStr      = latestSignalAt ? formatRelative(latestSignalAt).toUpperCase() : "PENDING";
-                const activeCount      = sorted.filter(c => Number(c.momentum_score ?? 0) >= 1.5).length;
-                const risingCount      = sorted.filter(c => Number(c.momentum_score ?? 0) >= 3).length;
-                const sectorCounts     = hudSectorDensity;
-                const hottestIdx       = sectorCounts.indexOf(Math.max(...sectorCounts));
-                const sectorLabels     = ["I", "II", "III", "IV", "V", "VI"] as const;
-                const hottestStr       = sectorCounts[hottestIdx] > 0 ? `SECTOR ${sectorLabels[hottestIdx]}` : "UNIFORM";
+                // ── Selected-node data ──────────────────────────────────────
+                const conf      = Number(selected?.latest_movement_confidence ?? 0);
+                const movType   = selected?.latest_movement_type ?? null;
+                const momentum  = Number(selected?.momentum_score ?? 0);
+                const sig7d     = Number(selected?.signals_7d ?? 0);
+                const lastSigAt = selected?.last_signal_at ?? null;
 
-                const sciPanel = (x: number, y: number, w: number, h: number, key: string, accent = "#00e5ff") => (
-                  <g key={key}>
-                    <rect x={x} y={y} width={w} height={h} rx="1" fill="#030c18" fillOpacity="0.93" />
-                    <rect x={x} y={y} width={w} height={h} rx="1" fill="url(#hudScanlines)" />
-                    <rect x={x} y={y} width={w} height={h * 0.45} rx="1" fill="url(#hudGlassSheen)" />
-                    <polygon points={`${x+w-NT},${y} ${x+w},${y+NT} ${x+w},${y}`} fill="#030c18" fillOpacity="0.98" />
-                    <line x1={x+w-NT} y1={y} x2={x+w} y2={y+NT} stroke={accent} strokeWidth="1.2" strokeOpacity="0.65" />
-                    <rect x={x} y={y} width={w} height={h} rx="1" fill="none" stroke={accent} strokeWidth="0.9" strokeOpacity="0.38" />
-                    <rect x={x+1} y={y+1} width={w-2} height={h-2} rx="1" fill="none" stroke={accent} strokeWidth="0.4" strokeOpacity="0.10" />
-                    <line x1={x}   y1={y+BK} x2={x}   y2={y}    stroke={accent} strokeWidth="2.4" strokeOpacity="0.95" />
-                    <line x1={x}   y1={y}    x2={x+BK} y2={y}    stroke={accent} strokeWidth="2.4" strokeOpacity="0.95" />
-                    <line x1={x+w-BK} y1={y} x2={x+w} y2={y}    stroke={accent} strokeWidth="2.4" strokeOpacity="0.95" />
-                    <line x1={x+w} y1={y}    x2={x+w} y2={y+BK} stroke={accent} strokeWidth="2.4" strokeOpacity="0.95" />
-                    <line x1={x}   y1={y+h-BK} x2={x}   y2={y+h}   stroke={accent} strokeWidth="2.4" strokeOpacity="0.95" />
-                    <line x1={x}   y1={y+h}    x2={x+BK} y2={y+h}   stroke={accent} strokeWidth="2.4" strokeOpacity="0.95" />
-                    <line x1={x+w-BK} y1={y+h} x2={x+w} y2={y+h}   stroke={accent} strokeWidth="2.4" strokeOpacity="0.95" />
-                    <line x1={x+w} y1={y+h-BK} x2={x+w} y2={y+h}   stroke={accent} strokeWidth="2.4" strokeOpacity="0.95" />
-                    <line x1={x+1} y1={y+30} x2={x+w-1} y2={y+30} stroke={accent} strokeWidth="0.8" strokeOpacity="0.35" />
-                    <line x1={x}   y1={y+44}   x2={x+4} y2={y+44}   stroke={accent} strokeWidth="1.0" strokeOpacity="0.45" />
-                    <line x1={x}   y1={y+h-44} x2={x+4} y2={y+h-44} stroke={accent} strokeWidth="1.0" strokeOpacity="0.45" />
-                  </g>
-                );
+                const movColor  = getMovementColor(movType);
+
+                // Age in hours for Q4 freshness
+                const ageHours  = lastSigAt
+                  ? (Date.now() - new Date(lastSigAt).getTime()) / 3_600_000
+                  : Infinity;
+
+                // ── Quadrant fill levels ────────────────────────────────────
+                // Q1: 8 signal-confidence segments (top-right, -85° to -5°)
+                const q1Fill = selected ? Math.round(conf * 8) : 0;
+
+                // Q2: 3 movement-state segments (bottom-right, 5° to 85°)
+                // 0 = no movement, 1 = building, 2 = confirmed
+                const movState = movType
+                  ? (conf >= 0.65 ? 2 : 1)
+                  : 0;
+
+                // Q3: 10 momentum ticks (bottom-left, 95° to 175°)
+                const q3Fill = selected ? Math.min(10, Math.round(momentum)) : 0;
+
+                // Q4: 4 freshness segments (top-left, 185° to 265°)
+                // green=<6h, blue=<24h, amber=<7d, slate=<30d, none=no data
+                const freshLevel = ageHours < 6 ? 4 : ageHours < 24 ? 3 : ageHours < 168 ? 2 : isFinite(ageHours) ? 1 : 0;
+                const freshColor = freshLevel >= 4 ? "rgba(46,230,166,0.88)"
+                                 : freshLevel >= 3 ? "rgba(96,165,250,0.88)"
+                                 : freshLevel >= 2 ? "rgba(245,158,11,0.88)"
+                                 : "rgba(100,116,139,0.88)";
+
+                // ── Ambient vs active opacity ───────────────────────────────
+                const ambientOp = selected ? 1.0 : 0.45;
+
+                // ── Label text at each quadrant midpoint ────────────────────
+                const q1MidDeg = -45;
+                const q2MidDeg =  45;
+                const q3MidDeg = 135;
+                const q4MidDeg = 225;
+                const LABEL_R  = HUD_R + 14;
+
+                const qLabel = (deg: number, text: string, valueText?: string) => {
+                  const rad = deg * Math.PI / 180;
+                  const lx  = CENTER + LABEL_R * Math.cos(rad);
+                  const ly  = CENTER + LABEL_R * Math.sin(rad);
+                  return (
+                    <g key={`hud-lbl-${deg}`}>
+                      <text x={lx} y={ly - (valueText ? 5 : 0)}
+                        textAnchor="middle" dominantBaseline="middle"
+                        fill="#7dd3fc" fillOpacity={selected ? 0.50 : 0.22}
+                        fontFamily="'Courier New', Monaco, monospace"
+                        fontSize="5" letterSpacing="0.22em">
+                        {text}
+                      </text>
+                      {valueText && (
+                        <text x={lx} y={ly + 6}
+                          textAnchor="middle" dominantBaseline="middle"
+                          fill="#e2e8f0" fillOpacity={selected ? 0.80 : 0.20}
+                          fontFamily="'Courier New', Monaco, monospace"
+                          fontSize="6" fontWeight="600" letterSpacing="0.10em">
+                          {valueText}
+                        </text>
+                      )}
+                    </g>
+                  );
+                };
+
+                // suppress unused-var warning — sig7d reserved for future quadrant use
+                void sig7d;
 
                 return (
-                  <g style={{ opacity: entryPhase >= 2 ? 1 : 0, transition: "opacity 0.6s ease" }}>
+                  <g style={{ pointerEvents: "none", opacity: ambientOp, transition: "opacity 0.4s ease" }}>
 
-                    {/* ── PANEL 1 (TL): FIELD INTEL ─────────────────────── */}
-                    {sciPanel(PAD, PAD, PW, PH1, "hud-tl-bg")}
-                    <text x={PAD+10} y={PAD+20}
-                      fill="#00e5ff" fillOpacity="0.85" filter="url(#hudNeonGlow)"
-                      fontFamily="'Courier New', Monaco, monospace" fontSize="10.5" fontWeight="700" letterSpacing="0.22em">
-                      FIELD INTEL
-                    </text>
-                    <text x={PAD+PW-8} y={PAD+20}
-                      fill="#00e5ff" fillOpacity="0.35" textAnchor="end"
-                      fontFamily="'Courier New', Monaco, monospace" fontSize="8.5" letterSpacing="0.06em">
-                      SYS·ACTIVE
-                    </text>
-                    {([
-                      { label: "NODES TRACKED",  value: sorted.length.toString(),    color: "#e8f4ff",  hover: null },
-                      { label: "ACTIVE",         value: activeCount.toString(),       color: activeCount > 0 ? "#00ff88" : "#334a5e",      hover: "active" as const },
-                      { label: "RISING",         value: risingCount.toString(),       color: risingCount > 0 ? "#ffaa00" : "#334a5e",      hover: "rising" as const },
-                      { label: "CRITICAL",       value: criticalCount.toString(),     color: criticalCount > 0 ? "#ff2255" : "#334a5e",    hover: "critical" as const },
-                      { label: "CONVERGENCE",    value: convergenceCount.toString(),  color: convergenceCount > 0 ? "#bb66ff" : "#334a5e", hover: "convergence" as const },
-                      { label: "SIG·7D",         value: totalSignals.toString(),      color: "#7ad4f0",  hover: null },
-                      { label: "LAST SIGNAL",    value: fieldAgeStr,                  color: "#3a6080",  hover: null },
-                      { label: "HOT SECTOR",     value: hottestStr,                   color: "#bb66ff",  hover: null },
-                    ] as Array<{ label: string; value: string; color: string; hover: 'critical' | 'rising' | 'active' | 'convergence' | null }>).map(({ label, value, color, hover }, ri) => {
-                      const isHovered = hudHighlight?.type === 'category' && hudHighlight.value === hover;
+                    {/* Base ring */}
+                    <circle cx={CENTER} cy={CENTER} r={HUD_R}
+                      fill="none" stroke="rgba(100,180,255,0.10)" strokeWidth="0.8" />
+
+                    {/* ── Q1: Signal quality — top-right (-85° to -5°) ─────── */}
+                    {Array.from({ length: 8 }, (_, i) => {
+                      const segStart = -85 + i * 10;
+                      const segEnd   = segStart + 8;
+                      const isActive = i < q1Fill;
                       return (
-                        <g key={`hud-tl-${ri}`}
-                          style={{ cursor: hover ? 'pointer' : 'default', pointerEvents: hover ? 'auto' : 'none' }}
-                          onMouseEnter={() => hover && setHudHighlight({ type: 'category', value: hover })}
-                          onMouseLeave={() => setHudHighlight(null)}
-                        >
-                          {hover && (
-                            <rect x={PAD+1} y={PAD+34+ri*27-1} width={PW-2} height={24} rx="1"
-                              fill={color} fillOpacity={isHovered ? 0.07 : 0}
-                              style={{ transition: "fill-opacity 0.12s ease" }} />
-                          )}
-                          <text x={PAD+10} y={PAD+47+ri*27}
-                            fill="#2a5070" fillOpacity="0.90"
-                            fontFamily="'Courier New', Monaco, monospace" fontSize="9.5" letterSpacing="0.12em">
-                            {label}
-                          </text>
-                          <text x={PAD+PW-8} y={PAD+47+ri*27}
-                            textAnchor="end"
-                            fill={color} fillOpacity="0.90"
-                            filter={color !== "#334a5e" && color !== "#3a6080" ? "url(#hudNeonGlow)" : undefined}
-                            fontFamily="'Courier New', Monaco, monospace" fontSize="12" fontWeight="bold" letterSpacing="0.06em">
-                            {value}
-                          </text>
-                          <line x1={PAD+8} y1={PAD+50+ri*27} x2={PAD+PW-8} y2={PAD+50+ri*27}
-                            stroke="#00e5ff" strokeWidth="0.3" strokeOpacity="0.08" />
-                        </g>
+                        <path key={`hud-q1-${i}`}
+                          d={hudArcD(CENTER, CENTER, HUD_R, segStart, segEnd)}
+                          fill="none"
+                          stroke={isActive ? "rgba(0,229,255,0.88)" : "rgba(255,255,255,0.07)"}
+                          strokeWidth={isActive ? 2.8 : 1.0}
+                          strokeLinecap="round"
+                        />
                       );
                     })}
+                    {qLabel(q1MidDeg, "SIG", selected ? `${Math.round(conf * 100)}%` : undefined)}
 
-                    {/* ── PANEL 2 (BL): NODE STREAM ─────────────────────── */}
-                    {sciPanel(PAD, 1000 - PH2 - PAD, PW, PH2, "hud-bl-bg", "#00ff88")}
-                    <text x={PAD+10} y={1000 - PH2 - PAD + 20}
-                      fill="#00ff88" fillOpacity="0.85" filter="url(#hudNeonGlow)"
-                      fontFamily="'Courier New', Monaco, monospace" fontSize="10.5" fontWeight="700" letterSpacing="0.22em">
-                      NODE STREAM
-                    </text>
-                    <text x={PAD+PW-8} y={1000 - PH2 - PAD + 20}
-                      fill="#00ff88" fillOpacity="0.35" textAnchor="end"
-                      fontFamily="'Courier New', Monaco, monospace" fontSize="8.5" letterSpacing="0.06em">
-                      TOP·4
-                    </text>
-                    {sorted.slice(0, 4).map((c, ri) => {
-                      const momentum = Number(c.momentum_score ?? 0);
-                      const mCfg = getMomentumConfig(momentum);
-                      const movAbbr = c.latest_movement_type ? movAbbreviation(c.latest_movement_type) : "—";
-                      const barW = Math.min(130, momentum * 14);
-                      const baseY = 1000 - PH2 - PAD + 30 + ri * 53;
-                      const isHighlighted = hudHighlight?.type === 'node' && hudHighlight.id === c.competitor_id;
+                    {/* ── Q2: Movement state — bottom-right (5° to 85°) ─────── */}
+                    {Array.from({ length: 3 }, (_, i) => {
+                      const segStart = 5  + i * 27;
+                      const segEnd   = segStart + 23;
+                      const isActive = i < movState;
                       return (
-                        <g key={`hud-bl-${ri}`}
-                          style={{ cursor: 'pointer', pointerEvents: 'auto' }}
-                          onMouseEnter={() => setHudHighlight({ type: 'node', id: c.competitor_id })}
-                          onMouseLeave={() => setHudHighlight(null)}
-                        >
-                          <rect x={PAD+1} y={baseY-3} width={PW-2} height={46} rx="1"
-                            fill={mCfg.color} fillOpacity={isHighlighted ? 0.07 : 0}
-                            style={{ transition: "fill-opacity 0.12s ease" }} />
-                          <text x={PAD+9} y={baseY+13}
-                            fill="#00ff88" fillOpacity="0.30"
-                            fontFamily="'Courier New', Monaco, monospace" fontSize="14" fontWeight="700">
-                            {`0${ri + 1}`}
-                          </text>
-                          <text x={PAD+30} y={baseY+13}
-                            fill="#d0e8f0" fillOpacity="0.80"
-                            fontFamily="'Courier New', Monaco, monospace" fontSize="11" fontWeight="600" letterSpacing="0.10em">
-                            {c.competitor_name.toUpperCase().slice(0, 13)}
-                          </text>
-                          <text x={PAD+PW-8} y={baseY+13}
-                            textAnchor="end" fill={mCfg.color} fillOpacity="0.70"
-                            fontFamily="'Courier New', Monaco, monospace" fontSize="9.5" letterSpacing="0.08em">
-                            {movAbbr}
-                          </text>
-                          <rect x={PAD+30} y={baseY+18} width={130} height={4} rx="2"
-                            fill="#ffffff" fillOpacity="0.05" />
-                          <rect x={PAD+30} y={baseY+18} width={barW} height={4} rx="2"
-                            fill={mCfg.color} fillOpacity="0.70" />
-                          <text x={PAD+PW-8} y={baseY+32}
-                            textAnchor="end" fill={mCfg.color} fillOpacity="0.55"
-                            fontFamily="'Courier New', Monaco, monospace" fontSize="9" letterSpacing="0.06em">
-                            {`M·${momentum.toFixed(1)}`}
-                          </text>
-                          {ri < 3 && (
-                            <line x1={PAD+8} y1={baseY+43} x2={PAD+PW-8} y2={baseY+43}
-                              stroke="#00ff88" strokeWidth="0.3" strokeOpacity="0.10" />
-                          )}
-                        </g>
+                        <path key={`hud-q2-${i}`}
+                          d={hudArcD(CENTER, CENTER, HUD_R, segStart, segEnd)}
+                          fill="none"
+                          stroke={isActive ? movColor : "rgba(255,255,255,0.07)"}
+                          strokeWidth={isActive ? 2.8 : 1.0}
+                          strokeLinecap="round"
+                        />
                       );
                     })}
+                    {qLabel(q2MidDeg, "MOV",
+                      selected
+                        ? (movType ? movAbbreviation(movType).slice(0, 8) : "—")
+                        : undefined
+                    )}
 
-                    {/* ── PANEL 3 (TR or below TL): TARGET LOCKED ────────── */}
-                    {/* panelOnRight=true → top-right corner                  */}
-                    {/* panelOnRight=false → left side below Panel 1           */}
-                    <AnimatePresence>
-                      {selected && (() => {
-                        const selPos = hudPos.get(selected.competitor_id);
-                        const panelOnRight = !selPos || selPos.x >= CENTER;
-                        const px = panelOnRight ? 1000 - PW - PAD : PAD;
-                        const py = panelOnRight ? PAD : PAD + PH1 + 10;
-                        const ph = 290;
-                        const momentum    = Number(selected.momentum_score ?? 0);
-                        const mCfg        = getMomentumConfig(momentum);
-                        const threatLevel = momentum >= 7 ? "CRITICAL THREAT" : momentum >= 5 ? "HIGH THREAT" : momentum >= 3 ? "ELEVATED" : "NOMINAL";
-                        const threatColor = momentum >= 7 ? "#ff2255" : momentum >= 5 ? "#ffaa00" : momentum >= 3 ? "#bb66ff" : "#334a5e";
-                        const rivalCount  = tensionLinks.filter(l => l.idA === selected.competitor_id || l.idB === selected.competitor_id).length;
-                        const lastSig     = selected.last_signal_at ? formatRelative(selected.last_signal_at).toUpperCase() : "—";
-                        const movAbbr     = selected.latest_movement_type ? movAbbreviation(selected.latest_movement_type) : "—";
-                        const barW        = Math.min(PW - 20, momentum * 16);
-                        const connectorPt = selPos ? { x: selPos.x, y: selPos.y } : null;
-                        return (
-                          <motion.g
-                            key={`hud-target-${selected.competitor_id}`}
-                            initial={{ opacity: 0, x: panelOnRight ? 16 : -16 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: panelOnRight ? 16 : -16 }}
-                            transition={{ type: "spring", stiffness: 280, damping: 22 }}
-                          >
-                            {sciPanel(px, py, PW, ph, "hud-tr-bg", threatColor)}
-                            <text x={px+10} y={py+20}
-                              fill={threatColor} fillOpacity="0.90" filter="url(#hudNeonGlow)"
-                              fontFamily="'Courier New', Monaco, monospace" fontSize="10.5" fontWeight="700" letterSpacing="0.22em">
-                              TARGET LOCKED
-                            </text>
-                            <text x={px+PW/2} y={py+41}
-                              textAnchor="middle"
-                              fill="#ffffff" fillOpacity="0.95" filter="url(#hudNeonGlow)"
-                              fontFamily="'Courier New', Monaco, monospace" fontSize="17" fontWeight="bold" letterSpacing="0.12em">
-                              {selected.competitor_name.toUpperCase().slice(0, 14)}
-                            </text>
-                            <rect x={px+PW/2-50} y={py+48} width={100} height={17} rx="2"
-                              fill={threatColor} fillOpacity="0.12" />
-                            <rect x={px+PW/2-50} y={py+48} width={100} height={17} rx="2"
-                              fill="none" stroke={threatColor} strokeWidth="0.7" strokeOpacity="0.55" />
-                            <text x={px+PW/2} y={py+58.5}
-                              textAnchor="middle" dominantBaseline="middle"
-                              fill={threatColor} fillOpacity="0.90" filter="url(#hudNeonGlow)"
-                              fontFamily="'Courier New', Monaco, monospace" fontSize="9.5" fontWeight="700" letterSpacing="0.20em">
-                              {threatLevel}
-                            </text>
-                            <text x={px+10} y={py+80}
-                              fill="#2a5070" fontFamily="'Courier New', Monaco, monospace" fontSize="9.5" letterSpacing="0.12em">
-                              MOMENTUM
-                            </text>
-                            <text x={px+PW-10} y={py+80}
-                              textAnchor="end" fill={mCfg.color} fillOpacity="0.90" filter="url(#hudNeonGlow)"
-                              fontFamily="'Courier New', Monaco, monospace" fontSize="12" fontWeight="bold">
-                              {momentum.toFixed(1)}
-                            </text>
-                            <rect x={px+10} y={py+84} width={PW-20} height={4} rx="2"
-                              fill="#ffffff" fillOpacity="0.05" />
-                            <rect x={px+10} y={py+84} width={barW} height={4} rx="2"
-                              fill={mCfg.color} fillOpacity="0.70" />
-                            {([
-                              { label: "VECTOR",       value: movAbbr,                                                   color: "#7ad4f0" },
-                              { label: "SIG·7D",       value: (selected.signals_7d ?? 0).toString(),                     color: "#e8f4ff" },
-                              { label: "LAST SIGNAL",  value: lastSig,                                                   color: "#3a6080" },
-                              { label: "RIVALS",       value: rivalCount > 0 ? `${rivalCount} CONVERGING` : "ISOLATED",  color: rivalCount > 0 ? "#bb66ff" : "#334a5e" },
-                              { label: "PRESSURE IDX", value: (selected.pressure_index ?? 0).toFixed(1),                 color: "#7ad4f0" },
-                            ] as Array<{ label: string; value: string; color: string }>).map(({ label, value, color }, ri) => (
-                              <g key={`hud-sel-${ri}`}>
-                                <text x={px+10} y={py+106+ri*30}
-                                  fill="#2a5070" fillOpacity="0.90"
-                                  fontFamily="'Courier New', Monaco, monospace" fontSize="9.5" letterSpacing="0.12em">
-                                  {label}
-                                </text>
-                                <text x={px+PW-10} y={py+106+ri*30}
-                                  textAnchor="end" fill={color} fillOpacity="0.90"
-                                  filter={color !== "#334a5e" && color !== "#3a6080" ? "url(#hudNeonGlow)" : undefined}
-                                  fontFamily="'Courier New', Monaco, monospace" fontSize="11" fontWeight="bold" letterSpacing="0.08em">
-                                  {value}
-                                </text>
-                                <line x1={px+8} y1={py+109+ri*30} x2={px+PW-8} y2={py+109+ri*30}
-                                  stroke={threatColor} strokeWidth="0.3" strokeOpacity="0.08" />
-                              </g>
-                            ))}
-                            {selected.latest_movement_type && (
-                              <>
-                                <line x1={px+8} y1={py+ph-26} x2={px+PW-8} y2={py+ph-26}
-                                  stroke={threatColor} strokeWidth="0.5" strokeOpacity="0.22" />
-                                <text x={px+PW/2} y={py+ph-11}
-                                  textAnchor="middle"
-                                  fill={threatColor} fillOpacity="0.60"
-                                  fontFamily="'Courier New', Monaco, monospace" fontSize="8.5" letterSpacing="0.16em">
-                                  {selected.latest_movement_type.replace(/_/g, " ").toUpperCase()}
-                                </text>
-                              </>
-                            )}
-                            {connectorPt && (() => {
-                              const nodeR = getNodeSize(momentum) + 10;
-                              const panelEdgeX = panelOnRight ? px : px + PW;
-                              return (
-                                <path
-                                  d={`M ${connectorPt.x + (panelOnRight ? -nodeR : nodeR)} ${connectorPt.y} L ${panelEdgeX} ${connectorPt.y} L ${panelEdgeX} ${py + ph / 2}`}
-                                  fill="none"
-                                  stroke={threatColor} strokeWidth="0.6"
-                                  strokeOpacity="0.30"
-                                  strokeDasharray="4 6"
-                                />
-                              );
-                            })()}
-                          </motion.g>
-                        );
-                      })()}
-                    </AnimatePresence>
+                    {/* ── Q3: Momentum — bottom-left (95° to 175°) ──────────── */}
+                    {Array.from({ length: 10 }, (_, i) => {
+                      const tickDeg  = 95 + i * (80 / 9);
+                      const tickRad  = tickDeg * Math.PI / 180;
+                      const isActive = i < q3Fill;
+                      const innerR   = HUD_R - 7;
+                      const outerR   = HUD_R + (isActive ? 6 : 2);
+                      return (
+                        <line key={`hud-q3-${i}`}
+                          x1={CENTER + innerR * Math.cos(tickRad)}
+                          y1={CENTER + innerR * Math.sin(tickRad)}
+                          x2={CENTER + outerR * Math.cos(tickRad)}
+                          y2={CENTER + outerR * Math.sin(tickRad)}
+                          stroke={isActive ? "rgba(245,158,11,0.88)" : "rgba(255,255,255,0.08)"}
+                          strokeWidth={isActive ? 2.0 : 0.8}
+                          strokeLinecap="round"
+                        />
+                      );
+                    })}
+                    {qLabel(q3MidDeg, "MOM",
+                      selected ? momentum.toFixed(1) : undefined
+                    )}
 
-                    {/* ── PANEL 4 (BR): FIELD ASSESSMENT ───────────────── */}
-                    {sciPanel(1000 - PW - PAD, 1000 - PH4 - PAD, PW, PH4, "hud-br-bg", "#bb66ff")}
-                    <text x={1000 - PW - PAD + 10} y={1000 - PH4 - PAD + 20}
-                      fill="#bb66ff" fillOpacity="0.85" filter="url(#hudNeonGlow)"
-                      fontFamily="'Courier New', Monaco, monospace" fontSize="10.5" fontWeight="700" letterSpacing="0.22em">
-                      FIELD ASSESSMENT
-                    </text>
-                    {([
-                      { label: "CRITICAL VECTORS",   value: criticalCount.toString(),           color: criticalCount > 0 ? "#ff2255" : "#334a5e" },
-                      { label: "CONVERGENCE ZONES",  value: convergenceCount.toString(),         color: convergenceCount > 0 ? "#bb66ff" : "#334a5e" },
-                      { label: "SIGNALS·7D",         value: totalSignals.toString(),             color: "#7ad4f0" },
-                      { label: "ORBIT MODE",         value: "ACTIVE",                           color: "#00ff88" },
-                      { label: "FIELD AGE",          value: fieldAgeStr,                         color: "#3a6080" },
-                      { label: "HOT SECTOR",         value: hottestStr,                          color: "#bb66ff" },
-                    ] as Array<{ label: string; value: string; color: string }>).map(({ label, value, color }, ri) => (
-                      <g key={`hud-br-${ri}`}>
-                        <text x={1000 - PW - PAD + 10} y={1000 - PH4 - PAD + 40 + ri * 32}
-                          fill="#2a5070" fillOpacity="0.90"
-                          fontFamily="'Courier New', Monaco, monospace" fontSize="9.5" letterSpacing="0.12em">
-                          {`▸ ${label}`}
-                        </text>
-                        <text x={1000 - PAD - 8} y={1000 - PH4 - PAD + 40 + ri * 32}
-                          textAnchor="end"
-                          fill={color} fillOpacity="0.90"
-                          filter={color !== "#334a5e" && color !== "#3a6080" ? "url(#hudNeonGlow)" : undefined}
-                          fontFamily="'Courier New', Monaco, monospace" fontSize="11" fontWeight="bold" letterSpacing="0.08em">
-                          {value}
-                        </text>
-                        <line x1={1000 - PW - PAD + 8} y1={1000 - PH4 - PAD + 43 + ri * 32}
-                              x2={1000 - PAD - 8}       y2={1000 - PH4 - PAD + 43 + ri * 32}
-                          stroke="#bb66ff" strokeWidth="0.3" strokeOpacity="0.08" />
-                      </g>
-                    ))}
+                    {/* ── Q4: Evidence/recency — top-left (185° to 265°) ────── */}
+                    {Array.from({ length: 4 }, (_, i) => {
+                      const segStart = 185 + i * 20;
+                      const segEnd   = segStart + 17;
+                      const isActive = i < freshLevel;
+                      return (
+                        <path key={`hud-q4-${i}`}
+                          d={hudArcD(CENTER, CENTER, HUD_R, segStart, segEnd)}
+                          fill="none"
+                          stroke={isActive ? freshColor : "rgba(255,255,255,0.07)"}
+                          strokeWidth={isActive ? 2.8 : 1.0}
+                          strokeLinecap="round"
+                        />
+                      );
+                    })}
+                    {qLabel(q4MidDeg, "EVD",
+                      selected && lastSigAt
+                        ? formatRelative(lastSigAt).toUpperCase().slice(0, 8)
+                        : undefined
+                    )}
+
+                    {/* ── Targeting reticle — on ring at angle of selected node ── */}
+                    {selected && (() => {
+                      const nodePos = (orbitMode ? animatedOrbitPositions : standardPositions)
+                        .get(selected.competitor_id);
+                      if (!nodePos) return null;
+                      const angle = Math.atan2(nodePos.y - CENTER, nodePos.x - CENTER);
+                      return (
+                        <g>
+                          {/* Center tick — aligned radially */}
+                          <line
+                            x1={CENTER + (HUD_R - 11) * Math.cos(angle)}
+                            y1={CENTER + (HUD_R - 11) * Math.sin(angle)}
+                            x2={CENTER + (HUD_R + 11) * Math.cos(angle)}
+                            y2={CENTER + (HUD_R + 11) * Math.sin(angle)}
+                            stroke={movColor} strokeWidth="2.2" strokeOpacity="0.92"
+                          />
+                          {/* Flanking ticks at ±8° */}
+                          {([-8, 8] as const).map(offset => {
+                            const a2 = angle + offset * Math.PI / 180;
+                            return (
+                              <line key={offset}
+                                x1={CENTER + (HUD_R - 5) * Math.cos(a2)}
+                                y1={CENTER + (HUD_R - 5) * Math.sin(a2)}
+                                x2={CENTER + (HUD_R + 5) * Math.cos(a2)}
+                                y2={CENTER + (HUD_R + 5) * Math.sin(a2)}
+                                stroke={movColor} strokeWidth="1.2" strokeOpacity="0.55"
+                              />
+                            );
+                          })}
+                          {/* Dot */}
+                          <circle
+                            cx={CENTER + HUD_R * Math.cos(angle)}
+                            cy={CENTER + HUD_R * Math.sin(angle)}
+                            r="2.2" fill={movColor} fillOpacity="0.92"
+                          />
+                        </g>
+                      );
+                    })()}
+
+                    {/* ── Field-level node count in ambient state ─────────────── */}
+                    {!selected && sorted.length > 0 && (
+                      <text
+                        x={CENTER} y={CENTER - HUD_R - 8}
+                        textAnchor="middle" dominantBaseline="middle"
+                        fill="#7dd3fc" fillOpacity="0.28"
+                        fontFamily="'Courier New', Monaco, monospace"
+                        fontSize="5.5" letterSpacing="0.24em">
+                        {`${sorted.length} NODES · DORMANT`}
+                      </text>
+                    )}
+
+                    {/* ── Quadrant separator ticks at gap centers (cardinal points) ── */}
+                    {([0, 90, 180, 270] as const).map(deg => {
+                      const rad = deg * Math.PI / 180;
+                      return (
+                        <line key={`hud-sep-${deg}`}
+                          x1={CENTER + (HUD_R - 4) * Math.cos(rad)}
+                          y1={CENTER + (HUD_R - 4) * Math.sin(rad)}
+                          x2={CENTER + (HUD_R + 4) * Math.cos(rad)}
+                          y2={CENTER + (HUD_R + 4) * Math.sin(rad)}
+                          stroke="rgba(100,180,255,0.22)" strokeWidth="0.8"
+                        />
+                      );
+                    })}
 
                   </g>
                 );

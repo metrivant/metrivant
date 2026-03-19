@@ -20,7 +20,7 @@ export const MASS_EXPONENT = 0.4;
 // sigma = GRID_SIZE / (nodeCount * SIGMA_DIVISOR)
 // Increase SIGMA_DIVISOR → narrower wells (more distinct when dense)
 // Decrease SIGMA_DIVISOR → wider wells (better for sparse data)
-export const SIGMA_DIVISOR = 1.2;
+export const SIGMA_DIVISOR = 0.9;
 export const SIGMA_FLOOR   = 10;  // minimum sigma, prevents point-like wells for single nodes
 
 // Depth-based color stops: [normalizedDepth 0–1, [r, g, b] as 0–1 floats]
@@ -32,20 +32,18 @@ export const DEPTH_COLOR_STOPS: [number, [number, number, number]][] = [
   [1.0, [200 / 255,  60 / 255,  40 / 255]],  // red-orange  — deepest well
 ];
 
-// Camera — ~30° elevation angle looking down at the surface
+// Camera — ~17° elevation angle: profile-biased for cross-section reading.
+// Nodes form a horizontal line; wells read as downward displacement beneath them.
 export const CAMERA_FOV      = 45;
 export const CAMERA_NEAR     = 0.1;
 export const CAMERA_FAR      = 500;
-export const CAMERA_POSITION = { x: 0, y: 46, z: 80 } as const;
-export const CAMERA_LOOK_AT  = { x: 0, y: -4, z: 0 } as const;
+export const CAMERA_POSITION = { x: 0, y: 28, z: 92 } as const;
+export const CAMERA_LOOK_AT  = { x: 0, y: -6, z: 0 } as const;
 
 // Node sizing (pixel units for the HTML overlay circles)
 export const NODE_RADIUS_ZERO   = 3;   // px — zero-mass reference node
 export const NODE_RADIUS_MIN    = 5;   // px — minimum active node
 export const NODE_RADIUS_MAX    = 10;  // px — maximum active node
-
-// Deterministic Z-axis spread for node positions (prevents all nodes on a single line)
-export const Y_SPREAD_RANGE = GRID_SIZE * 0.18;  // 18% of grid depth ≈ 14.4 world units
 
 // Node selection — highlight pulse
 export const SELECTED_RING_OFFSET = 6;  // px beyond node radius
