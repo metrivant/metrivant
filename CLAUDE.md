@@ -61,6 +61,12 @@ Key schema additions (migrations 036–044):
 - signals.source_type (038)          'page_diff' | 'feed_event' provenance tracking
 - signals extended types (038–043)   feed_press_release, feed_newsroom_post, hiring_spike, new_function, new_region, role_cluster, earnings_release, acquisition, and others
 
+Key schema fix (migration 056):
+- signals.section_diff_id DROP NOT NULL — pool event signals have no diff; NOT NULL was set
+  pre-migration and never dropped; error 23502 blocked all pool promote handlers silently
+- Also idempotently re-applies cumulative signal_type + source_type CHECK constraints (055)
+- File: migrations/056_signals_section_diff_nullable.sql — must be applied in Supabase SQL Editor
+
 Retention policy (lib/retention-config.ts):
   RAW_HTML           7d  — null raw_html on processed snapshots (sections_extracted=true)
   EXTRACTED_SECTIONS 90d — delete page_sections, skip rows referenced by baselines/diffs
@@ -160,8 +166,12 @@ Pool system (additive signal pipeline — parallel to page-diff monitoring):
   Pool 1 (newsroom):  active — ingest-feeds (:10 hourly), promote-feed-signals (:12 hourly)
                       signals flow into existing pipeline with source_type='feed_event'
   Pools 2–6 (careers, investor, product, procurement, regulatory):
-                      schema + code complete, NOT scheduled — dormant, activation-ready
-                      activate by adding cron entry to vercel.json
+                      schema + code + cron entries complete (all 12 cron entries in vercel.json)
+                      competitor_feeds seeded: careers=11/15, investor=3/15, product=4/15,
+                        regulatory=3/15, newsroom=4/15 (fintech sector, ATS/SEC EDGAR/RSS URLs)
+                      BLOCKED: migration 056 must be applied in Supabase SQL Editor first —
+                        signals.section_diff_id NOT NULL blocks all promote handlers (error 23502)
+                      After migration 056: pools are live with no further code changes needed
   Pool 7 (media):     schema complete (migration 044), ingestion not implemented
                       produces sector_narratives (currently empty table)
                       weekly briefs query sector_narratives as optional input; run without it
