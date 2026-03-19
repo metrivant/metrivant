@@ -13,7 +13,7 @@ import { updateCompetitorContext } from "../lib/context-updater";
 const BATCH_SIZE          = 15;
 const CONCURRENCY         = 4;
 const WALL_CLOCK_GUARD_MS = 25_000;
-const STALE_MINUTES       = 24 * 60;
+const STALE_MINUTES       = 240; // 4h — aligns with health.ts STUCK_SIGNAL_MINUTES; was 1440 (24h) which let stuck signals block the pipeline for a full day
 const MAX_RETRIES         = 5;
 const PROMPT_VERSION      = "v1";
 
@@ -250,6 +250,23 @@ async function callOpenAI(
 
   if (!parsed.summary.trim() || !parsed.strategic_implication.trim()) {
     throw new Error("OpenAI response has empty summary or strategic_implication: " + content);
+  }
+
+  // Quality guard: reject interpretations that are too short or generically useless.
+  // These indicate the model returned a placeholder rather than a real analysis.
+  const GENERIC_PATTERNS = [
+    /^(the )?content (was |has been )?(updated|changed|modified)/i,
+    /^(some |minor )?changes were (made|detected)/i,
+    /^no significant changes/i,
+    /^the page (was |has been )?updated/i,
+  ];
+
+  if (parsed.summary.length < 20) {
+    throw new Error("Interpretation summary too short (" + parsed.summary.length + " chars): " + content);
+  }
+
+  if (GENERIC_PATTERNS.some((p) => p.test(parsed.summary))) {
+    throw new Error("Interpretation summary is generic boilerplate: " + parsed.summary);
   }
 
   return {
@@ -629,6 +646,20 @@ async function handler(req: ApiReq, res: ApiRes) {
           }
         }
       }
+    }
+
+    // ── Low-relevance ratio warning ──────────────────────────────────────────
+    // If >80% of claimed signals were skipped as low relevance, the classifier
+    // may be miscalibrated or the input quality has degraded.
+    if (rowsClaimed >= 5 && rowsSkippedLow / rowsClaimed > 0.80) {
+      Sentry.captureMessage("high_low_relevance_ratio", {
+        level: "warning",
+        extra: {
+          rowsClaimed,
+          rowsSkippedLow,
+          ratio: parseFloat((rowsSkippedLow / rowsClaimed).toFixed(2)),
+        },
+      });
     }
 
     const runtimeDurationMs = Date.now() - startedAt;

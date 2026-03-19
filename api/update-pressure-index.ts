@@ -350,6 +350,52 @@ async function handler(req: ApiReq, res: ApiRes) {
       }
     }
 
+    // ── 7. Time-decay auto-promotion ──────────────────────────────────────────
+    // Catch pending_review signals that have been waiting too long in the dead
+    // zone (confidence 0.35–0.64). After 7 days with confidence >= 0.45, the
+    // competitive moment has proved durable — promote to get an interpretation
+    // rather than letting them expire silently at 30d via retention Tier 6.
+    let timeDecayPromoted = 0;
+    try {
+      const decayCutoff = new Date(
+        Date.now() - 7 * 24 * 60 * 60 * 1000
+      ).toISOString();
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: decayRows, error: decayError } = await (supabase as any)
+        .from("signals")
+        .select("id")
+        .eq("status", "pending_review")
+        .gte("confidence_score", 0.45)
+        .lt("detected_at", decayCutoff)
+        .limit(5);
+
+      if (decayError) throw decayError;
+
+      const decayIds = (decayRows ?? []).map((r: { id: string }) => r.id);
+      if (decayIds.length > 0) {
+        const { error: promoteError } = await supabase
+          .from("signals")
+          .update({ status: "pending" })
+          .in("id", decayIds)
+          .eq("status", "pending_review");
+
+        if (promoteError) throw promoteError;
+        timeDecayPromoted = decayIds.length;
+
+        for (const id of decayIds) {
+          void recordEvent({
+            run_id:   runId,
+            stage:    "time_decay_promotion",
+            status:   "success",
+            metadata: { signal_id: id, reason: "age_7d_confidence_045" },
+          });
+        }
+      }
+    } catch (decayErr) {
+      Sentry.captureException(decayErr);
+    }
+
     const runtimeDurationMs = Date.now() - startedAt;
 
     Sentry.setContext("run_metrics", {
@@ -357,6 +403,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       competitorsUpdated,
       signalsPromoted,
       bootstrapPromoted,
+      timeDecayPromoted,
       runtimeDurationMs,
     });
 
@@ -374,6 +421,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       competitorsUpdated,
       signalsPromoted,
       bootstrapPromoted,
+      timeDecayPromoted,
       runtimeDurationMs,
     });
 

@@ -274,7 +274,11 @@ async function processUrl(
   }
 
   if ((domainFailureCounts.get(hostname) ?? 0) >= DOMAIN_COOLDOWN_THRESHOLD) {
-    return { ...empty, skippedCooldown: true };
+    return {
+      ...empty,
+      skippedCooldown: true,
+      healthStateUpdates: groupedPages.map((page) => ({ pageId: page.id, healthState: "blocked" as PageHealthState })),
+    };
   }
 
   // ── Task 3: Domain minimum delay ───────────────────────────────────────────

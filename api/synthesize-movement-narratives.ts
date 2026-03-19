@@ -31,11 +31,13 @@ async function writeNarrative(
   movementSummary:      string,
   strategicImplication: string | null,
   confidenceLevel:      string | null,
-  confidenceReason:     string | null
+  confidenceReason:     string | null,
+  generationReason:     "ai" | "fallback" = "fallback"
 ): Promise<void> {
   const payload: Record<string, unknown> = {
     movement_summary:       movementSummary,
     narrative_generated_at: new Date().toISOString(),
+    generation_reason:      generationReason,
   };
   if (strategicImplication) payload.strategic_implication = strategicImplication;
   if (confidenceLevel)      payload.confidence_level      = confidenceLevel;
@@ -203,11 +205,12 @@ async function handler(req: ApiReq, res: ApiRes) {
             synthesis.movement_summary,
             synthesis.strategic_implication,
             synthesis.confidence_level,
-            synthesis.confidence_reason
+            synthesis.confidence_reason,
+            "ai"
           );
           narrativesGenerated++;
         } else {
-          await writeNarrative(movement.id, movement.summary ?? movement.movement_type, null, null, null);
+          await writeNarrative(movement.id, movement.summary ?? movement.movement_type, null, null, null, "fallback");
           narrativesFallback++;
         }
       } catch (movErr) {

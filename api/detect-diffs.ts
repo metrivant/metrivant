@@ -47,7 +47,7 @@ const MAX_OBSERVATION_COUNT = 5;
 // Only consider sections created within this window. Prevents stale sections
 // (from days/weeks ago) crowding out fresh ones in the top-N scan and ensures
 // detect-diffs always reflects the current pipeline state.
-const SECTION_RECENCY_HOURS = 48;
+const SECTION_RECENCY_HOURS = 168;
 
 function makeSectionKey(monitoredPageId: string, sectionType: string): string {
   return monitoredPageId + "::" + sectionType;
@@ -268,6 +268,7 @@ async function handler(req: ApiReq, res: ApiRes) {
               observation_count: nextCount,
               confirmed: confirmed,
               last_seen_at: section.created_at,
+              page_class: pageClassMap.get(section.monitored_page_id) ?? "standard",
             })
             .eq("id", existingDiff.id);
 

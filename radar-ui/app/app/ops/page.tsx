@@ -326,7 +326,8 @@ export default async function OpsPage() {
   let errorRows:    ErrorEventRow[]     = [];
   let coverageRows: CoverageHealthRow[] = [];
   let repairRows:   RepairSuggestionRow[] = [];
-  let pendingCount = 0, pendingReviewCount = 0;
+  let pendingCount = 0, pendingReviewCount = 0, failedCount = 0;
+  let stalePageFetchCount = 0;
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -393,12 +394,24 @@ export default async function OpsPage() {
     const { data: pendingData } = await (service as any)
       .from("signals")
       .select("status")
-      .in("status", ["pending", "pending_review"])
+      .in("status", ["pending", "pending_review", "failed"])
       .limit(500);
     for (const r of (pendingData ?? []) as { status: string }[]) {
       if (r.status === "pending")        pendingCount++;
       if (r.status === "pending_review") pendingReviewCount++;
+      if (r.status === "failed")         failedCount++;
     }
+  } catch { /* non-fatal */ }
+
+  try {
+    const staleCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { count } = await (service as any)
+      .from("monitored_pages")
+      .select("*", { count: "exact", head: true })
+      .eq("active", true)
+      .lt("last_fetched_at", staleCutoff);
+    stalePageFetchCount = count ?? 0;
   } catch { /* non-fatal */ }
 
   try {
@@ -534,15 +547,21 @@ export default async function OpsPage() {
               title="Signal Backlog"
               subtitle="Signals queued for interpretation · all orgs"
             />
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               <StatCard label="Pending" value={pendingCount} accent="#2EE6A6"
                 note="awaiting gpt-4o-mini" />
               <StatCard label="Pending Review" value={pendingReviewCount} accent="#f59e0b"
                 note="held — pressure_index gate" />
+              <StatCard label="Failed" value={failedCount}
+                accent={failedCount > 0 ? "#ef4444" : "rgba(148,163,184,0.4)"}
+                note="retries exhausted" />
               <StatCard label="7d Signals" value={signalQuality.total} accent="rgba(148,163,184,0.6)"
                 note="detected this week" />
               <StatCard label="7d Interpreted" value={signalQuality.interpreted} accent="#4A9EFF"
                 note="completed interpretations" />
+              <StatCard label="Stale Pages" value={stalePageFetchCount}
+                accent={stalePageFetchCount >= 5 ? "#ef4444" : stalePageFetchCount > 0 ? "#f59e0b" : "rgba(148,163,184,0.4)"}
+                note="not fetched in 24h" />
             </div>
           </section>
 

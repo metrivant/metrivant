@@ -67,11 +67,17 @@ Key schema fix (migration 056):
 - Also idempotently re-applies cumulative signal_type + source_type CHECK constraints (055)
 - File: migrations/056_signals_section_diff_nullable.sql — must be applied in Supabase SQL Editor
 
+Key schema additions (migrations 057–058):
+- signals.monitored_page_id DROP NOT NULL (057) — pool signals have no page context; applied 2026-03-19
+- strategic_movements.generation_reason (058) — 'ai'|'fallback'|'deterministic'; distinguishes LLM vs fallback narratives
+  File: migrations/058_movements_generation_reason.sql — must be applied in Supabase SQL Editor
+
 Retention policy (lib/retention-config.ts):
   RAW_HTML           7d  — null raw_html on processed snapshots (sections_extracted=true)
   EXTRACTED_SECTIONS 90d — delete page_sections, skip rows referenced by baselines/diffs
   DIFFS             180d — delete section_diffs where signal_detected=true, skip rows referenced by signals
   PIPELINE_EVENTS    90d — delete unconditionally (pure telemetry)
+  FAILED_SIGNALS     7d  — delete signals stuck in 'failed' status (retries exhausted)
   Cron: /api/retention daily at 03:00 UTC
 
 Brief generation (radar-ui/app/api/generate-brief/route.ts — Monday 10:00 UTC):
@@ -88,7 +94,7 @@ Brief generation (radar-ui/app/api/generate-brief/route.ts — Monday 10:00 UTC)
 
 AI layers (6):
   1. Signal relevance classification  gpt-4o-mini → signals.relevance_level (high|medium|low); low skips interpretation
-  2. Signal interpretation             gpt-4o-mini → interpretations (:28 hourly, pending signals only)
+  2. Signal interpretation             gpt-4o-mini → interpretations (:28/:58 twice hourly, pending signals only)
   3. Movement synthesis                gpt-4o     → strategic_movements.movement_summary + strategic_implication (:30 hourly)
   4. Radar narrative generation        gpt-4o-mini → radar_narratives per competitor (:45 hourly)
   5. Sector intelligence               gpt-4o     → sector_intelligence per org (Mon 07:00 UTC)
@@ -103,7 +109,7 @@ Confidence model (v4.0):
 
 Confidence gates:
 - < 0.35    suppressed — no signal created
-- 0.35–0.64 pending_review — held until pressure_index >= 5.0 promotes it
+- 0.35–0.64 pending_review — held until pressure_index >= 5.0 OR bootstrap (zero active signals + conf >= 0.50) OR time-decay (age >= 7d + conf >= 0.45, limit 5/run)
 - >= 0.65   pending — sent to OpenAI
 
 Noise gates (detect-signals, before signal creation):
@@ -134,6 +140,8 @@ Health endpoint fields (ok vs healthy):
 - ok      = endpoint responded and executed without throwing
 - healthy = system within SLA (fetch fresh + no stuck signals + pipelineBacklogWarnings empty)
 - noiseDiffRatioLast24h = diff-layer noise rate (NOT signal-stage suppression rate)
+- poolEventsPending / oldestPoolEventWaitingMinutes = pool pipeline backlog visibility
+- stalePageFetchCount = active pages not fetched within 24h
 
 Pressure index (update-pressure-index, v4.1):
   pressure = Σ(severity_weight × confidence × exp(-age_days × 0.2)) + Σ(ambient_event_weight)

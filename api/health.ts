@@ -4,7 +4,7 @@ import { Sentry } from "../lib/sentry";
 import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
 
-const STUCK_SIGNAL_MINUTES  = 240; // 4h — aligns with interpret-signals STALE_MINUTES (1440m); Vercel functions can't run >4h so anything stuck this long is genuinely broken
+const STUCK_SIGNAL_MINUTES  = 240; // 4h — aligns with interpret-signals STALE_MINUTES (240m); Vercel functions can't run >4h so anything stuck this long is genuinely broken
 const RECENT_SIGNAL_DAYS    = 7;
 const FETCH_STALE_HOURS     = 12;
 
@@ -24,6 +24,9 @@ const BACKLOG_SIGNAL_WARN_MINUTES   = 240; // 4h — interpret-signals runs ever
 // Suppression ratio threshold: if >90% of confirmed diffs in the last 24h are
 // noise, something in the extraction / normalization chain may have drifted.
 const SUPPRESSION_RATIO_WARN = 0.90;
+const POOL_EVENTS_BACKLOG_WARN = 100;  // pending pool_events above this = warn
+const STALE_PAGE_FETCH_HOURS   = 24;   // active pages not fetched in this window
+const STALE_PAGE_WARN_COUNT    = 5;    // warn when this many active pages are stale
 const WINDOW_24H = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
 export default async function handler(req: ApiReq, res: ApiRes) {
@@ -58,6 +61,11 @@ export default async function handler(req: ApiReq, res: ApiRes) {
       fetchBacklogHighValueResult,
       fetchBacklogStandardResult,
       fetchBacklogAmbientResult,
+      // Pool pipeline
+      poolEventsPendingResult,
+      oldestPoolEventResult,
+      // Stale page fetch
+      stalePageFetchResult,
     ] = await Promise.all([
       supabase
         .from("snapshots")
@@ -165,6 +173,28 @@ export default async function handler(req: ApiReq, res: ApiRes) {
         .eq("sections_extracted", false)
         .eq("fetch_quality", "full")
         .eq("monitored_pages.page_class", "ambient"),
+
+      // Pool pipeline: pending pool_events count
+      supabase
+        .from("pool_events")
+        .select("*", { count: "exact", head: true })
+        .eq("normalization_status", "pending"),
+
+      // Pool pipeline: oldest pending pool_event
+      supabase
+        .from("pool_events")
+        .select("created_at")
+        .eq("normalization_status", "pending")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle(),
+
+      // Stale page fetch: active pages not fetched within STALE_PAGE_FETCH_HOURS
+      supabase
+        .from("monitored_pages")
+        .select("*", { count: "exact", head: true })
+        .eq("active", true)
+        .lt("last_fetched_at", new Date(Date.now() - STALE_PAGE_FETCH_HOURS * 60 * 60 * 1000).toISOString()),
     ]);
 
     const coreResults = [
@@ -215,6 +245,15 @@ export default async function handler(req: ApiReq, res: ApiRes) {
     // diff-level noise rate, not the signal-stage suppression rate from detect-signals.
     const noiseDiffRatioLast24h = totalDiffs24h > 0
       ? parseFloat((noiseDiffs24h / totalDiffs24h).toFixed(3)) : 0;
+
+    // ── Pool pipeline health ────────────────────────────────────────────────────
+    const poolEventsPending = poolEventsPendingResult.count ?? 0;
+    const oldestPoolEventAt = oldestPoolEventResult.data?.created_at ?? null;
+    const oldestPoolEventWaitingMinutes = oldestPoolEventAt
+      ? Math.round((now - new Date(oldestPoolEventAt).getTime()) / 60_000) : 0;
+
+    // ── Stale page fetch ─────────────────────────────────────────────────────
+    const stalePageFetchCount = stalePageFetchResult.count ?? 0;
 
     // ── Backlog SLA checks → Sentry warnings ──────────────────────────────────
     const pipelineBacklogWarnings: string[] = [];
@@ -294,6 +333,31 @@ export default async function handler(req: ApiReq, res: ApiRes) {
       });
     }
 
+    if (poolEventsPending > POOL_EVENTS_BACKLOG_WARN) {
+      pipelineBacklogWarnings.push("pool_events_backlog");
+      Sentry.captureMessage("pipeline_backlog_warning", {
+        level: "warning",
+        extra: {
+          stage:              "pool_events_promote",
+          pending_count:       poolEventsPending,
+          oldest_age_minutes:  oldestPoolEventWaitingMinutes,
+          threshold:           POOL_EVENTS_BACKLOG_WARN,
+        },
+      });
+    }
+
+    if (stalePageFetchCount >= STALE_PAGE_WARN_COUNT) {
+      pipelineBacklogWarnings.push("stale_page_fetches");
+      Sentry.captureMessage("pipeline_backlog_warning", {
+        level: "warning",
+        extra: {
+          stage:          "stale_page_fetch",
+          stale_count:     stalePageFetchCount,
+          threshold_hours: STALE_PAGE_FETCH_HOURS,
+        },
+      });
+    }
+
     if (totalDiffs24h >= 10 && noiseDiffRatioLast24h >= SUPPRESSION_RATIO_WARN) {
       pipelineBacklogWarnings.push("high_suppression_ratio");
       Sentry.captureMessage("suppression_ratio_warning", {
@@ -337,6 +401,11 @@ export default async function handler(req: ApiReq, res: ApiRes) {
         standard:   fetchBacklogStandard,
         ambient:    fetchBacklogAmbient,
       },
+      // Pool pipeline
+      poolEventsPending,
+      oldestPoolEventWaitingMinutes,
+      // Stale page fetch
+      stalePageFetchCount,
       // SLA warnings
       pipelineBacklogWarnings,
     });

@@ -164,8 +164,32 @@ async function handler(req: ApiReq, res: ApiRes) {
     }
   })();
 
+  // ── Tier 8: Delete old failed signals ──────────────────────────────────────
+  // Signals stuck in 'failed' status have exhausted retries and will never be
+  // interpreted.  Clean them up after FAILED_SIGNALS days so they don't inflate
+  // health.failedSignals counts indefinitely.
+  const t8 = await (async (): Promise<TierResult> => {
+    try {
+      const cutoff = new Date(
+        Date.now() - RETENTION_DAYS.FAILED_SIGNALS * 24 * 60 * 60 * 1000
+      ).toISOString();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error, count } = await (supabase as any)
+        .from("signals")
+        .delete({ count: "exact" })
+        .eq("status", "failed")
+        .lt("updated_at", cutoff);
+      if (error) throw error;
+      return { affected: count ?? 0, error: null };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      Sentry.captureException(err, { tags: { retention_tier: "failed_signals" } });
+      return { affected: 0, error: msg };
+    }
+  })();
+
   const runtimeDurationMs = Date.now() - startedAt;
-  const anyError = t1.error ?? t2.error ?? t3.error ?? t4.error ?? t5.error ?? t6.error ?? t7.error ?? null;
+  const anyError = t1.error ?? t2.error ?? t3.error ?? t4.error ?? t5.error ?? t6.error ?? t7.error ?? t8.error ?? null;
   const overallStatus = anyError ? "partial" : "ok";
 
   // ── Record retention event to pipeline_events ─────────────────────────────
@@ -181,6 +205,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       media_observations_deleted:    t5.affected,
       stale_pending_review_deleted:  t6.affected,
       pool_events_deleted:           t7.affected,
+      failed_signals_deleted:        t8.affected,
       tier_errors: {
         raw_html:            t1.error,
         sections:            t2.error,
@@ -189,6 +214,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         media_observations:  t5.error,
         stale_pending_review: t6.error,
         pool_events:         t7.error,
+        failed_signals:      t8.error,
       },
     },
   });
@@ -202,6 +228,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     media_observations_deleted:    t5.affected,
     stale_pending_review_deleted:  t6.affected,
     pool_events_deleted:           t7.affected,
+    failed_signals_deleted:        t8.affected,
     tier1_error:                   t1.error,
     tier2_error:                   t2.error,
     tier3_error:                   t3.error,
@@ -209,6 +236,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     tier5_error:                   t5.error,
     tier6_error:                   t6.error,
     tier7_error:                   t7.error,
+    tier8_error:                   t8.error,
     runtimeDurationMs,
   });
 
@@ -231,6 +259,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       media_observations:  t5,
       stale_pending_review: t6,
       pool_events:         t7,
+      failed_signals:      t8,
     },
     retention_days: RETENTION_DAYS,
     runtimeDurationMs,

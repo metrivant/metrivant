@@ -434,12 +434,26 @@ async function handler(req: ApiReq, res: ApiRes) {
         ).toFixed(3)
       );
 
+      // Computed pipeline_status — tells the UI whether this competitor's data is fresh.
+      // "active"  = interpreted signals exist in the last 7d
+      // "pending" = signals queued but none interpreted yet
+      // "stale"   = has monitored pages but no signals in 7d
+      // "silent"  = no monitored pages or all pages are blocked/challenge
+      const pageIds = competitorPageIds.get(c.id) ?? [];
+      const pendingCount = pendingCountMap.get(c.id) ?? 0;
+      const pipelineStatus: "active" | "pending" | "stale" | "silent" =
+        signals7d > 0      ? "active" :
+        pendingCount > 0   ? "pending" :
+        pageIds.length > 0 ? "stale" :
+        "silent";
+
       return {
         competitor_id:                 c.id,
         competitor_name:               c.name,
         website_url:                   c.website_url ?? null,
+        pipeline_status:               pipelineStatus,
         signals_7d:                    signals7d,
-        signals_pending:               pendingCountMap.get(c.id) ?? 0,
+        signals_pending:               pendingCount,
         weighted_velocity_7d:          weightedVelocity7d,
         last_signal_at:                lastSignalAt,
         pressure_index:                pressureIndex,
