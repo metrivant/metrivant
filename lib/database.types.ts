@@ -1,10 +1,11 @@
-// Supabase database types derived from migrations 000–056.
+// Supabase database types derived from migrations 000–057.
 // Re-generate via `supabase gen types typescript` once SUPABASE_ACCESS_TOKEN is available.
 //
 // Schema constraints (enforced in DB, reflected here for reference):
 //   signals.dedup_hash           — UNIQUE partial index WHERE dedup_hash IS NOT NULL (011)
 //   signals.signal_hash          — UNIQUE partial index WHERE signal_hash IS NOT NULL (008)
 //   signals.section_diff_id      — nullable (056): pool signals have no diff
+//   signals.monitored_page_id    — nullable (057): pool signals have no monitored page
 //   signals.source_type          — CHECK IN ('page_diff','feed_event') (038)
 //   section_baselines            — UNIQUE(monitored_page_id, section_type) (011)
 //   strategic_movements          — UNIQUE(competitor_id, movement_type) (002)
@@ -12,6 +13,8 @@
 //   pool_events                  — UNIQUE(competitor_id, content_hash) (038)
 //   competitor_feeds             — UNIQUE(competitor_id, pool_type) (038)
 //   competitors.domain           — UNIQUE NOT NULL (018)
+//   procurement_sources          — UNIQUE(feed_url) (042)
+//   regulatory_sources           — UNIQUE(feed_url) (043)
 
 export type Json =
   | string
@@ -484,7 +487,7 @@ export type Database = {
           id: string;
           competitor_id: string | null;
           section_diff_id: string | null;
-          monitored_page_id: string;
+          monitored_page_id: string | null;
           signal_type: string;
           signal_data: Json | null;
           severity: string;
@@ -1379,6 +1382,99 @@ export type Database = {
           signal_count?: number;
           applied_count?: number;
           section_stats?: Json;
+        };
+        Relationships: [];
+      };
+      procurement_sources: {
+        Row: {
+          id: string;
+          created_at: string;
+          source_name: string;
+          feed_url: string;
+          source_type: string;
+          sectors: string[] | null;
+          active: boolean;
+          discovery_status: string;
+          consecutive_failures: number;
+          last_error: string | null;
+          last_fetched_at: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          source_name: string;
+          feed_url: string;
+          source_type?: string;
+          sectors?: string[] | null;
+          active?: boolean;
+          discovery_status?: string;
+          consecutive_failures?: number;
+          last_error?: string | null;
+          last_fetched_at?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          source_name?: string;
+          feed_url?: string;
+          source_type?: string;
+          sectors?: string[] | null;
+          active?: boolean;
+          discovery_status?: string;
+          consecutive_failures?: number;
+          last_error?: string | null;
+          last_fetched_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      regulatory_sources: {
+        Row: {
+          id: string;
+          created_at: string;
+          source_name: string;
+          feed_url: string;
+          source_type: string;
+          regulator: string | null;
+          sectors: string[] | null;
+          active: boolean;
+          discovery_status: string;
+          consecutive_failures: number;
+          last_error: string | null;
+          last_fetched_at: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          source_name: string;
+          feed_url: string;
+          source_type?: string;
+          regulator?: string | null;
+          sectors?: string[] | null;
+          active?: boolean;
+          discovery_status?: string;
+          consecutive_failures?: number;
+          last_error?: string | null;
+          last_fetched_at?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          source_name?: string;
+          feed_url?: string;
+          source_type?: string;
+          regulator?: string | null;
+          sectors?: string[] | null;
+          active?: boolean;
+          discovery_status?: string;
+          consecutive_failures?: number;
+          last_error?: string | null;
+          last_fetched_at?: string | null;
+          updated_at?: string;
         };
         Relationships: [];
       };
