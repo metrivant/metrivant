@@ -2587,10 +2587,9 @@ export default function Radar({
                         const tPosA = orbitPositions.get(a.competitor_id);
                         const tPosB = orbitPositions.get(b.competitor_id);
                         if (!tPosA || !tPosB) continue;
-                        const _tPosA = tPosA, _tPosB = tPosB;
                         threads.push(
                           <line key={tKey}
-                            x1={_tPosA.x} y1={_tPosA.y} x2={_tPosB.x} y2={_tPosB.y}
+                            x1={(tPosA as {x:number;y:number}).x} y1={(tPosA as {x:number;y:number}).y} x2={(tPosB as {x:number;y:number}).x} y2={(tPosB as {x:number;y:number}).y}
                             stroke="#ffffff" strokeWidth="0.8" strokeOpacity="0.28"
                             style={{ pointerEvents: "none" }}
                           />,
