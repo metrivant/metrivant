@@ -311,6 +311,7 @@ Default bias: **return less, not more**. Output only what changes understanding 
 - "implement all identified improvements now" or "implement all X now" = execute everything that is safe (low blast radius, no new deps, no schema changes) without requesting per-item approval. Name any skipped items + reason at the end. (2026-03-18)
 - Alert dedup pattern without a signal_id: when a row needs state-tracked one-time alerting but has no natural unique key to use in the `alerts` table, use a sentinel column on the source row itself (`_alerted_at TIMESTAMPTZ NULL`). `check-signals` queries `WHERE _alerted_at IS NULL`, sends email, then `UPDATE SET _alerted_at = now()`. No separate join table needed. Pattern used in `competitor_contexts.hypothesis_shift_alerted_at`. (2026-03-18)
 - When given a multi-part prompt (e.g. layout fix + grid visibility), execute ALL parts in one pass. Do not implement part 1, report, then ask to continue. Surface is already approved — complete the full scope. (2026-03-18)
+- Crash resilience: after completing each discrete task in a session, update MEMORY.md and relevant memory files with any new operational knowledge (design decisions, confirmed behaviours, new patterns). Do not wait until endsession.md — a crash before that point loses the session's learnings. (2026-03-19)
 
 ---
 
