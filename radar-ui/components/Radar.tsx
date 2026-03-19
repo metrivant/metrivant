@@ -2987,7 +2987,7 @@ export default function Radar({
               </g>
 
               {/* ── HUD: in-circle tactical layer (brackets, scan lines, callout lines, convergence) */}
-              {orbitHudActive && sorted.length > 0 && (() => {
+              {orbitMode && sorted.length > 0 && (() => {
                 const hudPos = orbitMode ? animatedOrbitPositions : standardPositions;
 
                 // Sector density — use the memoized computation (avoids per-orbitTick recompute)
@@ -3367,7 +3367,7 @@ export default function Radar({
                   HUD QUADRANT PANELS — inside main SVG, zooms with radar.
                   4 corner quadrants outside radarClip. No overlay SVG needed.
                   ══════════════════════════════════════════════════════════════ */}
-              {orbitHudActive && sorted.length > 0 && (() => {
+              {orbitMode && sorted.length > 0 && (() => {
                 const PW = 188;
                 const PH1 = 225;
                 const PH2 = 196;
