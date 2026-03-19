@@ -18,6 +18,7 @@ import { recordEvent, generateRunId } from "../lib/pipeline-metrics";
  *   DIFFS              180d — delete, skip rows still referenced by signals
  *   PIPELINE_EVENTS     90d — delete unconditionally (pure telemetry)
  *   MEDIA_OBSERVATIONS  30d — delete unconditionally (ephemeral media staging; no FK references)
+ *   POOL_EVENTS        180d — delete processed rows (promoted/suppressed/duplicate); pending rows always preserved
  *
  * Never deletes: signals, interpretations, signal_feedback, section_baselines, sector_narratives
  *
@@ -138,8 +139,33 @@ async function handler(req: ApiReq, res: ApiRes) {
     }
   })();
 
+  // ── Tier 7: Delete old processed pool_events ─────────────────────────────
+  // pool_events is append-only during ingestion; promote handlers move rows
+  // through pending → promoted/suppressed/duplicate.  Rows still in 'pending'
+  // state are the active promote queue — NEVER deleted regardless of age.
+  // No other table has an FK pointing to pool_events, so no cascade risk.
+  const t7 = await (async (): Promise<TierResult> => {
+    try {
+      const cutoff = new Date(
+        Date.now() - RETENTION_DAYS.POOL_EVENTS * 24 * 60 * 60 * 1000
+      ).toISOString();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error, count } = await (supabase as any)
+        .from("pool_events")
+        .delete({ count: "exact" })
+        .lt("created_at", cutoff)
+        .neq("normalization_status", "pending");
+      if (error) throw error;
+      return { affected: count ?? 0, error: null };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      Sentry.captureException(err, { tags: { retention_tier: "pool_events" } });
+      return { affected: 0, error: msg };
+    }
+  })();
+
   const runtimeDurationMs = Date.now() - startedAt;
-  const anyError = t1.error ?? t2.error ?? t3.error ?? t4.error ?? t5.error ?? t6.error ?? null;
+  const anyError = t1.error ?? t2.error ?? t3.error ?? t4.error ?? t5.error ?? t6.error ?? t7.error ?? null;
   const overallStatus = anyError ? "partial" : "ok";
 
   // ── Record retention event to pipeline_events ─────────────────────────────
@@ -154,6 +180,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       events_deleted:                t4.affected,
       media_observations_deleted:    t5.affected,
       stale_pending_review_deleted:  t6.affected,
+      pool_events_deleted:           t7.affected,
       tier_errors: {
         raw_html:            t1.error,
         sections:            t2.error,
@@ -161,6 +188,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         events:              t4.error,
         media_observations:  t5.error,
         stale_pending_review: t6.error,
+        pool_events:         t7.error,
       },
     },
   });
@@ -173,12 +201,14 @@ async function handler(req: ApiReq, res: ApiRes) {
     events_deleted:                t4.affected,
     media_observations_deleted:    t5.affected,
     stale_pending_review_deleted:  t6.affected,
+    pool_events_deleted:           t7.affected,
     tier1_error:                   t1.error,
     tier2_error:                   t2.error,
     tier3_error:                   t3.error,
     tier4_error:                   t4.error,
     tier5_error:                   t5.error,
     tier6_error:                   t6.error,
+    tier7_error:                   t7.error,
     runtimeDurationMs,
   });
 
@@ -200,6 +230,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       events:              t4,
       media_observations:  t5,
       stale_pending_review: t6,
+      pool_events:         t7,
     },
     retention_days: RETENTION_DAYS,
     runtimeDurationMs,

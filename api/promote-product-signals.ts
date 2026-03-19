@@ -58,8 +58,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   try {
     // ── Load pending product pool events ──────────────────────────────────────
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: pendingRows, error: pendingError } = await (supabase as any)
+    const { data: pendingRows, error: pendingError } = await supabase
       .from("pool_events")
       .select("id, competitor_id, source_type, source_url, event_type, title, summary, event_url, published_at, content_hash, version_tag")
       .eq("event_type", "product_release")
@@ -184,8 +183,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         if (event.published_at) {
           const ageMs = Date.now() - new Date(event.published_at).getTime();
           if (ageMs > 90 * 24 * 60 * 60 * 1000) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (supabase as any)
+            await supabase
               .from("pool_events")
               .update({ normalization_status: "suppressed", suppression_reason: "too_old" })
               .eq("id", event.id);
@@ -195,8 +193,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         }
 
         if (!event.title || event.title.length < 3) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any)
+          await supabase
             .from("pool_events")
             .update({ normalization_status: "suppressed", suppression_reason: "title_too_short" })
             .eq("id", event.id);
@@ -206,8 +203,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
         // ── Standard signal hash dedup ─────────────────────────────────────────
         if (existingHashes.has(meta.signalHash)) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any)
+          await supabase
             .from("pool_events")
             .update({ normalization_status: "duplicate" })
             .eq("id", event.id);
@@ -224,8 +220,7 @@ async function handler(req: ApiReq, res: ApiRes) {
           const windowStart48  = new Date(publishedMs - CROSS_POOL_DEDUP_WINDOW_MS).toISOString();
           const windowEnd48    = new Date(publishedMs + CROSS_POOL_DEDUP_WINDOW_MS).toISOString();
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { data: newsroomDups } = await (supabase as any)
+          const { data: newsroomDups } = await supabase
             .from("pool_events")
             .select("id, promoted_signal_id, normalization_status")
             .eq("competitor_id", event.competitor_id)
@@ -247,8 +242,7 @@ async function handler(req: ApiReq, res: ApiRes) {
               newsroomSuppressed += 1;
             }
             if (dup.normalization_status === "pending" || dup.normalization_status === "promoted") {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              await (supabase as any)
+              await supabase
                 .from("pool_events")
                 .update({
                   normalization_status: "suppressed",
@@ -298,8 +292,7 @@ async function handler(req: ApiReq, res: ApiRes) {
           .slice(0, 500);
 
         // ── Create signal ──────────────────────────────────────────────────────
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: newSignal, error: signalError } = await (supabase as any)
+        const { data: newSignal, error: signalError } = await supabase
           .from("signals")
           .insert({
             competitor_id:     event.competitor_id,
@@ -329,8 +322,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         if (signalError) {
           if (signalError.code === "23505") {
             // Race on signal_hash unique constraint
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (supabase as any)
+            await supabase
               .from("pool_events")
               .update({ normalization_status: "duplicate" })
               .eq("id", event.id);
@@ -343,8 +335,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         const promotedSignalId = (newSignal as { id: string } | null)?.id ?? null;
 
         // ── Store product_event_type on pool_events + mark promoted ───────────
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any)
+        await supabase
           .from("pool_events")
           .update({
             normalization_status: "promoted",

@@ -118,8 +118,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     // Scoped to newsroom event types — careers/investor/product events are handled
     // by their own promote-* handlers. Without this filter, those events would be
     // mis-classified as newsroom signals.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: pendingRows, error: pendingError } = await (supabase as any)
+    const { data: pendingRows, error: pendingError } = await supabase
       .from("pool_events")
       .select("id, competitor_id, source_type, source_url, event_type, title, summary, event_url, published_at, content_hash")
       .eq("normalization_status", "pending")
@@ -203,8 +202,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         const classification = classifyEvent(event);
 
         if (classification.status === "suppressed") {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any)
+          await supabase
             .from("pool_events")
             .update({
               normalization_status: "suppressed",
@@ -217,8 +215,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         }
 
         if (classification.status === "low_relevance") {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any)
+          await supabase
             .from("pool_events")
             .update({
               normalization_status: "suppressed",
@@ -232,8 +229,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
         // ── Duplicate signal check ─────────────────────────────────────────────
         if (existingHashes.has(signalHash)) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any)
+          await supabase
             .from("pool_events")
             .update({ normalization_status: "duplicate" })
             .eq("id", event.id);
@@ -284,8 +280,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         // ── Create signal ──────────────────────────────────────────────────────
         // confidence 0.80 ≥ CONFIDENCE_INTERPRET (0.65) → status='pending'
         // confidence 0.80 ≥ model threshold (0.75) → gpt-4o used in interpret-signals
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: newSignal, error: signalError } = await (supabase as any)
+        const { data: newSignal, error: signalError } = await supabase
           .from("signals")
           .insert({
             competitor_id:     event.competitor_id,
@@ -312,8 +307,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         if (signalError) {
           // Conflict on signal_hash means a race created it — treat as duplicate.
           if (signalError.code === "23505") {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (supabase as any)
+            await supabase
               .from("pool_events")
               .update({ normalization_status: "duplicate" })
               .eq("id", event.id);
@@ -326,8 +320,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         const promotedSignalId = (newSignal as { id: string } | null)?.id ?? null;
 
         // ── Mark pool_event as promoted ────────────────────────────────────────
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any)
+        await supabase
           .from("pool_events")
           .update({
             normalization_status: "promoted",

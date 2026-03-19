@@ -6,6 +6,7 @@ import { verifyCronSecret } from "../lib/withCronAuth";
 import { parseAtsResponse } from "../lib/ats-parser";
 import { normalizeDepartment } from "../lib/department-normalizer";
 import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
+import type { Database } from "../lib/database.types";
 import type { AtsType } from "../lib/ats-parser";
 
 // Maximum pool_events to look back when checking for duplicates per competitor.
@@ -61,8 +62,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   try {
     // ── Load active careers feed configurations ───────────────────────────────
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: feedRows, error: feedsError } = await (supabase as any)
+    const { data: feedRows, error: feedsError } = await supabase
       .from("competitor_feeds")
       .select("id, competitor_id, feed_url, source_type")
       .eq("pool_type", "careers")
@@ -89,8 +89,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         const postings = parseAtsResponse(atsType, json).slice(0, MAX_POSTINGS_PER_FEED);
 
         if (postings.length === 0) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any)
+          await supabase
             .from("competitor_feeds")
             .update({ last_fetched_at: new Date().toISOString() })
             .eq("id", feed.id);
@@ -106,8 +105,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         });
 
         // Load existing content_hashes + external_event_ids for this competitor
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: existingRows } = await (supabase as any)
+        const { data: existingRows } = await supabase
           .from("pool_events")
           .select("content_hash, external_event_id")
           .eq("competitor_id", feed.competitor_id)
@@ -125,7 +123,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         );
 
         // Build rows for new postings only
-        const newRows: Record<string, unknown>[] = [];
+        const newRows: Database["public"]["Tables"]["pool_events"]["Insert"][] = [];
         for (const posting of freshPostings) {
           if (existingHashes.has(posting.contentHash)) {
             eventsDuplicate += 1;
@@ -160,10 +158,9 @@ async function handler(req: ApiReq, res: ApiRes) {
 
         // Bulk upsert — DB unique index on (competitor_id, external_event_id) is the safety net
         if (newRows.length > 0) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { error: insertError } = await (supabase as any)
+          const { error: insertError } = await supabase
             .from("pool_events")
-            .upsert(newRows as any[], { onConflict: "competitor_id,content_hash", ignoreDuplicates: true });
+            .upsert(newRows, { onConflict: "competitor_id,content_hash", ignoreDuplicates: true });
 
           // Throw on insert failure — increments feedsFailed via outer catch and
           // updates consecutive_failures. Does not reset last_fetched_at.
@@ -173,8 +170,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         }
 
         // Update feed metadata on success
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any)
+        await supabase
           .from("competitor_feeds")
           .update({
             last_fetched_at:      new Date().toISOString(),
@@ -205,16 +201,14 @@ async function handler(req: ApiReq, res: ApiRes) {
 
         // Increment failure counter; mark feed_unavailable after 10 consecutive failures
         try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { data: currentFeed } = await (supabase as any)
+          const { data: currentFeed } = await supabase
             .from("competitor_feeds")
             .select("consecutive_failures")
             .eq("id", feed.id)
             .single();
 
           const failures = ((currentFeed as { consecutive_failures: number } | null)?.consecutive_failures ?? 0) + 1;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any)
+          await supabase
             .from("competitor_feeds")
             .update({
               consecutive_failures: failures,

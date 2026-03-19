@@ -40,6 +40,10 @@ Return only valid JSON. No prose, no markdown, no extra fields.`;
 interface SignalData {
   previous_excerpt?: string;
   current_excerpt?:  string;
+  pool_event_ids?:   string[];
+  pattern_type?:     string;
+  posting_count?:    number;
+  normalized_value?: string;
 }
 
 interface SignalDetail {
@@ -143,10 +147,53 @@ async function buildFeedbackContext(): Promise<string> {
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function buildUserPrompt(signal: SignalDetail): string {
+// ── Careers evidence enrichment ─────────────────────────────────────────────
+// Fetches job posting details for careers signals that store pool_event_ids
+// in signal_data.  Returns formatted evidence lines or empty string.
+// Best-effort — interpretation proceeds with the summary alone on failure.
+
+const MAX_CAREERS_EVIDENCE = 15;
+
+async function fetchCareersEvidence(poolEventIds: string[]): Promise<string> {
+  if (poolEventIds.length === 0) return "";
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: rows } = await (supabase as any)
+      .from("pool_events")
+      .select("title, department_normalized, location, employment_type")
+      .in("id", poolEventIds.slice(0, MAX_CAREERS_EVIDENCE))
+      .order("published_at", { ascending: false });
+
+    if (!rows || rows.length === 0) return "";
+
+    const lines: string[] = [];
+    for (const r of rows as Array<{
+      title: string;
+      department_normalized: string | null;
+      location: string | null;
+      employment_type: string | null;
+    }>) {
+      const parts = [r.title];
+      if (r.department_normalized) parts.push(r.department_normalized);
+      if (r.location)              parts.push(r.location);
+      if (r.employment_type)       parts.push(r.employment_type);
+      lines.push(`- ${parts.join(" | ")}`);
+    }
+
+    return [
+      ``,
+      `Supporting job postings (${poolEventIds.length}${poolEventIds.length > MAX_CAREERS_EVIDENCE ? `, showing ${MAX_CAREERS_EVIDENCE}` : ""}):`,
+      ...lines,
+    ].join("\n");
+  } catch {
+    return "";
+  }
+}
+
+function buildUserPrompt(signal: SignalDetail, careersEvidence: string = ""): string {
   const prev = signal.signal_data?.previous_excerpt ?? "(no previous content available)";
   const curr = signal.signal_data?.current_excerpt  ?? "(no current content available)";
-  return [
+  const lines = [
     `Competitor: ${signal.competitor_name}`,
     `Signal type: ${signal.signal_type}`,
     `Severity: ${signal.severity}`,
@@ -158,7 +205,11 @@ function buildUserPrompt(signal: SignalDetail): string {
     ``,
     `Current content (excerpt):`,
     curr,
-  ].join("\n");
+  ];
+
+  if (careersEvidence) lines.push(careersEvidence);
+
+  return lines.join("\n");
 }
 
 function hashPrompt(prompt: string): string {
@@ -461,8 +512,16 @@ async function handler(req: ApiReq, res: ApiRes) {
             }
 
             // ── Model routing ──────────────────────────────────────────────
-            const modelUsed  = selectModel(signal.page_class, signal.confidence_score);
-            const userPrompt = buildUserPrompt(signal);
+            const modelUsed = selectModel(signal.page_class, signal.confidence_score);
+
+            // ── Careers evidence enrichment (best-effort) ───────────────
+            let careersEvidence = "";
+            const poolEventIds = signal.signal_data?.pool_event_ids;
+            if (poolEventIds && poolEventIds.length > 0) {
+              careersEvidence = await fetchCareersEvidence(poolEventIds);
+            }
+
+            const userPrompt = buildUserPrompt(signal, careersEvidence);
             const promptHash = hashPrompt(userPrompt);
 
             // ── Competitor context (best-effort, non-blocking on failure) ──

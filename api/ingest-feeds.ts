@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
 import { parseFeed } from "../lib/feed-parser";
 import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
+import type { Database } from "../lib/database.types";
 
 // Maximum pool_events entries to look back when checking for duplicates.
 // Covers several months of activity without a full table scan.
@@ -83,8 +84,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   try {
     // ── Load active newsroom feed configurations ───────────────────────────────
     // Scoped to pool_type='newsroom' — investor feeds are handled by ingest-investor-feeds.ts.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: feedRows, error: feedsError } = await (supabase as any)
+    const { data: feedRows, error: feedsError } = await supabase
       .from("competitor_feeds")
       .select("id, competitor_id, feed_url, source_type")
       .eq("pool_type", "newsroom")
@@ -109,8 +109,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         const entries = parseFeed(xml).slice(0, MAX_ENTRIES_PER_FEED);
 
         if (entries.length === 0) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any)
+          await supabase
             .from("competitor_feeds")
             .update({ last_fetched_at: new Date().toISOString() })
             .eq("id", feed.id);
@@ -133,8 +132,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         //      Normalized titles are computed in memory from the stored raw title column.
         //      No migration required. If the normalization function changes, only in-run
         //      dedup is affected — existing rows are still found by content_hash.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: existingRows } = await (supabase as any)
+        const { data: existingRows } = await supabase
           .from("pool_events")
           .select("content_hash, event_url, title")
           .eq("competitor_id", feed.competitor_id)
@@ -158,7 +156,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         );
 
         // Build rows for new entries only.
-        const newRows: Record<string, unknown>[] = [];
+        const newRows: Database["public"]["Tables"]["pool_events"]["Insert"][] = [];
         for (const entry of freshEntries) {
           // Gate 1: content_hash (primary — anchored to raw feed GUID or title+date)
           if (existingHashes.has(entry.content_hash)) {
@@ -208,10 +206,9 @@ async function handler(req: ApiReq, res: ApiRes) {
 
         // Bulk insert, ignoring conflicts (secondary safety net against races).
         if (newRows.length > 0) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { error: insertError } = await (supabase as any)
+          const { error: insertError } = await supabase
             .from("pool_events")
-            .upsert(newRows as any[], { onConflict: "competitor_id,content_hash", ignoreDuplicates: true });
+            .upsert(newRows, { onConflict: "competitor_id,content_hash", ignoreDuplicates: true });
 
           // Throw on insert failure so the outer catch increments feedsFailed,
           // updates consecutive_failures, and does not mark last_fetched_at.
@@ -222,8 +219,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         }
 
         // Update feed metadata.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any)
+        await supabase
           .from("competitor_feeds")
           .update({
             last_fetched_at:     new Date().toISOString(),
@@ -253,16 +249,14 @@ async function handler(req: ApiReq, res: ApiRes) {
 
         // Increment failure counter; mark feed_unavailable after 10 consecutive failures.
         try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { data: currentFeed } = await (supabase as any)
+          const { data: currentFeed } = await supabase
             .from("competitor_feeds")
             .select("consecutive_failures")
             .eq("id", feed.id)
             .single();
 
           const failures = ((currentFeed as { consecutive_failures: number } | null)?.consecutive_failures ?? 0) + 1;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any)
+          await supabase
             .from("competitor_feeds")
             .update({
               consecutive_failures: failures,

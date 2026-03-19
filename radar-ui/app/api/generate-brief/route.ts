@@ -337,6 +337,7 @@ async function runGeneration(): Promise<NextResponse> {
           .from("radar_narratives")
           .select("competitor_id, narrative, signal_count, created_at")
           .in("competitor_id", competitorIds)
+          .gte("created_at", sevenDaysAgo)
           .order("created_at", { ascending: false })
           .limit(competitorIds.length * 2); // dedup in code
 

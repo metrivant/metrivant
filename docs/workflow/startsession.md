@@ -96,6 +96,23 @@ refactor:
 build / fix:
 - normal rules apply
 
+**COMPOUND MODES:**
+
+When a task spans multiple modes (e.g., "diagnose why X is broken and fix it"):
+→ execute phases sequentially: diagnose → report findings → fix
+→ do NOT pause between phases unless high-risk mismatch detected
+→ state mode transitions inline: "diagnose complete — switching to fix mode"
+→ if first phase reveals scope larger than expected: STOP and re-confirm
+
+**MODE ESCALATION:**
+
+| From → To       | Rule |
+|------------------|------|
+| diagnose → fix   | if root cause is obvious AND fix is ≤5 lines + low blast radius → propose fix inline with findings, no round-trip |
+| diagnose → build | STOP — requires explicit approval |
+| refactor → fix   | if refactoring reveals a bug, fix it immediately; note the discovery |
+| fix → refactor   | do NOT expand; fix the bug, report adjacent debt separately |
+
 ---
 
 ## 4. GUARD RAILS
@@ -190,6 +207,50 @@ Do NOT use this rule to:
 - refactor working code for style
 - introduce new patterns
 
+### Parallel Execution Maximisation (capacity rule)
+
+Default posture: maximise concurrent tool calls in every message.
+
+| Operation type | Parallel? |
+|---|---|
+| Independent file reads | YES — issue all Read calls in one message |
+| Independent REST/SQL queries | YES — issue all Bash calls in one message |
+| Independent edits to different files | YES — issue all Edit calls in one message |
+| Agent spawns for unrelated subtasks | YES — spawn all in one message |
+| Read then edit same file | NO — sequential (edit depends on read content) |
+| Chained queries (output of A feeds B) | NO — sequential |
+
+Agent delegation decision:
+- Task requires >3 independent searches across codebase → spawn Explore agent
+- Task requires edits to 2+ unrelated subsystems simultaneously → spawn parallel agents in worktrees
+- Task is a single-file targeted edit → direct, no agent overhead
+- Task requires full read of a 4000+ line file for analysis → spawn agent with focused instructions
+- Research question that may require many search rounds → spawn agent to protect main context
+
+Never serialise what can be parallelised. Every sequential round-trip costs a full user-wait cycle.
+
+### Context Window Discipline (capacity rule)
+
+- Do not re-read files already in the current context window. Reference from memory.
+- Prefer offset+limit reads for files >200 lines — read only the relevant section.
+- When spawning agents, include ALL necessary context in the prompt. Agents have zero conversation history.
+- For long sessions: key decisions and state survive compression automatically — do not re-derive what was already established.
+- When multiple files are likely needed (handler + shared lib + types), read all speculatively in one message rather than discovering dependencies sequentially.
+
+### Decision Speed (capability rule)
+
+Low blast radius decisions do not require deliberation:
+- File formatting, variable naming within a function, comment wording → just do it
+- Which of two equivalent approaches for a ≤5-line change → pick one, move on
+- Whether to read an adjacent file that might be relevant → read it speculatively
+
+High blast radius decisions require explicit evaluation:
+- Anything in the contract-change gate list
+- Anything crossing surface boundaries
+- Anything affecting pipeline determinism
+
+Default: act fast on safe choices, slow down on risky ones. Do not treat every decision as risky.
+
 ---
 
 ## 6. EXECUTION PROTOCOLS
@@ -205,6 +266,12 @@ Use this order for diagnose sessions. Stop at the level that answers the questio
 4. Code (offset+limit)      → only if SQL doesn't explain the cause
 5. git log                  → always check recent commits before concluding
 ```
+
+**Parallel diagnostic queries:** run steps 1 + 2 + 3 in one message when all are likely needed. Do not serialise — they answer different questions and are independent.
+
+**Fast exit:** stop the moment root cause is confirmed. Do not continue reading for completeness. If health reveals the answer, skip steps 2–5 entirely.
+
+**Inline fix proposal:** if root cause is identified and fix is ≤5 lines + low blast radius, propose fix inline with diagnostic findings. Eliminates a full round-trip for trivial fixes.
 
 Never read source files before checking health + pipeline_events first.
 Never use specific column names in REST queries before doing `limit=1&select=*` to learn the schema.
@@ -255,6 +322,13 @@ Batch ≤50 IDs per REST call to avoid Supabase 8-second statement timeout (erro
 - `vercel.json` crons use single-line compact JSON formatting — Edit tool string matching fails on multiline patterns. Use Python `json.load` + `json.dump` to modify vercel.json programmatically. (2026-03-18)
 - tsc incremental cache (`--incremental + tsBuildInfoFile`) does NOT meaningfully reduce check time on this CPU-constrained sandbox (still ~60s warm vs ~85s cold). Bottleneck is CPU not I/O. Async hook is the correct fix; incremental helps only on more capable machines. (2026-03-18)
 - After any Edit to `vercel.json`, immediately validate with `python3 -c "import json; json.load(open('vercel.json')); print('valid')"`. The file is compact single-line JSON — Edit tool brace-counting errors silently produce invalid JSON. Validation takes <1s and catches the class of bug before commit. (2026-03-18)
+- Maximise parallel tool calls: if reading 3 files, issue 3 Read calls in one message. If running 2 independent queries, issue 2 Bash calls. Never serialise independent operations — every sequential round-trip wastes a full response cycle. (2026-03-19)
+- Speculative parallel reads: when a task likely requires 2–3 related files (handler + lib + types), read all in one message rather than reading one, discovering the dependency, then reading the next. (2026-03-19)
+- Read-once discipline: never re-read a file already in the current context window. If you need a specific section, reference it from what was already read. Exception: file was edited since last read. (2026-03-19)
+- Batch edits: when making multiple independent edits to different files, issue all Edit calls in one message. Same-file edits must be sequential (each changes file state). (2026-03-19)
+- Pre-flight verification: before editing, confirm the target file exists and the target code region matches expectations with a quick Read. One speculative read prevents a failed edit + recovery cycle. (2026-03-19)
+- Failure self-recovery: if an Edit fails (string not found), immediately re-read the target region and retry with corrected context. Do not ask the user — diagnose and fix the tool failure autonomously. (2026-03-19)
+- Agent-based large edits: for multi-edit tasks on files >1000 lines (e.g., Radar.tsx), spawn a single agent with complete instructions. Agent reads once, makes all edits, runs tsc, reports. Saves 4–6 sequential turns. (2026-03-19)
 
 ### Token Efficiency Rules — Response Format
 
@@ -269,6 +343,8 @@ Default bias: **return less, not more**. Output only what changes understanding 
 | Debug | cause + fix only |
 | "Why?" follow-up | 1–2 sentences max |
 | Search / read | top 2–3 matches, not exhaustive list |
+| Multi-part task | progress marker per part: `✓ part1 · ✓ part2 · → part3` |
+| Error/failure | cause → fix → result (3 lines max) |
 
 **Format rules:**
 - Findings: `file:line → fact` — one line each, max 2–3 per file
@@ -290,6 +366,8 @@ Default bias: **return less, not more**. Output only what changes understanding 
 1. Is this minimal?
 2. Can it be shorter without losing correctness?
 3. If >20 lines → reduce to ≤10
+4. Am I re-stating something already in context? → delete it
+5. Am I explaining a decision obvious from the code? → delete it
 
 ### Prompt Execution Rules
 
@@ -313,6 +391,13 @@ Default bias: **return less, not more**. Output only what changes understanding 
 - Alert dedup pattern without a signal_id: when a row needs state-tracked one-time alerting but has no natural unique key to use in the `alerts` table, use a sentinel column on the source row itself (`_alerted_at TIMESTAMPTZ NULL`). `check-signals` queries `WHERE _alerted_at IS NULL`, sends email, then `UPDATE SET _alerted_at = now()`. No separate join table needed. Pattern used in `competitor_contexts.hypothesis_shift_alerted_at`. (2026-03-18)
 - When given a multi-part prompt (e.g. layout fix + grid visibility), execute ALL parts in one pass. Do not implement part 1, report, then ask to continue. Surface is already approved — complete the full scope. (2026-03-18)
 - Crash resilience: after completing each discrete task in a session, update MEMORY.md and relevant memory files with any new operational knowledge (design decisions, confirmed behaviours, new patterns). Do not wait until endsession.md — a crash before that point loses the session's learnings. (2026-03-19)
+- Compound task execution: when given a multi-part instruction, execute ALL parts in one pass without pausing between them. Do not ask "shall I continue?" after each part. Only pause if a part fails or reveals a high-risk mismatch. (2026-03-19)
+- Decision caching: once a decision is made in a session (e.g., "this is a frontend fix", "the bug is in X"), do not re-derive it. Reference the prior decision and proceed. Avoids circular re-analysis. (2026-03-19)
+- Failure recovery: if an edit fails, a query errors, or a build breaks — diagnose and fix autonomously before reporting to user. Only escalate if self-recovery fails after one attempt. (2026-03-19)
+- Pre-commit verification: after all edits in a task, run `tsc --noEmit` (runtime) or `cd radar-ui && npx tsc --noEmit` (frontend) before committing. Fix type errors in the same pass — do not commit known-broken code. (2026-03-19)
+- Scope discipline: when implementing, resist the urge to improve adjacent code. Fix what was asked. Report adjacent issues separately. Scope creep is the #1 capacity drain. (2026-03-19)
+- Git operation batching: when multiple files are changed, stage all relevant files and commit once. One commit per logical change, not one commit per file. (2026-03-19)
+- "checkpoint" = mid-session save point. Execute ALL of these without pausing: (1) commit all session changes (single commit, descriptive message), (2) `git push`, (3) update memory files with any new knowledge/state delta, (4) evaluate the next highest-leverage task from the current session and propose it as a ready-to-paste prompt. Use the endsession.md §next-step evaluation criteria (calendar-time multiplier, compound value, implementation clarity, risk). (2026-03-19)
 
 ---
 

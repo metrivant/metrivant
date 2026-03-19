@@ -21,8 +21,7 @@ export async function reconcilePoolSignals(): Promise<{
   const since = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
 
   // Fetch recent pool-sourced signals
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: signals, error } = await (supabase as any)
+  const { data: signals, error } = await supabase
     .from("signals")
     .select("id, competitor_id, signal_type, confidence_score, detected_at, source_type")
     .eq("source_type", "feed_event")
@@ -70,8 +69,7 @@ export async function reconcilePoolSignals(): Promise<{
       const newConfidence = Math.min(1.0, anchor.confidence_score + boost);
 
       if (newConfidence > anchor.confidence_score + 0.001) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any)
+        await supabase
           .from("signals")
           .update({ confidence_score: newConfidence })
           .eq("id", anchor.id);

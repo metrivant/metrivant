@@ -2,6 +2,8 @@
 
 Do not read, pause, or request approval between steps.
 Derive all answers from session context. No form-filling.
+Maximise parallelism: evaluate steps 1–3 from session context in parallel before writing anything.
+Total endsession overhead target: ≤4 tool calls for fast path.
 
 ---
 
@@ -15,11 +17,13 @@ Use when ALL of the following are true:
 
 **Execute in order:**
 
-**1. Deployment state** — one line:
+**1. Deployment state** — verify with `git status` + `git log --oneline -1`, then one line:
 ```
 committed: yes/no | pushed: yes/no | target: metrivant-ui | metrivant-runtime | both | none
 ```
-If committed=no or pushed=no → state: "Not live. Run git push."
+If committed=no → commit all session changes (single commit, descriptive message).
+If pushed=no → `git push` (async hook, completes <5s).
+If already done → state the deployed commit hash. No action needed.
 
 **2. New knowledge** — scan this session for any of:
 - failure mode not previously documented
@@ -35,8 +39,13 @@ Do NOT capture:
 - anything explained by `git log` alone
 
 If found → append under the correct section of `startsession.md`:
-  - §6 Diagnostic Efficiency — new ordered steps or shortcuts
-  - §6 Token Efficiency — patterns that reduced unnecessary reads/calls
+  - §3 Session Gate — new mode inference patterns or compound mode rules
+  - §5 Parallel Execution — new parallelism patterns or agent delegation rules
+  - §5 Context Window — new context management patterns
+  - §5 Decision Speed — refined risk classification for decision categories
+  - §6 Diagnostic Efficiency — new ordered steps, shortcuts, or triage patterns
+  - §6 Token Efficiency / Tool Use — patterns that reduced unnecessary reads/calls
+  - §6 Token Efficiency / Response Format — output compression patterns
   - §6 Prompt Execution — new rules for interpreting instructions
   - §7 Query Execution — new REST patterns or shell constraints
   - §8 Known Behaviour — tag as [B] permanent | [I] incident (patched)
@@ -46,15 +55,35 @@ Cull rule: if §8 has [I] entries older than 60 days describing patched bugs wit
 
 If none → state: "No new system knowledge."
 
-**3. Memory** — update `~/.claude/projects/-home-arcmatrix93/memory/` only if this session produced a **delta** in:
+**3. Memory** — update `~/.claude/projects/-home-arcmatrix93-metrivant/memory/` only if this session produced a **delta** in:
 - system architecture or component structure
-- pool activation state
+- pool activation state or feed configuration
 - active feature set (new feature shipped or disabled)
+- user preferences, workflow rules, or feedback that applies to future sessions
 - known remaining issues that persist to next session
+- project context (deadlines, blockers, decisions with ongoing impact)
 
+Memory type selection:
+- Architecture/feature/pool delta → `project` type memory
+- User correction or confirmed approach → `feedback` type memory
+- External system reference discovered → `reference` type memory
+- User role/preference learned → `user` type memory
+
+Check existing memories before writing — update stale entries rather than creating duplicates.
 Skip memory update if: only bug fixes, only docs changes, or only changes already captured in startsession.md §8.
 
-**4. Close block:**
+**4. Session continuity snapshot** — if this session touched multiple subsystems or left pending work:
+```
+STATE SNAPSHOT (for next session):
+  surface: [what was worked on]
+  deployed: [commit hash or "not pushed"]
+  pending: [list of incomplete items, if any]
+  blockers: [external blockers, if any]
+  key decisions: [non-obvious decisions that inform future work]
+```
+Save as a `project` type memory if any pending/blockers exist. Skip entirely if session was self-contained with no loose ends.
+
+**5. Close block:**
 ```
 SESSION CLOSED
 ──────────────
@@ -67,14 +96,14 @@ Pending:  [list or "none"]
 
 ## SLOW PATH — use when fast-path conditions fail
 
-Run only the failing checks:
+Run only the failing checks — skip those that trivially pass:
 
-**Dependencies:** name / package.json location / surface confirmed?
-**Schema:** migration written | SQL manual | not needed
-**Contract:** impacted surfaces stated + cross-surface impact reviewed?
-**Errors:** list each + action needed + who acts
+**Dependencies:** name / package.json location / surface confirmed? If cross-surface → flag explicitly.
+**Schema:** migration written | SQL block for manual apply | not needed. If SQL needed → include full SQL block in close output.
+**Contract:** impacted surfaces stated + cross-surface impact reviewed? List each changed contract: function signature, API shape, type, env var.
+**Errors:** list each + root cause + action needed + who acts (Claude Code next session | operator | external).
 
-Then continue with fast-path steps 2–4.
+Then continue with fast-path steps 2–5.
 
 ---
 
@@ -83,6 +112,10 @@ Then continue with fast-path steps 2–4.
 - Skip steps that trivially pass — don't output boilerplate "no" answers for every check.
 - The diff and memory speak for themselves. No trailing summaries.
 - "read endsession.md" = execute all steps now without waiting for user prompts between steps.
+- Maximise parallelism: evaluate steps 1–3 from session context in parallel before writing. Batch all file writes (startsession.md + memory files) into minimal tool calls.
+- Self-recovery: if a commit or push fails, diagnose and fix autonomously. Do not report failure and stop.
+- Alignment rule: every operational pattern captured in step 2 must be findable by a fresh session reading startsession.md. Knowledge captured only in memory is invisible to sessions that don't load that specific memory file — prefer startsession.md for universal rules.
+- Crash resilience: the startsession.md crash-resilience rule means critical knowledge should already be captured incrementally during the session. Endsession is the final sweep, not the only capture point.
 
 ---
 
@@ -92,6 +125,12 @@ Then continue with fast-path steps 2–4.
 
 Answer in one paragraph. Do not implement unless explicitly approved.
 
+Evaluation criteria (rank by):
+1. **Calendar-time multiplier** — how many human-days does this save?
+2. **Compound value** — does this produce more signal density / coverage / accuracy over time?
+3. **Implementation clarity** — is the path unambiguous with existing patterns?
+4. **Risk** — low blast radius strongly preferred; schema changes or new deps reduce ranking
+
 Then immediately output the following block, filled in with the answer above as a ready-to-paste Claude Code session-start prompt:
 
 ```
@@ -100,7 +139,8 @@ NEXT SESSION PROMPT:
 [Paste-ready Claude Code prompt targeting the identified objective.
 Format: specific task description → exact files to touch → acceptance criteria → constraints.
 Must be self-contained: no references to "previous session" or "what we discussed".
-Must follow CLAUDE.md workflow (understand → plan → implement → verify → report).]
+Must follow CLAUDE.md workflow (understand → plan → implement → verify → report).
+Must specify: surface (runtime|frontend|both), mode (build|fix|refactor), blast radius estimate.]
 ──────────────────────────────────────────────────────────────
 ```
 

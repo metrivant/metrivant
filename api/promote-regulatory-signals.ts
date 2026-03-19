@@ -74,8 +74,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   try {
     // ── Load pending regulatory pool events ───────────────────────────────────
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: pendingRows, error: pendingError } = await (supabase as any)
+    const { data: pendingRows, error: pendingError } = await supabase
       .from("pool_events")
       .select("id, competitor_id, source_type, source_url, event_type, title, summary, event_url, published_at, content_hash, filing_type, filing_id, regulatory_body, jurisdiction")
       .eq("event_type", "regulatory_filing")
@@ -182,8 +181,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         if (event.published_at) {
           const ageMs = Date.now() - new Date(event.published_at).getTime();
           if (ageMs > 365 * 24 * 60 * 60 * 1000) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (supabase as any)
+            await supabase
               .from("pool_events")
               .update({ normalization_status: "suppressed", suppression_reason: "too_old" })
               .eq("id", event.id);
@@ -193,8 +191,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         }
 
         if (!event.title || event.title.length < 5) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any)
+          await supabase
             .from("pool_events")
             .update({ normalization_status: "suppressed", suppression_reason: "title_too_short" })
             .eq("id", event.id);
@@ -204,8 +201,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
         // ── Signal hash dedup ──────────────────────────────────────────────────
         if (existingHashes.has(meta.signalHash)) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any)
+          await supabase
             .from("pool_events")
             .update({ normalization_status: "duplicate" })
             .eq("id", event.id);
@@ -227,8 +223,7 @@ async function handler(req: ApiReq, res: ApiRes) {
           const windowStart = new Date(baseTime - windowMs).toISOString();
           const windowEnd   = new Date(baseTime + windowMs).toISOString();
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { data: crossPoolDups } = await (supabase as any)
+          const { data: crossPoolDups } = await supabase
             .from("pool_events")
             .select("id, promoted_signal_id, normalization_status")
             .eq("competitor_id", event.competitor_id)
@@ -252,8 +247,7 @@ async function handler(req: ApiReq, res: ApiRes) {
               crossPoolSuppressed += 1;
             }
             if (dup.normalization_status === "pending" || dup.normalization_status === "promoted") {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              await (supabase as any)
+              await supabase
                 .from("pool_events")
                 .update({
                   normalization_status: "suppressed",
@@ -300,8 +294,7 @@ async function handler(req: ApiReq, res: ApiRes) {
           .slice(0, 500);
 
         // ── Create signal ──────────────────────────────────────────────────────
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: newSignal, error: signalError } = await (supabase as any)
+        const { data: newSignal, error: signalError } = await supabase
           .from("signals")
           .insert({
             competitor_id:     event.competitor_id,
@@ -334,8 +327,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         if (signalError) {
           if (signalError.code === "23505") {
             // Race condition — another run created this signal first.
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (supabase as any)
+            await supabase
               .from("pool_events")
               .update({ normalization_status: "duplicate" })
               .eq("id", event.id);
@@ -348,8 +340,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         const promotedSignalId = (newSignal as { id: string } | null)?.id ?? null;
 
         // ── Store regulatory_event_type + mark promoted ────────────────────────
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any)
+        await supabase
           .from("pool_events")
           .update({
             normalization_status:  "promoted",

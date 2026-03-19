@@ -327,8 +327,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     const effectiveWeights: Record<string, number> = { ...SECTION_WEIGHTS };
     {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: calibRow } = await (supabase as any)
+      const { data: calibRow } = await supabase
         .from("calibration_reports")
         .select("section_stats")
         .gte("computed_at", thirtyDaysAgo)
@@ -546,11 +545,9 @@ async function handler(req: ApiReq, res: ApiRes) {
           signal_hash:       signalHash,
         };
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { error: upsertError } = await supabase
           .from("signals")
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .upsert({ ...baseSignalPayload, competitor_id: competitorId } as any, {
+          .upsert({ ...baseSignalPayload, competitor_id: competitorId }, {
             onConflict: "section_diff_id,signal_type",
           });
 
