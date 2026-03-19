@@ -9,6 +9,8 @@ import { classifyWithLLM } from "../lib/url-classifier";
 import { validateUrl } from "../lib/url-validator";
 import { rejectPageUrl } from "../lib/url-guard";
 import { seedSmartRules } from "../lib/onboarding-selectors";
+import { discoverNewPages } from "../lib/page-discovery";
+import { recordEvent, generateRunId } from "../lib/pipeline-metrics";
 import type { Category } from "../lib/url-scorer";
 
 // ── Config ─────────────────────────────────────────────────────────────────────
@@ -17,6 +19,11 @@ const CONFIDENCE_THRESHOLD = 0.6;
 const MIN_SCORE            = 3;
 const CONCURRENCY          = 10; // competitors processed in parallel per chunk
 const ENTERPRISE_SECTORS   = new Set(["defense", "energy", "healthcare"]);
+
+// Maximum competitors checked in the beyond-catalog discovery pass per weekly run.
+// Each call costs ~5-10s (sitemap fetch + GPT). At CONCURRENCY=10 this is one
+// parallel batch, staying comfortably within the 90s maxDuration.
+const DISCOVERY_BATCH_SIZE = 15;
 
 const CATEGORY_TO_PAGE: Record<Category, { page_type: string; page_class: "high_value" | "standard" | "ambient" }> = {
   newsroom:                 { page_type: "newsroom",  page_class: "high_value" },
@@ -305,12 +312,100 @@ async function handler(req: ApiReq, res: ApiRes) {
       }
     }
 
+    // ── Beyond-catalog page discovery (second pass) ───────────────────────────
+    // Runs after gap-fill. Checks a random sample of fully-covered competitors
+    // for novel page types outside the 7-type catalog (solutions, integrations,
+    // developer, about). Capped at DISCOVERY_BATCH_SIZE to respect budget.
+
+    let totalDiscoveredPages = 0;
+
+    if (openaiKey && competitors.length > 0) {
+      const runId = generateRunId();
+
+      // Shuffle to ensure all competitors get checked over time (weekly cadence)
+      const shuffled = [...competitors].sort(() => Math.random() - 0.5);
+      const batch    = shuffled.slice(0, DISCOVERY_BATCH_SIZE);
+
+      const discoveryResults = await Promise.allSettled(
+        batch.map(async (c) => {
+          const discovered = await discoverNewPages(c.id, c.website_url, openaiKey);
+          let addedForComp = 0;
+
+          for (const page of discovered) {
+            const isValid = await validateUrl(page.url).then(r => r.ok).catch(() => false);
+            if (!isValid) continue;
+            if (rejectPageUrl(page.url, page.page_type).reject) continue;
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: inserted, error } = await (supabase as any)
+              .from("monitored_pages")
+              .upsert(
+                {
+                  competitor_id: c.id,
+                  url:           page.url,
+                  page_type:     page.page_type,
+                  page_class:    page.page_class,
+                  active:        true,
+                  health_state:  "healthy",
+                },
+                { onConflict: "url" }
+              )
+              .select("id, page_type, url")
+              .single();
+
+            if (error || !inserted) continue;
+
+            addedForComp++;
+
+            // Seed LLM extraction rules for the new page
+            const rules = await seedSmartRules(page.url, page.page_type, openaiKey).catch(() => []);
+            for (const rule of rules) {
+              await supabase
+                .from("extraction_rules")
+                .upsert(
+                  {
+                    monitored_page_id: (inserted as { id: string }).id,
+                    section_type:      rule.section_type,
+                    selector:          rule.selector,
+                    extract_method:    "css",
+                    active:            true,
+                  },
+                  { onConflict: "monitored_page_id,section_type" }
+                );
+            }
+
+            void recordEvent({
+              run_id:      runId,
+              stage:       "discovery",
+              status:      "success",
+              duration_ms: 0,
+              metadata: {
+                competitor_id: c.id,
+                url:           page.url,
+                page_type:     page.page_type,
+                confidence:    page.confidence,
+                rationale:     page.rationale,
+              },
+            });
+          }
+
+          return addedForComp;
+        })
+      );
+
+      for (const r of discoveryResults) {
+        if (r.status === "fulfilled") totalDiscoveredPages += r.value;
+        else Sentry.captureException(r.reason);
+      }
+    }
+
     const runtimeDurationMs = Date.now() - startedAt;
 
     Sentry.setContext("expand_coverage", {
-      competitors_checked: competitors.length,
-      new_pages_added:     totalNewPages,
-      llm_seeded_rules:    totalLlmSeededRules,
+      competitors_checked:   competitors.length,
+      new_pages_added:       totalNewPages,
+      discovered_pages_added: totalDiscoveredPages,
+      llm_seeded_rules:      totalLlmSeededRules,
       errors,
       runtimeDurationMs,
     });
@@ -319,11 +414,12 @@ async function handler(req: ApiReq, res: ApiRes) {
     await Sentry.flush(2000);
 
     return res.status(200).json({
-      ok:                  true,
-      job:                 "expand-coverage",
-      competitors_checked: competitors.length,
-      new_pages_added:     totalNewPages,
-      llm_seeded_rules:    totalLlmSeededRules,
+      ok:                     true,
+      job:                    "expand-coverage",
+      competitors_checked:    competitors.length,
+      new_pages_added:        totalNewPages,
+      discovered_pages_added: totalDiscoveredPages,
+      llm_seeded_rules:       totalLlmSeededRules,
       errors,
       runtimeDurationMs,
     });

@@ -488,7 +488,7 @@ async function handler(req: ApiReq, res: ApiRes) {
           stage:  "careers_promote",
           status: "failure",
           duration_ms: compElapsed(),
-          metadata: { competitor_id: competitorId, error: String(compError) },
+          metadata: { competitor_id: competitorId, error: compError instanceof Error ? compError.message : JSON.stringify(compError) },
         });
       }
     }

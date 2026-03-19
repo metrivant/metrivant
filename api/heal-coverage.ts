@@ -31,6 +31,7 @@ import { discoverCandidates } from "../lib/url-discovery";
 import { scoreAndRank } from "../lib/url-scorer";
 import { validateUrl } from "../lib/url-validator";
 import { rejectPageUrl } from "../lib/url-guard";
+import { recordEvent, generateRunId } from "../lib/pipeline-metrics";
 import type { Category } from "../lib/url-scorer";
 
 // ── Config ─────────────────────────────────────────────────────────────────────
@@ -248,6 +249,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   if (!verifyCronSecret(req, res)) return;
 
   const startedAt = Date.now();
+  const runId     = generateRunId();
   const checkInId = Sentry.captureCheckIn({ monitorSlug: "heal-coverage", status: "in_progress" });
 
   try {
@@ -382,6 +384,20 @@ async function handler(req: ApiReq, res: ApiRes) {
     if (repaired > 0) {
       Sentry.captureMessage(`heal_coverage: ${repaired} URLs repaired, ${selfHealed} self-healed`, "info");
     }
+
+    void recordEvent({
+      run_id:      runId,
+      stage:       "heal",
+      status:      errors > 0 ? "failure" : "success",
+      duration_ms: Date.now() - startedAt,
+      metadata: {
+        broken_found:  brokenPages.length,
+        repaired,
+        self_healed:   selfHealed,
+        unresolvable,
+        errors,
+      },
+    });
 
     Sentry.captureCheckIn({ monitorSlug: "heal-coverage", status: "ok", checkInId });
     await Sentry.flush(2000);

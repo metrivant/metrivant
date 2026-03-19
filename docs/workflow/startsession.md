@@ -531,6 +531,26 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
   Procurement/regulatory use `totalSources`/`sourcesIngested` instead of `feedsTotal`/`feedsIngested`.
   ingest-media-feeds does NOT follow this pattern (writes to sector_narratives directly, not pool_events). (2026-03-18)
 
+- [B] All pool ingest + promote crons (Pools 1–6) are ALREADY SCHEDULED in vercel.json as of
+  2026-03-19. CLAUDE.md reference to pools 2–6 as "dormant, activation-ready" is outdated.
+  Active cron slots: ingest-careers (:11), promote-careers-signals (:13), ingest-investor-feeds (:14),
+  promote-investor-signals (:16), ingest-product-feeds (:29), promote-product-signals (:31),
+  ingest-procurement-feeds (:32), promote-procurement-signals (:34), ingest-regulatory-feeds (:43),
+  promote-regulatory-signals (:46). Pool signal production depends on competitor_feeds configuration,
+  not on scheduling. Pools 3–6 produce zero events because no feed URLs are configured. (2026-03-19)
+
+- [I] `promote-careers-signals` fails with `error: "[object Object]"` in pipeline_events when a
+  signal insert hits a CHECK constraint violation. Root cause: migration 039 extended
+  signals.signal_type (adds hiring_spike, new_function, new_region, role_cluster) and
+  signals.source_type (adds 'pool_event') — if only partially applied, careers signal inserts
+  fail silently. Fix: apply migration 055 in Supabase SQL Editor. The `String(PostgrestError)`
+  serialisation bug was also fixed in promote-careers-signals.ts (line 491) →
+  `compError instanceof Error ? compError.message : JSON.stringify(compError)`. (2026-03-19)
+
+- [B] `heal-coverage` does NOT emit pipeline_events. It uses Sentry check-ins + captureMessage
+  only. After adding recordEvent (2026-03-19), stage name is "heal" — visible in pipeline_events
+  from next daily run (05:00 UTC). No pipeline_events for "heal" stage = expected until then.
+
 - Sentry cron monitors must be created manually in the Sentry UI — they are NOT auto-created from
   check-in calls alone. If a handler emits `captureCheckIn` but no monitor exists, the check-in is
   silently discarded. After any new cron handler is added, create the matching monitor in
