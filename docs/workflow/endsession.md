@@ -148,41 +148,48 @@ Must specify: surface (runtime|frontend|both), mode (build|fix|refactor), blast 
 
 ## CURRENT ANSWER (2026-03-19)
 
-The highest-leverage objective is **end-to-end automated page discovery + intelligent selector seeding for existing competitors**. The system currently monitors a fixed 7-page-type catalog per competitor (seeded at onboarding). After onboarding, no new pages are discovered even when competitors launch new products, open investor sections, add regulatory disclosure pages, or restructure their sites — so the pipeline progressively misses more and more surface area as competitors evolve. A page-discovery scan that: (1) crawls each competitor's sitemap + top-level link graph weekly, (2) classifies candidate pages with GPT-4o-mini against the existing page-type taxonomy, (3) upserts newly found high-value pages into `monitored_pages`, and (4) seeds extraction rules via the existing `lib/onboarding-selectors.ts` pattern — would compound indefinitely: every discovered page generates incremental signal density for every future pipeline cycle. A human engineer would need 1–2 weeks to design the link-graph crawler, classifier, dedup logic, and integration with the existing health/repair pipeline. Claude Code can implement it end-to-end in one focused session. This directly extends `api/expand-coverage.ts` (which already runs weekly but only for competitors with zero coverage on a given page type) into a full dynamic discovery layer.
+**COMPLETED** — page discovery layer built (`lib/page-discovery.ts` + second pass in `api/expand-coverage.ts`). 4 beyond-catalog types (solutions, integrations, developer, about), GPT-4o-mini classification, confidence >= 0.65 gate, seedSmartRules integration, pipeline_events recording. Batch size 15, weekly cadence.
+
+## CURRENT ANSWER (2026-03-19, updated)
+
+The highest-leverage objective is **retroactive feed discovery for all existing competitors**. Competitors onboarded before the pool system was built (pools 1–6) have zero `competitor_feeds` rows — meaning the entire pool pipeline produces nothing for them. The feed discovery libraries already exist and are proven in `api/onboard-competitor.ts`: `lib/feed-discovery.ts` (newsroom RSS), `lib/ats-discovery.ts` (careers ATS), `lib/investor-feed-discovery.ts` (EDGAR), `lib/product-feed-discovery.ts` (changelog/blog RSS), `lib/edgar-discovery.ts` (regulatory SEC). A one-time backfill endpoint that loops over all active competitors with missing feeds and runs these discovery functions would immediately multiply signal density across all 6 active pools — every discovered feed generates ongoing pool events on every hourly cron cycle, compounding indefinitely. A human engineer needs 3–5 days to safely extract, test, and deploy. Claude Code can do it in one session. Zero schema changes, zero new deps, runtime surface only.
 
 ```
 NEXT SESSION PROMPT:
 ──────────────────────────────────────────────────────────────
-Build a dynamic page discovery layer for existing competitors in Metrivant.
+Build a retroactive feed discovery endpoint for all existing competitors.
 
-Context: `api/expand-coverage.ts` (cron: Sundays 06:00 UTC) currently only adds pages
-for page types where a competitor has zero coverage. It does not discover NEW page types
-or novel URLs that fall outside the fixed 7-type catalog.
+Context: `api/onboard-competitor.ts` runs feed discovery (newsroom, careers/ATS,
+investor/EDGAR, product, procurement, regulatory) for newly onboarded competitors.
+Competitors onboarded before pools were built have zero competitor_feeds rows —
+the pool pipeline produces nothing for them.
 
-Objective: extend the system to continuously expand coverage as competitors evolve.
+Feed discovery libs already exist:
+- lib/feed-discovery.ts (discoverFeed — newsroom RSS)
+- lib/ats-discovery.ts (discoverAts — careers ATS endpoints)
+- lib/investor-feed-discovery.ts (discoverInvestorFeed — EDGAR investor)
+- lib/product-feed-discovery.ts (discoverProductFeed — changelog/blog RSS)
+- lib/edgar-discovery.ts (discoverEdgarFeed — regulatory SEC filings)
 
 Task:
-1. Read `api/expand-coverage.ts`, `lib/onboarding-selectors.ts`, `api/onboard-competitor.ts`
-   fully before planning.
-2. Add a `discoverNewPages(competitorId, websiteUrl, sector)` function in a new file
-   `lib/page-discovery.ts` that:
-   - Fetches the competitor sitemap (xml) + scrapes top-level nav links from homepage
-   - Deduplicates against existing monitored_pages for this competitor
-   - Calls GPT-4o-mini to classify each candidate URL as one of the existing page_type values
-     (or "irrelevant") with confidence score
-   - Returns candidates with confidence >= 0.65 and page_type not already monitored
-3. Wire this into `api/expand-coverage.ts` as a second pass (after the existing gap-fill pass):
-   - Run `discoverNewPages` per competitor
-   - Upsert new monitored_pages rows (page_class from page_type taxonomy)
-   - Seed extraction rules via `lib/onboarding-selectors.ts` seedSmartRules
-   - Emit pipeline_events for each new page added
+1. Read all 5 feed discovery libs + api/onboard-competitor.ts (steps 4–9) to understand
+   the upsert patterns and error handling.
+2. Create `api/backfill-feeds.ts` — cron-authenticated endpoint that:
+   - Fetches all active competitors
+   - For each: queries competitor_feeds to find which pool_types are missing
+   - Runs the matching discovery function for each missing pool_type
+   - Upserts results into competitor_feeds (same pattern as onboard-competitor)
+   - Emits pipeline_events per discovery attempt (stage: "feed_backfill")
+   - Processes in chunks (CONCURRENCY=5) to respect budget
+3. Add cron entry in vercel.json: weekly (same day as expand-coverage), after expand-coverage.
+   maxDuration: 90s.
 4. Surface ownership: runtime surface only (api/, lib/). No radar-ui changes.
-5. No new dependencies — use existing fetch + OpenAI SDK pattern.
-6. Acceptance: `npx tsc --noEmit` passes, vercel.json maxDuration for expand-coverage
-   remains 90s (add chunking if needed to stay within budget).
-7. Report: new pages added per run estimate, LLM call count, failure modes guarded.
+5. No new dependencies. No schema changes.
+6. Acceptance: `npx tsc --noEmit` passes. Response includes per-pool discovery stats.
+7. Report: estimated feeds discoverable, LLM call count (only ATS/product use heuristics,
+   no GPT), failure modes guarded.
 
-Constraints: no schema changes beyond what already exists. All new pages must pass
-`rejectPageUrl()` validation before upsert. Do not touch the existing gap-fill logic.
+Constraints: never overwrite existing active feeds. Skip competitors already fully covered.
+Procurement path-probing is lightweight (no LLM). EDGAR requires company name + domain.
 ──────────────────────────────────────────────────────────────
 ```
