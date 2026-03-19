@@ -2510,9 +2510,8 @@ export default function Radar({
                     );
                   })()}
 
-                  {/* ── GRAVITY FIELD: Cartesian measurement grid ── */}
-                  {/* Replaces decorative halos with a quiet coordinate substrate. */}
-                  {false && (
+                  {/* ── GRAVITY FIELD: Cartesian grid — black field, blue lines ── */}
+                  {orbitMode && (
                     <g style={{ pointerEvents: "none" }}>
                       {Array.from({ length: 13 }, (_, i) => {
                         const gx = CENTER - OUTER_RADIUS + (i / 12) * OUTER_RADIUS * 2;
@@ -2520,7 +2519,7 @@ export default function Radar({
                           <line key={`gv-${i}`}
                             x1={gx} y1={CENTER - OUTER_RADIUS}
                             x2={gx} y2={CENTER + OUTER_RADIUS}
-                            stroke="#ffffff" strokeWidth="0.30" strokeOpacity="0.016"
+                            stroke="#3b82f6" strokeWidth="0.55" strokeOpacity="0.28"
                           />
                         );
                       })}
@@ -2530,7 +2529,7 @@ export default function Radar({
                           <line key={`gh-${i}`}
                             x1={CENTER - OUTER_RADIUS} y1={gy}
                             x2={CENTER + OUTER_RADIUS} y2={gy}
-                            stroke="#ffffff" strokeWidth="0.30" strokeOpacity="0.016"
+                            stroke="#3b82f6" strokeWidth="0.55" strokeOpacity="0.28"
                           />
                         );
                       })}
@@ -2956,7 +2955,13 @@ export default function Radar({
                   isMobile={isMobile}
                   gravityPos={
                     orbitMode
-                      ? animatedOrbitPositions.get(competitor.competitor_id)
+                      ? (() => {
+                          const pos = animatedOrbitPositions.get(competitor.competitor_id);
+                          if (!pos) return undefined;
+                          const mass  = getNodeMass(competitor);
+                          const depth = Math.min(mass * 8, 70);
+                          return { x: pos.x, y: pos.y + depth };
+                        })()
                       : standardPositions.get(competitor.competitor_id)
                   }
                   orbitMode={orbitMode}
