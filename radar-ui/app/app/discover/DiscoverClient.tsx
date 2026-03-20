@@ -147,13 +147,18 @@ export default function DiscoverClient({
     void catalogValue;
   }
 
-  const catalogSector   = CATALOG_SECTORS.has(browseSector) ? browseSector : "saas";
+  const isCustomBrowse  = browseSector === "custom";
+  const catalogSector   = (!isCustomBrowse && CATALOG_SECTORS.has(browseSector)) ? browseSector : "saas";
   const sectorConfig    = getSectorConfig(catalogSector);
-  const sectorCategories = sectorConfig.catalogCategories as CatalogCategory[];
+  const sectorCategories: CatalogCategory[] = isCustomBrowse
+    ? (Object.keys(CATEGORY_LABELS) as CatalogCategory[])
+    : (sectorConfig.catalogCategories as CatalogCategory[]);
 
   const sectorCatalog = useMemo(
-    () => COMPETITOR_CATALOG.filter((e) => CATEGORY_SECTOR[e.category] === catalogSector),
-    [catalogSector]
+    () => isCustomBrowse
+      ? COMPETITOR_CATALOG
+      : COMPETITOR_CATALOG.filter((e) => CATEGORY_SECTOR[e.category] === catalogSector),
+    [isCustomBrowse, catalogSector]
   );
 
   const isDomainQuery   = /^[a-zA-Z0-9-]+(\.[a-zA-Z]{2,}){1,2}$/.test(query.trim());
