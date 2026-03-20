@@ -24,9 +24,10 @@ import {
 import type { SignalForNarrative } from "../lib/radar-narrative";
 import { recordEvent, startTimer } from "../lib/pipeline-metrics";
 
-const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
-const SINCE_14D_MS    = 14 * 24 * 60 * 60 * 1000;
-const SINCE_7D_MS     =  7 * 24 * 60 * 60 * 1000;
+const TWELVE_HOURS_MS     = 12 * 60 * 60 * 1000;
+const SINCE_14D_MS        = 14 * 24 * 60 * 60 * 1000;
+const SINCE_7D_MS         =  7 * 24 * 60 * 60 * 1000;
+const WALL_CLOCK_GUARD_MS = 85_000;
 
 async function handler(req: ApiReq, res: ApiRes) {
   if (!verifyCronSecret(req, res)) return;
@@ -253,7 +254,15 @@ async function handler(req: ApiReq, res: ApiRes) {
     }
 
     // ── Step 9: Generate and store narratives ─────────────────────────────────
+    let skippedByGuard = 0;
+
     for (const competitorId of toGenerate) {
+      if (Date.now() - startedAt > WALL_CLOCK_GUARD_MS) {
+        skippedByGuard = toGenerate.length - (narrativesGenerated + narrativesFallback);
+        console.log(`wall_clock_guard: skipping ${skippedByGuard} remaining competitors to avoid Vercel timeout`);
+        break;
+      }
+
       const comp    = competitorMap.get(competitorId)!;
       const rawSigs = signalsByCompetitor.get(competitorId) ?? [];
 
@@ -324,7 +333,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     }
 
     await finalize("ok");
-    return respond(res, startedAt, candidatesChecked, narrativesGenerated, narrativesFallback);
+    return respond(res, startedAt, candidatesChecked, narrativesGenerated, narrativesFallback, skippedByGuard);
   } catch (error) {
     Sentry.captureException(error);
     await finalize("error");
@@ -332,7 +341,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   }
 
   async function finalize(status: "ok" | "error") {
-    Sentry.captureCheckIn({ monitorSlug: "generate-radar-narratives", status });
+    Sentry.captureCheckIn({ checkInId, monitorSlug: "generate-radar-narratives", status });
     await Sentry.flush(2000);
   }
 
@@ -341,7 +350,8 @@ async function handler(req: ApiReq, res: ApiRes) {
     startedAt: number,
     checked: number,
     generated: number,
-    fallback: number
+    fallback: number,
+    skipped: number = 0
   ) {
     const runtimeDurationMs = Date.now() - startedAt;
     Sentry.setContext("run_metrics", {
@@ -349,6 +359,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       candidates_checked:   checked,
       narratives_generated: generated,
       narratives_fallback:  fallback,
+      skipped_by_guard:     skipped,
       runtimeDurationMs,
     });
     res.status(200).json({
@@ -357,6 +368,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       candidates_checked:   checked,
       narratives_generated: generated,
       narratives_fallback:  fallback,
+      skipped_by_guard:     skipped,
       runtimeDurationMs,
     });
   }

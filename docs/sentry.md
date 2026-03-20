@@ -48,6 +48,109 @@ Include at top of every run:
 
 ---
 
+## EXECUTION ORDER (optimised)
+
+Run phases in this order for maximum leverage per token:
+
+1. **Phase 8** (silent failure matrix) — immediately identifies what's broken
+2. **Phase 5** (timeout analysis) — identifies handlers at risk of hard timeout
+3. **Phase 3** (cron monitor coverage) — bulk audit, delegate to agent
+4. **Phase 4** (error capture paths) — delegate to agent
+5. **Phases 0–2** (init, filtering, surface) — quick validation of root causes
+
+Parallelise: Phase 3 + 4 + 5 as independent agents. Phase 0–2 inline (fast).
+
+---
+
+## BASELINE (2026-03-20 audit)
+
+### SDK versions
+- @sentry/node ^10.42.0 (runtime) — current
+- @sentry/nextjs ^10.43.0 (frontend) — current
+- Cron check-ins: supported (since v7.x)
+
+### Initialization
+- Runtime: lib/sentry.ts — getClient() guard, DSN from SENTRY_DSN/SENTRY_DNS, tracesSampleRate 0.05 prod
+- Frontend: radar-ui/lib/sentry.ts — lazy init wrapper, getClient() guard, tracesSampleRate 0
+- Frontend configs: sentry.server.config.ts, sentry.edge.config.ts, sentry.client.config.ts — all correct
+- No beforeSend, no event processors — no valid errors are dropped
+- Classification: **correct, no filtering risk**
+
+### Cron monitor coverage (42 handlers)
+- Full coverage: 27 (start + linked ok + linked error + try/catch)
+- Partial coverage: 15 (missing checkInId linkage or missing error path)
+- No coverage: 0
+
+### Error capture coverage (20 critical handlers)
+- Covered: 14 (detect-diffs, detect-signals, all 6 ingest handlers, all 6 promote handlers)
+- Partial: 6 (fetch-snapshots, extract-sections, interpret-signals, generate-radar-narratives, check-signals, generate-brief)
+
+### Timeout risk
+- Safe: 31 handlers (DB-only or budget-guarded)
+- Risk: 6 handlers (OpenAI + no wall-clock guard)
+- High risk: 5 handlers (sequential OpenAI loops, no guard)
+
+---
+
+## KNOWN DEFECT PATTERNS
+
+### 1. Orphaned check-ins (checkInId not passed to completion)
+
+**Pattern:** Handler calls `captureCheckIn({status:'in_progress'})`, stores `checkInId`, but never passes it to the ok/error check-in. Sentry creates orphaned records instead of linking start→completion.
+
+**Fix pattern:** Pass `checkInId` to completion check-in:
+```ts
+Sentry.captureCheckIn({ checkInId, monitorSlug: 'slug', status: 'ok' });
+```
+
+### 2. Missing error-path check-in (radar-ui handlers)
+
+**Pattern:** Handler starts check-in, has per-item try/catch inside a loop, but no outer try/catch wrapping the entire body. Unhandled throw from org query or code outside the loop leaves monitor stuck in `in_progress` forever.
+
+**Fix pattern:** Wrap entire post-start body in try/catch, fire error check-in in catch.
+
+### 3. Early return without check-in
+
+**Pattern:** Handler starts check-in, hits an early return (no orgs, no data), returns without firing completion check-in. Monitor stuck in `in_progress`.
+
+**Fix pattern:** Fire ok check-in before early return.
+
+### 4. Silent catch blocks
+
+**Pattern:** Non-fatal enrichment/artifact queries wrapped in `catch { /* non-fatal */ }` with no Sentry visibility. Chronic failures produce degraded output (empty briefs, low-quality interpretations) with zero alerting.
+
+**Fix pattern:** Add `Sentry.captureMessage('name', 'warning')` inside silent catches for queries that feed critical outputs.
+
+### 5. Missing wall-clock guard on OpenAI loops
+
+**Pattern:** Handler loops over items making sequential OpenAI calls. No `Date.now() - startedAt` check. If GPT latency spikes, handler exceeds maxDuration and hard-times-out (Vercel kills the process — no error check-in fires, no Sentry event).
+
+**Fix pattern:** Add wall-clock guard at top of each loop iteration:
+```ts
+const WALL_CLOCK_GUARD_MS = (maxDuration - 5) * 1000; // 5s safety margin
+if (Date.now() - startedAt > WALL_CLOCK_GUARD_MS) { break; }
+```
+Existing example: `api/interpret-signals.ts` (WALL_CLOCK_GUARD_MS=25000).
+
+---
+
+## SILENT FAILURE MATRIX (severity-weighted)
+
+| # | Scenario | Severity | Detected | System | Notification |
+|---|---|---|---|---|---|
+| A | Pipeline stall | **CRITICAL** | yes | health + watchdog + sentry | alert (watchdog) |
+| B | Cron not firing | **CRITICAL** | yes | sentry cron monitors | alert (if Sentry alert rule exists) |
+| C | Cron fails silently | **HIGH** | partial | sentry (if check-in linked correctly) | alert (if linked) |
+| D | AI degradation (slow GPT) | **HIGH** | partial | hard timeout kills process silently | none (no wall-clock guard) |
+| E | Fetch failure spike | **HIGH** | yes | health + pipeline_events + sentry | pull (health) + alert (sentry) |
+| F | Signal blockage | **HIGH** | yes | health (stuckSignals) + sentry | pull (health) |
+| G | Interpretation drop | **MEDIUM** | yes | health + pipeline_events | pull (health) |
+| H | Brief generation failure | **MEDIUM** | partial | sentry cron monitor | alert (monitor only, silent artifact failures) |
+| I | Feed ingestion zero results | **LOW** | yes | sentry captureMessage | alert (warning level) |
+| J | Data correctness failure | **LOW** | no | none | none (known limitation) |
+
+---
+
 ## PHASE 0 — ACCESS & VERSION CHECK
 
 Determine:
@@ -143,6 +246,7 @@ For each:
 
 - start check-in present?
 - completion check-in present?
+- **completion check-in passes checkInId?** (critical — orphaned if missing)
 - error path handled?
 - wrapped in try/catch?
 - monitor slug defined?
@@ -156,6 +260,7 @@ Important:
 From code you can verify:
 - check-in usage
 - slug definition
+- checkInId linkage
 
 From code you CANNOT verify:
 - whether the monitor exists in Sentry UI
@@ -166,14 +271,15 @@ From code you CANNOT verify:
 
 Classify each handler:
 
-- full coverage
-- partial coverage
+- full coverage (start + linked ok + linked error + try/catch)
+- partial coverage (missing any of the above)
 - no coverage
 
 Also identify:
 
 - handlers that may terminate before completion check-in
 - long-running jobs vs timeout risk
+- early returns after start check-in without completion check-in
 
 ---
 
@@ -188,12 +294,16 @@ For each critical stage:
 - interpretation
 - narrative generation
 - alerts
+- brief generation
+- feed ingestion (all 6 pools)
+- signal promotion (all 6 pools)
 
 Check:
 
 - Sentry.captureException present?
 - try/catch coverage
-- silent failure paths
+- silent failure paths (catch blocks that swallow without Sentry)
+- **silent artifact/enrichment catches** (catch blocks on queries feeding critical outputs)
 
 Output:
 
@@ -214,23 +324,25 @@ Extract:
 
 From handler code:
 
-- explicit guards (e.g. 25s wall-clock)
+- explicit wall-clock guards (WALL_CLOCK_GUARD_MS pattern)
 - OpenAI timeout configs
 - concurrency / batch size
+- sequential vs parallel loop structure
 
-For each high-risk handler:
+For each handler with OpenAI calls:
 
 Report:
 
 - max execution path (seconds)
 - function timeout (seconds)
+- wall-clock guard present: yes/no
 - gap (timeout - execution)
 
 Classify:
 
-- safe
-- risk
-- unknown
+- safe (guard present OR no external calls)
+- risk (OpenAI + no guard + maxDuration >= 60s)
+- high risk (sequential OpenAI loop + no guard + maxDuration >= 90s)
 
 ---
 
@@ -295,16 +407,16 @@ Flag:
 
 Evaluate detection + notification for:
 
-A. pipeline stall
-B. cron not firing
-C. cron fails silently
-D. AI degradation
-E. fetch failure spike
-F. signal blockage
-G. interpretation drop
-H. brief generation failure
-I. feed ingestion producing zero results
-J. data correctness failure (handler succeeds, output wrong)
+A. pipeline stall (CRITICAL)
+B. cron not firing (CRITICAL)
+C. cron fails silently (HIGH)
+D. AI degradation / slow GPT (HIGH)
+E. fetch failure spike (HIGH)
+F. signal blockage (HIGH)
+G. interpretation drop (MEDIUM)
+H. brief generation failure (MEDIUM)
+I. feed ingestion producing zero results (LOW)
+J. data correctness failure (LOW — known limitation)
 
 For each:
 
@@ -363,6 +475,8 @@ System passes if:
 - critical failures (fetch → interpretation) are detectable
 - weekly outputs (briefs, sector intelligence) are monitored
 - detection leads to notification (not just logging)
+- **OpenAI-calling handlers have wall-clock guards** (added 2026-03-20)
+- **all check-ins pass checkInId** (added 2026-03-20)
 
 Acceptable:
 
@@ -372,6 +486,7 @@ System fails if:
 
 - any critical stage can fail silently
 - detection exists but does not notify operator
+- **any handler can hard-timeout without error check-in** (added 2026-03-20)
 
 ---
 

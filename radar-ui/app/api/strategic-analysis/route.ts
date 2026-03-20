@@ -84,12 +84,15 @@ async function handler(request: Request): Promise<NextResponse> {
     .select("id, owner_id, sector");
 
   if (!orgs || orgs.length === 0) {
+    captureCheckIn("ok", checkInId);
+    await flush();
     return NextResponse.json({ ok: true, message: "No orgs to process", insights: 0 });
   }
 
   let totalInsights = 0;
   let totalMajor    = 0;
 
+  try {
   for (const org of orgs) {
     if (processedOrgCount >= maxOrgsPerRun) break;
     try {
@@ -225,4 +228,12 @@ async function handler(request: Request): Promise<NextResponse> {
     processedOrgs: orgs.length,
     analysisDate,
   });
+  } catch (err) {
+    captureException(err instanceof Error ? err : new Error(String(err)), {
+      route: "strategic-analysis", step: "outer",
+    });
+    captureCheckIn("error", checkInId);
+    await flush();
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+  }
 }

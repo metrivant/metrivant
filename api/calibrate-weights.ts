@@ -55,7 +55,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   if (!verifyCronSecret(req, res)) return;
 
   const startedAt = Date.now();
-  Sentry.captureCheckIn({ monitorSlug: "calibrate-weights", status: "in_progress" });
+  const checkInId = Sentry.captureCheckIn({ monitorSlug: "calibrate-weights", status: "in_progress" });
 
   try {
     // ── Step 1: load all signal_feedback ──────────────────────────────────────
@@ -67,7 +67,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     if (feedbackError) throw feedbackError;
 
     if (!feedbackRows || feedbackRows.length === 0) {
-      Sentry.captureCheckIn({ monitorSlug: "calibrate-weights", status: "ok" });
+      Sentry.captureCheckIn({ checkInId, monitorSlug: "calibrate-weights", status: "ok" });
       await Sentry.flush(2000);
       return res.status(200).json({
         ok: true,
@@ -207,7 +207,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       appliedCount,
     });
 
-    Sentry.captureCheckIn({ monitorSlug: "calibrate-weights", status: "ok" });
+    Sentry.captureCheckIn({ checkInId, monitorSlug: "calibrate-weights", status: "ok" });
     await Sentry.flush(2000);
 
     return res.status(200).json({
@@ -222,7 +222,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   } catch (error) {
     Sentry.captureException(error);
-    Sentry.captureCheckIn({ monitorSlug: "calibrate-weights", status: "error" });
+    Sentry.captureCheckIn({ checkInId, monitorSlug: "calibrate-weights", status: "error" });
     await Sentry.flush(2000);
     throw error;
   }

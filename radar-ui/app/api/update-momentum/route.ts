@@ -77,6 +77,7 @@ async function handler(request: Request): Promise<NextResponse> {
   let totalSnapshots = 0;
   let totalAlerts    = 0;
 
+  try {
   for (const org of orgs) {
     try {
     // Load current radar_feed for this org via runtime API.
@@ -246,4 +247,12 @@ async function handler(request: Request): Promise<NextResponse> {
     processedOrgs:  orgs.length,
     timestamp:      now,
   });
+  } catch (err) {
+    captureException(err instanceof Error ? err : new Error(String(err)), {
+      route: "update-momentum", step: "outer",
+    });
+    captureCheckIn("error", checkInId);
+    await flush();
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+  }
 }

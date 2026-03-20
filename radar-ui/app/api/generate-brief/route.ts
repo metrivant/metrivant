@@ -4,7 +4,7 @@ import { generateBrief, buildBriefEmailHtml, getDailyQuote, type BriefContent } 
 export const maxDuration = 90;
 import { sendEmail, FROM_BRIEFS } from "../../../lib/email";
 import { createServiceClient } from "../../../lib/supabase/service";
-import { captureException, flush } from "../../../lib/sentry";
+import { captureException, captureMessage, flush } from "../../../lib/sentry";
 
 // captureCheckIn is server-only in @sentry/nextjs and must not live in lib/sentry.ts
 // (which is also client-bundled via app/app/error.tsx). API routes are server-only, so
@@ -256,9 +256,17 @@ async function runGeneration(): Promise<NextResponse> {
   let emailsSent      = 0;
   let totalSignals    = 0;
 
+  const WALL_CLOCK_GUARD_MS = 85_000;
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  let skippedByGuard = 0;
 
   for (const org of orgs as { id: string; owner_id: string; sector: string | null }[]) {
+    if (Date.now() - runStart > WALL_CLOCK_GUARD_MS) {
+      skippedByGuard = (orgs as { id: string }[]).length - briefsGenerated;
+      console.log(`wall_clock_guard: skipping ${skippedByGuard} remaining orgs to avoid Vercel timeout`);
+      break;
+    }
+
     try {
 
       // ── Tracked competitor IDs ────────────────────────────────────────────
@@ -296,7 +304,7 @@ async function runGeneration(): Promise<NextResponse> {
           .limit(1);
 
         sectorSummary = (siRows?.[0]?.summary as string | undefined) ?? null;
-      } catch { /* Non-fatal */ }
+      } catch { /* Non-fatal */ captureMessage("brief_artifact_fetch_failed", { artifact: "sector_intelligence", orgId: org.id }); }
 
       // ── Movement artifacts (movement_summary populated, last 7d, LIMIT 10) ─
       const movements: MovementArtifact[] = [];
@@ -328,7 +336,7 @@ async function runGeneration(): Promise<NextResponse> {
             confidence:           r.confidence,
           });
         }
-      } catch { /* Non-fatal */ }
+      } catch { /* Non-fatal */ captureMessage("brief_artifact_fetch_failed", { artifact: "movements", orgId: org.id }); }
 
       // ── Activity artifacts (latest radar_narrative per competitor) ────────
       const activity: ActivityArtifact[] = [];
@@ -355,7 +363,7 @@ async function runGeneration(): Promise<NextResponse> {
             signal_count:    n.signal_count,
           });
         }
-      } catch { /* Non-fatal */ }
+      } catch { /* Non-fatal */ captureMessage("brief_artifact_fetch_failed", { artifact: "radar_narratives", orgId: org.id }); }
 
       // ── Sector media narratives (last 14 days, max 5, confidence DESC) ────
       const narratives: NarrativeArtifact[] = [];
@@ -373,7 +381,7 @@ async function runGeneration(): Promise<NextResponse> {
           for (const n of (narRows ?? []) as NarrativeArtifact[]) {
             narratives.push(n);
           }
-        } catch { /* Non-fatal */ }
+        } catch { /* Non-fatal */ captureMessage("brief_artifact_fetch_failed", { artifact: "sector_narratives", orgId: org.id }); }
       }
 
       // Skip if no artifacts to synthesize
@@ -489,6 +497,7 @@ async function runGeneration(): Promise<NextResponse> {
     briefs_generated: briefsGenerated,
     emails_sent:      emailsSent,
     total_signals:    totalSignals,
+    skipped_by_guard: skippedByGuard,
   });
 }
 

@@ -241,7 +241,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     return s;
   };
 
-  Sentry.captureCheckIn({
+  const checkInId = Sentry.captureCheckIn({
     monitorSlug: "detect-signals",
     status: "in_progress",
   });
@@ -651,6 +651,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     }
 
     Sentry.captureCheckIn({
+      checkInId,
       monitorSlug: "detect-signals",
       status: "ok",
     });
@@ -678,6 +679,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     Sentry.captureException(error);
 
     Sentry.captureCheckIn({
+      checkInId,
       monitorSlug: "detect-signals",
       status: "error",
     });

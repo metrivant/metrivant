@@ -23,8 +23,9 @@ interface MovementRow {
   summary:       string | null;
 }
 
-const BATCH_SIZE   = 10;
-const SINCE_DAYS   = 14;
+const BATCH_SIZE          = 10;
+const SINCE_DAYS          = 14;
+const WALL_CLOCK_GUARD_MS = 85_000;
 
 async function writeNarrative(
   movementId:           string,
@@ -110,7 +111,15 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     const since = new Date(Date.now() - SINCE_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
+    let skippedByGuard = 0;
+
     for (const movement of movements as MovementRow[]) {
+      if (Date.now() - startedAt > WALL_CLOCK_GUARD_MS) {
+        skippedByGuard = (movements as MovementRow[]).length - movementsProcessed;
+        console.log(`wall_clock_guard: skipping ${skippedByGuard} remaining movements to avoid Vercel timeout`);
+        break;
+      }
+
       movementsProcessed++;
 
       try {
@@ -238,6 +247,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       movementsProcessed,
       narrativesGenerated,
       narrativesFallback,
+      skippedByGuard,
       runtimeDurationMs,
     });
   } catch (error) {

@@ -141,6 +141,7 @@ async function buildFeedbackContext(): Promise<string> {
 
     return lines.join("\n");
   } catch {
+    Sentry.captureMessage("interpret_feedback_context_failed", "warning");
     return "";
   }
 }
@@ -186,6 +187,7 @@ async function fetchCareersEvidence(poolEventIds: string[]): Promise<string> {
       ...lines,
     ].join("\n");
   } catch {
+    Sentry.captureMessage("interpret_careers_evidence_failed", "warning");
     return "";
   }
 }
@@ -553,6 +555,7 @@ async function handler(req: ApiReq, res: ApiRes) {
               }
             } catch {
               // Context fetch failure must never block interpretation
+              Sentry.captureMessage("interpret_context_fetch_failed", "warning");
             }
 
             const { result: interpretation, promptTokens, completionTokens } = await callOpenAI(

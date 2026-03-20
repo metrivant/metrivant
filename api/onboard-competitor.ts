@@ -53,7 +53,8 @@ function normalizeUrl(input: string): string {
 
 // ── Sector classification ──────────────────────────────────────────────────────
 
-const ENTERPRISE_SECTORS = new Set(["defense", "energy", "healthcare"]);
+const ENTERPRISE_SECTORS   = new Set(["defense", "energy", "healthcare"]);
+const WALL_CLOCK_GUARD_MS  = 85_000;
 
 // ── Category → monitored_pages mapping ────────────────────────────────────────
 
@@ -322,6 +323,13 @@ async function handler(req: ApiReq, res: ApiRes) {
       2. Discover and resolve monitored pages
     */
 
+    if (Date.now() - startedAt > WALL_CLOCK_GUARD_MS) {
+      console.log("wall_clock_guard: skipping page discovery to avoid Vercel timeout");
+      Sentry.captureCheckIn({ monitorSlug: "onboard-competitor", status: "ok", checkInId });
+      await Sentry.flush(2000);
+      return res.status(200).json({ ok: true, competitor_id: competitorId, skipped_by_guard: true, runtimeDurationMs: Date.now() - startedAt });
+    }
+
     const openaiKey = process.env.OPENAI_API_KEY;
     const { pages, resolved, unresolved, rejections } = await resolveMonitoredPages(
       baseUrl,
@@ -361,6 +369,13 @@ async function handler(req: ApiReq, res: ApiRes) {
          Never throws: seedSmartRules always returns at least the static fallback rules.
     */
 
+    if (Date.now() - startedAt > WALL_CLOCK_GUARD_MS) {
+      console.log("wall_clock_guard: skipping extraction rule seeding to avoid Vercel timeout");
+      Sentry.captureCheckIn({ monitorSlug: "onboard-competitor", status: "ok", checkInId });
+      await Sentry.flush(2000);
+      return res.status(200).json({ ok: true, competitor_id: competitorId, pages_created: createdPages.length, skipped_by_guard: true, runtimeDurationMs: Date.now() - startedAt });
+    }
+
     const smartRuleMap = new Map<string, SmartRule[]>();
     await Promise.all(
       createdPages.map(async (cp) => {
@@ -396,6 +411,13 @@ async function handler(req: ApiReq, res: ApiRes) {
     /*
       4. Discover and store newsroom feed URL (best-effort — non-fatal on failure)
     */
+
+    if (Date.now() - startedAt > WALL_CLOCK_GUARD_MS) {
+      console.log("wall_clock_guard: skipping feed discovery to avoid Vercel timeout");
+      Sentry.captureCheckIn({ monitorSlug: "onboard-competitor", status: "ok", checkInId });
+      await Sentry.flush(2000);
+      return res.status(200).json({ ok: true, competitor_id: competitorId, pages_created: createdPages.length, llm_seeded_rules: llmSeededRulesCount, skipped_by_guard: true, runtimeDurationMs: Date.now() - startedAt });
+    }
 
     let feedDiscoveryStatus: "found" | "unavailable" | "error" = "error";
     try {

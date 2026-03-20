@@ -19,6 +19,7 @@ const CONFIDENCE_THRESHOLD = 0.6;
 const MIN_SCORE            = 3;
 const CONCURRENCY          = 10; // competitors processed in parallel per chunk
 const ENTERPRISE_SECTORS   = new Set(["defense", "energy", "healthcare"]);
+const WALL_CLOCK_GUARD_MS  = 85_000;
 
 // Maximum competitors checked in the beyond-catalog discovery pass per weekly run.
 // Each call costs ~5-10s (sitemap fetch + GPT). At CONCURRENCY=10 this is one
@@ -294,8 +295,15 @@ async function handler(req: ApiReq, res: ApiRes) {
     let totalNewPages        = 0;
     let totalLlmSeededRules  = 0;
     let errors               = 0;
+    let skippedByGuard       = 0;
 
     for (let i = 0; i < competitors.length; i += CONCURRENCY) {
+      if (Date.now() - startedAt > WALL_CLOCK_GUARD_MS) {
+        skippedByGuard = competitors.length - i;
+        console.log(`wall_clock_guard: skipping ${skippedByGuard} remaining competitors in gap-fill to avoid Vercel timeout`);
+        break;
+      }
+
       const chunk   = competitors.slice(i, i + CONCURRENCY);
       const results = await Promise.allSettled(
         chunk.map((c) => expandCompetitor(c, sectorMap.get(c.id) ?? "saas", openaiKey))
@@ -319,7 +327,9 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     let totalDiscoveredPages = 0;
 
-    if (openaiKey && competitors.length > 0) {
+    if (Date.now() - startedAt > WALL_CLOCK_GUARD_MS) {
+      console.log("wall_clock_guard: skipping discovery pass to avoid Vercel timeout");
+    } else if (openaiKey && competitors.length > 0) {
       const runId = generateRunId();
 
       // Shuffle to ensure all competitors get checked over time (weekly cadence)
@@ -421,6 +431,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       discovered_pages_added: totalDiscoveredPages,
       llm_seeded_rules:       totalLlmSeededRules,
       errors,
+      skipped_by_guard:       skippedByGuard,
       runtimeDurationMs,
     });
 

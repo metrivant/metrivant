@@ -11,7 +11,7 @@ import {
   FROM_ALERTS,
 } from "../../../lib/email";
 import { createServiceClient } from "../../../lib/supabase/service";
-import { captureException, flush } from "../../../lib/sentry";
+import { captureException, captureMessage, flush } from "../../../lib/sentry";
 import { writeCronHeartbeat } from "../../../lib/cronHeartbeat";
 
 // captureCheckIn is server-only in @sentry/nextjs — require() prevents static analysis
@@ -382,6 +382,7 @@ async function runCheck(): Promise<NextResponse> {
     }
   } catch {
     // Non-fatal — signal alert path already completed
+    captureMessage("hypothesis_shift_email_failed");
   }
 
   // 8 — PostHog events (best-effort)

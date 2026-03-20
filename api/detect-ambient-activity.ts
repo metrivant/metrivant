@@ -66,7 +66,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   let rowsFailed      = 0;
   let eventsCreated   = 0;
 
-  Sentry.captureCheckIn({
+  const checkInId = Sentry.captureCheckIn({
     monitorSlug: "detect-ambient-activity",
     status: "in_progress",
   });
@@ -165,6 +165,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     });
 
     Sentry.captureCheckIn({
+      checkInId,
       monitorSlug: "detect-ambient-activity",
       status: "ok",
     });
@@ -186,6 +187,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     Sentry.captureException(error);
 
     Sentry.captureCheckIn({
+      checkInId,
       monitorSlug: "detect-ambient-activity",
       status: "error",
     });

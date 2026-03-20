@@ -27,7 +27,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   const startedAt = Date.now();
 
-  Sentry.captureCheckIn({
+  const checkInId = Sentry.captureCheckIn({
     monitorSlug: "promote-baselines",
     status: "in_progress",
   });
@@ -62,6 +62,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     });
 
     Sentry.captureCheckIn({
+      checkInId,
       monitorSlug: "promote-baselines",
       status: "ok",
     });
@@ -81,6 +82,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     Sentry.captureException(error);
 
     Sentry.captureCheckIn({
+      checkInId,
       monitorSlug: "promote-baselines",
       status: "error",
     });

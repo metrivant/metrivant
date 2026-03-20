@@ -59,7 +59,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   const startedAt = Date.now();
   const runId = (req.headers as Record<string, string | undefined>)?.["x-vercel-id"] ?? generateRunId();
 
-  Sentry.captureCheckIn({
+  const checkInId = Sentry.captureCheckIn({
     monitorSlug: "detect-diffs",
     status: "in_progress",
   });
@@ -385,6 +385,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     });
 
     Sentry.captureCheckIn({
+      checkInId,
       monitorSlug: "detect-diffs",
       status: "ok",
     });
@@ -410,6 +411,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     Sentry.captureException(error);
 
     Sentry.captureCheckIn({
+      checkInId,
       monitorSlug: "detect-diffs",
       status: "error",
     });

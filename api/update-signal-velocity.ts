@@ -9,7 +9,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   const startedAt = Date.now();
 
-  Sentry.captureCheckIn({
+  const checkInId = Sentry.captureCheckIn({
     monitorSlug: "update-signal-velocity",
     status: "in_progress",
   });
@@ -57,6 +57,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     Sentry.setContext("run_metrics", { runtimeDurationMs });
 
     Sentry.captureCheckIn({
+      checkInId,
       monitorSlug: "update-signal-velocity",
       status: "ok",
     });
@@ -72,6 +73,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     Sentry.captureException(error);
 
     Sentry.captureCheckIn({
+      checkInId,
       monitorSlug: "update-signal-velocity",
       status: "error",
     });

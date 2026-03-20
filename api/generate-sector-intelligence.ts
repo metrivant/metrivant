@@ -267,7 +267,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       window_days:      windowDays,
       runtimeDurationMs: Date.now() - startedAt,
     });
-    Sentry.captureCheckIn({ monitorSlug: "generate-sector-intelligence", status });
+    Sentry.captureCheckIn({ checkInId, monitorSlug: "generate-sector-intelligence", status });
     await Sentry.flush(2000);
   }
 

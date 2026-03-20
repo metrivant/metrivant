@@ -56,6 +56,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   const checkInId = Sentry.captureCheckIn({ monitorSlug: "retention", status: "in_progress" });
 
+  try {
   // ── Tier 1: NULL raw HTML ─────────────────────────────────────────────────
   const t1 = await runTier("retention_null_raw_html", { cutoff_days: RETENTION_DAYS.RAW_HTML });
 
@@ -241,6 +242,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   });
 
   Sentry.captureCheckIn({
+    checkInId,
     monitorSlug: "retention",
     status: anyError ? "error" : "ok",
   });
@@ -264,6 +266,13 @@ async function handler(req: ApiReq, res: ApiRes) {
     retention_days: RETENTION_DAYS,
     runtimeDurationMs,
   });
+
+  } catch (error) {
+    Sentry.captureException(error);
+    Sentry.captureCheckIn({ checkInId, monitorSlug: "retention", status: "error" });
+    await Sentry.flush(2000);
+    throw error;
+  }
 }
 
 export default withSentry("retention", handler);

@@ -80,12 +80,15 @@ async function handler(request: Request): Promise<NextResponse> {
     .select("id, owner_id, sector");
 
   if (!orgs || orgs.length === 0) {
+    captureCheckIn("ok", checkInId);
+    await flush();
     return NextResponse.json({ ok: true, message: "No orgs", updated: 0 });
   }
 
   let totalUpdated = 0;
   let totalShifts  = 0;
 
+  try {
   for (const org of orgs) {
     if (processedOrgCount >= maxOrgsPerRun) break;
     try {
@@ -257,4 +260,12 @@ async function handler(request: Request): Promise<NextResponse> {
     processedOrgs: orgs.length,
     analysisDate,
   });
+  } catch (err) {
+    captureException(err instanceof Error ? err : new Error(String(err)), {
+      route: "update-positioning", step: "outer",
+    });
+    captureCheckIn("error", checkInId);
+    await flush();
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+  }
 }
