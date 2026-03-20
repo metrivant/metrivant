@@ -691,6 +691,18 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
       generate-brief, strategic-analysis, generate-actions): max runtime = 10 min
   All 37 runtime + frontend cron monitors confirmed created in Sentry UI 2026-03-19.
 
+- [B] `next/font/google` fonts are self-hosted at build time (Vercel downloads from Google, serves from same domain).
+  Safe under `font-src 'self'` CSP — no `font.googleapis.com` entry needed. To scope a Google font to one page
+  without affecting the rest of the app: import + instantiate in the page's server component, apply
+  `font.className` to the root `<div>`. Do NOT import from a shared layout or globals.css when single-page scoping
+  is required. Pattern: `Space_Grotesk` scoped to `app/app/discover/page.tsx`. (2026-03-20)
+
+- [B] R3F (`@react-three/fiber`) Canvas captures all pointer events by default, blocking page scroll when embedded
+  in a scrollable container. For ambient/decorative 3D sections where user interaction with the scene is not
+  required: set `style={{ pointerEvents: "none" }}` on the `<Canvas>` component. Passes all pointer events to the
+  page, restoring scroll, while Three.js continues rendering. Correct pattern when OrbitControls or scene
+  interaction is removed. Applied in `PipelineExperience.tsx`. (2026-03-20)
+
 - `@sentry/nextjs` in radar-ui requires `instrumentation.ts` + `sentry.server.config.ts` +
   `sentry.edge.config.ts` for automatic server/edge error capture. Without these files, only
   manually-instrumented call sites (captureException, captureCheckIn) report to Sentry — unhandled
