@@ -183,21 +183,7 @@ export default function SidebarNav({ radarStats }: { radarStats?: RadarStats }) 
         <div className="my-2 h-px bg-[#0e2210]" />
       </div>
 
-      {/* TELESCOPE section header */}
-      <div
-        className="px-3 pb-2 text-center"
-        style={{
-          fontFamily: "'Courier New', Monaco, monospace",
-          fontSize: "8px",
-          fontWeight: 700,
-          letterSpacing: "0.30em",
-          color: "rgba(255,255,255,0.28)",
-        }}
-      >
-        TELESCOPE
-      </div>
-
-      {/* Telescope — market state visualisation */}
+      {/* Telescope — signal state visualisation */}
       <div className="min-h-0 flex-1 px-3 pb-3">
         <TelescopePanel radarStats={radarStats} />
       </div>
