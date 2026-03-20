@@ -222,11 +222,13 @@ Default posture: ONE task at a time. Sequential execution. No parallel agents.
 | REST/SQL queries | YES — lightweight, OK |
 
 **Crash prevention guardrails:**
-- Never run `next build` and `tsc --noEmit` simultaneously
+- NEVER run `next build` locally — Vercel runs the real build on push. No reason to duplicate it on 8GB RAM.
+- Only verification needed: `tsc --noEmit` (lightweight, catches 95% of issues)
+- If a local build is ever explicitly requested: warn user about RAM cost first, then proceed only with confirmation
+- Never run `tsc --noEmit` simultaneously with any other heavy command
 - Never spawn more than 1 agent at a time
-- Never run background builds — always foreground with timeout
+- Never run background tasks (`run_in_background: true`) — always foreground
 - If a task is large, break it into commits: implement → commit → push → next piece
-- Prefer `tsc --noEmit` over `next build` for verification (lighter)
 - After each objective: commit and push immediately before starting next
 
 **Agent delegation decision:**
