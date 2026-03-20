@@ -179,13 +179,44 @@ export default async function Page() {
     0
   );
 
-  const telescopeStats = {
-    total: competitors.length,
-    accelerating: competitors.filter((c) => Number(c.momentum_score ?? 0) >= 5).length,
-    rising: competitors.filter((c) => { const m = Number(c.momentum_score ?? 0); return m >= 3 && m < 5; }).length,
-    signals7d: totalSignals7d,
-    topMovement: competitors.find((c) => c.latest_movement_type && Number(c.momentum_score ?? 0) >= 3)?.latest_movement_type ?? null,
+  // ── Telescope: recent signals across all tracked competitors ──────────────
+  type TelescopeSignal = {
+    id: string;
+    signal_type: string;
+    summary: string | null;
+    confidence_score: number | null;
+    detected_at: string;
+    competitor_name: string;
   };
+  let telescopeSignals: TelescopeSignal[] = [];
+  if (orgId) {
+    try {
+      const supabase = await createClient();
+      const competitorIds = competitors.map((c) => c.competitor_id);
+      if (competitorIds.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data } = await (supabase as any)
+          .from("signals")
+          .select("id, signal_type, summary, confidence_score, detected_at, competitor_id")
+          .in("competitor_id", competitorIds)
+          .in("status", ["pending", "active", "interpreted"])
+          .order("detected_at", { ascending: false })
+          .limit(30);
+        const nameMap = new Map(competitors.map((c) => [c.competitor_id, c.competitor_name]));
+        telescopeSignals = ((data ?? []) as Array<{
+          id: string; signal_type: string; summary: string | null;
+          confidence_score: number | null; detected_at: string; competitor_id: string;
+        }>).map((s) => ({
+          id: s.id,
+          signal_type: s.signal_type,
+          summary: s.summary,
+          confidence_score: s.confidence_score,
+          detected_at: s.detected_at,
+          competitor_name: nameMap.get(s.competitor_id) ?? "Unknown",
+        }));
+      }
+    } catch { /* non-fatal */ }
+  }
 
   // Sector news — fetched server-side, cached 1 hour. Non-blocking; falls back to [].
   const newsItems = await fetchSectorNews(sector);
@@ -377,7 +408,7 @@ export default async function Page() {
           className="hidden w-[190px] shrink-0 flex-col overflow-hidden border-r border-[#0e2210] bg-[rgba(0,0,0,0.98)] md:flex xl:w-[240px]"
           aria-label="App navigation"
         >
-          <SidebarNav radarStats={telescopeStats} />
+          <SidebarNav telescopeSignals={telescopeSignals} />
         </nav>
 
         {/* ── Radar content area ─────────────────────────────────────────── */}

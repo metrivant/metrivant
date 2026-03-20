@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import TelescopePanel, { type RadarStats } from "./TelescopePanel";
+import TelescopePanel, { type TelescopeSignal } from "./TelescopePanel";
 
 const NAV_ITEMS: {
   href: string;
@@ -162,7 +162,7 @@ function NavLink({
   );
 }
 
-export default function SidebarNav({ radarStats }: { radarStats?: RadarStats }) {
+export default function SidebarNav({ telescopeSignals }: { telescopeSignals?: TelescopeSignal[] }) {
   const pathname = usePathname();
 
   return (
@@ -183,9 +183,9 @@ export default function SidebarNav({ radarStats }: { radarStats?: RadarStats }) 
         <div className="my-2 h-px bg-[#0e2210]" />
       </div>
 
-      {/* Telescope — signal state visualisation */}
+      {/* Telescope — signal review instrument */}
       <div className="min-h-0 flex-1 px-3 pb-3">
-        <TelescopePanel radarStats={radarStats} />
+        <TelescopePanel signals={telescopeSignals ?? []} />
       </div>
 
     </div>
