@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Orbitron, Share_Tech_Mono } from "next/font/google";
 import PostHogProvider from "../components/PostHogProvider";
 import "./globals.css";
 
@@ -7,6 +7,18 @@ const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+});
+
+const orbitron = Orbitron({
+  variable: "--font-orbitron",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+});
+
+const shareTechMono = Share_Tech_Mono({
+  variable: "--font-share-tech-mono",
+  subsets: ["latin"],
+  weight: ["400"],
 });
 
 export const viewport: Viewport = {
@@ -65,7 +77,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" data-theme="classic" suppressHydrationWarning>
-      <body className={`${inter.variable} font-[family-name:var(--font-inter)] antialiased`}>
+      <body className={`${inter.variable} ${orbitron.variable} ${shareTechMono.variable} font-[family-name:var(--font-inter)] antialiased`}>
         {/* Theme flash prevention — runs before React hydration */}
         <script
           dangerouslySetInnerHTML={{

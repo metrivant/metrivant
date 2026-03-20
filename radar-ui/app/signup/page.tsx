@@ -179,16 +179,6 @@ function SignupForm() {
         {loading ? "Creating account…" : "Start free trial"}
       </button>
 
-      <p className="text-center text-[11px] text-slate-600">
-        By signing up you agree to our{" "}
-        <a
-          href="mailto:hello@metrivant.com?subject=Terms of Service"
-          className="text-slate-500 underline-offset-2 hover:underline"
-        >
-          terms of service
-        </a>
-        .
-      </p>
     </form>
   );
 }

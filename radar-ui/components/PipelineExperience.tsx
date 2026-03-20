@@ -93,16 +93,17 @@ export default function PipelineExperience() {
     if (!el) return;
     const rect = el.getBoundingClientRect();
     const vh = window.innerHeight;
-    // The section is tall. Progress maps from when the section enters the
-    // viewport bottom to when the section top reaches ~30% from top.
-    const enterPoint = rect.top - vh;
-    const exitPoint = rect.top - vh * 0.30;
-    const range = exitPoint - enterPoint;
-    if (range === 0) return;
-    const raw = (enterPoint * -1) / (range * -1);
-    // Simpler: 0 when rect.top = vh (just entered), 1 when rect.top = vh*0.30
-    const p = (vh - rect.top) / (vh * 0.70);
-    setProgress(Math.max(0, Math.min(1, p)));
+    // Progress maps across the full section scroll range.
+    // raw: 0 when section top hits viewport bottom, 1 when top reaches 30% from top.
+    const raw = (vh - rect.top) / (vh * 0.70);
+    const clamped = Math.max(0, Math.min(1, raw));
+    // Delay start: animation stays at 0 until user has scrolled 20% into the section.
+    // Then remap 0.20-1.0 → 0-1 with an easeOut curve for slower stage progression.
+    const THRESHOLD = 0.20;
+    const remapped = clamped <= THRESHOLD ? 0 : (clamped - THRESHOLD) / (1 - THRESHOLD);
+    // EaseOut for slower horizontal progression (stages advance more gradually)
+    const eased = 1 - Math.pow(1 - remapped, 1.6);
+    setProgress(eased);
   }, []);
 
   useEffect(() => {
@@ -160,13 +161,14 @@ export default function PipelineExperience() {
         </div>
         <div
           style={{
+            fontFamily: "var(--font-orbitron)",
             fontSize: 20,
             fontWeight: 600,
             color: "rgba(255,255,255,0.85)",
             letterSpacing: "0.02em",
           }}
         >
-          From page change to strategic intelligence
+          From change to strategic intelligence
         </div>
       </div>
 

@@ -3,60 +3,60 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-function playSonarPing() {
+function playFuturisticDing() {
   try {
-    const ctx  = new AudioContext();
-    const t    = ctx.currentTime;
+    const ctx = new AudioContext();
+    const t   = ctx.currentTime;
 
-    // ── Primary ping tone: low, resonant sine (ship sonar characteristic) ──
-    const ping = ctx.createOscillator();
-    const pingGain = ctx.createGain();
-    ping.type = "sine";
-    // Deep fundamental ~260 Hz — resonates like a submarine sonar
-    ping.frequency.setValueAtTime(260, t);
-    ping.frequency.exponentialRampToValueAtTime(180, t + 2.4);
-    pingGain.gain.setValueAtTime(0, t);
-    pingGain.gain.linearRampToValueAtTime(0.18, t + 0.04);   // sharp attack
-    pingGain.gain.setValueAtTime(0.18, t + 0.08);
-    pingGain.gain.exponentialRampToValueAtTime(0.001, t + 2.4); // long resonant decay
-    ping.connect(pingGain);
+    // ── Primary tone: bright crystalline ding (1046 Hz = C6) ──
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(1046, t);
+    osc1.frequency.exponentialRampToValueAtTime(988, t + 0.4); // subtle drop
+    gain1.gain.setValueAtTime(0, t);
+    gain1.gain.linearRampToValueAtTime(0.14, t + 0.008); // ultra-fast attack
+    gain1.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
 
-    // ── Reverb simulation: short comb filter via two delayed echoes ──
-    // Echo 1: ~120 ms delay at lower amplitude
-    const delay1 = ctx.createDelay(0.3);
-    delay1.delayTime.value = 0.12;
-    const echo1Gain = ctx.createGain();
-    echo1Gain.gain.value = 0.35;
-    pingGain.connect(delay1);
-    delay1.connect(echo1Gain);
+    // ── Shimmer harmonic: octave + fifth above (3138 Hz) ──
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = "sine";
+    osc2.frequency.setValueAtTime(3138, t);
+    osc2.frequency.exponentialRampToValueAtTime(2960, t + 0.25);
+    gain2.gain.setValueAtTime(0, t);
+    gain2.gain.linearRampToValueAtTime(0.035, t + 0.01);
+    gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
 
-    // Echo 2: ~260 ms delay (second reflection, even softer)
-    const delay2 = ctx.createDelay(0.4);
-    delay2.delayTime.value = 0.26;
-    const echo2Gain = ctx.createGain();
-    echo2Gain.gain.value = 0.18;
-    echo1Gain.connect(delay2);
-    delay2.connect(echo2Gain);
+    // ── Sub-harmonic warmth (523 Hz = C5) ──
+    const osc3 = ctx.createOscillator();
+    const gain3 = ctx.createGain();
+    osc3.type = "triangle";
+    osc3.frequency.setValueAtTime(523, t);
+    gain3.gain.setValueAtTime(0, t);
+    gain3.gain.linearRampToValueAtTime(0.06, t + 0.012);
+    gain3.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+    osc3.connect(gain3);
+    gain3.connect(ctx.destination);
 
-    // ── Subtle harmonic overtone: fifth above (390 Hz) at low volume ──
-    const overtone = ctx.createOscillator();
-    const overtoneGain = ctx.createGain();
-    overtone.type = "sine";
-    overtone.frequency.setValueAtTime(390, t);
-    overtone.frequency.exponentialRampToValueAtTime(270, t + 1.2);
-    overtoneGain.gain.setValueAtTime(0, t);
-    overtoneGain.gain.linearRampToValueAtTime(0.045, t + 0.05);
-    overtoneGain.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
-    overtone.connect(overtoneGain);
+    // ── Short metallic delay (futuristic echo) ──
+    const delay = ctx.createDelay(0.2);
+    delay.delayTime.value = 0.08;
+    const echoGain = ctx.createGain();
+    echoGain.gain.value = 0.15;
+    gain1.connect(delay);
+    delay.connect(echoGain);
+    echoGain.connect(ctx.destination);
 
-    // ── Route all to destination ──
-    pingGain.connect(ctx.destination);
-    echo1Gain.connect(ctx.destination);
-    echo2Gain.connect(ctx.destination);
-    overtoneGain.connect(ctx.destination);
+    osc1.start(t); osc1.stop(t + 0.5);
+    osc2.start(t); osc2.stop(t + 0.3);
+    osc3.start(t); osc3.stop(t + 0.4);
 
-    ping.start(t);      ping.stop(t + 2.4);
-    overtone.start(t);  overtone.stop(t + 1.2);
+    setTimeout(() => { void ctx.close(); }, 600);
   } catch { /* AudioContext unavailable — silent fail */ }
 }
 
@@ -68,7 +68,7 @@ export default function LandingLogo() {
   const [pulsing,  setPulsing]  = useState(false);
 
   function handleClick() {
-    playSonarPing();
+    playFuturisticDing();
     setPulseKey((k) => k + 1);
     setPulsing(true);
     setTimeout(() => setPulsing(false), 900);
@@ -162,6 +162,24 @@ export default function LandingLogo() {
             transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut" }}
           />
         </motion.g>
+
+        {/* Signal nodes — small blips on rings, intermittently appearing */}
+        <motion.circle cx="31" cy="10" r="1.2" fill="#00B4FF"
+          animate={{ fillOpacity: [0, 0.7, 0.7, 0] }}
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 0 }}
+        />
+        <motion.circle cx="12" cy="30" r="1.0" fill="#00B4FF"
+          animate={{ fillOpacity: [0, 0.5, 0.5, 0] }}
+          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1.8 }}
+        />
+        <motion.circle cx="35" cy="28" r="0.9" fill="#00B4FF"
+          animate={{ fillOpacity: [0, 0.6, 0.6, 0] }}
+          transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: 3.2 }}
+        />
+        <motion.circle cx="17" cy="14" r="1.1" fill="#00B4FF"
+          animate={{ fillOpacity: [0, 0.55, 0.55, 0] }}
+          transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 2.0 }}
+        />
 
         {/* Cardinal ticks */}
         <line x1="23" y1="1.5"  x2="23" y2="4.5"  stroke="#00B4FF" strokeWidth="0.8" strokeOpacity="0.22" />

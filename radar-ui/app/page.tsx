@@ -4,6 +4,7 @@ import LandingLogo from "../components/LandingLogo";
 import LandingFeaturePrompt from "../components/LandingFeaturePrompt";
 import LandingCTAButtons from "../components/LandingCTAButtons";
 import PipelineSection from "../components/PipelineSection";
+import IntelligencePulse from "../components/IntelligencePulse";
 
 const LABEL_COLOR_STYLE = { color: "rgba(0,180,255,0.55)" } as const;
 
@@ -47,6 +48,7 @@ export default function LandingPage() {
       />
       <PublicNav />
       <LandingFeaturePrompt />
+      <IntelligencePulse />
 
       {/* Dot grid */}
       <div
@@ -75,22 +77,22 @@ export default function LandingPage() {
 
         <h1
           className="hero-fade-up mt-1 text-[34px] font-bold leading-none text-white"
-          style={{ letterSpacing: "0.09em", animationDelay: "120ms" }}
+          style={{ fontFamily: "var(--font-orbitron)", letterSpacing: "0.09em", animationDelay: "120ms" }}
         >
           METRIVANT
         </h1>
         <h2
-          className="hero-fade-up mt-1 text-[11px] font-medium uppercase tracking-[0.34em]"
-          style={{ ...LABEL_COLOR_STYLE, animationDelay: "220ms" }}
+          className="hero-fade-up mt-1 text-[11px] font-medium uppercase tracking-[0.34em] tagline-sheen"
+          style={{ fontFamily: "var(--font-share-tech-mono)", ...LABEL_COLOR_STYLE, animationDelay: "220ms" }}
         >
           Competitive Intelligence Radar
         </h2>
 
         <p
           className="hero-fade-up mt-4 max-w-xs text-[13px] leading-relaxed text-slate-500"
-          style={{ animationDelay: "320ms" }}
+          style={{ fontFamily: "var(--font-share-tech-mono)", animationDelay: "320ms" }}
         >
-          Continuous competitor monitoring. Page changes become signals. Signals become movements. Movements become briefs.
+          Continuous competitor monitoring. Changes become signals. Signals become movements. Movements become strategy.
         </p>
 
         <div className="hero-fade-up" style={{ animationDelay: "440ms" }}>
@@ -112,11 +114,11 @@ export default function LandingPage() {
 
       {/* ── Differentiation row ──────────────────────────────────────── */}
       <section className="relative border-t border-[#0d1020] px-6 py-10">
-        <div className="mx-auto grid max-w-2xl gap-8 sm:grid-cols-3">
+        <div className="mx-auto grid max-w-2xl gap-8 sm:grid-cols-3 text-center">
           {[
             {
               label: "Evidence-grounded",
-              body:  "Every signal traces to a real page change. No inference without observation.",
+              body:  "Every signal traces to a real change. No inference without observation.",
             },
             {
               label: "Confidence-gated",
@@ -124,14 +126,14 @@ export default function LandingPage() {
             },
             {
               label: "Pre-public detection",
-              body:  "Surfaces intent from page changes before press releases or filings.",
+              body:  "Detects operational shifts before they reach press releases or filings.",
             },
           ].map(({ label, body }) => (
-            <div key={label} className="flex flex-col gap-2">
-              <div className="text-[10px] font-bold uppercase tracking-[0.22em]" style={LABEL_COLOR_STYLE}>
+            <div key={label} className="flex flex-col items-center gap-2">
+              <div className="text-[11px] font-bold uppercase tracking-[0.22em]" style={{ fontFamily: "var(--font-orbitron)", ...LABEL_COLOR_STYLE }}>
                 {label}
               </div>
-              <p className="text-[12px] leading-relaxed text-slate-500">{body}</p>
+              <p className="text-[12px] leading-relaxed text-slate-500" style={{ fontFamily: "var(--font-share-tech-mono)" }}>{body}</p>
             </div>
           ))}
         </div>
@@ -149,8 +151,8 @@ export default function LandingPage() {
             <div className="text-[10px] font-bold uppercase tracking-[0.28em] text-slate-600">
               Pricing
             </div>
-            <h2 className="mt-1.5 text-[18px] font-semibold text-white">
-              Full stack. No setup.
+            <h2 className="mt-1.5 text-[18px] font-semibold text-white" style={{ fontFamily: "var(--font-orbitron)" }}>
+              Enterprise intelligence. Startup price.
             </h2>
           </div>
 
@@ -162,7 +164,7 @@ export default function LandingPage() {
                 $9<span className="text-[13px] font-normal text-slate-500">/mo</span>
               </div>
               <ul className="mt-3 space-y-1.5">
-                {["10 competitors", "Weekly brief", "Live radar"].map((f) => (
+                {["10 competitors", "Weekly brief", "Live radar", "AI interpretation"].map((f) => (
                   <li key={f} className="flex items-center gap-2">
                     <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "rgba(0,180,255,0.55)" }} />
                     <span className="text-[11px] text-slate-500">{f}</span>
@@ -199,9 +201,9 @@ export default function LandingPage() {
                 {[
                   "25 competitors",
                   "Real-time alerts",
-                  "90-day signal history",
+                  "Movement synthesis",
                   "Cross-competitor patterns",
-                  "Market positioning map",
+                  "ORBIT gravity field",
                 ].map((f) => (
                   <li key={f} className="flex items-center gap-2">
                     <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "#00B4FF", opacity: 0.85 }} />

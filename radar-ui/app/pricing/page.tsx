@@ -7,11 +7,13 @@ const PLANS = [
     name:        "Analyst",
     price:       "$9",
     period:      "/mo",
-    description: "Live radar dashboard and weekly briefings on your top rivals. First signals within hours of setup.",
+    description: "Live radar, weekly briefs, and confidence-gated signals on your top rivals.",
     features: [
       "10 competitors monitored",
-      "Weekly intelligence digest",
+      "Weekly intelligence brief",
       "Live radar dashboard",
+      "AI signal interpretation",
+      "Evidence chain per signal",
     ],
     cta:       "Start free trial",
     href:      "/signup?plan=analyst",
@@ -21,14 +23,16 @@ const PLANS = [
     name:        "Pro",
     price:       "$19",
     period:      "/mo",
-    description: "Live signals and alerts when rivals make their move.",
+    description: "Full-stack intelligence. Real-time alerts, strategic movements, and cross-competitor analysis.",
     features: [
-      "Up to 25 rivals monitored",
-      "Instant alerts on critical moves",
-      "Deep-dive per-competitor profiles",
+      "25 competitors monitored",
+      "Real-time critical alerts",
+      "Strategic movement synthesis",
       "90-day signal history",
       "Cross-competitor pattern detection",
-      "Live market positioning map",
+      "Market positioning map",
+      "ORBIT gravity field mode",
+      "6-pool signal pipeline",
     ],
     cta:       "Start free trial",
     href:      "/signup?plan=pro",
@@ -101,8 +105,8 @@ export default function PricingPage() {
 
       <section className="mx-auto max-w-5xl px-6 pb-24 pt-36">
         <div className="mb-14 text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl">
-            All the intelligence.<br className="hidden md:block" /> None of the enterprise price.
+          <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl" style={{ fontFamily: "var(--font-orbitron)" }}>
+            Enterprise intelligence.<br className="hidden md:block" /> Startup price.
           </h1>
           <p className="mt-4 text-[15px] text-slate-500">
             3-day free trial. No credit card required. Cancel anytime.
