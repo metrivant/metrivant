@@ -93,17 +93,17 @@ const NAV_ITEMS: {
 ];
 
 const ACTIVE_STYLE: React.CSSProperties = {
-  color: "#2EE6A6",
-  background: "rgba(46,230,166,0.07)",
-  boxShadow: "inset 2px 0 0 rgba(46,230,166,0.5)",
-  textShadow: "0 0 10px rgba(46,230,166,0.5), 0 0 22px rgba(46,230,166,0.18)",
+  color: "#00B4FF",
+  background: "rgba(0,180,255,0.07)",
+  boxShadow: "inset 2px 0 0 rgba(0,180,255,0.5)",
+  textShadow: "0 0 10px rgba(0,180,255,0.5), 0 0 22px rgba(0,180,255,0.18)",
 };
 
 const HOVER_STYLE: React.CSSProperties = {
-  color: "rgba(46,230,166,0.80)",
-  background: "rgba(46,230,166,0.05)",
-  textShadow: "0 0 10px rgba(46,230,166,0.50), 0 0 24px rgba(46,230,166,0.18)",
-  boxShadow: "inset 2px 0 0 rgba(46,230,166,0.20)",
+  color: "rgba(0,180,255,0.80)",
+  background: "rgba(0,180,255,0.05)",
+  textShadow: "0 0 10px rgba(0,180,255,0.50), 0 0 24px rgba(0,180,255,0.18)",
+  boxShadow: "inset 2px 0 0 rgba(0,180,255,0.20)",
 };
 
 const DEFAULT_STYLE: React.CSSProperties = {
@@ -150,9 +150,9 @@ function NavLink({
         <span
           className="ml-auto flex h-4 min-w-[16px] items-center justify-center rounded px-1 font-mono text-[9px] font-bold"
           style={{
-            background: "#0a1a0a",
-            border: "1px solid rgba(46,230,166,0.14)",
-            color: "rgba(46,230,166,0.45)",
+            background: "#0a0a1a",
+            border: "1px solid rgba(0,180,255,0.14)",
+            color: "rgba(0,180,255,0.45)",
           }}
         >
           {keyBadge}
@@ -180,7 +180,7 @@ export default function SidebarNav({ telescopeSignals }: { telescopeSignals?: Te
           />
         ))}
 
-        <div className="my-2 h-px bg-[#0e2210]" />
+        <div className="my-2 h-px bg-[#0e1022]" />
       </div>
 
       {/* Telescope — signal review instrument */}

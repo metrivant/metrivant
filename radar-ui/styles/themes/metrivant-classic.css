@@ -6,5 +6,5 @@
   --m-ui-highlight:     var(--m-accent);
   --m-ui-glow:          none;
   --m-ui-border:        rgba(255,255,255,0.08);
-  --m-ui-border-active: rgba(46,230,166,0.40);
+  --m-ui-border-active: rgba(0,180,255,0.40);
 }

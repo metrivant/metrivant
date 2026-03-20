@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description:      "Competitive intelligence radar. Know when rivals move before you do.",
     start_url:        "/app",
     display:          "standalone",
-    background_color: "#000200",
-    theme_color:      "#000200",
+    background_color: "#000002",
+    theme_color:      "#000002",
     icons: [
       {
         src:   "/favicon.ico",

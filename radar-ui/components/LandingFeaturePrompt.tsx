@@ -47,23 +47,23 @@ export default function LandingFeaturePrompt() {
               className="flex flex-col items-center gap-1.5 rounded-l-[10px] border border-r-0 px-2.5 py-4"
               style={{
                 background: "rgba(4,10,4,0.96)",
-                borderColor: "rgba(46,230,166,0.22)",
-                boxShadow: "-4px 0 24px rgba(0,0,0,0.6), 0 0 0 1px rgba(46,230,166,0.06)",
+                borderColor: "rgba(0,180,255,0.22)",
+                boxShadow: "-4px 0 24px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,180,255,0.06)",
                 backdropFilter: "blur(12px)",
               }}
             >
               {/* Radar icon */}
               <svg width="14" height="14" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-                <circle cx="11" cy="11" r="9.5" stroke="#2EE6A6" strokeWidth="0.8" strokeOpacity="0.40" />
-                <circle cx="11" cy="11" r="5.5" stroke="#2EE6A6" strokeWidth="0.7" strokeOpacity="0.28" />
-                <line x1="11" y1="11" x2="18" y2="5.2" stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.70" />
-                <circle cx="11" cy="11" r="1.5" fill="#2EE6A6" fillOpacity="0.90" />
+                <circle cx="11" cy="11" r="9.5" stroke="#00B4FF" strokeWidth="0.8" strokeOpacity="0.40" />
+                <circle cx="11" cy="11" r="5.5" stroke="#00B4FF" strokeWidth="0.7" strokeOpacity="0.28" />
+                <line x1="11" y1="11" x2="18" y2="5.2" stroke="#00B4FF" strokeWidth="1" strokeOpacity="0.70" />
+                <circle cx="11" cy="11" r="1.5" fill="#00B4FF" fillOpacity="0.90" />
               </svg>
               {/* Rotated label */}
               <span
                 className="text-[9px] font-bold uppercase tracking-[0.22em]"
                 style={{
-                  color: "rgba(46,230,166,0.70)",
+                  color: "rgba(0,180,255,0.70)",
                   writingMode: "vertical-rl",
                   textOrientation: "mixed",
                   transform: "rotate(180deg)",

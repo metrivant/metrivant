@@ -49,7 +49,7 @@ const BRANCH_NODE_Y = 198;
 // ── Status colors ────────────────────────────────────────────────────────────
 
 const STATUS_COLOR: Record<StageStatus, string> = {
-  ok:      "#2EE6A6",
+  ok:      "#00B4FF",
   warn:    "#f59e0b",
   stale:   "#ef4444",
   unknown: "#334155",
@@ -146,7 +146,7 @@ export default function PipelineSchematic({ onClose }: { onClose: () => void }) 
       `}</style>
 
       {/* ── Header ───────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between border-b border-[#0e2210] px-6 py-4">
+      <div className="flex items-center justify-between border-b border-[#0e1022] px-6 py-4">
         <div>
           <div className="mb-1 flex items-center gap-3">
             <span className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-slate-600">
@@ -185,7 +185,7 @@ export default function PipelineSchematic({ onClose }: { onClose: () => void }) 
           </div>
           <button
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-[#1a3a1a] text-slate-600 transition-colors hover:border-[#2EE6A6]/30 hover:text-slate-400"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-[#1a3a1a] text-slate-600 transition-colors hover:border-[#00B4FF]/30 hover:text-slate-400"
             aria-label="Close schematic"
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -204,7 +204,7 @@ export default function PipelineSchematic({ onClose }: { onClose: () => void }) 
                 <pattern id="sch-grid" width="20" height="20" patternUnits="userSpaceOnUse">
                   <path
                     d="M 20 0 L 0 0 0 20" fill="none"
-                    stroke="rgba(46,230,166,0.025)" strokeWidth="0.5"
+                    stroke="rgba(0,180,255,0.025)" strokeWidth="0.5"
                   />
                 </pattern>
               </defs>
@@ -224,11 +224,11 @@ export default function PipelineSchematic({ onClose }: { onClose: () => void }) 
                   <g key={`pipe-${stage.id}`}>
                     <line
                       x1={x1} y1={MAIN_Y} x2={x2} y2={MAIN_Y}
-                      stroke="rgba(46,230,166,0.12)" strokeWidth="1"
+                      stroke="rgba(0,180,255,0.12)" strokeWidth="1"
                     />
                     <path
                       d={`M ${x2 - 4} ${MAIN_Y - 3} L ${x2} ${MAIN_Y} L ${x2 - 4} ${MAIN_Y + 3}`}
-                      fill="none" stroke="rgba(46,230,166,0.25)" strokeWidth="0.8"
+                      fill="none" stroke="rgba(0,180,255,0.25)" strokeWidth="0.8"
                     />
                     {flowing && (
                       <circle cy={MAIN_Y} r="2" fill={color}>
@@ -273,7 +273,7 @@ export default function PipelineSchematic({ onClose }: { onClose: () => void }) 
                     {/* Index */}
                     <text
                       x={rx + 8} y={MAIN_Y - 6}
-                      fill="rgba(46,230,166,0.22)" fontSize="8"
+                      fill="rgba(0,180,255,0.22)" fontSize="8"
                       fontFamily="monospace" fontWeight="bold"
                     >
                       {stage.idx}
@@ -325,41 +325,41 @@ export default function PipelineSchematic({ onClose }: { onClose: () => void }) 
               <line
                 x1={675} y1={MAIN_Y + CHAMBER_H / 2}
                 x2={675} y2={JUNCTION_Y - 10}
-                stroke="rgba(46,230,166,0.12)" strokeWidth="1"
+                stroke="rgba(0,180,255,0.12)" strokeWidth="1"
               />
 
               {/* Junction valve symbol */}
               <circle
                 cx={675} cy={JUNCTION_Y} r={9}
-                fill="rgba(2,8,2,0.95)" stroke="rgba(46,230,166,0.30)" strokeWidth="1"
+                fill="rgba(2,8,2,0.95)" stroke="rgba(0,180,255,0.30)" strokeWidth="1"
               />
               <line
                 x1={671} y1={JUNCTION_Y} x2={679} y2={JUNCTION_Y}
-                stroke="rgba(46,230,166,0.35)" strokeWidth="1"
+                stroke="rgba(0,180,255,0.35)" strokeWidth="1"
               />
               <line
                 x1={675} y1={JUNCTION_Y - 4} x2={675} y2={JUNCTION_Y + 4}
-                stroke="rgba(46,230,166,0.35)" strokeWidth="1"
+                stroke="rgba(0,180,255,0.35)" strokeWidth="1"
               />
 
               {/* Vertical pipe: junction → manifold header */}
               <line
                 x1={675} y1={JUNCTION_Y + 10}
                 x2={675} y2={MANIFOLD_Y}
-                stroke="rgba(46,230,166,0.10)" strokeWidth="1"
+                stroke="rgba(0,180,255,0.10)" strokeWidth="1"
               />
 
               {/* Manifold header (horizontal) */}
               <line
                 x1={POOL_X_START} y1={MANIFOLD_Y}
                 x2={POOL_X_START + (POOLS.length - 1) * POOL_SPACING} y2={MANIFOLD_Y}
-                stroke="rgba(46,230,166,0.12)" strokeWidth="1"
+                stroke="rgba(0,180,255,0.12)" strokeWidth="1"
               />
 
               {/* Manifold label */}
               <text
                 x={675} y={MANIFOLD_Y - 10}
-                textAnchor="middle" fill="rgba(46,230,166,0.16)" fontSize="8"
+                textAnchor="middle" fill="rgba(0,180,255,0.16)" fontSize="8"
                 fontFamily="monospace" fontWeight="bold" letterSpacing="0.20em"
               >
                 POOL MANIFOLD
@@ -388,7 +388,7 @@ export default function PipelineSchematic({ onClose }: { onClose: () => void }) 
                     {/* Drop from manifold */}
                     <line
                       x1={px} y1={MANIFOLD_Y} x2={px} y2={nodeTop}
-                      stroke="rgba(46,230,166,0.10)" strokeWidth="0.8"
+                      stroke="rgba(0,180,255,0.10)" strokeWidth="0.8"
                     />
                     {/* Node */}
                     <rect
@@ -455,7 +455,7 @@ export default function PipelineSchematic({ onClose }: { onClose: () => void }) 
               <line
                 x1={975} y1={MAIN_Y + CHAMBER_H / 2}
                 x2={975} y2={BRANCH_FORK_Y}
-                stroke="rgba(46,230,166,0.08)" strokeWidth="0.8"
+                stroke="rgba(0,180,255,0.08)" strokeWidth="0.8"
                 strokeDasharray="4 3"
               />
 
@@ -463,14 +463,14 @@ export default function PipelineSchematic({ onClose }: { onClose: () => void }) 
               <line
                 x1={975} y1={BRANCH_FORK_Y}
                 x2={925} y2={BRANCH_NODE_Y - 12}
-                stroke="rgba(46,230,166,0.08)" strokeWidth="0.8"
+                stroke="rgba(0,180,255,0.08)" strokeWidth="0.8"
                 strokeDasharray="4 3"
               />
               <rect
                 x={925 - 42} y={BRANCH_NODE_Y - 12}
                 width={84} height={24} rx={4}
                 fill="rgba(2,8,2,0.85)"
-                stroke="rgba(46,230,166,0.10)" strokeWidth="0.8"
+                stroke="rgba(0,180,255,0.10)" strokeWidth="0.8"
                 strokeDasharray="4 3"
               />
               <text
@@ -485,14 +485,14 @@ export default function PipelineSchematic({ onClose }: { onClose: () => void }) 
               <line
                 x1={975} y1={BRANCH_FORK_Y}
                 x2={1035} y2={BRANCH_NODE_Y - 12}
-                stroke="rgba(46,230,166,0.08)" strokeWidth="0.8"
+                stroke="rgba(0,180,255,0.08)" strokeWidth="0.8"
                 strokeDasharray="4 3"
               />
               <rect
                 x={1035 - 30} y={BRANCH_NODE_Y - 12}
                 width={60} height={24} rx={4}
                 fill="rgba(2,8,2,0.85)"
-                stroke="rgba(46,230,166,0.10)" strokeWidth="0.8"
+                stroke="rgba(0,180,255,0.10)" strokeWidth="0.8"
                 strokeDasharray="4 3"
               />
               <text
@@ -506,7 +506,7 @@ export default function PipelineSchematic({ onClose }: { onClose: () => void }) 
               {/* ── Schematic border ─────────────────────────────────── */}
               <rect
                 x={8} y={8} width={1184} height={344} rx={12}
-                fill="none" stroke="rgba(46,230,166,0.05)" strokeWidth="0.5"
+                fill="none" stroke="rgba(0,180,255,0.05)" strokeWidth="0.5"
               />
             </svg>
           </div>
@@ -515,7 +515,7 @@ export default function PipelineSchematic({ onClose }: { onClose: () => void }) 
         {/* ── Readout panel ─────────────────────────────────────────── */}
         {selected && (
           <div
-            className="mt-3 overflow-hidden rounded-[14px] border border-[#0e2210] bg-[#020802]"
+            className="mt-3 overflow-hidden rounded-[14px] border border-[#0e1022] bg-[#020208]"
             style={{ animation: "sch-fade 0.2s ease-out" }}
           >
             {selected.type === "stage" ? (

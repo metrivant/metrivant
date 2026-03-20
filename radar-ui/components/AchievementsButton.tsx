@@ -325,21 +325,21 @@ function ToastCard({ name, points, onDone }: Toast & { onDone: () => void }) {
       transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
       className="relative overflow-hidden rounded-[12px] border px-4 py-3 shadow-2xl"
       style={{
-        background:   "radial-gradient(ellipse 120% 80% at 50% 0%, rgba(46,230,166,0.08) 0%, rgba(0,3,1,0.97) 65%)",
-        borderColor:  "rgba(46,230,166,0.30)",
-        boxShadow:    "0 0 0 1px rgba(46,230,166,0.08), 0 12px 40px rgba(0,0,0,0.9)",
+        background:   "radial-gradient(ellipse 120% 80% at 50% 0%, rgba(0,180,255,0.08) 0%, rgba(0,3,1,0.97) 65%)",
+        borderColor:  "rgba(0,180,255,0.30)",
+        boxShadow:    "0 0 0 1px rgba(0,180,255,0.08), 0 12px 40px rgba(0,0,0,0.9)",
         minWidth:     "220px",
       }}
     >
       <div
         className="absolute inset-x-0 top-0 h-[1px]"
-        style={{ background: "linear-gradient(90deg, transparent, rgba(46,230,166,0.7), transparent)" }}
+        style={{ background: "linear-gradient(90deg, transparent, rgba(0,180,255,0.7), transparent)" }}
       />
-      <div className="mb-0.5 text-[9px] font-bold uppercase tracking-[0.28em]" style={{ color: "rgba(46,230,166,0.55)" }}>
+      <div className="mb-0.5 text-[9px] font-bold uppercase tracking-[0.28em]" style={{ color: "rgba(0,180,255,0.55)" }}>
         Achievement Unlocked
       </div>
       <div className="text-[13px] font-semibold text-white">{name}</div>
-      <div className="mt-0.5 text-[11px] tabular-nums" style={{ color: "#2EE6A6" }}>
+      <div className="mt-0.5 text-[11px] tabular-nums" style={{ color: "#00B4FF" }}>
         +{points} Intel Score
       </div>
     </motion.div>
@@ -376,22 +376,22 @@ function AchievementsDropdown({
       className="absolute right-0 top-full z-[200] mt-2 w-[340px] overflow-hidden rounded-[14px] border"
       style={{
         background:   "rgba(8,10,14,0.97)",
-        borderColor:  "rgba(46,230,166,0.15)",
-        boxShadow:    "0 20px 60px rgba(0,0,0,0.85), 0 0 0 1px rgba(46,230,166,0.06), inset 0 1px 0 rgba(46,230,166,0.06)",
+        borderColor:  "rgba(0,180,255,0.15)",
+        boxShadow:    "0 20px 60px rgba(0,0,0,0.85), 0 0 0 1px rgba(0,180,255,0.06), inset 0 1px 0 rgba(0,180,255,0.06)",
         backdropFilter: "blur(16px)",
       }}
     >
       {/* Top accent line */}
       <div
         className="absolute inset-x-0 top-0 h-[1px]"
-        style={{ background: "linear-gradient(90deg, transparent, rgba(46,230,166,0.42), transparent)" }}
+        style={{ background: "linear-gradient(90deg, transparent, rgba(0,180,255,0.42), transparent)" }}
       />
 
       {/* Header row */}
-      <div className="px-4 pt-4 pb-3 border-b" style={{ borderColor: "rgba(46,230,166,0.08)" }}>
+      <div className="px-4 pt-4 pb-3 border-b" style={{ borderColor: "rgba(0,180,255,0.08)" }}>
         <div className="flex items-end justify-between mb-2.5">
           <div>
-            <div className="text-[8px] font-bold uppercase tracking-[0.30em]" style={{ color: "rgba(46,230,166,0.45)" }}>
+            <div className="text-[8px] font-bold uppercase tracking-[0.30em]" style={{ color: "rgba(0,180,255,0.45)" }}>
               Intel Score
             </div>
             <motion.div
@@ -405,7 +405,7 @@ function AchievementsDropdown({
             </motion.div>
           </div>
           <div className="text-right pb-0.5">
-            <div className="text-[10px] tabular-nums" style={{ color: "rgba(46,230,166,0.60)" }}>
+            <div className="text-[10px] tabular-nums" style={{ color: "rgba(0,180,255,0.60)" }}>
               {unlockedCount} / {ACHIEVEMENTS.length}
             </div>
             <div className="text-[9px] text-slate-600 mt-0.5">milestones</div>
@@ -416,7 +416,7 @@ function AchievementsDropdown({
         <div className="h-[2px] overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.05)" }}>
           <motion.div
             className="h-full rounded-full"
-            style={{ background: "linear-gradient(90deg, #2EE6A6, #1abf88)" }}
+            style={{ background: "linear-gradient(90deg, #00B4FF, #1abf88)" }}
             initial={{ width: 0 }}
             animate={{ width: `${progressPct}%` }}
             transition={{ duration: 0.7, ease: "easeOut" }}
@@ -431,7 +431,7 @@ function AchievementsDropdown({
         style={{
           maxHeight: "360px",
           scrollbarWidth: "thin",
-          scrollbarColor: "rgba(46,230,166,0.15) transparent",
+          scrollbarColor: "rgba(0,180,255,0.15) transparent",
         }}
       >
         {loading ? (
@@ -479,7 +479,7 @@ function AchievementsDropdown({
                   key={a.id}
                   className="relative flex items-center gap-3 rounded-[10px] px-3 py-2.5 transition-all duration-200"
                   style={{
-                    background:  unlocked ? "rgba(46,230,166,0.04)" : "transparent",
+                    background:  unlocked ? "rgba(0,180,255,0.04)" : "transparent",
                     opacity:     unlocked ? 1 : 0.42,
                   }}
                 >
@@ -489,15 +489,15 @@ function AchievementsDropdown({
                       className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] rounded-full"
                       style={{
                         height: "60%",
-                        background: "rgba(46,230,166,0.55)",
-                        boxShadow: "0 0 6px rgba(46,230,166,0.35)",
+                        background: "rgba(0,180,255,0.55)",
+                        boxShadow: "0 0 6px rgba(0,180,255,0.35)",
                       }}
                     />
                   )}
 
                   {/* Icon */}
                   <div className="shrink-0">
-                    <AchievIcon id={a.id} color={unlocked ? "#2EE6A6" : "#475569"} />
+                    <AchievIcon id={a.id} color={unlocked ? "#00B4FF" : "#475569"} />
                   </div>
 
                   {/* Text */}
@@ -517,8 +517,8 @@ function AchievementsDropdown({
                   <div
                     className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold tabular-nums"
                     style={{
-                      background: unlocked ? "rgba(46,230,166,0.12)" : "rgba(255,255,255,0.04)",
-                      color:      unlocked ? "#2EE6A6" : "#334155",
+                      background: unlocked ? "rgba(0,180,255,0.12)" : "rgba(255,255,255,0.04)",
+                      color:      unlocked ? "#00B4FF" : "#334155",
                     }}
                   >
                     +{a.points}
@@ -530,7 +530,7 @@ function AchievementsDropdown({
             {/* Strategy actions divider */}
             <div
               className="my-2 mx-1 border-t"
-              style={{ borderColor: "rgba(46,230,166,0.07)" }}
+              style={{ borderColor: "rgba(0,180,255,0.07)" }}
             />
             <div className="px-3 pb-1">
               <div className="text-[8px] font-bold uppercase tracking-[0.28em] text-slate-600">
@@ -542,7 +542,7 @@ function AchievementsDropdown({
               <a
                 href="/app/strategy"
                 className="flex items-center justify-between rounded-[10px] px-3 py-2.5 transition-all duration-150 group"
-                style={{ background: "rgba(46,230,166,0.03)" }}
+                style={{ background: "rgba(0,180,255,0.03)" }}
               >
                 <div className="flex-1 min-w-0">
                   <div className="text-[11px] font-medium leading-snug" style={{ color: "rgba(255,255,255,0.78)" }}>
@@ -553,7 +553,7 @@ function AchievementsDropdown({
                   </div>
                 </div>
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" className="shrink-0 ml-2 opacity-40 group-hover:opacity-70 transition-opacity">
-                  <path d="M2.5 6H9.5M6.5 3L9.5 6L6.5 9" stroke="#2EE6A6" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M2.5 6H9.5M6.5 3L9.5 6L6.5 9" stroke="#00B4FF" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </a>
             ) : (
@@ -570,7 +570,7 @@ function AchievementsDropdown({
       {/* Footer */}
       <div
         className="px-4 py-2.5 border-t"
-        style={{ borderColor: "rgba(46,230,166,0.07)", background: "rgba(0,0,0,0.30)" }}
+        style={{ borderColor: "rgba(0,180,255,0.07)", background: "rgba(0,0,0,0.30)" }}
       >
         <div className="text-[9px] text-slate-700 text-center">
           Press <kbd className="rounded px-1 py-0.5 text-[8px]" style={{ background: "rgba(255,255,255,0.06)", color: "#64748b" }}>I</kbd> to toggle
@@ -833,10 +833,10 @@ export default function AchievementsButton({
           onClick={togglePanel}
           className="relative flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-medium transition-all duration-200 hover:opacity-90"
           style={{
-            borderColor: isApex ? "rgba(234,179,8,0.45)" : open || hasNew ? "rgba(46,230,166,0.45)" : "rgba(46,230,166,0.15)",
-            background:  isApex ? "rgba(234,179,8,0.06)"  : open || hasNew ? "rgba(46,230,166,0.08)"  : "rgba(46,230,166,0.04)",
-            color:       isApex ? "rgba(234,179,8,0.80)" : "rgba(46,230,166,0.70)",
-            boxShadow:   isApex ? "0 0 14px rgba(234,179,8,0.14), inset 0 0 8px rgba(234,179,8,0.04)" : open || hasNew ? "0 0 12px rgba(46,230,166,0.20), inset 0 0 8px rgba(46,230,166,0.04)" : "none",
+            borderColor: isApex ? "rgba(234,179,8,0.45)" : open || hasNew ? "rgba(0,180,255,0.45)" : "rgba(0,180,255,0.15)",
+            background:  isApex ? "rgba(234,179,8,0.06)"  : open || hasNew ? "rgba(0,180,255,0.08)"  : "rgba(0,180,255,0.04)",
+            color:       isApex ? "rgba(234,179,8,0.80)" : "rgba(0,180,255,0.70)",
+            boxShadow:   isApex ? "0 0 14px rgba(234,179,8,0.14), inset 0 0 8px rgba(234,179,8,0.04)" : open || hasNew ? "0 0 12px rgba(0,180,255,0.20), inset 0 0 8px rgba(0,180,255,0.04)" : "none",
           }}
           aria-label="Intel Score — Achievements"
           aria-expanded={open}
@@ -845,7 +845,7 @@ export default function AchievementsButton({
           {hasNew && !open && (
             <motion.span
               className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full"
-              style={{ background: "#2EE6A6", boxShadow: "0 0 6px #2EE6A6" }}
+              style={{ background: "#00B4FF", boxShadow: "0 0 6px #00B4FF" }}
               animate={{ scale: [1, 1.4, 1] }}
               transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
             />
@@ -877,7 +877,7 @@ export default function AchievementsButton({
             animate={{ y: 0,  opacity: 1 }}
             transition={{ duration: 0.28, ease: "easeOut" }}
             className="tabular-nums font-bold"
-            style={{ color: "rgba(46,230,166,0.88)" }}
+            style={{ color: "rgba(0,180,255,0.88)" }}
           >
             {intelScore}
           </motion.span>

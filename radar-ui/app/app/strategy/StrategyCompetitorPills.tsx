@@ -18,7 +18,7 @@ export default function StrategyCompetitorPills({ names }: { names: string[] }) 
         <button
           key={name}
           onClick={() => focusOnRadar(name)}
-          className="rounded-full border border-[#152415] bg-[#071507] px-2 py-0.5 text-[10px] text-slate-500 transition-colors hover:border-[#2EE6A6]/25 hover:text-[#2EE6A6]/70"
+          className="rounded-full border border-[#152415] bg-[#071507] px-2 py-0.5 text-[10px] text-slate-500 transition-colors hover:border-[#00B4FF]/25 hover:text-[#00B4FF]/70"
           title={`Focus ${name} on Radar`}
         >
           {name}

@@ -39,19 +39,19 @@ export default function SoundSettings() {
         aria-checked={enabled}
         aria-label={enabled ? "Disable sound effects" : "Enable sound effects"}
         onClick={handleToggle}
-        className="relative flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2EE6A6]"
+        className="relative flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00B4FF]"
         style={{
-          background: enabled ? "rgba(46,230,166,0.22)" : "#0a1a0a",
-          border: `1px solid ${enabled ? "rgba(46,230,166,0.4)" : "#1a3a20"}`,
-          boxShadow: enabled ? "0 0 10px rgba(46,230,166,0.15)" : "none",
+          background: enabled ? "rgba(0,180,255,0.22)" : "#0a0a1a",
+          border: `1px solid ${enabled ? "rgba(0,180,255,0.4)" : "#1a3a20"}`,
+          boxShadow: enabled ? "0 0 10px rgba(0,180,255,0.15)" : "none",
         }}
       >
         <span
           className="absolute h-4 w-4 rounded-full transition-all duration-200"
           style={{
-            background: enabled ? "#2EE6A6" : "#1e3a20",
+            background: enabled ? "#00B4FF" : "#1e3a20",
             left: enabled ? "calc(100% - 18px)" : "2px",
-            boxShadow: enabled ? "0 0 6px rgba(46,230,166,0.6)" : "none",
+            boxShadow: enabled ? "0 0 6px rgba(0,180,255,0.6)" : "none",
           }}
         />
       </button>

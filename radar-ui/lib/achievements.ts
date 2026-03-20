@@ -190,7 +190,7 @@ export const STRATEGY_ACTIONS: StrategyAction[] = [
 ];
 
 export const DIFFICULTY_COLOR: Record<Difficulty, string> = {
-  Easy:   "#2EE6A6",
+  Easy:   "#00B4FF",
   Medium: "#f59e0b",
   Hard:   "#ef4444",
 };

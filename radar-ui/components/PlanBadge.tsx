@@ -77,10 +77,10 @@ export default function PlanBadge({ plan, trialDaysRemaining }: Props) {
         </span>
         {/* Upgrade CTA */}
         <span
-          className="flex items-center gap-1 px-3 py-1.5 transition-colors group-hover:bg-[rgba(46,230,166,0.08)]"
+          className="flex items-center gap-1 px-3 py-1.5 transition-colors group-hover:bg-[rgba(0,180,255,0.08)]"
           style={{
             borderLeft: "1px solid rgba(245,158,11,0.20)",
-            color: "rgba(46,230,166,0.90)",
+            color: "rgba(0,180,255,0.90)",
           }}
         >
           Upgrade
@@ -104,7 +104,7 @@ export default function PlanBadge({ plan, trialDaysRemaining }: Props) {
         className="group flex items-center gap-0 overflow-hidden rounded-full text-[11px] font-semibold transition-opacity hover:opacity-85"
         style={{
           background: "rgba(0,0,0,0.40)",
-          border: "1px solid rgba(46,230,166,0.16)",
+          border: "1px solid rgba(0,180,255,0.16)",
         }}
       >
         {/* Plan label */}
@@ -120,10 +120,10 @@ export default function PlanBadge({ plan, trialDaysRemaining }: Props) {
         </span>
         {/* Upgrade CTA */}
         <span
-          className="flex items-center gap-1 px-3 py-1.5 transition-colors group-hover:bg-[rgba(46,230,166,0.07)]"
+          className="flex items-center gap-1 px-3 py-1.5 transition-colors group-hover:bg-[rgba(0,180,255,0.07)]"
           style={{
-            borderLeft: "1px solid rgba(46,230,166,0.12)",
-            color: "rgba(46,230,166,0.80)",
+            borderLeft: "1px solid rgba(0,180,255,0.12)",
+            color: "rgba(0,180,255,0.80)",
           }}
         >
           Pro

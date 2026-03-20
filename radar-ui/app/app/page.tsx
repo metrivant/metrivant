@@ -256,26 +256,26 @@ export default async function Page() {
         className="pointer-events-none fixed inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 90% 50% at 50% -5%, rgba(46,230,166,0.08) 0%, transparent 70%)",
+            "radial-gradient(ellipse 90% 50% at 50% -5%, rgba(0,180,255,0.08) 0%, transparent 70%)",
         }}
       />
       <div
         className="pointer-events-none fixed inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 60% 80% at 50% 55%, rgba(46,230,166,0.025) 0%, transparent 100%)",
+            "radial-gradient(ellipse 60% 80% at 50% 55%, rgba(0,180,255,0.025) 0%, transparent 100%)",
         }}
       />
 
       {/* ── Header — brand + stats ───────────────────────────────────────── */}
-      <header className="relative z-20 flex h-[56px] shrink-0 items-center border-b border-[#0e2210] bg-[rgba(0,0,0,0.98)] backdrop-blur-xl">
+      <header className="relative z-20 flex h-[56px] shrink-0 items-center border-b border-[#0e1022] bg-[rgba(0,0,0,0.98)] backdrop-blur-xl">
 
         {/* Accent line at top of header */}
         <div
           className="absolute inset-x-0 top-0 h-[1px]"
           style={{
             background:
-              "linear-gradient(90deg, transparent 0%, rgba(46,230,166,0.35) 30%, rgba(46,230,166,0.55) 50%, rgba(46,230,166,0.35) 70%, transparent 100%)",
+              "linear-gradient(90deg, transparent 0%, rgba(0,180,255,0.35) 30%, rgba(0,180,255,0.55) 50%, rgba(0,180,255,0.35) 70%, transparent 100%)",
           }}
         />
 
@@ -294,7 +294,7 @@ export default async function Page() {
               </div>
               <div
                 className="hidden text-[9px] font-semibold uppercase md:block"
-                style={{ letterSpacing: "0.32em", color: "rgba(46,230,166,0.48)" }}
+                style={{ letterSpacing: "0.32em", color: "rgba(0,180,255,0.48)" }}
               >
                 Competitive Intelligence
               </div>
@@ -303,12 +303,12 @@ export default async function Page() {
             {/* ── Pipeline link — opens public engineering schematic ─────── */}
             <Link
               href="/pipeline"
-              className="hidden items-center gap-1.5 rounded-full border border-[#0e2210] bg-[#020802] px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 transition-colors hover:border-[#1e4020] hover:text-[rgba(46,230,166,0.70)] md:inline-flex"
+              className="hidden items-center gap-1.5 rounded-full border border-[#0e1022] bg-[#020208] px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 transition-colors hover:border-[#1e2040] hover:text-[rgba(0,180,255,0.70)] md:inline-flex"
               title="View how Metrivant works — live pipeline status"
             >
               <span
-                className="h-1.5 w-1.5 rounded-full bg-[#2EE6A6]"
-                style={{ boxShadow: "0 0 5px #2EE6A6" }}
+                className="h-1.5 w-1.5 rounded-full bg-[#00B4FF]"
+                style={{ boxShadow: "0 0 5px #00B4FF" }}
               />
               Pipeline
             </Link>
@@ -342,10 +342,10 @@ export default async function Page() {
                 <div className="text-[10px] uppercase tracking-[0.18em] text-slate-600">Rivals</div>
                 <div className="mt-px text-[16px] font-semibold leading-none tabular-nums text-slate-200">{competitors.length}</div>
                 <div
-                  className="pointer-events-none absolute right-0 top-full z-30 mt-2 w-52 rounded-[10px] border border-[#1a3020] bg-[#060d06] px-3 py-2.5 text-left opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-                  style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85), 0 0 0 1px rgba(46,230,166,0.06)" }}
+                  className="pointer-events-none absolute right-0 top-full z-30 mt-2 w-52 rounded-[10px] border border-[#1a2030] bg-[#06060d] px-3 py-2.5 text-left opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                  style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85), 0 0 0 1px rgba(0,180,255,0.06)" }}
                 >
-                  <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#2EE6A6]">Rivals</div>
+                  <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#00B4FF]">Rivals</div>
                   <div className="text-[11px] leading-snug text-slate-500">Companies currently monitored by Metrivant.</div>
                 </div>
               </div>
@@ -353,12 +353,12 @@ export default async function Page() {
               {/* Active */}
               <div className="group relative cursor-default text-right">
                 <div className="text-[10px] uppercase tracking-[0.18em] text-slate-600">Active</div>
-                <div className="mt-px text-[16px] font-semibold leading-none tabular-nums" style={{ color: activeCount > 0 ? "#2EE6A6" : "#475569" }}>{activeCount}</div>
+                <div className="mt-px text-[16px] font-semibold leading-none tabular-nums" style={{ color: activeCount > 0 ? "#00B4FF" : "#475569" }}>{activeCount}</div>
                 <div
-                  className="pointer-events-none absolute right-0 top-full z-30 mt-2 w-52 rounded-[10px] border border-[#1a3020] bg-[#060d06] px-3 py-2.5 text-left opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-                  style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85), 0 0 0 1px rgba(46,230,166,0.06)" }}
+                  className="pointer-events-none absolute right-0 top-full z-30 mt-2 w-52 rounded-[10px] border border-[#1a2030] bg-[#06060d] px-3 py-2.5 text-left opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                  style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85), 0 0 0 1px rgba(0,180,255,0.06)" }}
                 >
-                  <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#2EE6A6]">Active</div>
+                  <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#00B4FF]">Active</div>
                   <div className="text-[11px] leading-snug text-slate-500">Competitors showing recent strategic movement in the last 7 days.</div>
                 </div>
               </div>
@@ -368,10 +368,10 @@ export default async function Page() {
                 <div className="text-[10px] uppercase tracking-[0.18em] text-slate-600">Signals</div>
                 <div className="mt-px text-[16px] font-semibold leading-none tabular-nums text-slate-200">{totalSignals7d}</div>
                 <div
-                  className="pointer-events-none absolute right-0 top-full z-30 mt-2 w-52 rounded-[10px] border border-[#1a3020] bg-[#060d06] px-3 py-2.5 text-left opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-                  style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85), 0 0 0 1px rgba(46,230,166,0.06)" }}
+                  className="pointer-events-none absolute right-0 top-full z-30 mt-2 w-52 rounded-[10px] border border-[#1a2030] bg-[#06060d] px-3 py-2.5 text-left opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                  style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85), 0 0 0 1px rgba(0,180,255,0.06)" }}
                 >
-                  <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#2EE6A6]">Signals</div>
+                  <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#00B4FF]">Signals</div>
                   <div className="text-[11px] leading-snug text-slate-500">Detected competitive changes across monitored sources in the last 7 days.</div>
                 </div>
               </div>
@@ -379,12 +379,12 @@ export default async function Page() {
               {/* New 24h */}
               <div className="group relative cursor-default text-right">
                 <div className="text-[10px] uppercase tracking-[0.18em] text-slate-600">New 24h</div>
-                <div className="mt-px text-[16px] font-semibold leading-none tabular-nums" style={{ color: newToday > 0 ? "#2EE6A6" : "#475569" }}>{newToday}</div>
+                <div className="mt-px text-[16px] font-semibold leading-none tabular-nums" style={{ color: newToday > 0 ? "#00B4FF" : "#475569" }}>{newToday}</div>
                 <div
-                  className="pointer-events-none absolute right-0 top-full z-30 mt-2 w-52 rounded-[10px] border border-[#1a3020] bg-[#060d06] px-3 py-2.5 text-left opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-                  style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85), 0 0 0 1px rgba(46,230,166,0.06)" }}
+                  className="pointer-events-none absolute right-0 top-full z-30 mt-2 w-52 rounded-[10px] border border-[#1a2030] bg-[#06060d] px-3 py-2.5 text-left opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                  style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85), 0 0 0 1px rgba(0,180,255,0.06)" }}
                 >
-                  <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#2EE6A6]">New 24h</div>
+                  <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#00B4FF]">New 24h</div>
                   <div className="text-[11px] leading-snug text-slate-500">Rivals with new signal activity detected in the last 24 hours.</div>
                 </div>
               </div>
@@ -405,7 +405,7 @@ export default async function Page() {
 
         {/* ── Left sidebar — navigation (desktop only) ──────────────────── */}
         <nav
-          className="hidden w-[190px] shrink-0 flex-col overflow-hidden border-r border-[#0e2210] bg-[rgba(0,0,0,0.98)] md:flex xl:w-[240px]"
+          className="hidden w-[190px] shrink-0 flex-col overflow-hidden border-r border-[#0e1022] bg-[rgba(0,0,0,0.98)] md:flex xl:w-[240px]"
           aria-label="App navigation"
         >
           <SidebarNav telescopeSignals={telescopeSignals} />

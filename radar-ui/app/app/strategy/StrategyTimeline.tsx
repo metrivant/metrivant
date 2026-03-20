@@ -58,7 +58,7 @@ export default function StrategyTimeline({ insights }: Props) {
           <div className="flex items-baseline gap-3">
             <span
               className="font-mono text-[11px] font-bold"
-              style={{ color: "rgba(46,230,166,0.40)" }}
+              style={{ color: "rgba(0,180,255,0.40)" }}
             >
               04
             </span>
@@ -70,7 +70,7 @@ export default function StrategyTimeline({ insights }: Props) {
             className="mb-1 h-px flex-1"
             style={{
               background:
-                "linear-gradient(90deg, rgba(46,230,166,0.18) 0%, transparent 100%)",
+                "linear-gradient(90deg, rgba(0,180,255,0.18) 0%, transparent 100%)",
             }}
           />
         </div>
@@ -89,13 +89,13 @@ export default function StrategyTimeline({ insights }: Props) {
             style={{
               borderColor:
                 selected === name
-                  ? "rgba(46,230,166,0.40)"
+                  ? "rgba(0,180,255,0.40)"
                   : "#0e1e0e",
               background:
                 selected === name
-                  ? "rgba(46,230,166,0.08)"
-                  : "#020802",
-              color: selected === name ? "#2EE6A6" : "#64748b",
+                  ? "rgba(0,180,255,0.08)"
+                  : "#020208",
+              color: selected === name ? "#00B4FF" : "#64748b",
             }}
           >
             {name}
@@ -111,7 +111,7 @@ export default function StrategyTimeline({ insights }: Props) {
             className="absolute left-[7px] top-1 bottom-2 w-px"
             style={{
               background:
-                "linear-gradient(180deg, rgba(46,230,166,0.18) 0%, transparent 100%)",
+                "linear-gradient(180deg, rgba(0,180,255,0.18) 0%, transparent 100%)",
             }}
           />
           <div className="flex flex-col gap-5">

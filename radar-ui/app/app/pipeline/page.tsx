@@ -41,7 +41,7 @@ export default async function PipelinePage() {
   if (!user) redirect("/login");
 
   return (
-    <div className="min-h-screen bg-[#000200] text-white pb-[80px]">
+    <div className="min-h-screen bg-[#000002] text-white pb-[80px]">
       {/* Atmospheric depth */}
       <div
         className="pointer-events-none fixed inset-0"
@@ -56,7 +56,7 @@ export default async function PipelinePage() {
         className="pointer-events-none fixed inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 70% 40% at 50% -5%, rgba(46,230,166,0.05) 0%, transparent 70%)",
+            "radial-gradient(ellipse 70% 40% at 50% -5%, rgba(0,180,255,0.05) 0%, transparent 70%)",
         }}
       />
 
@@ -64,7 +64,7 @@ export default async function PipelinePage() {
       <div className="relative mx-auto max-w-2xl px-5 pt-10 pb-2">
         <div
           className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.22em]"
-          style={{ color: "rgba(46,230,166,0.50)" }}
+          style={{ color: "rgba(0,180,255,0.50)" }}
         >
           Pipeline
         </div>
@@ -84,13 +84,13 @@ export default async function PipelinePage() {
                   className="absolute left-5 top-full w-px"
                   style={{
                     height: "8px",
-                    background: "rgba(46,230,166,0.15)",
+                    background: "rgba(0,180,255,0.15)",
                   }}
                 />
               )}
 
               {/* Stage card */}
-              <div className="w-full rounded-lg border border-[#0d2010] bg-[#020802] p-4 mb-2">
+              <div className="w-full rounded-lg border border-[#0d1020] bg-[#020208] p-4 mb-2">
                 <div className="text-[13px] font-bold text-white">
                   {stage.name}
                 </div>
@@ -107,7 +107,7 @@ export default async function PipelinePage() {
       <div className="relative mx-auto max-w-2xl px-5 pt-10">
         <div
           className="mb-3 font-mono text-[10px] font-bold uppercase tracking-[0.22em]"
-          style={{ color: "rgba(46,230,166,0.50)" }}
+          style={{ color: "rgba(0,180,255,0.50)" }}
         >
           Additive Pools
         </div>
@@ -115,7 +115,7 @@ export default async function PipelinePage() {
           {POOLS.map((pool) => (
             <div
               key={pool}
-              className="rounded-lg border border-[#0d2010] bg-[#020802] px-3 py-2.5 text-[13px] font-medium text-white"
+              className="rounded-lg border border-[#0d1020] bg-[#020208] px-3 py-2.5 text-[13px] font-medium text-white"
             >
               {pool}
             </div>
@@ -130,7 +130,7 @@ export default async function PipelinePage() {
       <div className="relative mx-auto max-w-2xl px-5 pt-10">
         <div
           className="mb-3 font-mono text-[10px] font-bold uppercase tracking-[0.22em]"
-          style={{ color: "rgba(46,230,166,0.50)" }}
+          style={{ color: "rgba(0,180,255,0.50)" }}
         >
           AI Stack
         </div>
@@ -138,7 +138,7 @@ export default async function PipelinePage() {
           {AI_LAYERS.map((layer) => (
             <div
               key={layer.name}
-              className="flex items-center justify-between rounded-lg border border-[#0d2010] bg-[#020802] px-4 py-3"
+              className="flex items-center justify-between rounded-lg border border-[#0d1020] bg-[#020208] px-4 py-3"
             >
               <span className="text-[13px] font-medium text-white">
                 {layer.name}

@@ -457,7 +457,7 @@ export default async function OpsPage() {
   const generatedAt = now.toISOString();
 
   return (
-    <div className="min-h-screen bg-[#000200] text-white">
+    <div className="min-h-screen bg-[#000002] text-white">
       {/* ── Atmospheric depth ─────────────────────────────────────────────── */}
       <div
         className="pointer-events-none fixed inset-0"
@@ -472,27 +472,27 @@ export default async function OpsPage() {
         className="pointer-events-none fixed inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 60% 35% at 50% -5%, rgba(46,230,166,0.04) 0%, transparent 70%)",
+            "radial-gradient(ellipse 60% 35% at 50% -5%, rgba(0,180,255,0.04) 0%, transparent 70%)",
         }}
       />
 
       {/* ── Header ────────────────────────────────────────────────────────── */}
-      <header className="relative z-10 flex h-14 shrink-0 items-center justify-between border-b border-[#0e2210] bg-[rgba(0,2,0,0.97)] px-6">
+      <header className="relative z-10 flex h-14 shrink-0 items-center justify-between border-b border-[#0e1022] bg-[rgba(0,2,0,0.97)] px-6">
         <div
           className="absolute inset-x-0 top-0 h-[1px]"
           style={{
             background:
-              "linear-gradient(90deg, transparent 0%, rgba(46,230,166,0.20) 40%, rgba(46,230,166,0.35) 50%, rgba(46,230,166,0.20) 60%, transparent 100%)",
+              "linear-gradient(90deg, transparent 0%, rgba(0,180,255,0.20) 40%, rgba(0,180,255,0.35) 50%, rgba(0,180,255,0.20) 60%, transparent 100%)",
           }}
         />
         <Link href="/app" className="flex items-center gap-3">
           <svg width="22" height="22" viewBox="0 0 46 46" fill="none" aria-hidden="true">
-            <circle cx="23" cy="23" r="21.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.50" />
-            <circle cx="23" cy="23" r="13"   stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.28" />
-            <circle cx="23" cy="23" r="5.5"  stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.42" />
-            <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#2EE6A6" fillOpacity="0.10" />
-            <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.80" />
-            <circle cx="23" cy="23" r="2.5" fill="#2EE6A6" />
+            <circle cx="23" cy="23" r="21.5" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.50" />
+            <circle cx="23" cy="23" r="13"   stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.28" />
+            <circle cx="23" cy="23" r="5.5"  stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.42" />
+            <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#00B4FF" fillOpacity="0.10" />
+            <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.80" />
+            <circle cx="23" cy="23" r="2.5" fill="#00B4FF" />
           </svg>
           <span className="text-[13px] font-bold tracking-[0.08em] text-white">METRIVANT</span>
         </Link>
@@ -552,7 +552,7 @@ export default async function OpsPage() {
               subtitle="Signals queued for interpretation · all orgs"
             />
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-              <StatCard label="Pending" value={pendingCount} accent="#2EE6A6"
+              <StatCard label="Pending" value={pendingCount} accent="#00B4FF"
                 note="awaiting gpt-4o-mini" />
               <StatCard label="Pending Review" value={pendingReviewCount} accent="#f59e0b"
                 note="held — pressure_index gate" />
@@ -584,7 +584,7 @@ export default async function OpsPage() {
               <div className="overflow-hidden rounded-[14px] border border-[#0e1e0e]">
                 <table className="w-full text-[12px]">
                   <thead>
-                    <tr className="border-b border-[#0e1e0e] bg-[#020802]">
+                    <tr className="border-b border-[#0e1e0e] bg-[#020208]">
                       <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Route</th>
                       <th className="px-4 py-2.5 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Last Run</th>
                       <th className="px-4 py-2.5 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Duration</th>
@@ -602,11 +602,11 @@ export default async function OpsPage() {
                           ? "#ef4444"
                           : stale === "warn"
                             ? "#f59e0b"
-                            : "#2EE6A6";
+                            : "#00B4FF";
                       return (
                         <tr
                           key={row.route}
-                          className="border-b border-[#0a1a0a] last:border-0 transition-colors hover:bg-[#040c04]"
+                          className="border-b border-[#0a0a1a] last:border-0 transition-colors hover:bg-[#040c04]"
                         >
                           <td className="px-4 py-3 font-mono text-[11px] text-slate-300">
                             {row.route}
@@ -678,7 +678,7 @@ export default async function OpsPage() {
             {signalQuality.total === 0 ? (
               <EmptyState message="No signals in the last 7 days." />
             ) : (
-              <div className="rounded-[14px] border border-[#0e1e0e] bg-[#020802] p-5">
+              <div className="rounded-[14px] border border-[#0e1e0e] bg-[#020208] p-5">
                 <div className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
                   <MiniStat label="Total Signals"   value={signalQuality.total} />
                   <MiniStat label="Suppressed"       value={signalQuality.suppressed}
@@ -702,7 +702,7 @@ export default async function OpsPage() {
                     label="High ≥ 0.65"
                     count={signalQuality.confHigh}
                     total={signalQuality.total}
-                    color="#2EE6A6"
+                    color="#00B4FF"
                     note="sent to GPT-4o-mini"
                   />
                   <ConfBar
@@ -743,7 +743,7 @@ export default async function OpsPage() {
               </div>
             )}
             {activityStats.length > 0 && (
-              <div className="mt-4 rounded-[12px] border border-[#0a1a0a] bg-[#020802] px-4 py-3">
+              <div className="mt-4 rounded-[12px] border border-[#0a0a1a] bg-[#020208] px-4 py-3">
                 <div className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-700">
                   Ambient Events (24h) — {activityRows.length} total
                 </div>
@@ -751,7 +751,7 @@ export default async function OpsPage() {
                   {activityStats.map((a) => (
                     <span
                       key={a.type}
-                      className="rounded-full border border-[#0e2010] bg-[#020802] px-2.5 py-1 font-mono text-[11px] text-slate-500"
+                      className="rounded-full border border-[#0e2010] bg-[#020208] px-2.5 py-1 font-mono text-[11px] text-slate-500"
                     >
                       {a.type} <span className="text-slate-400 tabular-nums">{a.count}</span>
                     </span>
@@ -814,7 +814,7 @@ export default async function OpsPage() {
                 <div className="overflow-hidden rounded-[14px] border border-[#0e1e0e]">
                   <table className="w-full text-[12px]">
                     <thead>
-                      <tr className="border-b border-[#0e1e0e] bg-[#020802]">
+                      <tr className="border-b border-[#0e1e0e] bg-[#020208]">
                         <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Competitor</th>
                         <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Page</th>
                         <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">URL</th>
@@ -827,7 +827,7 @@ export default async function OpsPage() {
                         return (
                           <tr
                             key={row.id}
-                            className="border-b border-[#0a1a0a] last:border-0 transition-colors hover:bg-[#040c04]"
+                            className="border-b border-[#0a0a1a] last:border-0 transition-colors hover:bg-[#040c04]"
                           >
                             <td className="px-4 py-3 font-mono text-[11px] text-slate-300">
                               {row.competitors?.name ?? "—"}
@@ -904,14 +904,14 @@ function SectionHeader({ index, title, subtitle }: { index: string; title: strin
     <div className="mb-6">
       <div className="flex items-end gap-4">
         <div className="flex items-baseline gap-3">
-          <span className="font-mono text-[11px] font-bold" style={{ color: "rgba(46,230,166,0.40)" }}>
+          <span className="font-mono text-[11px] font-bold" style={{ color: "rgba(0,180,255,0.40)" }}>
             {index}
           </span>
           <h2 className="text-[18px] font-semibold tracking-tight text-white">{title}</h2>
         </div>
         <div
           className="mb-1 h-px flex-1"
-          style={{ background: "linear-gradient(90deg, rgba(46,230,166,0.18) 0%, transparent 100%)" }}
+          style={{ background: "linear-gradient(90deg, rgba(0,180,255,0.18) 0%, transparent 100%)" }}
         />
       </div>
       <p className="mt-1 text-[12px] text-slate-600">{subtitle}</p>
@@ -928,7 +928,7 @@ function SystemStatusBadge({
   staleCrons: number;
   warnCrons: number;
 }) {
-  const color  = ok ? "#2EE6A6" : staleCrons > 0 ? "#ef4444" : "#f59e0b";
+  const color  = ok ? "#00B4FF" : staleCrons > 0 ? "#ef4444" : "#f59e0b";
   const label  = ok ? "healthy" : staleCrons > 0 ? "degraded" : "warning";
   const detail = staleCrons > 0
     ? `${staleCrons} stale cron${staleCrons !== 1 ? "s" : ""}`
@@ -969,7 +969,7 @@ function StatCard({
   note?:  string;
 }) {
   return (
-    <div className="rounded-[14px] border border-[#0e1e0e] bg-[#020802] px-4 py-4">
+    <div className="rounded-[14px] border border-[#0e1e0e] bg-[#020208] px-4 py-4">
       <div className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-700">
         {label}
       </div>
@@ -986,11 +986,11 @@ function StageCard({ stat }: { stat: StageStat }) {
   const accentColor =
     stat.errors > 0 && errorRate > 0.1 ? "#ef4444" :
     stat.errors > 0 ? "#f59e0b" :
-    "#2EE6A6";
+    "#00B4FF";
 
   return (
     <div
-      className="relative rounded-[14px] border bg-[#020802] p-4"
+      className="relative rounded-[14px] border bg-[#020208] p-4"
       style={{ borderColor: stat.errors > 0 ? "rgba(239,68,68,0.20)" : "#0e1e0e" }}
     >
       <div className="mb-3 flex items-start justify-between">
@@ -1007,7 +1007,7 @@ function StageCard({ stat }: { stat: StageStat }) {
         </span>
         <span className="text-[11px] text-slate-600">runs</span>
       </div>
-      <div className="mt-3 flex items-center gap-4 border-t border-[#0a1a0a] pt-3 font-mono text-[10px] tabular-nums text-slate-700">
+      <div className="mt-3 flex items-center gap-4 border-t border-[#0a0a1a] pt-3 font-mono text-[10px] tabular-nums text-slate-700">
         {stat.avgMs != null && (
           <span>avg <span className="text-slate-500">{formatDuration(stat.avgMs)}</span></span>
         )}
@@ -1056,15 +1056,15 @@ function ConfBar({
 function PoolCard({ stat }: { stat: PoolStat }) {
   const promoteRate = stat.total > 0 ? Math.round((stat.promoted / stat.total) * 100) : 0;
   return (
-    <div className="rounded-[14px] border border-[#0e1e0e] bg-[#020802] p-4">
+    <div className="rounded-[14px] border border-[#0e1e0e] bg-[#020208] p-4">
       <div className="mb-2 font-mono text-[11px] font-bold text-slate-300">{stat.label}</div>
       <div className="flex items-baseline gap-1.5">
-        <span className="font-mono text-[24px] font-bold tabular-nums leading-none text-[#2EE6A6]">
+        <span className="font-mono text-[24px] font-bold tabular-nums leading-none text-[#00B4FF]">
           {stat.total}
         </span>
         <span className="text-[11px] text-slate-600">events</span>
       </div>
-      <div className="mt-3 flex items-center gap-4 border-t border-[#0a1a0a] pt-3 font-mono text-[10px] tabular-nums text-slate-700">
+      <div className="mt-3 flex items-center gap-4 border-t border-[#0a0a1a] pt-3 font-mono text-[10px] tabular-nums text-slate-700">
         <span>promoted <span className="text-slate-500">{stat.promoted}</span></span>
         <span>·</span>
         <span>suppressed <span className="text-slate-500">{stat.suppressed}</span></span>
@@ -1087,7 +1087,7 @@ function MiniStat({ label, value, note }: { label: string; value: number | strin
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-[12px] border border-[#0a1a0a] bg-[#020802] px-4 py-5">
+    <div className="flex items-center gap-3 rounded-[12px] border border-[#0a0a1a] bg-[#020208] px-4 py-5">
       <div
         className="h-2 w-2 shrink-0 rounded-full"
         style={{ backgroundColor: "rgba(100,116,139,0.5)" }}
@@ -1100,7 +1100,7 @@ function EmptyState({ message }: { message: string }) {
 function ErrorRow({ error }: { error: ErrorEventRow }) {
   const errorDetail = error.metadata?.error as string | undefined;
   return (
-    <div className="relative overflow-hidden rounded-[12px] border border-red-500/15 bg-[#020802] px-4 py-3">
+    <div className="relative overflow-hidden rounded-[12px] border border-red-500/15 bg-[#020208] px-4 py-3">
       <div className="absolute inset-y-0 left-0 w-[3px] rounded-l-[12px] bg-red-500/40" />
       <div className="ml-3 flex items-start justify-between gap-4">
         <div className="min-w-0">

@@ -5,7 +5,7 @@ import LandingFeaturePrompt from "../components/LandingFeaturePrompt";
 import LandingCTAButtons from "../components/LandingCTAButtons";
 import PipelineSection from "../components/PipelineSection";
 
-const LABEL_COLOR_STYLE = { color: "rgba(46,230,166,0.55)" } as const;
+const LABEL_COLOR_STYLE = { color: "rgba(0,180,255,0.55)" } as const;
 
 const jsonLd = [
   {
@@ -40,7 +40,7 @@ const jsonLd = [
 
 export default function LandingPage() {
   return (
-    <div className="flex min-h-screen w-full flex-col bg-[#000200] text-white">
+    <div className="flex min-h-screen w-full flex-col bg-[#000002] text-white">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -61,7 +61,7 @@ export default function LandingPage() {
       <div
         className="pointer-events-none fixed inset-0"
         style={{
-          background: "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(46,230,166,0.09) 0%, transparent 70%)",
+          background: "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,180,255,0.09) 0%, transparent 70%)",
           animation: "glow-breathe 8s ease-in-out infinite",
         }}
       />
@@ -111,7 +111,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Differentiation row ──────────────────────────────────────── */}
-      <section className="relative border-t border-[#0d2010] px-6 py-10">
+      <section className="relative border-t border-[#0d1020] px-6 py-10">
         <div className="mx-auto grid max-w-2xl gap-8 sm:grid-cols-3">
           {[
             {
@@ -138,12 +138,12 @@ export default function LandingPage() {
       </section>
 
       {/* ── Pipeline Experience — scroll-triggered SVG narrative ──── */}
-      <section className="relative border-t border-[#0d2010]">
+      <section className="relative border-t border-[#0d1020]">
         <PipelineSection />
       </section>
 
       {/* ── Pricing snapshot ─────────────────────────────────────────── */}
-      <section className="relative border-t border-[#0d2010] px-6 pb-16">
+      <section className="relative border-t border-[#0d1020] px-6 pb-16">
         <div className="mx-auto max-w-3xl">
           <div className="mb-6 pt-12 text-center">
             <div className="text-[10px] font-bold uppercase tracking-[0.28em] text-slate-600">
@@ -156,7 +156,7 @@ export default function LandingPage() {
 
           <div className="mx-auto grid max-w-xl gap-3 sm:grid-cols-2">
             {/* Analyst */}
-            <div className="rounded-[14px] border border-[#0d2010] bg-[#020802] px-5 py-5 transition-transform duration-300 hover:-translate-y-0.5">
+            <div className="rounded-[14px] border border-[#0d1020] bg-[#020208] px-5 py-5 transition-transform duration-300 hover:-translate-y-0.5">
               <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Analyst</div>
               <div className="mt-2 text-[26px] font-bold text-white leading-none">
                 $9<span className="text-[13px] font-normal text-slate-500">/mo</span>
@@ -164,14 +164,14 @@ export default function LandingPage() {
               <ul className="mt-3 space-y-1.5">
                 {["10 competitors", "Weekly brief", "Live radar"].map((f) => (
                   <li key={f} className="flex items-center gap-2">
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "rgba(46,230,166,0.55)" }} />
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "rgba(0,180,255,0.55)" }} />
                     <span className="text-[11px] text-slate-500">{f}</span>
                   </li>
                 ))}
               </ul>
               <Link
                 href="/signup?plan=analyst"
-                className="mt-4 block rounded-full border border-[#1a3020] py-2 text-center text-[12px] font-medium text-slate-400 transition-colors hover:border-[#2EE6A6]/25 hover:text-white"
+                className="mt-4 block rounded-full border border-[#1a2030] py-2 text-center text-[12px] font-medium text-slate-400 transition-colors hover:border-[#00B4FF]/25 hover:text-white"
               >
                 Start free trial
               </Link>
@@ -179,16 +179,16 @@ export default function LandingPage() {
 
             {/* Pro — highlighted */}
             <div
-              className="relative rounded-[14px] border border-[#2EE6A6]/22 bg-[#030c03] px-5 py-5 transition-all duration-300 hover:-translate-y-0.5"
-              style={{ boxShadow: "0 0 30px rgba(46,230,166,0.04)" }}
+              className="relative rounded-[14px] border border-[#00B4FF]/22 bg-[#03030c] px-5 py-5 transition-all duration-300 hover:-translate-y-0.5"
+              style={{ boxShadow: "0 0 30px rgba(0,180,255,0.04)" }}
             >
               <div
                 className="absolute -top-px inset-x-0 h-[1px] rounded-t-[14px]"
-                style={{ background: "linear-gradient(90deg, transparent, rgba(46,230,166,0.45), transparent)" }}
+                style={{ background: "linear-gradient(90deg, transparent, rgba(0,180,255,0.45), transparent)" }}
               />
               <div className="flex items-center justify-between">
                 <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Pro</div>
-                <span className="rounded-full bg-[#2EE6A6]/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-[#2EE6A6]">
+                <span className="rounded-full bg-[#00B4FF]/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-[#00B4FF]">
                   Popular
                 </span>
               </div>
@@ -204,14 +204,14 @@ export default function LandingPage() {
                   "Market positioning map",
                 ].map((f) => (
                   <li key={f} className="flex items-center gap-2">
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "#2EE6A6", opacity: 0.85 }} />
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "#00B4FF", opacity: 0.85 }} />
                     <span className="text-[11px] text-slate-400">{f}</span>
                   </li>
                 ))}
               </ul>
               <Link
                 href="/signup?plan=pro"
-                className="mt-4 block rounded-full bg-[#2EE6A6] py-2 text-center text-[12px] font-semibold text-black transition-opacity hover:opacity-90"
+                className="mt-4 block rounded-full bg-[#00B4FF] py-2 text-center text-[12px] font-semibold text-black transition-opacity hover:opacity-90"
               >
                 Start free trial
               </Link>

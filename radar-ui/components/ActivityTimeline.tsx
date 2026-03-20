@@ -152,9 +152,9 @@ export default function ActivityTimeline({
         <span
           className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em]"
           style={{
-            background: "rgba(46,230,166,0.05)",
-            color:      "rgba(46,230,166,0.40)",
-            border:     "1px solid rgba(46,230,166,0.10)",
+            background: "rgba(0,180,255,0.05)",
+            color:      "rgba(0,180,255,0.40)",
+            border:     "1px solid rgba(0,180,255,0.10)",
           }}
         >
           Activity Echo

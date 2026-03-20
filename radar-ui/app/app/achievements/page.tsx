@@ -10,7 +10,7 @@ export default async function AchievementsPage() {
   if (!user) redirect("/login");
 
   return (
-    <div className="min-h-screen bg-[#000200] text-white pb-[80px]">
+    <div className="min-h-screen bg-[#000002] text-white pb-[80px]">
       {/* Atmospheric depth */}
       <div
         className="pointer-events-none fixed inset-0"
@@ -25,7 +25,7 @@ export default async function AchievementsPage() {
         className="pointer-events-none fixed inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 70% 40% at 50% -5%, rgba(46,230,166,0.05) 0%, transparent 70%)",
+            "radial-gradient(ellipse 70% 40% at 50% -5%, rgba(0,180,255,0.05) 0%, transparent 70%)",
         }}
       />
 
@@ -33,7 +33,7 @@ export default async function AchievementsPage() {
       <div className="relative mx-auto max-w-2xl px-5 pt-10 pb-2">
         <div
           className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.22em]"
-          style={{ color: "rgba(46,230,166,0.50)" }}
+          style={{ color: "rgba(0,180,255,0.50)" }}
         >
           Achievements
         </div>
@@ -46,8 +46,8 @@ export default async function AchievementsPage() {
       <div className="relative mx-auto flex max-w-2xl flex-col items-center px-5 pt-24 text-center">
         {/* Shield / trophy icon */}
         <div
-          className="mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-[#0d2010]"
-          style={{ background: "rgba(46,230,166,0.04)" }}
+          className="mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-[#0d1020]"
+          style={{ background: "rgba(0,180,255,0.04)" }}
         >
           <svg
             width="28"
@@ -58,14 +58,14 @@ export default async function AchievementsPage() {
           >
             <path
               d="M14 3L5 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-4z"
-              stroke="rgba(46,230,166,0.30)"
+              stroke="rgba(0,180,255,0.30)"
               strokeWidth="1.5"
               strokeLinejoin="round"
               fill="none"
             />
             <path
               d="M10 14l2.5 2.5L18 11"
-              stroke="rgba(46,230,166,0.30)"
+              stroke="rgba(0,180,255,0.30)"
               strokeWidth="1.5"
               strokeLinecap="round"
               strokeLinejoin="round"

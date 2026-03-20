@@ -36,11 +36,11 @@ export default function BillingTracker() {
       style={{ pointerEvents: "none" }}
     >
       <div
-        className="flex items-center gap-3 rounded-full border border-[#2EE6A6]/30 bg-[#020802] px-5 py-3 shadow-lg"
-        style={{ boxShadow: "0 0 24px rgba(46,230,166,0.12)" }}
+        className="flex items-center gap-3 rounded-full border border-[#00B4FF]/30 bg-[#020208] px-5 py-3 shadow-lg"
+        style={{ boxShadow: "0 0 24px rgba(0,180,255,0.12)" }}
       >
-        <span className="h-2 w-2 shrink-0 rounded-full bg-[#2EE6A6]" />
-        <span className="text-[13px] font-medium text-[#2EE6A6]">
+        <span className="h-2 w-2 shrink-0 rounded-full bg-[#00B4FF]" />
+        <span className="text-[13px] font-medium text-[#00B4FF]">
           Subscription activated — welcome to Metrivant
         </span>
       </div>

@@ -83,7 +83,7 @@ function ConstellationScene() {
       {/* Center soft glow */}
       <motion.circle
         cx={CX} cy={CY} r={26}
-        fill="rgba(46,230,166,0.07)"
+        fill="rgba(0,180,255,0.07)"
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.9, delay: 0.4, ease: "easeOut" }}
@@ -96,7 +96,7 @@ function ConstellationScene() {
           key={i}
           x1={T1_STARS[a].x} y1={T1_STARS[a].y}
           x2={T1_STARS[b].x} y2={T1_STARS[b].y}
-          stroke="#2EE6A6"
+          stroke="#00B4FF"
           strokeWidth={0.6}
           initial={{ opacity: 0 }}
           animate={{ opacity: 0.32 }}
@@ -119,14 +119,14 @@ function ConstellationScene() {
               cx={s.x} cy={s.y}
               r={isCenter ? 7.5 : 5}
               fill="none"
-              stroke="#2EE6A6"
+              stroke="#00B4FF"
               strokeWidth={0.8}
               strokeOpacity={0.22}
             />
             <circle
               cx={s.x} cy={s.y}
               r={isCenter ? 2.4 : 1.7}
-              fill="#2EE6A6"
+              fill="#00B4FF"
               fillOpacity={0.88}
             />
           </motion.g>
@@ -164,7 +164,7 @@ function GalaxyScene() {
       {/* Galaxy outer glow */}
       <motion.circle
         cx={CX} cy={CY} r={42}
-        fill="rgba(46,230,166,0.06)"
+        fill="rgba(0,180,255,0.06)"
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 1.4, delay: 0.2, ease: "easeOut" }}
@@ -174,7 +174,7 @@ function GalaxyScene() {
       {/* Galaxy core glow */}
       <motion.circle
         cx={CX} cy={CY} r={14}
-        fill="rgba(46,230,166,0.22)"
+        fill="rgba(0,180,255,0.22)"
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.9, delay: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
@@ -194,7 +194,7 @@ function GalaxyScene() {
             <g key={i}>
               <motion.circle
                 cx={CX + r1 * Math.cos(rad)} cy={CY + r1 * Math.sin(rad)} r={1.3}
-                fill="rgba(46,230,166,0.55)"
+                fill="rgba(0,180,255,0.55)"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5, delay: 1.0 + i * 0.09 }}
@@ -217,7 +217,7 @@ function GalaxyScene() {
           key={`il-${i}`}
           x1={T2_STARS[a].x} y1={T2_STARS[a].y}
           x2={T2_STARS[b].x} y2={T2_STARS[b].y}
-          stroke="#2EE6A6"
+          stroke="#00B4FF"
           strokeWidth={0.7}
           initial={{ opacity: 0 }}
           animate={{ opacity: 0.32 }}
@@ -237,9 +237,9 @@ function GalaxyScene() {
             style={{ transformOrigin: `${s.x}px ${s.y}px` }}
           >
             <circle cx={s.x} cy={s.y} r={isCenter ? 6.5 : 4.5}
-              fill="none" stroke="#2EE6A6" strokeWidth={0.8} strokeOpacity={0.22} />
+              fill="none" stroke="#00B4FF" strokeWidth={0.8} strokeOpacity={0.22} />
             <circle cx={s.x} cy={s.y} r={isCenter ? 2.2 : 1.6}
-              fill="#2EE6A6" fillOpacity={0.88} />
+              fill="#00B4FF" fillOpacity={0.88} />
           </motion.g>
         );
       })}
@@ -280,7 +280,7 @@ function GalaxyScene() {
           key={`ring-${i}`}
           cx={CX} cy={CY} r={r}
           fill="none"
-          stroke="rgba(46,230,166,0.55)"
+          stroke="rgba(0,180,255,0.55)"
           strokeWidth={0.9}
           initial={{ scale: 0, opacity: 0.8 }}
           animate={{ scale: 1, opacity: 0 }}
@@ -325,10 +325,10 @@ export default function MilestoneOverlay({ tier, onDismiss }: Props) {
         style={{
           width: isMajor ? 440 : 360,
           background: "rgba(4,9,6,0.99)",
-          borderColor: isMajor ? "rgba(46,230,166,0.28)" : "rgba(46,230,166,0.18)",
+          borderColor: isMajor ? "rgba(0,180,255,0.28)" : "rgba(0,180,255,0.18)",
           boxShadow: isMajor
-            ? "0 0 80px rgba(46,230,166,0.14), 0 0 160px rgba(46,230,166,0.06), 0 40px 80px rgba(0,0,0,0.96)"
-            : "0 0 40px rgba(46,230,166,0.10), 0 24px 60px rgba(0,0,0,0.92)",
+            ? "0 0 80px rgba(0,180,255,0.14), 0 0 160px rgba(0,180,255,0.06), 0 40px 80px rgba(0,0,0,0.96)"
+            : "0 0 40px rgba(0,180,255,0.10), 0 24px 60px rgba(0,0,0,0.92)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -337,8 +337,8 @@ export default function MilestoneOverlay({ tier, onDismiss }: Props) {
           className="absolute inset-x-0 top-0 h-[1px]"
           style={{
             background: isMajor
-              ? "linear-gradient(90deg,transparent,rgba(46,230,166,0.75),rgba(96,200,255,0.45),transparent)"
-              : "linear-gradient(90deg,transparent,rgba(46,230,166,0.60),transparent)",
+              ? "linear-gradient(90deg,transparent,rgba(0,180,255,0.75),rgba(96,200,255,0.45),transparent)"
+              : "linear-gradient(90deg,transparent,rgba(0,180,255,0.60),transparent)",
           }}
         />
 
@@ -351,7 +351,7 @@ export default function MilestoneOverlay({ tier, onDismiss }: Props) {
         <div className="px-8 pb-8 text-center">
           <div
             className="text-[9px] font-bold uppercase tracking-[0.32em] mb-2"
-            style={{ color: isMajor ? "rgba(46,230,166,0.55)" : "rgba(46,230,166,0.50)" }}
+            style={{ color: isMajor ? "rgba(0,180,255,0.55)" : "rgba(0,180,255,0.50)" }}
           >
             {isMajor ? "Observatory Activated" : "Observatory Progress"}
           </div>
@@ -386,7 +386,7 @@ export default function MilestoneOverlay({ tier, onDismiss }: Props) {
         {isMajor && (
           <div
             className="absolute inset-x-0 bottom-0 h-[1px]"
-            style={{ background: "linear-gradient(90deg,transparent,rgba(46,230,166,0.28),transparent)" }}
+            style={{ background: "linear-gradient(90deg,transparent,rgba(0,180,255,0.28),transparent)" }}
           />
         )}
       </motion.div>

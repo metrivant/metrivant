@@ -17,7 +17,7 @@ export default function KnowledgePanelToggle() {
       onClick={toggle}
       style={{
         width: "44px", height: "24px", borderRadius: "12px", border: "none",
-        background: enabled ? "#2EE6A6" : "#1a2a1a",
+        background: enabled ? "#00B4FF" : "#1a2a1a",
         position: "relative", cursor: "pointer", transition: "background 0.2s ease",
         flexShrink: 0,
       }}

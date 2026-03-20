@@ -63,7 +63,7 @@ function pickNext(): KnowledgeSlide | null {
 
 function badgeColor(type: KnowledgeSlide["type"]): string {
   if (type === "history") return "#F59E0B";
-  if (type === "feature") return "#2EE6A6";
+  if (type === "feature") return "#00B4FF";
   return "#8B5CF6";
 }
 
@@ -132,7 +132,7 @@ function SlideVisual({ visual, accent }: { visual: VisualKey; accent: string }) 
         <line x1="85" y1="30" x2="30" y2="122" stroke="#EF4444" strokeWidth="2" />
         <path d="M118 76 L143 76 M135 69 L143 76 L135 83" stroke={accent} strokeWidth="1.5" fill="none" />
         <rect x="155" y="38" width="44" height="76" rx="7" fill="none" stroke={accent} strokeWidth="1.5" opacity="0.8" />
-        <rect x="163" y="48" width="28" height="48" rx="2" fill="rgba(46,230,166,0.06)" />
+        <rect x="163" y="48" width="28" height="48" rx="2" fill="rgba(0,180,255,0.06)" />
         <circle cx="177" cy="105" r="5" fill="none" stroke={accent} strokeWidth="1" opacity="0.5" />
       </svg>
     );
@@ -256,12 +256,12 @@ function SlideVisual({ visual, accent }: { visual: VisualKey; accent: string }) 
         <circle cx="150" cy="76" r="58" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
         <circle cx="150" cy="76" r="42" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
         <circle cx="150" cy="76" r="26" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
-        <circle cx="150" cy="76" r="10" fill="none" stroke="rgba(46,230,166,0.15)" strokeWidth="1" />
+        <circle cx="150" cy="76" r="10" fill="none" stroke="rgba(0,180,255,0.15)" strokeWidth="1" />
         {/* Cooling — far, slate */}
         <circle cx="94" cy="34" r="4" fill="#64748b" opacity="0.7" />
         <text x="94" y="27" textAnchor="middle" fill="rgba(255,255,255,0.3)" fontSize="7" fontFamily="monospace">Cooling</text>
         {/* Stable — mid, green */}
-        <circle cx="196" cy="42" r="5.5" fill="#2EE6A6" opacity="0.7" />
+        <circle cx="196" cy="42" r="5.5" fill="#00B4FF" opacity="0.7" />
         <text x="196" y="35" textAnchor="middle" fill="rgba(255,255,255,0.3)" fontSize="7" fontFamily="monospace">Stable</text>
         {/* Rising — inner-mid, amber */}
         <circle cx="116" cy="96" r="7" fill="#F59E0B" opacity="0.7" />
@@ -355,7 +355,7 @@ function SlideVisual({ visual, accent }: { visual: VisualKey; accent: string }) 
       <svg {...svgProps}>
         <defs>
           <linearGradient id="pi-grad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#2EE6A6" />
+            <stop offset="0%" stopColor="#00B4FF" />
             <stop offset="50%" stopColor="#F59E0B" />
             <stop offset="100%" stopColor="#EF4444" />
           </linearGradient>
@@ -477,7 +477,7 @@ function SlideVisual({ visual, accent }: { visual: VisualKey; accent: string }) 
         <text x="38" y="96" textAnchor="middle" fill="rgba(255,255,255,0.3)" fontSize="7" fontFamily="monospace">Cooling</text>
         <text x="38" y="105" textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="6.5" fontFamily="monospace">&lt;1.5</text>
 
-        <circle cx="100" cy="76" r="14" fill="#2EE6A6" opacity="0.7" />
+        <circle cx="100" cy="76" r="14" fill="#00B4FF" opacity="0.7" />
         <text x="100" y="100" textAnchor="middle" fill="rgba(255,255,255,0.3)" fontSize="7" fontFamily="monospace">Stable</text>
         <text x="100" y="109" textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="6.5" fontFamily="monospace">1.5–3</text>
 
@@ -536,8 +536,8 @@ function SlideVisual({ visual, accent }: { visual: VisualKey; accent: string }) 
       <svg {...svgProps}>
         <line x1="40" y1="120" x2="40" y2="20" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
         <line x1="40" y1="76" x2="270" y2="76" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
-        <rect x="70" y="56" width="50" height="20" rx="3" fill="#2EE6A6" opacity="0.4" />
-        <text x="95" y="48" textAnchor="middle" fill="rgba(46,230,166,0.6)" fontSize="8" fontFamily="monospace">+1</text>
+        <rect x="70" y="56" width="50" height="20" rx="3" fill="#00B4FF" opacity="0.4" />
+        <text x="95" y="48" textAnchor="middle" fill="rgba(0,180,255,0.6)" fontSize="8" fontFamily="monospace">+1</text>
         <rect x="170" y="26" width="50" height="50" rx="3" fill="#EF4444" opacity="0.4" />
         <text x="195" y="19" textAnchor="middle" fill="rgba(239,68,68,0.7)" fontSize="8" fontFamily="monospace">-2.5×</text>
         <text x="95" y="140" textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="7.5" fontFamily="monospace">gain</text>
@@ -689,7 +689,7 @@ function SlideVisual({ visual, accent }: { visual: VisualKey; accent: string }) 
     return (
       <svg {...svgProps}>
         <text x="25" y="52" fill="rgba(255,255,255,0.3)" fontSize="8" fontFamily="monospace">My plan</text>
-        <rect x="80" y="42" width="90" height="16" rx="3" fill="#2EE6A6" opacity="0.35" />
+        <rect x="80" y="42" width="90" height="16" rx="3" fill="#00B4FF" opacity="0.35" />
         <text x="125" y="54" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="7.5" fontFamily="monospace">optimistic</text>
 
         <text x="25" y="82" fill="rgba(255,255,255,0.3)" fontSize="8" fontFamily="monospace">Reality</text>
@@ -739,7 +739,7 @@ function SlideVisual({ visual, accent }: { visual: VisualKey; accent: string }) 
         <circle cx="80" cy="70" r="28" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1.2" />
         <circle cx="80" cy="62" r="8" fill="rgba(255,255,255,0.12)" />
         <path d="M68 80 Q80 88 92 80" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" />
-        <path d="M80 42 L80 28 M74 34 L80 28 L86 34" stroke="#2EE6A6" strokeWidth="1.5" fill="none" opacity="0.7" />
+        <path d="M80 42 L80 28 M74 34 L80 28 L86 34" stroke="#00B4FF" strokeWidth="1.5" fill="none" opacity="0.7" />
         <text x="80" y="114" textAnchor="middle" fill="rgba(255,255,255,0.3)" fontSize="7.5" fontFamily="monospace">familiar · overweighted</text>
 
         <rect x="185" y="46" width="56" height="48" rx="5" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1.2" />
@@ -833,8 +833,8 @@ export default function KnowledgePanel() {
   if (!ready) return null;
   if (!panelEnabled) return null;
 
-  const accentColor = slide?.accent ?? "#2EE6A6";
-  const typeColor = slide ? badgeColor(slide.type) : "#2EE6A6";
+  const accentColor = slide?.accent ?? "#00B4FF";
+  const typeColor = slide ? badgeColor(slide.type) : "#00B4FF";
   const totalSlides = KNOWLEDGE_SLIDES.length;
   const progressPct = Math.min(100, (seenCount / totalSlides) * 100);
 

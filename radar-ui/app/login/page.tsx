@@ -75,7 +75,7 @@ function LoginForm() {
           required
           autoFocus
           autoComplete="email"
-          className="rounded-[10px] border border-[#0d2010] bg-[#030c03] px-4 py-2.5 text-[14px] text-white placeholder-slate-700 outline-none transition-colors focus:border-[#2EE6A6]/30 focus:ring-1 focus:ring-[#2EE6A6]/20"
+          className="rounded-[10px] border border-[#0d1020] bg-[#03030c] px-4 py-2.5 text-[14px] text-white placeholder-slate-700 outline-none transition-colors focus:border-[#00B4FF]/30 focus:ring-1 focus:ring-[#00B4FF]/20"
           placeholder="you@company.com"
         />
       </div>
@@ -99,7 +99,7 @@ function LoginForm() {
             onChange={(e) => setPassword(e.target.value)}
             required
             autoComplete="current-password"
-            className="w-full rounded-[10px] border border-[#0d2010] bg-[#030c03] px-4 py-2.5 pr-10 text-[14px] text-white placeholder-slate-700 outline-none transition-colors focus:border-[#2EE6A6]/30 focus:ring-1 focus:ring-[#2EE6A6]/20"
+            className="w-full rounded-[10px] border border-[#0d1020] bg-[#03030c] px-4 py-2.5 pr-10 text-[14px] text-white placeholder-slate-700 outline-none transition-colors focus:border-[#00B4FF]/30 focus:ring-1 focus:ring-[#00B4FF]/20"
             placeholder="••••••••"
           />
           <button
@@ -126,7 +126,7 @@ function LoginForm() {
       <button
         type="submit"
         disabled={loading}
-        className="mt-2 rounded-full bg-[#2EE6A6] py-2.5 text-[14px] font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-50"
+        className="mt-2 rounded-full bg-[#00B4FF] py-2.5 text-[14px] font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-50"
       >
         {loading ? "Signing in…" : "Sign in"}
       </button>
@@ -136,7 +136,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#000200] px-4">
+    <div className="flex min-h-screen items-center justify-center bg-[#000002] px-4">
       <div
         className="pointer-events-none fixed inset-0"
         style={{
@@ -151,12 +151,12 @@ export default function LoginPage() {
         <div className="mb-8 flex flex-col items-center">
           <Link href="/" className="flex items-center gap-3">
             <svg width="32" height="32" viewBox="0 0 46 46" fill="none">
-              <circle cx="23" cy="23" r="21.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.50" />
-              <circle cx="23" cy="23" r="13"   stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.28" />
-              <circle cx="23" cy="23" r="5.5"  stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.42" />
-              <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#2EE6A6" fillOpacity="0.10" />
-              <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.80" />
-              <circle cx="23" cy="23" r="2.5" fill="#2EE6A6" />
+              <circle cx="23" cy="23" r="21.5" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.50" />
+              <circle cx="23" cy="23" r="13"   stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.28" />
+              <circle cx="23" cy="23" r="5.5"  stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.42" />
+              <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#00B4FF" fillOpacity="0.10" />
+              <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.80" />
+              <circle cx="23" cy="23" r="2.5" fill="#00B4FF" />
             </svg>
             <span className="text-[17px] font-bold tracking-[0.08em] text-white">METRIVANT</span>
           </Link>
@@ -164,7 +164,7 @@ export default function LoginPage() {
         </div>
 
         {/* Card */}
-        <div className="rounded-[16px] border border-[#0d2010] bg-[#020802] p-7">
+        <div className="rounded-[16px] border border-[#0d1020] bg-[#020208] p-7">
           <Suspense fallback={<div className="h-40" />}>
             <LoginForm />
           </Suspense>
@@ -172,7 +172,7 @@ export default function LoginPage() {
 
         <p className="mt-5 text-center text-[13px] text-slate-600">
           Don&apos;t have an account?{" "}
-          <Link href="/signup" className="text-[#2EE6A6] hover:underline">
+          <Link href="/signup" className="text-[#00B4FF] hover:underline">
             Sign up free
           </Link>
         </p>

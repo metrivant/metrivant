@@ -671,7 +671,7 @@ const BlipNode = memo(function BlipNode({
           cy={y}
           r={nodeSize + 6}
           fill="none"
-          stroke="#2EE6A6"
+          stroke="#00B4FF"
           strokeWidth="0.7"
           initial={{ opacity: 0, scale: 1 }}
           animate={{
@@ -915,9 +915,9 @@ const BlipNode = memo(function BlipNode({
           letterSpacing="0.02em"
           style={{
             filter: isSelected
-              ? "drop-shadow(0 0 6px rgba(46,230,166,0.70)) drop-shadow(0 1px 3px rgba(0,0,0,0.98))"
+              ? "drop-shadow(0 0 6px rgba(0,180,255,0.70)) drop-shadow(0 1px 3px rgba(0,0,0,0.98))"
               : hovered
-              ? "drop-shadow(0 0 4px rgba(46,230,166,0.45)) drop-shadow(0 1px 3px rgba(0,0,0,0.98))"
+              ? "drop-shadow(0 0 4px rgba(0,180,255,0.45)) drop-shadow(0 1px 3px rgba(0,0,0,0.98))"
               : "drop-shadow(0 1px 4px rgba(0,0,0,0.99)) drop-shadow(0 0 2px rgba(0,0,0,0.99))",
             pointerEvents: "none",
           }}
@@ -1777,10 +1777,10 @@ export default function Radar({
         className={`flex min-h-0 flex-1 flex-col overflow-hidden${isolated ? "" : " rounded-[20px]"}`}
         style={{
           background: "#000000",
-          border: `1px solid ${orbitMode ? "#1a1040" : "#0d2010"}`,
+          border: `1px solid ${orbitMode ? "#1a1040" : "#0d1020"}`,
           boxShadow: orbitMode
             ? "inset 0 1px 0 0 rgba(129,140,248,0.06), 0 0 80px rgba(0,0,0,0.95), 0 0 140px rgba(76,29,149,0.07)"
-            : "inset 0 1px 0 0 rgba(46,230,166,0.08), 0 0 80px rgba(0,0,0,0.9)",
+            : "inset 0 1px 0 0 rgba(0,180,255,0.08), 0 0 80px rgba(0,0,0,0.9)",
           transition: "border-radius 0.2s ease, border-color 0.8s ease, box-shadow 0.8s ease",
           ...(isolated
             ? { position: "fixed", inset: 0, zIndex: 50, borderRadius: 0 }
@@ -1805,19 +1805,19 @@ export default function Radar({
                     {getSectorLabel(sector)}
                   </div>
                 </div>
-                <div className="h-7 w-px bg-[#0e2210]" />
+                <div className="h-7 w-px bg-[#0e1022]" />
                 <div>
                   <div className="text-[10px] uppercase tracking-[0.26em] text-slate-600">Signals</div>
                   <div
                     className="mt-0.5 text-[13px] font-semibold tabular-nums"
-                    style={{ color: sorted.reduce((s, c) => s + (c.signals_7d ?? 0), 0) > 0 ? "#2EE6A6" : "#475569" }}
+                    style={{ color: sorted.reduce((s, c) => s + (c.signals_7d ?? 0), 0) > 0 ? "#00B4FF" : "#475569" }}
                   >
                     {sorted.reduce((s, c) => s + (c.signals_7d ?? 0), 0)}
                   </div>
                 </div>
                 {sorted.length > 0 && (
                   <>
-                    <div className="h-7 w-px bg-[#0e2210]" />
+                    <div className="h-7 w-px bg-[#0e1022]" />
                     <div>
                       <div className="text-[10px] uppercase tracking-[0.26em] text-slate-600">Most Active</div>
                       <div className="mt-0.5 text-[13px] font-semibold text-slate-200">
@@ -1826,7 +1826,7 @@ export default function Radar({
                     </div>
                   </>
                 )}
-                <div className="h-7 w-px bg-[#0e2210]" />
+                <div className="h-7 w-px bg-[#0e1022]" />
                 <div>
                   <div className="text-[10px] uppercase tracking-[0.26em] text-slate-600">Pressure</div>
                   <div
@@ -1844,7 +1844,7 @@ export default function Radar({
                   className="flex items-center gap-0.5 rounded-[8px] p-0.5"
                   style={{
                     background: orbitMode ? "#07051a" : "#020602",
-                    border: `1px solid ${orbitMode ? "#1e1545" : "#0e2210"}`,
+                    border: `1px solid ${orbitMode ? "#1e1545" : "#0e1022"}`,
                     transition: "background 0.8s ease, border-color 0.8s ease",
                   }}
                 >
@@ -1852,9 +1852,9 @@ export default function Radar({
                     onClick={() => { if (orbitMode) { setOrbitMode(false); getAudioManager().play("orbit-exit"); } }}
                     className="rounded-[6px] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all duration-200"
                     style={{
-                      background: !orbitMode ? "rgba(46,230,166,0.09)" : "transparent",
-                      color: !orbitMode ? "#2EE6A6" : orbitMode ? G.dim : "#3a5a3a",
-                      boxShadow: !orbitMode ? "inset 0 0 0 1px rgba(46,230,166,0.18)" : "none",
+                      background: !orbitMode ? "rgba(0,180,255,0.09)" : "transparent",
+                      color: !orbitMode ? "#00B4FF" : orbitMode ? G.dim : "#3a5a3a",
+                      boxShadow: !orbitMode ? "inset 0 0 0 1px rgba(0,180,255,0.18)" : "none",
                       transition: "color 0.6s ease, background 0.6s ease",
                     }}
                   >
@@ -2184,7 +2184,7 @@ export default function Radar({
                   <motion.circle
                     key={`sonar-echo-${i}`}
                     cx={CENTER} cy={CENTER} r={OUTER_RADIUS}
-                    fill="none" stroke="#2EE6A6" strokeWidth="2.5"
+                    fill="none" stroke="#00B4FF" strokeWidth="2.5"
                     filter="url(#sonarGlow)"
                     initial={{ scale: 0.08, opacity: 0.5 }}
                     animate={{ scale: 1.0, opacity: 0 }}
@@ -2252,7 +2252,7 @@ export default function Radar({
               {/* Emitter bloom — Standard Mode only */}
               <circle
                 cx={CENTER} cy={CENTER} r={30}
-                fill="#2EE6A6"
+                fill="#00B4FF"
                 opacity={orbitMode ? 0 : 0.14}
                 filter="url(#blipGlowStrong)"
                 style={{ transition: "opacity 0.8s ease" }}
@@ -2542,7 +2542,7 @@ export default function Radar({
                           key={`ambient-${echo.competitorId}`}
                           x1={CENTER} y1={CENTER}
                           x2={pos.x}  y2={pos.y}
-                          stroke="#2EE6A6"
+                          stroke="#00B4FF"
                           strokeWidth="0.35"
                           strokeDasharray="2 10"
                           initial={{ opacity: 0 }}
@@ -2910,7 +2910,7 @@ export default function Radar({
                 // Q4: 4 freshness segments (top-left, 185° to 265°)
                 // green=<6h, blue=<24h, amber=<7d, slate=<30d, none=no data
                 const freshLevel = ageHours < 6 ? 4 : ageHours < 24 ? 3 : ageHours < 168 ? 2 : isFinite(ageHours) ? 1 : 0;
-                const freshColor = freshLevel >= 4 ? "rgba(46,230,166,0.88)"
+                const freshColor = freshLevel >= 4 ? "rgba(0,180,255,0.88)"
                                  : freshLevel >= 3 ? "rgba(96,165,250,0.88)"
                                  : freshLevel >= 2 ? "rgba(245,158,11,0.88)"
                                  : "rgba(100,116,139,0.88)";
@@ -3124,8 +3124,8 @@ export default function Radar({
                 onClick={() => { setOrbitMode((g) => !g); getAudioManager().play("swoosh"); }}
                 className="flex h-11 w-11 items-center justify-center rounded-[12px] transition-all active:scale-90"
                 style={{
-                  background: orbitMode ? "rgba(129,140,248,0.14)" : "rgba(46,230,166,0.08)",
-                  border: `1px solid ${orbitMode ? "rgba(129,140,248,0.28)" : "rgba(46,230,166,0.14)"}`,
+                  background: orbitMode ? "rgba(129,140,248,0.14)" : "rgba(0,180,255,0.08)",
+                  border: `1px solid ${orbitMode ? "rgba(129,140,248,0.28)" : "rgba(0,180,255,0.14)"}`,
                   backdropFilter: "blur(8px)",
                   WebkitBackdropFilter: "blur(8px)",
                 }}
@@ -3139,9 +3139,9 @@ export default function Radar({
                   </svg>
                 ) : (
                   <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-                    <circle cx="9" cy="9" r="7" stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.55" />
-                    <circle cx="9" cy="9" r="4.5" stroke="#2EE6A6" strokeWidth="0.75" strokeOpacity="0.30" />
-                    <circle cx="9" cy="9" r="1.5" fill="#2EE6A6" fillOpacity="0.75" />
+                    <circle cx="9" cy="9" r="7" stroke="#00B4FF" strokeWidth="1" strokeOpacity="0.55" />
+                    <circle cx="9" cy="9" r="4.5" stroke="#00B4FF" strokeWidth="0.75" strokeOpacity="0.30" />
+                    <circle cx="9" cy="9" r="1.5" fill="#00B4FF" fillOpacity="0.75" />
                   </svg>
                 )}
               </button>
@@ -3150,16 +3150,16 @@ export default function Radar({
                   onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
                   className="flex h-11 w-11 items-center justify-center rounded-[12px] transition-all active:scale-90"
                   style={{
-                    background: "rgba(46,230,166,0.08)",
-                    border: "1px solid rgba(46,230,166,0.14)",
+                    background: "rgba(0,180,255,0.08)",
+                    border: "1px solid rgba(0,180,255,0.14)",
                     backdropFilter: "blur(8px)",
                     WebkitBackdropFilter: "blur(8px)",
                   }}
                   aria-label="Reset zoom"
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                    <circle cx="8" cy="8" r="3" stroke="#2EE6A6" strokeWidth="1.2" strokeOpacity="0.7" />
-                    <path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3" stroke="#2EE6A6" strokeWidth="1.3" strokeLinecap="round" strokeOpacity="0.65" />
+                    <circle cx="8" cy="8" r="3" stroke="#00B4FF" strokeWidth="1.2" strokeOpacity="0.7" />
+                    <path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3" stroke="#00B4FF" strokeWidth="1.3" strokeLinecap="round" strokeOpacity="0.65" />
                   </svg>
                 </button>
               )}
@@ -3279,9 +3279,9 @@ export default function Radar({
                 className="flex h-7 w-7 items-center justify-center rounded-lg transition-all"
                 style={{
                   background: "rgba(0,0,0,0.88)",
-                  border: `1px solid ${isolated ? "rgba(46,230,166,0.3)" : "#0e2210"}`,
-                  color: isolated ? "#2EE6A6" : "#3a5a3a",
-                  boxShadow: isolated ? "0 0 10px rgba(46,230,166,0.18)" : "none",
+                  border: `1px solid ${isolated ? "rgba(0,180,255,0.3)" : "#0e1022"}`,
+                  color: isolated ? "#00B4FF" : "#3a5a3a",
+                  boxShadow: isolated ? "0 0 10px rgba(0,180,255,0.18)" : "none",
                 }}
               >
                 {isolated ? (
@@ -3300,16 +3300,16 @@ export default function Radar({
                 <button
                   onClick={() => setZoom((p) => Math.min(6, p * 1.3))}
                   title="Zoom in (+)"
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-[16px] font-light leading-none transition-all hover:border-[rgba(46,230,166,0.25)] hover:text-[#2EE6A6]"
-                  style={{ background: "rgba(0,0,0,0.88)", border: "1px solid #0e2210", color: "#3a5a3a", cursor: "zoom-in" }}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-[16px] font-light leading-none transition-all hover:border-[rgba(0,180,255,0.25)] hover:text-[#00B4FF]"
+                  style={{ background: "rgba(0,0,0,0.88)", border: "1px solid #0e1022", color: "#3a5a3a", cursor: "zoom-in" }}
                 >
                   +
                 </button>
                 <button
                   onClick={() => setZoom((p) => Math.max(0.4, p / 1.3))}
                   title="Zoom out (−)"
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-[16px] font-light leading-none transition-all hover:border-[rgba(46,230,166,0.25)] hover:text-[#2EE6A6]"
-                  style={{ background: "rgba(0,0,0,0.88)", border: "1px solid #0e2210", color: "#3a5a3a", cursor: "zoom-out" }}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-[16px] font-light leading-none transition-all hover:border-[rgba(0,180,255,0.25)] hover:text-[#00B4FF]"
+                  style={{ background: "rgba(0,0,0,0.88)", border: "1px solid #0e1022", color: "#3a5a3a", cursor: "zoom-out" }}
                 >
                   −
                 </button>
@@ -3322,8 +3322,8 @@ export default function Radar({
                     className="flex h-7 w-7 items-center justify-center rounded-lg transition-all"
                     style={{
                       background: "rgba(0,0,0,0.88)",
-                      border: "1px solid rgba(46,230,166,0.25)",
-                      color: "#2EE6A6",
+                      border: "1px solid rgba(0,180,255,0.25)",
+                      color: "#00B4FF",
                     }}
                   >
                     <svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden="true">
@@ -3338,7 +3338,7 @@ export default function Radar({
               {zoom !== 1 && (
                 <div
                   className="flex h-7 w-7 items-center justify-center text-[8px] font-bold tabular-nums"
-                  style={{ color: "rgba(46,230,166,0.38)" }}
+                  style={{ color: "rgba(0,180,255,0.38)" }}
                 >
                   {Math.round(zoom * 100)}%
                 </div>
@@ -3353,9 +3353,9 @@ export default function Radar({
                 className="flex h-7 w-7 items-center justify-center rounded-lg transition-all"
                 style={{
                   background: "rgba(0,0,0,0.88)",
-                  border: `1px solid ${soundEnabled ? "rgba(46,230,166,0.3)" : "#0e2210"}`,
-                  color: soundEnabled ? "#2EE6A6" : "#3a5a3a",
-                  boxShadow: soundEnabled ? "0 0 8px rgba(46,230,166,0.15)" : "none",
+                  border: `1px solid ${soundEnabled ? "rgba(0,180,255,0.3)" : "#0e1022"}`,
+                  color: soundEnabled ? "#00B4FF" : "#3a5a3a",
+                  boxShadow: soundEnabled ? "0 0 8px rgba(0,180,255,0.15)" : "none",
                   marginTop: "4px",
                 }}
               >
@@ -3390,7 +3390,7 @@ export default function Radar({
                     className="pointer-events-none absolute bottom-5 left-5 flex flex-col gap-2 rounded-[12px] px-4 py-3"
                     style={{
                       background: orbitMode ? "rgba(2,1,20,0.90)" : "rgba(0,0,0,0.82)",
-                      border: `1px solid ${orbitMode ? "#1e1545" : "#0e2210"}`,
+                      border: `1px solid ${orbitMode ? "#1e1545" : "#0e1022"}`,
                       backdropFilter: "blur(8px)",
                       transition: "background 0.8s ease, border-color 0.8s ease",
                     }}
@@ -3427,7 +3427,7 @@ export default function Radar({
                     className="pointer-events-auto absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-0.5 rounded-[10px] p-1"
                     style={{
                       background: orbitMode ? "rgba(2,1,20,0.90)" : "rgba(0,0,0,0.82)",
-                      border: `1px solid ${orbitMode ? "#1e1545" : "#0e2210"}`,
+                      border: `1px solid ${orbitMode ? "#1e1545" : "#0e1022"}`,
                       backdropFilter: "blur(8px)",
                       transition: "background 0.8s ease, border-color 0.8s ease",
                     }}
@@ -3439,13 +3439,13 @@ export default function Radar({
                         className="rounded-[7px] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all duration-200"
                         style={{
                           background: temporalFilter === f
-                            ? orbitMode ? "rgba(129,140,248,0.10)" : "rgba(46,230,166,0.09)"
+                            ? orbitMode ? "rgba(129,140,248,0.10)" : "rgba(0,180,255,0.09)"
                             : "transparent",
                           color: temporalFilter === f
-                            ? orbitMode ? G.primary : "#2EE6A6"
+                            ? orbitMode ? G.primary : "#00B4FF"
                             : orbitMode ? G.dim : "#3a5a3a",
                           boxShadow: temporalFilter === f
-                            ? orbitMode ? "inset 0 0 0 1px rgba(129,140,248,0.22)" : "inset 0 0 0 1px rgba(46,230,166,0.2)"
+                            ? orbitMode ? "inset 0 0 0 1px rgba(129,140,248,0.22)" : "inset 0 0 0 1px rgba(0,180,255,0.2)"
                             : "none",
                         }}
                       >
@@ -3457,7 +3457,7 @@ export default function Radar({
                   {/* Observatory label — top center */}
                   <div
                     className="absolute left-1/2 top-4 -translate-x-1/2 text-[9px] font-bold uppercase tracking-[0.32em]"
-                    style={{ color: "rgba(46,230,166,0.25)" }}
+                    style={{ color: "rgba(0,180,255,0.25)" }}
                   >
                     Observatory Mode
                   </div>
@@ -3528,7 +3528,7 @@ export default function Radar({
                           className="inline-flex items-center gap-1.5 px-4 font-mono text-[11px] uppercase tracking-[0.14em]"
                           style={{ color: "#3a9e62" }}
                         >
-                          <span style={{ color: "#2EE6A6", opacity: 0.60 }}>▸</span>
+                          <span style={{ color: "#00B4FF", opacity: 0.60 }}>▸</span>
                           {item.name}
                           <span style={{ color: "#1a3a22" }}>·</span>
                           {item.label}
@@ -3585,7 +3585,7 @@ export default function Radar({
           borderColor: selected ? `${selectedColor}38` : "#0e2010",
           boxShadow: selected
             ? `inset 0 1px 0 0 ${selectedColor}18, 0 0 60px rgba(0,0,0,0.6)`
-            : "inset 0 1px 0 0 rgba(46,230,166,0.05), 0 0 60px rgba(0,0,0,0.6)",
+            : "inset 0 1px 0 0 rgba(0,180,255,0.05), 0 0 60px rgba(0,0,0,0.6)",
           opacity: entryPhase >= 3 ? 1 : 0,
           transition: "opacity 0.4s ease, border-color 0.5s ease, box-shadow 0.5s ease",
         }}
@@ -3603,7 +3603,7 @@ export default function Radar({
                   style={{
                     width: sheetState === s ? "20px" : "6px",
                     height: "4px",
-                    background: sheetState === s ? "#2EE6A6" : "#1c3a1c",
+                    background: sheetState === s ? "#00B4FF" : "#1c3a1c",
                   }}
                   aria-label={`${s} view`}
                   aria-pressed={sheetState === s}
@@ -3641,7 +3641,7 @@ export default function Radar({
                       {selected.competitor_name.charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.32em]" style={{ color: "rgba(46,230,166,0.5)" }}>
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.32em]" style={{ color: "rgba(0,180,255,0.5)" }}>
                         Intelligence Report
                       </div>
                       <h2 className="mt-0.5 text-[22px] font-bold leading-tight tracking-tight text-white">
@@ -3881,13 +3881,13 @@ export default function Radar({
                         style={{
                           background:
                             detail.context.confidence_level === "high"
-                              ? "rgba(46,230,166,0.12)"
+                              ? "rgba(0,180,255,0.12)"
                               : detail.context.confidence_level === "medium"
                               ? "rgba(245,158,11,0.12)"
                               : "rgba(100,116,139,0.12)",
                           color:
                             detail.context.confidence_level === "high"
-                              ? "#2EE6A6"
+                              ? "#00B4FF"
                               : detail.context.confidence_level === "medium"
                               ? "#f59e0b"
                               : "#64748b",
@@ -4027,7 +4027,7 @@ export default function Radar({
                         className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em]"
                         style={
                           interpretationConf >= 0.75
-                            ? { background: "rgba(46,230,166,0.1)", color: "#2EE6A6" }
+                            ? { background: "rgba(0,180,255,0.1)", color: "#00B4FF" }
                             : interpretationConf >= 0.5
                             ? { background: "rgba(245,158,11,0.1)", color: "#f59e0b" }
                             : { background: "rgba(148,163,184,0.08)", color: "#64748b" }
@@ -4163,7 +4163,7 @@ export default function Radar({
                                 Date.now() - new Date(signal.detected_at).getTime() < 6 * 60 * 60 * 1000 && (
                                 <span
                                   className="rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.1em]"
-                                  style={{ backgroundColor: "rgba(46,230,166,0.08)", color: "#2EE6A6", border: "1px solid rgba(46,230,166,0.2)" }}
+                                  style={{ backgroundColor: "rgba(0,180,255,0.08)", color: "#00B4FF", border: "1px solid rgba(0,180,255,0.2)" }}
                                 >
                                   detected early
                                 </span>
@@ -4315,7 +4315,7 @@ export default function Radar({
               {/* ── Panel header ──────────────────────────────── */}
               <div className="mb-5 flex items-start justify-between">
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#2EE6A6]" style={{ opacity: 0.7 }}>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#00B4FF]" style={{ opacity: 0.7 }}>
                     Intelligence Feed
                   </div>
                   <div className="mt-1.5 text-[12px] font-medium text-slate-300">
@@ -4330,7 +4330,7 @@ export default function Radar({
                       style={{
                         color: (() => {
                           const h = (Date.now() - new Date(latestSignalAt).getTime()) / 3_600_000;
-                          return h < 6 ? "rgba(46,230,166,0.50)" : h < 24 ? "rgba(245,158,11,0.40)" : "rgba(100,116,139,0.45)";
+                          return h < 6 ? "rgba(0,180,255,0.50)" : h < 24 ? "rgba(245,158,11,0.40)" : "rgba(100,116,139,0.45)";
                         })(),
                       }}
                     >
@@ -4338,12 +4338,12 @@ export default function Radar({
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-1.5 rounded-full border border-[#2EE6A6]/20 bg-[#2EE6A6]/6 px-3 py-1.5">
+                <div className="flex items-center gap-1.5 rounded-full border border-[#00B4FF]/20 bg-[#00B4FF]/6 px-3 py-1.5">
                   <span
-                    className="h-1.5 w-1.5 rounded-full bg-[#2EE6A6]"
-                    style={{ boxShadow: "0 0 5px rgba(46,230,166,0.7)" }}
+                    className="h-1.5 w-1.5 rounded-full bg-[#00B4FF]"
+                    style={{ boxShadow: "0 0 5px rgba(0,180,255,0.7)" }}
                   />
-                  <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-[#2EE6A6]">
+                  <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-[#00B4FF]">
                     Live
                   </span>
                 </div>
@@ -4362,8 +4362,8 @@ export default function Radar({
                       </p>
                       <a
                         href="/app/discover"
-                        className="mt-4 rounded-full border border-[#1a3020] px-4 py-1.5 text-[11px] font-medium transition-colors hover:border-[#2a4a30]"
-                        style={{ color: "rgba(46,230,166,0.70)" }}
+                        className="mt-4 rounded-full border border-[#1a2030] px-4 py-1.5 text-[11px] font-medium transition-colors hover:border-[#2a4a30]"
+                        style={{ color: "rgba(0,180,255,0.70)" }}
                       >
                         Open Discover →
                       </a>
@@ -4385,9 +4385,9 @@ export default function Radar({
               {movingCount === 0 && sorted.length > 0 && (
                 <div
                   className="mb-5 rounded-[12px] border border-[#1a3a1a] px-4 py-3 text-center"
-                  style={{ background: "rgba(46,230,166,0.03)" }}
+                  style={{ background: "rgba(0,180,255,0.03)" }}
                 >
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: "rgba(46,230,166,0.5)" }}>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: "rgba(0,180,255,0.5)" }}>
                     Monitoring Active
                   </div>
                   <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600">
@@ -4411,7 +4411,7 @@ export default function Radar({
                     <div
                       key={competitor.competitor_id}
                       onClick={() => handleBlipClick(competitor.competitor_id)}
-                      className="group flex cursor-pointer items-center gap-3 rounded-[12px] border border-transparent px-3.5 py-3 transition-all hover:border-[#1c3a1c] hover:bg-[#060d06]"
+                      className="group flex cursor-pointer items-center gap-3 rounded-[12px] border border-transparent px-3.5 py-3 transition-all hover:border-[#1c3a1c] hover:bg-[#06060d]"
                       style={isActive ? {
                         borderLeftColor: `${color}45`,
                         borderLeftWidth: "2px",
@@ -4435,7 +4435,7 @@ export default function Radar({
                           {fresh && (
                             <span
                               className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]"
-                              style={{ background: "rgba(46,230,166,0.12)", color: "#2EE6A6" }}
+                              style={{ background: "rgba(0,180,255,0.12)", color: "#00B4FF" }}
                             >
                               Signal
                             </span>

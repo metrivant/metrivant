@@ -28,7 +28,7 @@ export default function AppError({
         </p>
         <button
           onClick={reset}
-          className="mt-5 rounded-full border border-[#1a301a] bg-[#060d06] px-4 py-2 text-xs text-slate-400 transition-colors hover:border-[#2a4a2a] hover:text-slate-200"
+          className="mt-5 rounded-full border border-[#1a301a] bg-[#06060d] px-4 py-2 text-xs text-slate-400 transition-colors hover:border-[#2a4a2a] hover:text-slate-200"
         >
           Retry
         </button>

@@ -93,7 +93,7 @@ export default function MobileBottomNav() {
       />
 
       <div
-        className="relative flex h-16 items-stretch justify-around border-t border-[#0e2210] bg-[rgba(0,0,0,0.97)]"
+        className="relative flex h-16 items-stretch justify-around border-t border-[#0e1022] bg-[rgba(0,0,0,0.97)]"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         {/* Top accent line */}
@@ -101,7 +101,7 @@ export default function MobileBottomNav() {
           className="absolute inset-x-0 top-0 h-[1px]"
           style={{
             background:
-              "linear-gradient(90deg, transparent 5%, rgba(46,230,166,0.10) 30%, rgba(46,230,166,0.18) 50%, rgba(46,230,166,0.10) 70%, transparent 95%)",
+              "linear-gradient(90deg, transparent 5%, rgba(0,180,255,0.10) 30%, rgba(0,180,255,0.18) 50%, rgba(0,180,255,0.10) 70%, transparent 95%)",
           }}
         />
 
@@ -112,7 +112,7 @@ export default function MobileBottomNav() {
               key={href}
               href={href}
               className="flex flex-1 flex-col items-center justify-center gap-1 py-2 transition-opacity active:opacity-60"
-              style={{ color: isActive ? "#2EE6A6" : "#475569" }}
+              style={{ color: isActive ? "#00B4FF" : "#475569" }}
               aria-current={isActive ? "page" : undefined}
             >
               {icon(isActive)}

@@ -274,7 +274,7 @@ export default function GravityMap() {
           <div className="flex flex-col items-center gap-3">
             <div
               className="h-[1px] w-24 animate-pulse"
-              style={{ background: "linear-gradient(90deg, transparent, rgba(46,230,166,0.40), transparent)" }}
+              style={{ background: "linear-gradient(90deg, transparent, rgba(0,180,255,0.40), transparent)" }}
             />
             <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-slate-700">
               Calibrating field

@@ -326,7 +326,7 @@ export default function DiscoverClient({
             }}
             aria-label="Browse by sector"
           >
-            <span style={{ color: "#2EE6A6", opacity: 0.8, fontSize: 8 }}>■</span>
+            <span style={{ color: "#00B4FF", opacity: 0.8, fontSize: 8 }}>■</span>
             {browseSectorLabel}
             <svg
               width="8" height="8" viewBox="0 0 9 9" fill="none" aria-hidden="true"
@@ -370,7 +370,7 @@ export default function DiscoverClient({
                   >
                     <span
                       className="h-1 w-1 shrink-0 rounded-full"
-                      style={{ background: isSelected ? "#2EE6A6" : "transparent" }}
+                      style={{ background: isSelected ? "#00B4FF" : "transparent" }}
                     />
                     {opt.label}
                   </button>
@@ -387,7 +387,7 @@ export default function DiscoverClient({
               >
                 <span
                   className="h-1 w-1 shrink-0 rounded-full"
-                  style={{ background: BROWSE_SECTOR_CUSTOM.value === browseSector ? "#2EE6A6" : "transparent" }}
+                  style={{ background: BROWSE_SECTOR_CUSTOM.value === browseSector ? "#00B4FF" : "transparent" }}
                 />
                 {BROWSE_SECTOR_CUSTOM.label}
               </button>
@@ -481,7 +481,7 @@ export default function DiscoverClient({
               return (
                 <div key={entry.domain}
                   className="flex flex-col p-5 transition-colors"
-                  style={{ background: isTracked ? "rgba(46,230,166,0.025)" : "#070707" }}
+                  style={{ background: isTracked ? "rgba(0,180,255,0.025)" : "#070707" }}
                   onMouseEnter={(e) => { if (!isTracked) (e.currentTarget as HTMLDivElement).style.background = "#0c0c0c"; }}
                   onMouseLeave={(e) => { if (!isTracked) (e.currentTarget as HTMLDivElement).style.background = "#070707"; }}
                 >
@@ -523,7 +523,7 @@ export default function DiscoverClient({
                   {isTracked ? (
                     <div className="mt-auto flex gap-2">
                       <div className="flex flex-1 items-center justify-center py-2 text-[11px] font-medium"
-                        style={{ borderRadius: "4px", border: "1px solid rgba(46,230,166,0.20)", background: "rgba(46,230,166,0.06)", color: "#2EE6A6", letterSpacing: "0.08em" }}
+                        style={{ borderRadius: "4px", border: "1px solid rgba(0,180,255,0.20)", background: "rgba(0,180,255,0.06)", color: "#00B4FF", letterSpacing: "0.08em" }}
                       >
                         ✓ Tracking
                       </div>
@@ -614,7 +614,7 @@ export default function DiscoverClient({
         >
           <span
             className="h-1.5 w-1.5 shrink-0 rounded-full"
-            style={{ background: "#2EE6A6", opacity: 0.7 }}
+            style={{ background: "#00B4FF", opacity: 0.7 }}
           />
           <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.45)" }}>
             Showing competitors similar to{" "}
@@ -638,7 +638,7 @@ export default function DiscoverClient({
         >
           <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.30)" }}>
             Domain not in catalog — add it manually via{" "}
-            <a href="/app/onboarding" style={{ color: "#2EE6A6" }} className="hover:underline">
+            <a href="/app/onboarding" style={{ color: "#00B4FF" }} className="hover:underline">
               onboarding
             </a>.
           </span>
@@ -653,9 +653,9 @@ export default function DiscoverClient({
           style={{
             letterSpacing: "0.12em",
             borderRadius:  "3px",
-            border:        !activeCategory ? "1px solid rgba(46,230,166,0.30)" : "1px solid rgba(255,255,255,0.08)",
-            background:    !activeCategory ? "rgba(46,230,166,0.06)"           : "rgba(255,255,255,0.02)",
-            color:         !activeCategory ? "#2EE6A6"                          : "rgba(255,255,255,0.30)",
+            border:        !activeCategory ? "1px solid rgba(0,180,255,0.30)" : "1px solid rgba(255,255,255,0.08)",
+            background:    !activeCategory ? "rgba(0,180,255,0.06)"           : "rgba(255,255,255,0.02)",
+            color:         !activeCategory ? "#00B4FF"                          : "rgba(255,255,255,0.30)",
           }}
         >
           All{" "}
@@ -672,9 +672,9 @@ export default function DiscoverClient({
               style={{
                 letterSpacing: "0.12em",
                 borderRadius:  "3px",
-                border:        isActive ? "1px solid rgba(46,230,166,0.30)" : "1px solid rgba(255,255,255,0.08)",
-                background:    isActive ? "rgba(46,230,166,0.06)"           : "rgba(255,255,255,0.02)",
-                color:         isActive ? "#2EE6A6"                          : "rgba(255,255,255,0.30)",
+                border:        isActive ? "1px solid rgba(0,180,255,0.30)" : "1px solid rgba(255,255,255,0.08)",
+                background:    isActive ? "rgba(0,180,255,0.06)"           : "rgba(255,255,255,0.02)",
+                color:         isActive ? "#00B4FF"                          : "rgba(255,255,255,0.30)",
               }}
             >
               {CATEGORY_LABELS[cat]}
@@ -697,7 +697,7 @@ export default function DiscoverClient({
             className="flex items-center gap-1.5 text-[11px]"
             style={{ color: "rgba(255,255,255,0.25)", letterSpacing: "0.04em" }}
           >
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: "#2EE6A6", opacity: 0.6 }} />
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: "#00B4FF", opacity: 0.6 }} />
             {tracked.size} tracked
           </span>
         )}
@@ -801,7 +801,7 @@ export default function DiscoverClient({
                 key={entry.id}
                 className="flex flex-col p-5 transition-colors"
                 style={{
-                  background: isTracked ? "rgba(46,230,166,0.025)" : "#070707",
+                  background: isTracked ? "rgba(0,180,255,0.025)" : "#070707",
                 }}
                 onMouseEnter={(e) => {
                   if (!isTracked) (e.currentTarget as HTMLDivElement).style.background = "#0c0c0c";
@@ -860,9 +860,9 @@ export default function DiscoverClient({
                       className="flex flex-1 items-center justify-center py-2 text-[11px] font-medium"
                       style={{
                         borderRadius: "4px",
-                        border:       "1px solid rgba(46,230,166,0.20)",
-                        background:   "rgba(46,230,166,0.06)",
-                        color:        "#2EE6A6",
+                        border:       "1px solid rgba(0,180,255,0.20)",
+                        background:   "rgba(0,180,255,0.06)",
+                        color:        "#00B4FF",
                         letterSpacing: "0.08em",
                       }}
                     >

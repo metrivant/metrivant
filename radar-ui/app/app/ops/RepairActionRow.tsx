@@ -39,7 +39,7 @@ export function RepairActionRow({
   if (done) return null;
 
   const confColor =
-    confidence >= 0.70 ? "#2EE6A6" :
+    confidence >= 0.70 ? "#00B4FF" :
     confidence >= 0.40 ? "#f59e0b" :
     "#ef4444";
 
@@ -62,10 +62,10 @@ export function RepairActionRow({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-[12px] border border-[#0e2010] bg-[#020802] px-4 py-3">
+    <div className="relative overflow-hidden rounded-[12px] border border-[#0e2010] bg-[#020208] px-4 py-3">
       <div
         className="absolute inset-y-0 left-0 w-[3px] rounded-l-[12px]"
-        style={{ backgroundColor: "rgba(46,230,166,0.35)" }}
+        style={{ backgroundColor: "rgba(0,180,255,0.35)" }}
       />
       <div className="ml-3 flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
@@ -74,7 +74,7 @@ export function RepairActionRow({
             <span className="text-[10px] text-slate-700">·</span>
             <span className="font-mono text-[10px] text-slate-600">{formatAge(created_at)}</span>
           </div>
-          <div className="mt-1 font-mono text-[11px] text-[#2EE6A6]">{proposed_selector}</div>
+          <div className="mt-1 font-mono text-[11px] text-[#00B4FF]">{proposed_selector}</div>
           {rationale && (
             <p className="mt-0.5 text-[11px] text-slate-600">{rationale}</p>
           )}
@@ -103,7 +103,7 @@ export function RepairActionRow({
             <button
               onClick={handleAccept}
               disabled={isPending}
-              className="rounded-[6px] border border-[#0e3818] bg-[#051505] px-3 py-1 font-mono text-[10px] font-bold text-[#2EE6A6] transition-colors hover:border-[#2EE6A6]/40 hover:bg-[#0a2a0a] disabled:opacity-40"
+              className="rounded-[6px] border border-[#0e3818] bg-[#051505] px-3 py-1 font-mono text-[10px] font-bold text-[#00B4FF] transition-colors hover:border-[#00B4FF]/40 hover:bg-[#0a2a0a] disabled:opacity-40"
             >
               {isPending ? "…" : "Accept"}
             </button>

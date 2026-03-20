@@ -23,7 +23,7 @@ const STAGES = [
 ] as const;
 
 const N = STAGES.length;
-const GREEN = "#2EE6A6";
+const GREEN = "#00B4FF";
 
 // ── Mini radar SVG (rendered at the RADAR node when packet arrives) ──────────
 
@@ -136,7 +136,7 @@ export default function PipelineExperience() {
       ref={sectionRef}
       style={{
         width: "100%",
-        background: "#000200",
+        background: "#000002",
         overflow: "hidden",
         padding: "48px 0 56px",
       }}
@@ -153,7 +153,7 @@ export default function PipelineExperience() {
             fontFamily: "monospace",
             fontSize: 9,
             letterSpacing: "0.28em",
-            color: "rgba(46,230,166,0.40)",
+            color: "rgba(0,180,255,0.40)",
             textTransform: "uppercase",
             marginBottom: 8,
           }}
@@ -204,7 +204,7 @@ export default function PipelineExperience() {
               width={x2 - x1}
               height={4}
               rx={2}
-              fill={lit ? "url(#pipe-lit)" : "rgba(46,230,166,0.06)"}
+              fill={lit ? "url(#pipe-lit)" : "rgba(0,180,255,0.06)"}
               style={{ transition: "fill 0.5s ease" }}
             />
           );
@@ -242,17 +242,17 @@ export default function PipelineExperience() {
                   r={isActive ? NODE_R + 2 : NODE_R}
                   fill={
                     isActive
-                      ? "rgba(46,230,166,0.15)"
+                      ? "rgba(0,180,255,0.15)"
                       : isPast
-                      ? "rgba(46,230,166,0.08)"
-                      : "rgba(46,230,166,0.02)"
+                      ? "rgba(0,180,255,0.08)"
+                      : "rgba(0,180,255,0.02)"
                   }
                   stroke={
                     isActive
                       ? GREEN
                       : isPast
-                      ? "rgba(46,230,166,0.35)"
-                      : "rgba(46,230,166,0.10)"
+                      ? "rgba(0,180,255,0.35)"
+                      : "rgba(0,180,255,0.10)"
                   }
                   strokeWidth={isActive ? 1.5 : 1}
                   style={{ transition: "all 0.4s ease" }}
@@ -264,7 +264,7 @@ export default function PipelineExperience() {
                 <circle
                   cx={cx} cy={PIPE_Y}
                   r={isActive ? 3.5 : isPast ? 2.5 : 1.5}
-                  fill={isActive || isPast ? GREEN : "rgba(46,230,166,0.15)"}
+                  fill={isActive || isPast ? GREEN : "rgba(0,180,255,0.15)"}
                   opacity={isActive ? 0.9 : isPast ? 0.6 : 0.3}
                   style={{ transition: "all 0.4s ease" }}
                 />
@@ -281,7 +281,7 @@ export default function PipelineExperience() {
                 fontFamily="monospace"
                 fill={
                   isActive ? GREEN
-                  : isPast ? "rgba(46,230,166,0.40)"
+                  : isPast ? "rgba(0,180,255,0.40)"
                   : "rgba(100,116,139,0.28)"
                 }
                 style={{ transition: "fill 0.4s ease" }}

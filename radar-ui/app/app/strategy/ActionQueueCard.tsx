@@ -17,7 +17,7 @@ type Props = {
 const TYPE_STYLES: Record<string, { label: string; color: string }> = {
   defensive:  { label: "Defensive",  color: "#9B5CFF" },
   offensive:  { label: "Offensive",  color: "#00F5FF" },
-  monitoring: { label: "Monitor",    color: "#2EE6A6" },
+  monitoring: { label: "Monitor",    color: "#00B4FF" },
 };
 
 const URGENCY_STYLES: Record<string, { color: string; bg: string; border: string }> = {
@@ -56,7 +56,7 @@ export function ActionQueueCard({
 
   return (
     <div
-      className="flex items-start gap-4 rounded-[14px] border border-[#0e1e0e] bg-[#020802] px-5 py-4"
+      className="flex items-start gap-4 rounded-[14px] border border-[#0e1e0e] bg-[#020208] px-5 py-4"
       style={{ opacity: isPending ? 0.5 : 1, transition: "opacity 0.2s" }}
     >
       {/* Priority number */}
@@ -127,7 +127,7 @@ export function ActionQueueCard({
           <button
             onClick={handleDone}
             disabled={isPending}
-            className="text-[11px] font-semibold uppercase tracking-[0.10em] text-[#2EE6A6] opacity-70 transition-opacity hover:opacity-100 disabled:cursor-not-allowed"
+            className="text-[11px] font-semibold uppercase tracking-[0.10em] text-[#00B4FF] opacity-70 transition-opacity hover:opacity-100 disabled:cursor-not-allowed"
           >
             ✓ Done
           </button>

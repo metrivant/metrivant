@@ -59,15 +59,15 @@ export default function FirstSignalCelebration({ hasSignals }: { hasSignals: boo
             <div
               className="relative overflow-hidden rounded-[20px] border p-7 text-center"
               style={{
-                background:   "radial-gradient(ellipse 120% 80% at 50% 0%, rgba(46,230,166,0.12) 0%, rgba(0,2,0,0.98) 70%)",
-                borderColor:  "rgba(46,230,166,0.35)",
-                boxShadow:    "0 0 0 1px rgba(46,230,166,0.10), 0 24px 80px rgba(0,0,0,0.95), 0 0 60px rgba(46,230,166,0.12)",
+                background:   "radial-gradient(ellipse 120% 80% at 50% 0%, rgba(0,180,255,0.12) 0%, rgba(0,2,0,0.98) 70%)",
+                borderColor:  "rgba(0,180,255,0.35)",
+                boxShadow:    "0 0 0 1px rgba(0,180,255,0.10), 0 24px 80px rgba(0,0,0,0.95), 0 0 60px rgba(0,180,255,0.12)",
               }}
             >
               {/* Top accent glow */}
               <div
                 className="absolute inset-x-0 top-0 h-[2px]"
-                style={{ background: "linear-gradient(90deg, transparent, rgba(46,230,166,0.9), transparent)" }}
+                style={{ background: "linear-gradient(90deg, transparent, rgba(0,180,255,0.9), transparent)" }}
               />
 
               {/* Animated radar badge */}
@@ -77,7 +77,7 @@ export default function FirstSignalCelebration({ hasSignals }: { hasSignals: boo
                   <motion.div
                     key={i}
                     className="absolute inset-0 rounded-full border"
-                    style={{ borderColor: "rgba(46,230,166,0.5)" }}
+                    style={{ borderColor: "rgba(0,180,255,0.5)" }}
                     initial={{ opacity: 0.8, scale: 1 }}
                     animate={{ opacity: 0, scale: 2.2 }}
                     transition={{ duration: 1.6, delay: i * 0.5, repeat: Infinity, ease: "easeOut" }}
@@ -87,18 +87,18 @@ export default function FirstSignalCelebration({ hasSignals }: { hasSignals: boo
                 <div
                   className="relative flex h-16 w-16 items-center justify-center rounded-full border"
                   style={{
-                    background:   "radial-gradient(ellipse at 40% 30%, rgba(46,230,166,0.25), rgba(0,8,4,0.9))",
-                    borderColor:  "rgba(46,230,166,0.55)",
-                    boxShadow:    "0 0 24px rgba(46,230,166,0.35), inset 0 0 16px rgba(46,230,166,0.10)",
+                    background:   "radial-gradient(ellipse at 40% 30%, rgba(0,180,255,0.25), rgba(0,8,4,0.9))",
+                    borderColor:  "rgba(0,180,255,0.55)",
+                    boxShadow:    "0 0 24px rgba(0,180,255,0.35), inset 0 0 16px rgba(0,180,255,0.10)",
                   }}
                 >
                   <svg width="28" height="28" viewBox="0 0 46 46" fill="none" aria-hidden="true">
-                    <circle cx="23" cy="23" r="21.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.55" />
-                    <circle cx="23" cy="23" r="13"   stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.30" />
-                    <circle cx="23" cy="23" r="5.5"  stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.45" />
-                    <circle cx="23" cy="23" r="2.5"  fill="#2EE6A6" />
+                    <circle cx="23" cy="23" r="21.5" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.55" />
+                    <circle cx="23" cy="23" r="13"   stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.30" />
+                    <circle cx="23" cy="23" r="5.5"  stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.45" />
+                    <circle cx="23" cy="23" r="2.5"  fill="#00B4FF" />
                     {/* Signal blip */}
-                    <circle cx="32" cy="14" r="3" fill="#2EE6A6" fillOpacity="0.9" />
+                    <circle cx="32" cy="14" r="3" fill="#00B4FF" fillOpacity="0.9" />
                   </svg>
                 </div>
               </div>
@@ -106,7 +106,7 @@ export default function FirstSignalCelebration({ hasSignals }: { hasSignals: boo
               {/* Label */}
               <div
                 className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.32em]"
-                style={{ color: "rgba(46,230,166,0.65)" }}
+                style={{ color: "rgba(0,180,255,0.65)" }}
               >
                 Signal Detected
               </div>
@@ -127,7 +127,7 @@ export default function FirstSignalCelebration({ hasSignals }: { hasSignals: boo
               <button
                 onClick={dismiss}
                 className="w-full rounded-full py-2.5 text-[13px] font-bold tracking-[0.12em] text-black transition-opacity hover:opacity-90"
-                style={{ background: "linear-gradient(135deg, #2EE6A6, #1abf88)" }}
+                style={{ background: "linear-gradient(135deg, #00B4FF, #1abf88)" }}
               >
                 VIEW RADAR
               </button>

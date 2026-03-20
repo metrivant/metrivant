@@ -98,7 +98,7 @@ export default async function AlertsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#000200] text-white">
+    <div className="min-h-screen bg-[#000002] text-white">
 
       {/* ── Atmospheric depth ─────────────────────────────────────── */}
       <div
@@ -114,27 +114,27 @@ export default async function AlertsPage() {
         className="pointer-events-none fixed inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 60% 35% at 50% -5%, rgba(46,230,166,0.05) 0%, transparent 70%)",
+            "radial-gradient(ellipse 60% 35% at 50% -5%, rgba(0,180,255,0.05) 0%, transparent 70%)",
         }}
       />
 
       {/* ── Mini header ───────────────────────────────────────────── */}
-      <header className="relative z-10 flex h-14 shrink-0 items-center justify-between border-b border-[#0e2210] bg-[rgba(0,2,0,0.97)] px-6">
+      <header className="relative z-10 flex h-14 shrink-0 items-center justify-between border-b border-[#0e1022] bg-[rgba(0,2,0,0.97)] px-6">
         <div
           className="absolute inset-x-0 top-0 h-[1px]"
           style={{
             background:
-              "linear-gradient(90deg, transparent 0%, rgba(46,230,166,0.20) 40%, rgba(46,230,166,0.35) 50%, rgba(46,230,166,0.20) 60%, transparent 100%)",
+              "linear-gradient(90deg, transparent 0%, rgba(0,180,255,0.20) 40%, rgba(0,180,255,0.35) 50%, rgba(0,180,255,0.20) 60%, transparent 100%)",
           }}
         />
         <Link href="/app" className="flex items-center gap-3">
           <svg width="22" height="22" viewBox="0 0 46 46" fill="none" aria-hidden="true">
-            <circle cx="23" cy="23" r="21.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.50" />
-            <circle cx="23" cy="23" r="13"   stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.28" />
-            <circle cx="23" cy="23" r="5.5"  stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.42" />
-            <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#2EE6A6" fillOpacity="0.10" />
-            <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.80" />
-            <circle cx="23" cy="23" r="2.5" fill="#2EE6A6" />
+            <circle cx="23" cy="23" r="21.5" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.50" />
+            <circle cx="23" cy="23" r="13"   stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.28" />
+            <circle cx="23" cy="23" r="5.5"  stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.42" />
+            <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#00B4FF" fillOpacity="0.10" />
+            <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.80" />
+            <circle cx="23" cy="23" r="2.5" fill="#00B4FF" />
           </svg>
           <span className="text-[13px] font-bold tracking-[0.08em] text-white">METRIVANT</span>
         </Link>
@@ -195,16 +195,16 @@ export default async function AlertsPage() {
 
         {/* Empty state */}
         {!fetchError && alerts.length === 0 && (
-          <div className="flex flex-col items-center rounded-[18px] border border-[#0d2010] px-8 py-16 text-center"
+          <div className="flex flex-col items-center rounded-[18px] border border-[#0d1020] px-8 py-16 text-center"
             style={{ background: "rgba(2,8,2,0.5)" }}>
             <div
-              className="mb-5 flex h-14 w-14 items-center justify-center rounded-full border border-[#0d2010]"
-              style={{ background: "rgba(46,230,166,0.04)" }}
+              className="mb-5 flex h-14 w-14 items-center justify-center rounded-full border border-[#0d1020]"
+              style={{ background: "rgba(0,180,255,0.04)" }}
             >
               <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
                 <path d="M11 2.5C7.96 2.5 5.5 4.96 5.5 8v5.5l-1.5 1.5v.5h14v-.5L16.5 13.5V8C16.5 4.96 14.04 2.5 11 2.5Z"
-                  stroke="rgba(46,230,166,0.30)" strokeWidth="1.5" strokeLinejoin="round" />
-                <path d="M9 17a2 2 0 0 0 4 0" stroke="rgba(46,230,166,0.30)" strokeWidth="1.5" />
+                  stroke="rgba(0,180,255,0.30)" strokeWidth="1.5" strokeLinejoin="round" />
+                <path d="M9 17a2 2 0 0 0 4 0" stroke="rgba(0,180,255,0.30)" strokeWidth="1.5" />
               </svg>
             </div>
             <h2 className="text-[15px] font-semibold text-white">No alerts yet</h2>
@@ -224,7 +224,7 @@ export default async function AlertsPage() {
                 <div className="mb-3 flex items-center gap-3">
                   <span
                     className="font-mono text-[10px] font-bold uppercase tracking-[0.18em]"
-                    style={{ color: "rgba(46,230,166,0.35)" }}
+                    style={{ color: "rgba(0,180,255,0.35)" }}
                   >
                     {day}
                   </span>
@@ -232,7 +232,7 @@ export default async function AlertsPage() {
                     className="h-px flex-1"
                     style={{
                       background:
-                        "linear-gradient(90deg, rgba(46,230,166,0.10) 0%, transparent 100%)",
+                        "linear-gradient(90deg, rgba(0,180,255,0.10) 0%, transparent 100%)",
                     }}
                   />
                   <span className="text-[10px] tabular-nums text-slate-700">
@@ -249,7 +249,7 @@ export default async function AlertsPage() {
                     return (
                       <div
                         key={alert.id}
-                        className={`relative rounded-[12px] border bg-[#020802] p-4 transition-colors ${
+                        className={`relative rounded-[12px] border bg-[#020208] p-4 transition-colors ${
                           !alert.read
                             ? "border-[#152a15]"
                             : "border-[#0a140a]"

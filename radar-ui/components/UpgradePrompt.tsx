@@ -55,10 +55,10 @@ export default function UpgradePrompt({ plan }: { plan: string }) {
           aria-label="Upgrade to Metrivant Pro"
         >
           <div
-            className="relative overflow-hidden rounded-[18px] border border-[#1a3020] p-5"
+            className="relative overflow-hidden rounded-[18px] border border-[#1a2030] p-5"
             style={{
               background:     "rgba(2,8,2,0.98)",
-              boxShadow:      "0 12px 48px rgba(0,0,0,0.85), 0 0 0 1px rgba(46,230,166,0.05)",
+              boxShadow:      "0 12px 48px rgba(0,0,0,0.85), 0 0 0 1px rgba(0,180,255,0.05)",
               backdropFilter: "blur(20px)",
             }}
           >
@@ -67,7 +67,7 @@ export default function UpgradePrompt({ plan }: { plan: string }) {
               className="absolute inset-x-0 top-0 h-[1px]"
               style={{
                 background:
-                  "linear-gradient(90deg, transparent, rgba(46,230,166,0.45), transparent)",
+                  "linear-gradient(90deg, transparent, rgba(0,180,255,0.45), transparent)",
               }}
             />
 
@@ -86,7 +86,7 @@ export default function UpgradePrompt({ plan }: { plan: string }) {
             <div className="mb-4 pr-5">
               <div
                 className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.28em]"
-                style={{ color: "rgba(46,230,166,0.65)" }}
+                style={{ color: "rgba(0,180,255,0.65)" }}
               >
                 Metrivant Pro
               </div>
@@ -102,7 +102,7 @@ export default function UpgradePrompt({ plan }: { plan: string }) {
               <div className="flex-1" onClick={handleUpgradeClick}>
                 <CheckoutButton
                   plan="pro"
-                  className="w-full rounded-full bg-[#2EE6A6] py-2 text-center text-[12px] font-bold text-black transition-opacity hover:opacity-90"
+                  className="w-full rounded-full bg-[#00B4FF] py-2 text-center text-[12px] font-bold text-black transition-opacity hover:opacity-90"
                 >
                   Expand your radar →
                 </CheckoutButton>

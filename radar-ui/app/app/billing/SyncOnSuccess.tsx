@@ -45,11 +45,11 @@ export default function SyncOnSuccess() {
       style={{ pointerEvents: "none" }}
     >
       <div
-        className="flex items-center gap-3 rounded-full border border-[#2EE6A6]/20 bg-[#020802] px-5 py-3 shadow-lg"
-        style={{ boxShadow: "0 0 20px rgba(46,230,166,0.08)" }}
+        className="flex items-center gap-3 rounded-full border border-[#00B4FF]/20 bg-[#020208] px-5 py-3 shadow-lg"
+        style={{ boxShadow: "0 0 20px rgba(0,180,255,0.08)" }}
       >
         <span
-          className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[#2EE6A6]"
+          className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[#00B4FF]"
           style={{ opacity: 0.70 }}
         />
         <span className="text-[12px] font-medium text-slate-400">

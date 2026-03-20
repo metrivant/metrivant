@@ -137,7 +137,7 @@ export default function MobileNav() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
               transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-              className="fixed inset-x-0 bottom-[60px] z-50 mx-3 rounded-xl border border-[#0e2210] bg-[rgba(4,8,4,0.98)] backdrop-blur-xl md:hidden"
+              className="fixed inset-x-0 bottom-[60px] z-50 mx-3 rounded-xl border border-[#0e1022] bg-[rgba(4,8,4,0.98)] backdrop-blur-xl md:hidden"
               style={{
                 marginBottom: "env(safe-area-inset-bottom)",
                 boxShadow: "0 -8px 40px rgba(0,0,0,0.7)",
@@ -146,7 +146,7 @@ export default function MobileNav() {
               <div className="p-3">
                 <div
                   className="mb-2 px-2 font-mono text-[9px] font-bold uppercase tracking-[0.2em]"
-                  style={{ color: "rgba(46,230,166,0.4)" }}
+                  style={{ color: "rgba(0,180,255,0.4)" }}
                 >
                   More
                 </div>
@@ -156,7 +156,7 @@ export default function MobileNav() {
                     href={href}
                     onClick={closeMore}
                     className="flex items-center gap-3 rounded-lg px-3 py-3 transition-colors active:bg-white/5"
-                    style={{ color: isActive(href) ? "#2EE6A6" : "rgba(148,163,184,0.6)" }}
+                    style={{ color: isActive(href) ? "#00B4FF" : "rgba(148,163,184,0.6)" }}
                   >
                     {icon}
                     <span className="text-[13px] font-medium">{label}</span>
@@ -170,17 +170,17 @@ export default function MobileNav() {
 
       {/* Bottom nav bar */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-[#0e2210] bg-[rgba(0,0,0,0.98)] backdrop-blur-xl md:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-[#0e1022] bg-[rgba(0,0,0,0.98)] backdrop-blur-xl md:hidden"
         style={{
           paddingBottom: "env(safe-area-inset-bottom)",
-          boxShadow: "0 -1px 0 rgba(46,230,166,0.06), 0 -8px 32px rgba(0,0,0,0.6)",
+          boxShadow: "0 -1px 0 rgba(0,180,255,0.06), 0 -8px 32px rgba(0,0,0,0.6)",
         }}
         aria-label="Mobile navigation"
       >
         {/* Top accent line */}
         <div
           className="absolute inset-x-0 top-0 h-[1px]"
-          style={{ background: "linear-gradient(90deg, transparent 0%, rgba(46,230,166,0.18) 30%, rgba(46,230,166,0.28) 50%, rgba(46,230,166,0.18) 70%, transparent 100%)" }}
+          style={{ background: "linear-gradient(90deg, transparent 0%, rgba(0,180,255,0.18) 30%, rgba(0,180,255,0.28) 50%, rgba(0,180,255,0.18) 70%, transparent 100%)" }}
         />
 
         {PRIMARY.map(({ href, label, icon }) => {
@@ -190,12 +190,12 @@ export default function MobileNav() {
               key={href}
               href={href}
               className="flex flex-1 flex-col items-center justify-center gap-1 py-2.5 transition-colors active:opacity-60"
-              style={{ color: active ? "#2EE6A6" : "rgba(100,116,139,0.55)" }}
+              style={{ color: active ? "#00B4FF" : "rgba(100,116,139,0.55)" }}
             >
               {icon}
               <span
                 className="text-[9px] font-medium uppercase tracking-[0.12em]"
-                style={{ color: active ? "rgba(46,230,166,0.75)" : "rgba(100,116,139,0.38)" }}
+                style={{ color: active ? "rgba(0,180,255,0.75)" : "rgba(100,116,139,0.38)" }}
               >
                 {label}
               </span>
@@ -207,7 +207,7 @@ export default function MobileNav() {
         <button
           onClick={toggleMore}
           className="flex flex-1 flex-col items-center justify-center gap-1 py-2.5 transition-colors active:opacity-60"
-          style={{ color: moreOpen || moreActive ? "#2EE6A6" : "rgba(100,116,139,0.55)" }}
+          style={{ color: moreOpen || moreActive ? "#00B4FF" : "rgba(100,116,139,0.55)" }}
           aria-label="More navigation options"
         >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -217,7 +217,7 @@ export default function MobileNav() {
           </svg>
           <span
             className="text-[9px] font-medium uppercase tracking-[0.12em]"
-            style={{ color: moreOpen || moreActive ? "rgba(46,230,166,0.75)" : "rgba(100,116,139,0.38)" }}
+            style={{ color: moreOpen || moreActive ? "rgba(0,180,255,0.75)" : "rgba(100,116,139,0.38)" }}
           >
             More
           </span>

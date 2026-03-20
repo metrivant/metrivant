@@ -54,9 +54,9 @@ export default function InitBanner() {
 
   return (
     <div
-      className="relative z-30 flex items-start justify-between gap-4 border-b border-[#0e2210] bg-[#020a02] px-5 py-3"
+      className="relative z-30 flex items-start justify-between gap-4 border-b border-[#0e1022] bg-[#020a02] px-5 py-3"
       style={{
-        borderTopColor: isPartial ? "rgba(245,158,11,0.25)" : "rgba(46,230,166,0.18)",
+        borderTopColor: isPartial ? "rgba(245,158,11,0.25)" : "rgba(0,180,255,0.18)",
         borderTopWidth: "1px",
         borderTopStyle: "solid",
       }}
@@ -65,12 +65,12 @@ export default function InitBanner() {
         {/* Status dot */}
         <div
           className="mt-[3px] h-1.5 w-1.5 shrink-0 rounded-full"
-          style={{ background: isPartial ? "#f59e0b" : "#2EE6A6" }}
+          style={{ background: isPartial ? "#f59e0b" : "#00B4FF" }}
         />
         <div>
           <span
             className="text-[12px] font-semibold"
-            style={{ color: isPartial ? "#f59e0b" : "#2EE6A6" }}
+            style={{ color: isPartial ? "#f59e0b" : "#00B4FF" }}
           >
             {line1}
           </span>
@@ -83,7 +83,7 @@ export default function InitBanner() {
               {" "}
               <Link
                 href="/app/discover"
-                className="text-[12px] text-[#2EE6A6] underline-offset-2 hover:underline"
+                className="text-[12px] text-[#00B4FF] underline-offset-2 hover:underline"
               >
                 Go to Discover →
               </Link>

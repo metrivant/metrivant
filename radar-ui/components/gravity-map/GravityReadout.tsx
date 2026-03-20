@@ -16,7 +16,7 @@ function MassBar({ value, label }: { value: number; label: string }) {
         <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-slate-700">{label}</span>
         <span className="font-mono text-[10px] tabular-nums text-slate-400">{pct}%</span>
       </div>
-      <div className="h-[3px] w-full overflow-hidden rounded-full bg-[#0a1a0a]">
+      <div className="h-[3px] w-full overflow-hidden rounded-full bg-[#0a0a1a]">
         <div
           className="h-full rounded-full transition-all duration-700"
           style={{
@@ -103,7 +103,7 @@ export default function GravityReadout({ node, onClose }: Props) {
 
         {/* Mass score */}
         <div className="mb-4 grid grid-cols-2 gap-2">
-          <div className="rounded-[10px] border border-[#0a1a0a] bg-[#020602] p-3.5">
+          <div className="rounded-[10px] border border-[#0a0a1a] bg-[#020602] p-3.5">
             <div className="font-mono text-[9px] uppercase tracking-[0.20em] text-slate-700">
               Mass (raw)
             </div>
@@ -115,7 +115,7 @@ export default function GravityReadout({ node, onClose }: Props) {
             </div>
             <div className="font-mono text-[8px] text-slate-800">/ 100</div>
           </div>
-          <div className="rounded-[10px] border border-[#0a1a0a] bg-[#020602] p-3.5">
+          <div className="rounded-[10px] border border-[#0a0a1a] bg-[#020602] p-3.5">
             <div className="font-mono text-[9px] uppercase tracking-[0.20em] text-slate-700">
               Relative force
             </div>
@@ -130,7 +130,7 @@ export default function GravityReadout({ node, onClose }: Props) {
         </div>
 
         {/* Mass breakdown bars */}
-        <div className="mb-4 rounded-[10px] border border-[#0a1a0a] bg-[#020602] px-4 py-3.5">
+        <div className="mb-4 rounded-[10px] border border-[#0a0a1a] bg-[#020602] px-4 py-3.5">
           <div className="mb-3 font-mono text-[9px] uppercase tracking-[0.20em] text-slate-700">
             Mass components
           </div>
@@ -148,7 +148,7 @@ export default function GravityReadout({ node, onClose }: Props) {
             { label: "Movements",   value: node.movement_count  },
             { label: "Pressure",    value: node.pressure_index.toFixed(1) },
           ].map(({ label, value }) => (
-            <div key={label} className="rounded-[10px] border border-[#0a1a0a] bg-[#020602] p-2.5">
+            <div key={label} className="rounded-[10px] border border-[#0a0a1a] bg-[#020602] p-2.5">
               <div className="font-mono text-[8px] uppercase tracking-[0.14em] text-slate-700">{label}</div>
               <div className="mt-1 text-[14px] font-bold tabular-nums text-slate-200">{value}</div>
             </div>
@@ -157,7 +157,7 @@ export default function GravityReadout({ node, onClose }: Props) {
 
         {/* Top intelligence */}
         {node.top_interpretation_summary && (
-          <div className="mb-4 rounded-[10px] border border-[#0a1a0a] bg-[#020602] px-4 py-3.5">
+          <div className="mb-4 rounded-[10px] border border-[#0a0a1a] bg-[#020602] px-4 py-3.5">
             <div className="mb-1.5 font-mono text-[9px] uppercase tracking-[0.20em] text-slate-700">
               Latest signal
             </div>
@@ -168,7 +168,7 @@ export default function GravityReadout({ node, onClose }: Props) {
         )}
 
         {/* Visual mass (for operator transparency) */}
-        <div className="mb-5 rounded-[10px] border border-[#0a1a0a] bg-[#020602] px-4 py-3">
+        <div className="mb-5 rounded-[10px] border border-[#0a0a1a] bg-[#020602] px-4 py-3">
           <div className="flex items-center justify-between">
             <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-slate-700">
               Well depth (visual)
@@ -186,9 +186,9 @@ export default function GravityReadout({ node, onClose }: Props) {
         <a
           href="/app"
           className="flex items-center gap-1.5 font-mono text-[10px] transition-opacity"
-          style={{ color: "rgba(46,230,166,0.45)" }}
-          onMouseEnter={(e) => ((e.currentTarget as HTMLAnchorElement).style.color = "rgba(46,230,166,0.85)")}
-          onMouseLeave={(e) => ((e.currentTarget as HTMLAnchorElement).style.color = "rgba(46,230,166,0.45)")}
+          style={{ color: "rgba(0,180,255,0.45)" }}
+          onMouseEnter={(e) => ((e.currentTarget as HTMLAnchorElement).style.color = "rgba(0,180,255,0.85)")}
+          onMouseLeave={(e) => ((e.currentTarget as HTMLAnchorElement).style.color = "rgba(0,180,255,0.45)")}
         >
           <svg width="10" height="10" viewBox="0 0 46 46" fill="none" aria-hidden="true">
             <circle cx="23" cy="23" r="21.5" stroke="currentColor" strokeWidth="2.5" strokeOpacity="0.6" />

@@ -22,7 +22,7 @@ function AlertItem({ alert }: { alert: AlertRow }) {
   return (
     <div
       className={`px-4 py-3.5 transition-colors hover:bg-[#030f03] ${
-        !alert.read ? "border-l-2 border-[#2EE6A6]/40" : "border-l-2 border-transparent"
+        !alert.read ? "border-l-2 border-[#00B4FF]/40" : "border-l-2 border-transparent"
       }`}
     >
       <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -118,7 +118,7 @@ export default function NotificationBell() {
       {/* Bell button */}
       <button
         onClick={handleOpen}
-        className="relative flex h-8 w-8 items-center justify-center rounded-full border border-[#0d2010] bg-[#020802] text-slate-500 transition-colors hover:border-[#152a15] hover:text-slate-300"
+        className="relative flex h-8 w-8 items-center justify-center rounded-full border border-[#0d1020] bg-[#020208] text-slate-500 transition-colors hover:border-[#152a15] hover:text-slate-300"
         aria-label={`Notifications${unreadCount > 0 ? ` — ${unreadCount} unread` : ""}`}
       >
         <svg
@@ -155,18 +155,18 @@ export default function NotificationBell() {
       {/* Dropdown */}
       {isOpen && (
         <div
-          className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-[14px] border border-[#0d2010] bg-[#020802]"
-          style={{ boxShadow: "0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(46,230,166,0.04)" }}
+          className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-[14px] border border-[#0d1020] bg-[#020208]"
+          style={{ boxShadow: "0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,180,255,0.04)" }}
         >
           {/* Dropdown header */}
-          <div className="flex items-center justify-between border-b border-[#0d2010] px-4 py-3">
+          <div className="flex items-center justify-between border-b border-[#0d1020] px-4 py-3">
             <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
               Alerts
             </span>
             <Link
               href="/app/alerts"
               onClick={() => setIsOpen(false)}
-              className="text-[11px] text-[#2EE6A6] transition-opacity hover:opacity-80"
+              className="text-[11px] text-[#00B4FF] transition-opacity hover:opacity-80"
             >
               View all
             </Link>
@@ -196,7 +196,7 @@ export default function NotificationBell() {
 
           {/* Footer */}
           {recentAlerts.length > 0 && (
-            <div className="border-t border-[#0d2010] px-4 py-2.5">
+            <div className="border-t border-[#0d1020] px-4 py-2.5">
               <Link
                 href="/app/alerts"
                 onClick={() => setIsOpen(false)}

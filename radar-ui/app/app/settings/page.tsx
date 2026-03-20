@@ -19,7 +19,7 @@ export default async function SettingsPage() {
   const org = orgRows?.[0] ?? null;
 
   return (
-    <div className="min-h-screen bg-[#000200] text-white">
+    <div className="min-h-screen bg-[#000002] text-white">
       <div
         className="pointer-events-none fixed inset-0"
         style={{
@@ -30,15 +30,15 @@ export default async function SettingsPage() {
       />
 
       {/* Mini header */}
-      <header className="relative z-10 flex h-14 items-center justify-between border-b border-[#0e2210] bg-[rgba(0,2,0,0.97)] px-6">
+      <header className="relative z-10 flex h-14 items-center justify-between border-b border-[#0e1022] bg-[rgba(0,2,0,0.97)] px-6">
         <Link href="/app" className="flex items-center gap-3">
           <svg width="24" height="24" viewBox="0 0 46 46" fill="none" aria-hidden="true">
-            <circle cx="23" cy="23" r="21.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.50" />
-            <circle cx="23" cy="23" r="13"   stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.28" />
-            <circle cx="23" cy="23" r="5.5"  stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.42" />
-            <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#2EE6A6" fillOpacity="0.10" />
-            <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.80" />
-            <circle cx="23" cy="23" r="2.5" fill="#2EE6A6" />
+            <circle cx="23" cy="23" r="21.5" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.50" />
+            <circle cx="23" cy="23" r="13"   stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.28" />
+            <circle cx="23" cy="23" r="5.5"  stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.42" />
+            <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#00B4FF" fillOpacity="0.10" />
+            <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.80" />
+            <circle cx="23" cy="23" r="2.5" fill="#00B4FF" />
           </svg>
           <span className="text-[14px] font-bold tracking-[0.08em] text-white">METRIVANT</span>
         </Link>
@@ -46,7 +46,7 @@ export default async function SettingsPage() {
           <Link href="/app/billing" className="text-[12px] text-slate-500 hover:text-slate-300 transition-colors">
             Billing
           </Link>
-          <Link href="/app" className="text-[12px] text-[#2EE6A6]">
+          <Link href="/app" className="text-[12px] text-[#00B4FF]">
             ← Radar
           </Link>
         </div>
@@ -56,7 +56,7 @@ export default async function SettingsPage() {
         <h1 className="mb-8 text-2xl font-bold text-white">Settings</h1>
 
         {/* ── Account ─────────────────────────────────────────────────── */}
-        <section className="mb-6 rounded-[14px] border border-[#0d2010] bg-[#020802] p-6">
+        <section className="mb-6 rounded-[14px] border border-[#0d1020] bg-[#020208] p-6">
           <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
             Account
           </h2>
@@ -71,7 +71,7 @@ export default async function SettingsPage() {
         </section>
 
         {/* ── Sound ───────────────────────────────────────────────────── */}
-        <section className="mb-6 rounded-[14px] border border-[#0d2010] bg-[#020802] p-6">
+        <section className="mb-6 rounded-[14px] border border-[#0d1020] bg-[#020208] p-6">
           <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
             Sound
           </h2>
@@ -79,7 +79,7 @@ export default async function SettingsPage() {
         </section>
 
         {/* ── Display ─────────────────────────────────────────────────── */}
-        <section className="mb-6 rounded-[14px] border border-[#0d2010] bg-[#020802] p-6">
+        <section className="mb-6 rounded-[14px] border border-[#0d1020] bg-[#020208] p-6">
           <h2 className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
             Display
           </h2>
@@ -90,7 +90,7 @@ export default async function SettingsPage() {
         </section>
 
         {/* ── Session ─────────────────────────────────────────────────── */}
-        <section className="mb-6 rounded-[14px] border border-[#0d2010] bg-[#020802] p-6">
+        <section className="mb-6 rounded-[14px] border border-[#0d1020] bg-[#020208] p-6">
           <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
             Session
           </h2>
@@ -104,8 +104,8 @@ export default async function SettingsPage() {
           </form>
         </section>
 
-        <section className="mt-6 rounded-[14px] border border-[#0d2010] bg-[#020802] p-6">
-          <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-[#2EE6A6]">Interface</h2>
+        <section className="mt-6 rounded-[14px] border border-[#0d1020] bg-[#020208] p-6">
+          <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-[#00B4FF]">Interface</h2>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-200">Knowledge Panel</p>

@@ -62,7 +62,7 @@ export default async function BriefsPage() {
   const [latest, ...older] = briefs;
 
   return (
-    <div className="min-h-screen bg-[#000200] text-white">
+    <div className="min-h-screen bg-[#000002] text-white">
       <BriefViewedTracker />
 
       {/* ── Atmospheric depth ───────────────────────────────────────── */}
@@ -79,7 +79,7 @@ export default async function BriefsPage() {
         className="pointer-events-none fixed inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 70% 40% at 50% -5%, rgba(46,230,166,0.05) 0%, transparent 70%)",
+            "radial-gradient(ellipse 70% 40% at 50% -5%, rgba(0,180,255,0.05) 0%, transparent 70%)",
         }}
       />
 
@@ -112,17 +112,17 @@ export default async function BriefsPage() {
         {/* Empty state */}
         {!fetchError && briefs.length === 0 && (
           <div
-            className="flex flex-col items-center rounded-[18px] border border-[#0d2010] px-8 py-16 text-center"
+            className="flex flex-col items-center rounded-[18px] border border-[#0d1020] px-8 py-16 text-center"
             style={{ background: "rgba(2,8,2,0.5)" }}
           >
             {/* Brief icon */}
             <div
-              className="mb-5 flex h-14 w-14 items-center justify-center rounded-full border border-[#0d2010]"
-              style={{ background: "rgba(46,230,166,0.04)" }}
+              className="mb-5 flex h-14 w-14 items-center justify-center rounded-full border border-[#0d1020]"
+              style={{ background: "rgba(0,180,255,0.04)" }}
             >
               <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-                <rect x="3" y="2" width="16" height="18" rx="2.5" stroke="rgba(46,230,166,0.30)" strokeWidth="1.5" />
-                <path d="M7 7h8M7 11h8M7 15h5" stroke="rgba(46,230,166,0.30)" strokeWidth="1.4" strokeLinecap="round" />
+                <rect x="3" y="2" width="16" height="18" rx="2.5" stroke="rgba(0,180,255,0.30)" strokeWidth="1.5" />
+                <path d="M7 7h8M7 11h8M7 15h5" stroke="rgba(0,180,255,0.30)" strokeWidth="1.4" strokeLinecap="round" />
               </svg>
             </div>
             <h2 className="text-[15px] font-semibold text-white">
@@ -152,7 +152,7 @@ export default async function BriefsPage() {
             <div className="mb-5 flex items-center gap-3">
               <span
                 className="font-mono text-[10px] font-bold uppercase tracking-[0.18em]"
-                style={{ color: "rgba(46,230,166,0.35)" }}
+                style={{ color: "rgba(0,180,255,0.35)" }}
               >
                 Previous
               </span>
@@ -160,7 +160,7 @@ export default async function BriefsPage() {
                 className="h-px flex-1"
                 style={{
                   background:
-                    "linear-gradient(90deg, rgba(46,230,166,0.10) 0%, transparent 100%)",
+                    "linear-gradient(90deg, rgba(0,180,255,0.10) 0%, transparent 100%)",
                 }}
               />
             </div>

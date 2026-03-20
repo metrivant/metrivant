@@ -4,21 +4,21 @@
 
 :root {
   /* ── Canvas ──────────────────────────────────────────────────────────────── */
-  --m-bg:             #000200;
+  --m-bg:             #000002;
   --m-surface:        #070707;
   --m-surface-hover:  #0c0c0c;
 
   /* ── Brand accent (permanent — never themed) ─────────────────────────────── */
-  --m-accent:         #2EE6A6;
-  --m-accent-dim:     rgba(46,230,166,0.55);
-  --m-accent-ghost:   rgba(46,230,166,0.08);
+  --m-accent:         #00B4FF;
+  --m-accent-dim:     rgba(0,180,255,0.55);
+  --m-accent-ghost:   rgba(0,180,255,0.08);
 
   /* ── UI chrome (theme-switchable) ────────────────────────────────────────── */
   --m-ui-accent:        var(--m-accent);
   --m-ui-highlight:     var(--m-accent);
   --m-ui-glow:          none;
   --m-ui-border:        rgba(255,255,255,0.08);
-  --m-ui-border-active: rgba(46,230,166,0.40);
+  --m-ui-border-active: rgba(0,180,255,0.40);
 
   /* ── Text hierarchy ──────────────────────────────────────────────────────── */
   --m-text-primary:   #ffffff;
@@ -27,7 +27,7 @@
   --m-text-dim:       rgba(71,85,105,0.70);
 
   /* ── Signal semantics (never themed — data truth) ────────────────────────── */
-  --m-signal-stable:       #2EE6A6;
+  --m-signal-stable:       #00B4FF;
   --m-signal-rising:       #f59e0b;
   --m-signal-accelerating: #ef4444;
   --m-signal-cooling:      #64748b;

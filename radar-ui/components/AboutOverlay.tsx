@@ -9,14 +9,14 @@ import Link from "next/link";
 function IconRadar() {
   return (
     <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-      <circle cx="14" cy="14" r="12.5" stroke="#2EE6A6" strokeWidth="0.8" strokeOpacity="0.30" />
-      <circle cx="14" cy="14" r="8.5"  stroke="#2EE6A6" strokeWidth="0.7" strokeOpacity="0.20" />
-      <circle cx="14" cy="14" r="4.5"  stroke="#2EE6A6" strokeWidth="0.7" strokeOpacity="0.28" />
-      <path d="M14 14 L10.5 2.2 A12.5 12.5 0 0 1 22 5.8 Z" fill="#2EE6A6" fillOpacity="0.12" />
-      <line x1="14" y1="14" x2="22" y2="5.8" stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.70" />
-      <circle cx="14" cy="14" r="1.6" fill="#2EE6A6" fillOpacity="0.9" />
-      <circle cx="20" cy="9"  r="1.4" fill="#2EE6A6" fillOpacity="0.55" />
-      <circle cx="8"  cy="18" r="1"   fill="#2EE6A6" fillOpacity="0.30" />
+      <circle cx="14" cy="14" r="12.5" stroke="#00B4FF" strokeWidth="0.8" strokeOpacity="0.30" />
+      <circle cx="14" cy="14" r="8.5"  stroke="#00B4FF" strokeWidth="0.7" strokeOpacity="0.20" />
+      <circle cx="14" cy="14" r="4.5"  stroke="#00B4FF" strokeWidth="0.7" strokeOpacity="0.28" />
+      <path d="M14 14 L10.5 2.2 A12.5 12.5 0 0 1 22 5.8 Z" fill="#00B4FF" fillOpacity="0.12" />
+      <line x1="14" y1="14" x2="22" y2="5.8" stroke="#00B4FF" strokeWidth="1" strokeOpacity="0.70" />
+      <circle cx="14" cy="14" r="1.6" fill="#00B4FF" fillOpacity="0.9" />
+      <circle cx="20" cy="9"  r="1.4" fill="#00B4FF" fillOpacity="0.55" />
+      <circle cx="8"  cy="18" r="1"   fill="#00B4FF" fillOpacity="0.30" />
     </svg>
   );
 }
@@ -24,10 +24,10 @@ function IconRadar() {
 function IconSignal() {
   return (
     <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-      <rect x="4"  y="16" width="4" height="8"  rx="1" fill="#2EE6A6" fillOpacity="0.25" />
-      <rect x="12" y="11" width="4" height="13" rx="1" fill="#2EE6A6" fillOpacity="0.45" />
-      <rect x="20" y="5"  width="4" height="19" rx="1" fill="#2EE6A6" fillOpacity="0.70" />
-      <circle cx="22" cy="4" r="2" fill="#2EE6A6" fillOpacity="0.85" />
+      <rect x="4"  y="16" width="4" height="8"  rx="1" fill="#00B4FF" fillOpacity="0.25" />
+      <rect x="12" y="11" width="4" height="13" rx="1" fill="#00B4FF" fillOpacity="0.45" />
+      <rect x="20" y="5"  width="4" height="19" rx="1" fill="#00B4FF" fillOpacity="0.70" />
+      <circle cx="22" cy="4" r="2" fill="#00B4FF" fillOpacity="0.85" />
     </svg>
   );
 }
@@ -35,16 +35,16 @@ function IconSignal() {
 function IconAI() {
   return (
     <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-      <circle cx="14" cy="14" r="6" stroke="#2EE6A6" strokeWidth="0.8" strokeOpacity="0.35" />
-      <circle cx="14" cy="14" r="2.2" fill="#2EE6A6" fillOpacity="0.60" />
-      <line x1="14" y1="2"  x2="14" y2="7"  stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.28" />
-      <line x1="14" y1="21" x2="14" y2="26" stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.28" />
-      <line x1="2"  y1="14" x2="7"  y2="14" stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.28" />
-      <line x1="21" y1="14" x2="26" y2="14" stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.28" />
-      <line x1="5.5"  y1="5.5"  x2="9.3"  y2="9.3"  stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.18" />
-      <line x1="18.7" y1="18.7" x2="22.5" y2="22.5" stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.18" />
-      <line x1="22.5" y1="5.5"  x2="18.7" y2="9.3"  stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.18" />
-      <line x1="9.3"  y1="18.7" x2="5.5"  y2="22.5" stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.18" />
+      <circle cx="14" cy="14" r="6" stroke="#00B4FF" strokeWidth="0.8" strokeOpacity="0.35" />
+      <circle cx="14" cy="14" r="2.2" fill="#00B4FF" fillOpacity="0.60" />
+      <line x1="14" y1="2"  x2="14" y2="7"  stroke="#00B4FF" strokeWidth="1" strokeOpacity="0.28" />
+      <line x1="14" y1="21" x2="14" y2="26" stroke="#00B4FF" strokeWidth="1" strokeOpacity="0.28" />
+      <line x1="2"  y1="14" x2="7"  y2="14" stroke="#00B4FF" strokeWidth="1" strokeOpacity="0.28" />
+      <line x1="21" y1="14" x2="26" y2="14" stroke="#00B4FF" strokeWidth="1" strokeOpacity="0.28" />
+      <line x1="5.5"  y1="5.5"  x2="9.3"  y2="9.3"  stroke="#00B4FF" strokeWidth="1" strokeOpacity="0.18" />
+      <line x1="18.7" y1="18.7" x2="22.5" y2="22.5" stroke="#00B4FF" strokeWidth="1" strokeOpacity="0.18" />
+      <line x1="22.5" y1="5.5"  x2="18.7" y2="9.3"  stroke="#00B4FF" strokeWidth="1" strokeOpacity="0.18" />
+      <line x1="9.3"  y1="18.7" x2="5.5"  y2="22.5" stroke="#00B4FF" strokeWidth="1" strokeOpacity="0.18" />
     </svg>
   );
 }
@@ -52,11 +52,11 @@ function IconAI() {
 function IconMovement() {
   return (
     <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-      <path d="M4 20 L10 14 L16 17 L24 7" stroke="#2EE6A6" strokeWidth="1.2" strokeOpacity="0.55" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="24" cy="7"  r="2"   fill="#2EE6A6" fillOpacity="0.85" />
-      <circle cx="16" cy="17" r="1.4" fill="#2EE6A6" fillOpacity="0.40" />
-      <circle cx="10" cy="14" r="1.2" fill="#2EE6A6" fillOpacity="0.28" />
-      <path d="M20 7 L24 7 L24 11" stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.55" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 20 L10 14 L16 17 L24 7" stroke="#00B4FF" strokeWidth="1.2" strokeOpacity="0.55" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="24" cy="7"  r="2"   fill="#00B4FF" fillOpacity="0.85" />
+      <circle cx="16" cy="17" r="1.4" fill="#00B4FF" fillOpacity="0.40" />
+      <circle cx="10" cy="14" r="1.2" fill="#00B4FF" fillOpacity="0.28" />
+      <path d="M20 7 L24 7 L24 11" stroke="#00B4FF" strokeWidth="1" strokeOpacity="0.55" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -64,13 +64,13 @@ function IconMovement() {
 function IconBrief() {
   return (
     <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-      <rect x="5" y="4" width="18" height="20" rx="2.5" stroke="#2EE6A6" strokeWidth="0.8" strokeOpacity="0.28" />
-      <line x1="9" y1="10" x2="19" y2="10" stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.55" strokeLinecap="round" />
-      <line x1="9" y1="14" x2="19" y2="14" stroke="#2EE6A6" strokeWidth="0.8" strokeOpacity="0.35" strokeLinecap="round" />
-      <line x1="9" y1="18" x2="15" y2="18" stroke="#2EE6A6" strokeWidth="0.8" strokeOpacity="0.25" strokeLinecap="round" />
-      <circle cx="20" cy="6" r="4" fill="#000200" />
-      <circle cx="20" cy="6" r="3.5" stroke="#2EE6A6" strokeWidth="0.8" strokeOpacity="0.55" />
-      <path d="M18.5 6l1 1 2-2" stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.80" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="5" y="4" width="18" height="20" rx="2.5" stroke="#00B4FF" strokeWidth="0.8" strokeOpacity="0.28" />
+      <line x1="9" y1="10" x2="19" y2="10" stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.55" strokeLinecap="round" />
+      <line x1="9" y1="14" x2="19" y2="14" stroke="#00B4FF" strokeWidth="0.8" strokeOpacity="0.35" strokeLinecap="round" />
+      <line x1="9" y1="18" x2="15" y2="18" stroke="#00B4FF" strokeWidth="0.8" strokeOpacity="0.25" strokeLinecap="round" />
+      <circle cx="20" cy="6" r="4" fill="#000002" />
+      <circle cx="20" cy="6" r="3.5" stroke="#00B4FF" strokeWidth="0.8" strokeOpacity="0.55" />
+      <path d="M18.5 6l1 1 2-2" stroke="#00B4FF" strokeWidth="1" strokeOpacity="0.80" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -78,14 +78,14 @@ function IconBrief() {
 function IconMap() {
   return (
     <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-      <rect x="3" y="3" width="22" height="22" rx="2" stroke="#2EE6A6" strokeWidth="0.7" strokeOpacity="0.22" />
-      <line x1="14" y1="3"  x2="14" y2="25" stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.18" strokeDasharray="2 3" />
-      <line x1="3"  y1="14" x2="25" y2="14" stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.18" strokeDasharray="2 3" />
-      <circle cx="9"  cy="9"  r="2.2" fill="#2EE6A6" fillOpacity="0.28" />
-      <circle cx="19" cy="8"  r="1.6" fill="#2EE6A6" fillOpacity="0.40" />
-      <circle cx="8"  cy="18" r="1.4" fill="#2EE6A6" fillOpacity="0.22" />
-      <circle cx="20" cy="20" r="2.8" fill="#2EE6A6" fillOpacity="0.55" />
-      <circle cx="14" cy="12" r="1.8" fill="#2EE6A6" fillOpacity="0.35" />
+      <rect x="3" y="3" width="22" height="22" rx="2" stroke="#00B4FF" strokeWidth="0.7" strokeOpacity="0.22" />
+      <line x1="14" y1="3"  x2="14" y2="25" stroke="#00B4FF" strokeWidth="0.5" strokeOpacity="0.18" strokeDasharray="2 3" />
+      <line x1="3"  y1="14" x2="25" y2="14" stroke="#00B4FF" strokeWidth="0.5" strokeOpacity="0.18" strokeDasharray="2 3" />
+      <circle cx="9"  cy="9"  r="2.2" fill="#00B4FF" fillOpacity="0.28" />
+      <circle cx="19" cy="8"  r="1.6" fill="#00B4FF" fillOpacity="0.40" />
+      <circle cx="8"  cy="18" r="1.4" fill="#00B4FF" fillOpacity="0.22" />
+      <circle cx="20" cy="20" r="2.8" fill="#00B4FF" fillOpacity="0.55" />
+      <circle cx="14" cy="12" r="1.8" fill="#00B4FF" fillOpacity="0.35" />
     </svg>
   );
 }
@@ -104,14 +104,14 @@ function IconAlert() {
 function IconEvidence() {
   return (
     <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-      <rect x="4"  y="6"  width="10" height="7" rx="1.5" stroke="#2EE6A6" strokeWidth="0.8" strokeOpacity="0.25" />
-      <rect x="14" y="15" width="10" height="7" rx="1.5" stroke="#2EE6A6" strokeWidth="0.8" strokeOpacity="0.55" />
-      <line x1="9"  y1="13" x2="9"  y2="22" stroke="#2EE6A6" strokeWidth="0.6" strokeOpacity="0.20" strokeDasharray="1.5 2" />
-      <line x1="9"  y1="22" x2="14" y2="18" stroke="#2EE6A6" strokeWidth="0.6" strokeOpacity="0.20" />
-      <line x1="6"  y1="9"  x2="10" y2="9"  stroke="#2EE6A6" strokeWidth="0.8" strokeOpacity="0.40" strokeLinecap="round" />
-      <line x1="6"  y1="11" x2="8"  y2="11" stroke="#2EE6A6" strokeWidth="0.8" strokeOpacity="0.28" strokeLinecap="round" />
-      <line x1="16" y1="18" x2="21" y2="18" stroke="#2EE6A6" strokeWidth="0.8" strokeOpacity="0.60" strokeLinecap="round" />
-      <line x1="16" y1="20" x2="19" y2="20" stroke="#2EE6A6" strokeWidth="0.8" strokeOpacity="0.40" strokeLinecap="round" />
+      <rect x="4"  y="6"  width="10" height="7" rx="1.5" stroke="#00B4FF" strokeWidth="0.8" strokeOpacity="0.25" />
+      <rect x="14" y="15" width="10" height="7" rx="1.5" stroke="#00B4FF" strokeWidth="0.8" strokeOpacity="0.55" />
+      <line x1="9"  y1="13" x2="9"  y2="22" stroke="#00B4FF" strokeWidth="0.6" strokeOpacity="0.20" strokeDasharray="1.5 2" />
+      <line x1="9"  y1="22" x2="14" y2="18" stroke="#00B4FF" strokeWidth="0.6" strokeOpacity="0.20" />
+      <line x1="6"  y1="9"  x2="10" y2="9"  stroke="#00B4FF" strokeWidth="0.8" strokeOpacity="0.40" strokeLinecap="round" />
+      <line x1="6"  y1="11" x2="8"  y2="11" stroke="#00B4FF" strokeWidth="0.8" strokeOpacity="0.28" strokeLinecap="round" />
+      <line x1="16" y1="18" x2="21" y2="18" stroke="#00B4FF" strokeWidth="0.8" strokeOpacity="0.60" strokeLinecap="round" />
+      <line x1="16" y1="20" x2="19" y2="20" stroke="#00B4FF" strokeWidth="0.8" strokeOpacity="0.40" strokeLinecap="round" />
     </svg>
   );
 }
@@ -119,17 +119,17 @@ function IconEvidence() {
 function IconStrategy() {
   return (
     <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-      <circle cx="14" cy="14" r="3"  fill="#2EE6A6" fillOpacity="0.55" />
-      <circle cx="6"  cy="8"  r="2"  fill="#2EE6A6" fillOpacity="0.28" />
-      <circle cx="22" cy="8"  r="2"  fill="#2EE6A6" fillOpacity="0.28" />
-      <circle cx="6"  cy="20" r="2"  fill="#2EE6A6" fillOpacity="0.28" />
-      <circle cx="22" cy="20" r="2"  fill="#2EE6A6" fillOpacity="0.28" />
-      <line x1="8"  y1="9"  x2="12" y2="12" stroke="#2EE6A6" strokeWidth="0.7" strokeOpacity="0.30" />
-      <line x1="20" y1="9"  x2="16" y2="12" stroke="#2EE6A6" strokeWidth="0.7" strokeOpacity="0.30" />
-      <line x1="8"  y1="19" x2="12" y2="16" stroke="#2EE6A6" strokeWidth="0.7" strokeOpacity="0.30" />
-      <line x1="20" y1="19" x2="16" y2="16" stroke="#2EE6A6" strokeWidth="0.7" strokeOpacity="0.30" />
-      <line x1="6"  y1="10" x2="6"  y2="18" stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.18" />
-      <line x1="22" y1="10" x2="22" y2="18" stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.18" />
+      <circle cx="14" cy="14" r="3"  fill="#00B4FF" fillOpacity="0.55" />
+      <circle cx="6"  cy="8"  r="2"  fill="#00B4FF" fillOpacity="0.28" />
+      <circle cx="22" cy="8"  r="2"  fill="#00B4FF" fillOpacity="0.28" />
+      <circle cx="6"  cy="20" r="2"  fill="#00B4FF" fillOpacity="0.28" />
+      <circle cx="22" cy="20" r="2"  fill="#00B4FF" fillOpacity="0.28" />
+      <line x1="8"  y1="9"  x2="12" y2="12" stroke="#00B4FF" strokeWidth="0.7" strokeOpacity="0.30" />
+      <line x1="20" y1="9"  x2="16" y2="12" stroke="#00B4FF" strokeWidth="0.7" strokeOpacity="0.30" />
+      <line x1="8"  y1="19" x2="12" y2="16" stroke="#00B4FF" strokeWidth="0.7" strokeOpacity="0.30" />
+      <line x1="20" y1="19" x2="16" y2="16" stroke="#00B4FF" strokeWidth="0.7" strokeOpacity="0.30" />
+      <line x1="6"  y1="10" x2="6"  y2="18" stroke="#00B4FF" strokeWidth="0.5" strokeOpacity="0.18" />
+      <line x1="22" y1="10" x2="22" y2="18" stroke="#00B4FF" strokeWidth="0.5" strokeOpacity="0.18" />
     </svg>
   );
 }
@@ -137,10 +137,10 @@ function IconStrategy() {
 function IconDiscover() {
   return (
     <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="7.5" stroke="#2EE6A6" strokeWidth="0.8" strokeOpacity="0.35" />
-      <line x1="17.5" y1="17.5" x2="24" y2="24" stroke="#2EE6A6" strokeWidth="1.2" strokeOpacity="0.55" strokeLinecap="round" />
-      <line x1="9"  y1="12" x2="15" y2="12" stroke="#2EE6A6" strokeWidth="0.9" strokeOpacity="0.50" strokeLinecap="round" />
-      <line x1="12" y1="9"  x2="12" y2="15" stroke="#2EE6A6" strokeWidth="0.9" strokeOpacity="0.50" strokeLinecap="round" />
+      <circle cx="12" cy="12" r="7.5" stroke="#00B4FF" strokeWidth="0.8" strokeOpacity="0.35" />
+      <line x1="17.5" y1="17.5" x2="24" y2="24" stroke="#00B4FF" strokeWidth="1.2" strokeOpacity="0.55" strokeLinecap="round" />
+      <line x1="9"  y1="12" x2="15" y2="12" stroke="#00B4FF" strokeWidth="0.9" strokeOpacity="0.50" strokeLinecap="round" />
+      <line x1="12" y1="9"  x2="12" y2="15" stroke="#00B4FF" strokeWidth="0.9" strokeOpacity="0.50" strokeLinecap="round" />
     </svg>
   );
 }
@@ -149,19 +149,19 @@ function IconConstellation() {
   return (
     <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
       {/* Constellation lines */}
-      <line x1="6"  y1="22" x2="12" y2="8"  stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.22" />
-      <line x1="12" y1="8"  x2="20" y2="14" stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.22" />
-      <line x1="20" y1="14" x2="23" y2="6"  stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.22" />
-      <line x1="12" y1="8"  x2="8"  y2="14" stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.18" />
-      <line x1="8"  y1="14" x2="20" y2="14" stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.18" />
-      <line x1="20" y1="14" x2="16" y2="22" stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.18" />
+      <line x1="6"  y1="22" x2="12" y2="8"  stroke="#00B4FF" strokeWidth="0.5" strokeOpacity="0.22" />
+      <line x1="12" y1="8"  x2="20" y2="14" stroke="#00B4FF" strokeWidth="0.5" strokeOpacity="0.22" />
+      <line x1="20" y1="14" x2="23" y2="6"  stroke="#00B4FF" strokeWidth="0.5" strokeOpacity="0.22" />
+      <line x1="12" y1="8"  x2="8"  y2="14" stroke="#00B4FF" strokeWidth="0.5" strokeOpacity="0.18" />
+      <line x1="8"  y1="14" x2="20" y2="14" stroke="#00B4FF" strokeWidth="0.5" strokeOpacity="0.18" />
+      <line x1="20" y1="14" x2="16" y2="22" stroke="#00B4FF" strokeWidth="0.5" strokeOpacity="0.18" />
       {/* Stars — varying brightness by recency */}
-      <circle cx="12" cy="8"  r="2.2" fill="#2EE6A6" fillOpacity="0.90" />
-      <circle cx="20" cy="14" r="1.8" fill="#2EE6A6" fillOpacity="0.75" />
-      <circle cx="23" cy="6"  r="1.4" fill="#2EE6A6" fillOpacity="0.55" />
-      <circle cx="6"  cy="22" r="1.4" fill="#2EE6A6" fillOpacity="0.55" />
-      <circle cx="8"  cy="14" r="1.2" fill="#2EE6A6" fillOpacity="0.40" />
-      <circle cx="16" cy="22" r="1.0" fill="#2EE6A6" fillOpacity="0.30" />
+      <circle cx="12" cy="8"  r="2.2" fill="#00B4FF" fillOpacity="0.90" />
+      <circle cx="20" cy="14" r="1.8" fill="#00B4FF" fillOpacity="0.75" />
+      <circle cx="23" cy="6"  r="1.4" fill="#00B4FF" fillOpacity="0.55" />
+      <circle cx="6"  cy="22" r="1.4" fill="#00B4FF" fillOpacity="0.55" />
+      <circle cx="8"  cy="14" r="1.2" fill="#00B4FF" fillOpacity="0.40" />
+      <circle cx="16" cy="22" r="1.0" fill="#00B4FF" fillOpacity="0.30" />
     </svg>
   );
 }
@@ -349,9 +349,9 @@ export default function AboutOverlay({
 
           {/* Panel */}
           <motion.div
-            className="fixed inset-y-0 right-0 z-[201] flex w-full flex-col bg-[#000200] md:w-[520px]"
+            className="fixed inset-y-0 right-0 z-[201] flex w-full flex-col bg-[#000002] md:w-[520px]"
             style={{
-              borderLeft: "1px solid #0e2210",
+              borderLeft: "1px solid #0e1022",
               boxShadow: "-24px 0 80px rgba(0,0,0,0.85)",
             }}
             initial={{ x: "100%" }}
@@ -364,7 +364,7 @@ export default function AboutOverlay({
               className="pointer-events-none absolute inset-0"
               style={{
                 background:
-                  "radial-gradient(ellipse 80% 40% at 50% -8%, rgba(46,230,166,0.055) 0%, transparent 65%)",
+                  "radial-gradient(ellipse 80% 40% at 50% -8%, rgba(0,180,255,0.055) 0%, transparent 65%)",
               }}
             />
             <div
@@ -378,7 +378,7 @@ export default function AboutOverlay({
 
             {/* Header */}
             <div
-              className="relative z-10 flex h-12 shrink-0 items-center justify-between border-b border-[#0e2210] px-5"
+              className="relative z-10 flex h-12 shrink-0 items-center justify-between border-b border-[#0e1022] px-5"
               style={{ background: "rgba(0,0,0,0.60)" }}
             >
               {/* Top accent line */}
@@ -386,18 +386,18 @@ export default function AboutOverlay({
                 className="absolute inset-x-0 top-0 h-[1px]"
                 style={{
                   background:
-                    "linear-gradient(90deg, transparent 0%, rgba(46,230,166,0.28) 40%, rgba(46,230,166,0.45) 50%, rgba(46,230,166,0.28) 60%, transparent 100%)",
+                    "linear-gradient(90deg, transparent 0%, rgba(0,180,255,0.28) 40%, rgba(0,180,255,0.45) 50%, rgba(0,180,255,0.28) 60%, transparent 100%)",
                 }}
               />
 
               <div className="flex items-center gap-3">
                 <span
                   className="font-mono text-[9px] font-bold uppercase tracking-[0.30em]"
-                  style={{ color: "rgba(46,230,166,0.55)" }}
+                  style={{ color: "rgba(0,180,255,0.55)" }}
                 >
                   METRIVANT
                 </span>
-                <span style={{ color: "rgba(46,230,166,0.20)" }}>·</span>
+                <span style={{ color: "rgba(0,180,255,0.20)" }}>·</span>
                 <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-600">
                   Intelligence Platform
                 </span>
@@ -407,8 +407,8 @@ export default function AboutOverlay({
                 <span className="hidden text-[10px] text-slate-700 md:inline">ESC to close</span>
                 <button
                   onClick={onClose}
-                  className="flex h-7 w-7 items-center justify-center rounded-full border border-[#1a3020] bg-[#070d07] transition-colors hover:border-[#2a4a30]"
-                  style={{ color: "rgba(46,230,166,0.55)" }}
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-[#1a2030] bg-[#070d07] transition-colors hover:border-[#2a4a30]"
+                  style={{ color: "rgba(0,180,255,0.55)" }}
                   aria-label="Close"
                 >
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
@@ -419,7 +419,7 @@ export default function AboutOverlay({
             </div>
 
             {/* Intro block */}
-            <div className="relative z-10 border-b border-[#0a1a0a] px-6 py-6">
+            <div className="relative z-10 border-b border-[#0a0a1a] px-6 py-6">
               <p className="text-[13px] font-medium leading-relaxed text-slate-300">
                 Metrivant is a competitive intelligence radar — built for operators who need to know what their rivals are doing before the rest of the market does.
               </p>
@@ -432,7 +432,7 @@ export default function AboutOverlay({
             <div className="relative z-10 flex-1 overflow-y-auto px-5 py-5">
               <div
                 className="mb-4 text-[9px] font-semibold uppercase tracking-[0.28em]"
-                style={{ color: "rgba(46,230,166,0.40)" }}
+                style={{ color: "rgba(0,180,255,0.40)" }}
               >
                 Platform Features
               </div>
@@ -449,7 +449,7 @@ export default function AboutOverlay({
                         background: "#0a0500",
                         border: "1px solid #2a1505",
                       } : {
-                        background: "#020802",
+                        background: "#020208",
                         border: "1px solid #0d1e0d",
                       }}
                     >
@@ -463,7 +463,7 @@ export default function AboutOverlay({
                         <div className="min-w-0 flex-1">
                           <div
                             className="mb-1 text-[9px] font-bold uppercase tracking-[0.22em]"
-                            style={{ color: isPrimal ? "rgba(217,119,6,0.70)" : "rgba(46,230,166,0.55)" }}
+                            style={{ color: isPrimal ? "rgba(217,119,6,0.70)" : "rgba(0,180,255,0.55)" }}
                           >
                             {tag}
                           </div>
@@ -490,21 +490,21 @@ export default function AboutOverlay({
                 className="absolute inset-x-0 bottom-0 h-[1px]"
                 style={{
                   background:
-                    "linear-gradient(90deg, transparent, rgba(46,230,166,0.12), transparent)",
+                    "linear-gradient(90deg, transparent, rgba(0,180,255,0.12), transparent)",
                 }}
               />
               <div className="flex items-center gap-3">
                 <Link
                   href="/signup"
                   onClick={onClose}
-                  className="flex-1 rounded-full bg-[#2EE6A6] py-2.5 text-center text-[12px] font-semibold text-black transition-opacity hover:opacity-90"
+                  className="flex-1 rounded-full bg-[#00B4FF] py-2.5 text-center text-[12px] font-semibold text-black transition-opacity hover:opacity-90"
                 >
                   Start free trial
                 </Link>
                 <Link
                   href="/pricing"
                   onClick={onClose}
-                  className="flex-1 rounded-full border border-[#1a3020] py-2.5 text-center text-[12px] font-medium text-slate-400 transition-colors hover:border-[rgba(46,230,166,0.25)] hover:text-slate-200"
+                  className="flex-1 rounded-full border border-[#1a2030] py-2.5 text-center text-[12px] font-medium text-slate-400 transition-colors hover:border-[rgba(0,180,255,0.25)] hover:text-slate-200"
                 >
                   See pricing →
                 </Link>

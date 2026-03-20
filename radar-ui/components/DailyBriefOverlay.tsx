@@ -85,7 +85,7 @@ function getDailyQuote(): { text: string; author: string } {
 function momentumColor(score: number): string {
   if (score >= 5)   return "#ef4444";
   if (score >= 3)   return "#f59e0b";
-  if (score >= 1.5) return "#2EE6A6";
+  if (score >= 1.5) return "#00B4FF";
   return "#475569";
 }
 
@@ -180,7 +180,7 @@ function FieldPreview({ competitors }: { competitors: RadarCompetitor[] }) {
           <stop offset="100%" stopColor="#010601" stopOpacity="1" />
         </radialGradient>
         <radialGradient id="dbg-glow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%"   stopColor="#2EE6A6" stopOpacity="0.08" />
+          <stop offset="0%"   stopColor="#00B4FF" stopOpacity="0.08" />
           <stop offset="100%" stopColor="transparent" stopOpacity="0" />
         </radialGradient>
       </defs>
@@ -195,7 +195,7 @@ function FieldPreview({ competitors }: { competitors: RadarCompetitor[] }) {
           key={i}
           cx={CX} cy={CY} r={r}
           fill="none"
-          stroke="#2EE6A6"
+          stroke="#00B4FF"
           strokeWidth={i === 3 ? 0.7 : 0.5}
           strokeOpacity={0.07 + i * 0.03}
           strokeDasharray={i === 3 ? undefined : "2 4"}
@@ -203,8 +203,8 @@ function FieldPreview({ competitors }: { competitors: RadarCompetitor[] }) {
       ))}
 
       {/* Cross-hairs */}
-      <line x1={CX} y1={CY - MAX_R - 4} x2={CX} y2={CY + MAX_R + 4} stroke="#2EE6A6" strokeWidth="0.3" strokeOpacity="0.10" strokeDasharray="2 6" />
-      <line x1={CX - MAX_R - 4} y1={CY} x2={CX + MAX_R + 4} y2={CY} stroke="#2EE6A6" strokeWidth="0.3" strokeOpacity="0.10" strokeDasharray="2 6" />
+      <line x1={CX} y1={CY - MAX_R - 4} x2={CX} y2={CY + MAX_R + 4} stroke="#00B4FF" strokeWidth="0.3" strokeOpacity="0.10" strokeDasharray="2 6" />
+      <line x1={CX - MAX_R - 4} y1={CY} x2={CX + MAX_R + 4} y2={CY} stroke="#00B4FF" strokeWidth="0.3" strokeOpacity="0.10" strokeDasharray="2 6" />
 
       {/* Sonar sweep — animated */}
       <motion.g
@@ -214,13 +214,13 @@ function FieldPreview({ competitors }: { competitors: RadarCompetitor[] }) {
       >
         <path
           d={`M${CX},${CY} L${CX},${CY - MAX_R} A${MAX_R},${MAX_R} 0 0,1 ${CX + MAX_R * Math.sin(0.52)},${CY - MAX_R * Math.cos(0.52)} Z`}
-          fill="#2EE6A6"
+          fill="#00B4FF"
           fillOpacity="0.06"
         />
         <line
           x1={CX} y1={CY}
           x2={CX} y2={CY - MAX_R}
-          stroke="#2EE6A6"
+          stroke="#00B4FF"
           strokeWidth="0.8"
           strokeOpacity="0.30"
         />
@@ -266,7 +266,7 @@ function FieldPreview({ competitors }: { competitors: RadarCompetitor[] }) {
       })}
 
       {/* Center dot */}
-      <circle cx={CX} cy={CY} r="2" fill="#2EE6A6" fillOpacity="0.45" />
+      <circle cx={CX} cy={CY} r="2" fill="#00B4FF" fillOpacity="0.45" />
 
       {/* Cardinal labels */}
       {[
@@ -275,13 +275,13 @@ function FieldPreview({ competitors }: { competitors: RadarCompetitor[] }) {
         { x: CX,          y: CY + MAX_R + 12, label: "S" },
         { x: CX - MAX_R - 8, y: CY + 3,     label: "W" },
       ].map(({ x, y, label }) => (
-        <text key={label} x={x} y={y} textAnchor="middle" fill="#2EE6A6" fontSize="7" fontFamily="monospace" fillOpacity="0.22">
+        <text key={label} x={x} y={y} textAnchor="middle" fill="#00B4FF" fontSize="7" fontFamily="monospace" fillOpacity="0.22">
           {label}
         </text>
       ))}
 
       {/* Field status label */}
-      <text x="10" y="156" fill="#2EE6A6" fontSize="7" fontFamily="monospace" fillOpacity="0.28" letterSpacing="0.1em">
+      <text x="10" y="156" fill="#00B4FF" fontSize="7" fontFamily="monospace" fillOpacity="0.28" letterSpacing="0.1em">
         LIVE FIELD
       </text>
     </svg>
@@ -385,7 +385,7 @@ export default function DailyBriefOverlay({
     {
       label: "Active",
       value: activeCount,
-      color: activeCount > 0 ? "#2EE6A6" : "#475569",
+      color: activeCount > 0 ? "#00B4FF" : "#475569",
       sub: "in motion",
     },
     {
@@ -423,15 +423,15 @@ export default function DailyBriefOverlay({
             className="relative mx-4 w-full max-w-[480px] rounded-b-none rounded-t-[22px] md:rounded-[22px]"
             style={{
               background:  "linear-gradient(160deg, #020d03 0%, #010701 100%)",
-              border:      "1px solid rgba(46,230,166,0.10)",
-              boxShadow:   "0 0 0 1px rgba(46,230,166,0.06), 0 40px 120px rgba(0,0,0,0.95), 0 0 80px rgba(46,230,166,0.04)",
+              border:      "1px solid rgba(0,180,255,0.10)",
+              boxShadow:   "0 0 0 1px rgba(0,180,255,0.06), 0 40px 120px rgba(0,0,0,0.95), 0 0 80px rgba(0,180,255,0.04)",
             }}
           >
             {/* Top accent line */}
             <div
               className="absolute inset-x-0 top-0 h-[1px] rounded-t-[22px]"
               style={{
-                background: "linear-gradient(90deg, transparent 0%, rgba(46,230,166,0.5) 35%, rgba(46,230,166,0.72) 50%, rgba(46,230,166,0.5) 65%, transparent 100%)",
+                background: "linear-gradient(90deg, transparent 0%, rgba(0,180,255,0.5) 35%, rgba(0,180,255,0.72) 50%, rgba(0,180,255,0.5) 65%, transparent 100%)",
               }}
             />
 
@@ -439,7 +439,7 @@ export default function DailyBriefOverlay({
             <div className="flex items-center justify-between px-5 pt-4 pb-0">
               <div
                 className="font-mono text-[9px] font-bold uppercase tracking-[0.32em]"
-                style={{ color: "rgba(46,230,166,0.50)" }}
+                style={{ color: "rgba(0,180,255,0.50)" }}
               >
                 Daily Scan Brief
               </div>
@@ -449,7 +449,7 @@ export default function DailyBriefOverlay({
             </div>
 
             {/* Live field SVG — full width, no padding */}
-            <div className="mt-3 overflow-hidden rounded-[14px] mx-5" style={{ border: "1px solid rgba(46,230,166,0.07)" }}>
+            <div className="mt-3 overflow-hidden rounded-[14px] mx-5" style={{ border: "1px solid rgba(0,180,255,0.07)" }}>
               <FieldPreview competitors={competitors} />
             </div>
 
@@ -491,7 +491,7 @@ export default function DailyBriefOverlay({
               <div className="mt-4 px-5">
                 <div
                   className="mb-2 text-[9px] font-bold uppercase tracking-[0.24em]"
-                  style={{ color: "rgba(46,230,166,0.35)" }}
+                  style={{ color: "rgba(0,180,255,0.35)" }}
                 >
                   Top movers
                 </div>
@@ -560,7 +560,7 @@ export default function DailyBriefOverlay({
             >
               <div
                 className="mb-1 font-serif text-[26px] leading-none"
-                style={{ color: "rgba(46,230,166,0.12)" }}
+                style={{ color: "rgba(0,180,255,0.12)" }}
                 aria-hidden="true"
               >
                 &ldquo;
@@ -585,17 +585,17 @@ export default function DailyBriefOverlay({
                 onClick={dismiss}
                 className="w-full rounded-full py-2.5 text-center text-[12px] font-semibold transition-all duration-200"
                 style={{
-                  background:   "rgba(46,230,166,0.07)",
-                  border:       "1px solid rgba(46,230,166,0.22)",
-                  color:        "rgba(46,230,166,0.85)",
+                  background:   "rgba(0,180,255,0.07)",
+                  border:       "1px solid rgba(0,180,255,0.22)",
+                  color:        "rgba(0,180,255,0.85)",
                 }}
                 onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = "rgba(46,230,166,0.12)";
-                  (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(46,230,166,0.38)";
+                  (e.currentTarget as HTMLButtonElement).style.background = "rgba(0,180,255,0.12)";
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(0,180,255,0.38)";
                 }}
                 onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = "rgba(46,230,166,0.07)";
-                  (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(46,230,166,0.22)";
+                  (e.currentTarget as HTMLButtonElement).style.background = "rgba(0,180,255,0.07)";
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(0,180,255,0.22)";
                 }}
               >
                 Open Radar →

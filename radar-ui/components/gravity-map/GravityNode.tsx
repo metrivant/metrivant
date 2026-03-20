@@ -29,7 +29,7 @@ export default function GravityNodeMarker({ node, selected, onSelect, divRef }: 
   const outlineColor = isZero
     ? "rgba(255,255,255,0.12)"
     : node.movement_count > 0
-      ? `rgba(46,230,166,${(0.45 + visual * 0.40).toFixed(2)})`
+      ? `rgba(0,180,255,${(0.45 + visual * 0.40).toFixed(2)})`
       : node.signal_count_7d > 0
         ? `rgba(245,158,11,${(0.40 + visual * 0.40).toFixed(2)})`
         : node.pressure_index > 0

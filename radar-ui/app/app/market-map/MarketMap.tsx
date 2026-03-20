@@ -332,7 +332,7 @@ function DetailDrawer({ competitor, detail, loading, error, onClose }: DrawerPro
         </div>
         <button
           onClick={onClose}
-          className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] border border-[#1a3020] text-slate-500 transition-colors hover:border-[#2a4a30] hover:text-slate-300"
+          className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] border border-[#1a2030] text-slate-500 transition-colors hover:border-[#2a4a30] hover:text-slate-300"
           aria-label="Close"
         >
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
@@ -426,9 +426,9 @@ function DetailDrawer({ competitor, detail, loading, error, onClose }: DrawerPro
       <a
         href="/app"
         className="flex items-center gap-1.5 font-mono text-[10px] transition-opacity"
-        style={{ color: "rgba(46,230,166,0.55)" }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(46,230,166,0.90)")}
-        onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(46,230,166,0.55)")}
+        style={{ color: "rgba(0,180,255,0.55)" }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(0,180,255,0.90)")}
+        onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(0,180,255,0.55)")}
       >
         <svg width="11" height="11" viewBox="0 0 46 46" fill="none" aria-hidden="true">
           <circle cx="23" cy="23" r="21.5" stroke="currentColor" strokeWidth="2.5" strokeOpacity="0.6" />
@@ -456,8 +456,8 @@ function CompassRose({ cx, cy }: { cx: number; cy: number }) {
   return (
     <g pointerEvents="none" opacity="0.28">
       {/* Outer ring */}
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(46,230,166,0.35)" strokeWidth="0.8" />
-      <circle cx={cx} cy={cy} r={r * 0.38} fill="none" stroke="rgba(46,230,166,0.20)" strokeWidth="0.6" />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(0,180,255,0.35)" strokeWidth="0.8" />
+      <circle cx={cx} cy={cy} r={r * 0.38} fill="none" stroke="rgba(0,180,255,0.20)" strokeWidth="0.6" />
       {/* Cardinal spokes */}
       {[0, 90, 180, 270].map((deg) => {
         const rad = (deg * Math.PI) / 180;
@@ -465,7 +465,7 @@ function CompassRose({ cx, cy }: { cx: number; cy: number }) {
         const y1  = cy - Math.cos(rad) * r * 0.42;
         const x2  = cx + Math.sin(rad) * r * 0.96;
         const y2  = cy - Math.cos(rad) * r * 0.96;
-        return <line key={deg} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(46,230,166,0.50)" strokeWidth="0.8" />;
+        return <line key={deg} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(0,180,255,0.50)" strokeWidth="0.8" />;
       })}
       {/* Ordinal tick marks */}
       {[45, 135, 225, 315].map((deg) => {
@@ -474,16 +474,16 @@ function CompassRose({ cx, cy }: { cx: number; cy: number }) {
         const y1  = cy - Math.cos(rad) * r * 0.62;
         const x2  = cx + Math.sin(rad) * r * 0.88;
         const y2  = cy - Math.cos(rad) * r * 0.88;
-        return <line key={deg} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(46,230,166,0.28)" strokeWidth="0.6" />;
+        return <line key={deg} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(0,180,255,0.28)" strokeWidth="0.6" />;
       })}
       {/* N label */}
       <text x={cx} y={cy - r - 5} textAnchor="middle" dominantBaseline="auto"
-        fill="rgba(46,230,166,0.50)" fontSize="7" fontFamily="'Courier New', monospace" fontWeight="700"
+        fill="rgba(0,180,255,0.50)" fontSize="7" fontFamily="'Courier New', monospace" fontWeight="700"
         letterSpacing="0.08em">
         N
       </text>
       {/* Center dot */}
-      <circle cx={cx} cy={cy} r={1.8} fill="rgba(46,230,166,0.55)" />
+      <circle cx={cx} cy={cy} r={1.8} fill="rgba(0,180,255,0.55)" />
     </g>
   );
 }
@@ -609,9 +609,9 @@ export default function MarketMap({ competitors }: Props) {
             onClick={() => setShowTrails((v) => !v)}
             className="flex items-center gap-1.5 rounded-[7px] border px-3 py-1.5 font-mono text-[10px] font-medium uppercase tracking-[0.12em] transition-colors"
             style={{
-              borderColor:     showTrails ? "rgba(46,230,166,0.28)" : "#0d2010",
-              color:           showTrails ? "#2EE6A6" : "#3a5a3a",
-              backgroundColor: showTrails ? "rgba(46,230,166,0.06)" : "transparent",
+              borderColor:     showTrails ? "rgba(0,180,255,0.28)" : "#0d1020",
+              color:           showTrails ? "#00B4FF" : "#3a5a3a",
+              backgroundColor: showTrails ? "rgba(0,180,255,0.06)" : "transparent",
             }}
           >
             <svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden="true">
@@ -643,7 +643,7 @@ export default function MarketMap({ competitors }: Props) {
               <button
                 key={label}
                 onClick={action}
-                className="flex h-7 w-7 items-center justify-center rounded-[6px] border border-[#0d2010] font-mono text-[13px] text-slate-700 transition-colors hover:border-[#1a3a1a] hover:text-slate-300"
+                className="flex h-7 w-7 items-center justify-center rounded-[6px] border border-[#0d1020] font-mono text-[13px] text-slate-700 transition-colors hover:border-[#1a3a1a] hover:text-slate-300"
                 aria-label={aria}
               >
                 {label}
@@ -651,7 +651,7 @@ export default function MarketMap({ competitors }: Props) {
             ))}
             <button
               onClick={resetView}
-              className="flex h-7 items-center justify-center rounded-[6px] border border-[#0d2010] px-2.5 font-mono text-[9px] uppercase tracking-[0.12em] text-slate-700 transition-colors hover:border-[#1a3a1a] hover:text-slate-300"
+              className="flex h-7 items-center justify-center rounded-[6px] border border-[#0d1020] px-2.5 font-mono text-[9px] uppercase tracking-[0.12em] text-slate-700 transition-colors hover:border-[#1a3a1a] hover:text-slate-300"
             >
               Reset
             </button>
@@ -659,11 +659,11 @@ export default function MarketMap({ competitors }: Props) {
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#2EE6A6]" style={{ boxShadow: "0 0 4px rgba(46,230,166,0.7)" }} />
+          <span className="h-1.5 w-1.5 rounded-full bg-[#00B4FF]" style={{ boxShadow: "0 0 4px rgba(0,180,255,0.7)" }} />
           <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-slate-700">
             {competitors.length} rival{competitors.length !== 1 ? "s" : ""} charted
           </span>
-          <span className="text-[#0d2010]">·</span>
+          <span className="text-[#0d1020]">·</span>
           <span className="font-mono text-[10px] text-slate-800">scroll or drag to navigate</span>
         </div>
       </div>
@@ -699,7 +699,7 @@ export default function MarketMap({ competitors }: Props) {
 
             {/* Fine coordinate grid pattern */}
             <pattern id="coordGrid" x="0" y="0" width="84" height="62" patternUnits="userSpaceOnUse">
-              <path d="M 84 0 L 0 0 0 62" fill="none" stroke="rgba(46,230,166,0.04)" strokeWidth="0.5" />
+              <path d="M 84 0 L 0 0 0 62" fill="none" stroke="rgba(0,180,255,0.04)" strokeWidth="0.5" />
             </pattern>
 
             {/* Subtle amber warmth gradient at center */}
@@ -726,11 +726,11 @@ export default function MarketMap({ competitors }: Props) {
           {/* Fine grid lines inside plot */}
           {gridXLines.map((x) => (
             <line key={`gx-${x}`} x1={x} y1={PY0} x2={x} y2={PY1}
-              stroke="rgba(46,230,166,0.05)" strokeWidth="0.5" />
+              stroke="rgba(0,180,255,0.05)" strokeWidth="0.5" />
           ))}
           {gridYLines.map((y) => (
             <line key={`gy-${y}`} x1={PX0} y1={y} x2={PX1} y2={y}
-              stroke="rgba(46,230,166,0.05)" strokeWidth="0.5" />
+              stroke="rgba(0,180,255,0.05)" strokeWidth="0.5" />
           ))}
 
           {/* Quadrant subtle fills */}
@@ -741,17 +741,17 @@ export default function MarketMap({ competitors }: Props) {
             { x: CENTER_X, y: CENTER_Y, w: PW/2, h: PH/2 },
           ].map(({ x, y, w, h }, i) => (
             <rect key={i} x={x} y={y} width={w} height={h}
-              fill="rgba(46,230,166,0.008)" stroke="none" />
+              fill="rgba(0,180,255,0.008)" stroke="none" />
           ))}
 
           {/* Quadrant divider lines */}
           <line
             x1={CENTER_X} y1={PY0} x2={CENTER_X} y2={PY1}
-            stroke="rgba(46,230,166,0.12)" strokeWidth="1" strokeDasharray="8 6"
+            stroke="rgba(0,180,255,0.12)" strokeWidth="1" strokeDasharray="8 6"
           />
           <line
             x1={PX0} y1={CENTER_Y} x2={PX1} y2={CENTER_Y}
-            stroke="rgba(46,230,166,0.12)" strokeWidth="1" strokeDasharray="8 6"
+            stroke="rgba(0,180,255,0.12)" strokeWidth="1" strokeDasharray="8 6"
           />
 
           {/* Quadrant labels — operational zone names */}
@@ -763,12 +763,12 @@ export default function MarketMap({ competitors }: Props) {
           ].map(({ lx, ly, line1, line2 }) => (
             <g key={line1} pointerEvents="none">
               <text x={lx} y={ly - 8} textAnchor="middle"
-                fill="rgba(46,230,166,0.065)" fontSize="11" fontWeight="700"
+                fill="rgba(0,180,255,0.065)" fontSize="11" fontWeight="700"
                 fontFamily="'Courier New', Monaco, monospace" letterSpacing="0.20em">
                 {line1}
               </text>
               <text x={lx} y={ly + 8} textAnchor="middle"
-                fill="rgba(46,230,166,0.065)" fontSize="11" fontWeight="700"
+                fill="rgba(0,180,255,0.065)" fontSize="11" fontWeight="700"
                 fontFamily="'Courier New', Monaco, monospace" letterSpacing="0.20em">
                 {line2}
               </text>
@@ -777,28 +777,28 @@ export default function MarketMap({ competitors }: Props) {
 
           {/* Center astrolabe glow */}
           <circle cx={CENTER_X} cy={CENTER_Y} r={60}
-            fill="rgba(46,230,166,0.015)" filter="url(#centerGlow)" />
+            fill="rgba(0,180,255,0.015)" filter="url(#centerGlow)" />
 
           {/* Center crosshair */}
           <g pointerEvents="none" opacity="0.22">
             <line x1={CENTER_X - 12} y1={CENTER_Y} x2={CENTER_X + 12} y2={CENTER_Y}
-              stroke="rgba(46,230,166,0.55)" strokeWidth="0.8" />
+              stroke="rgba(0,180,255,0.55)" strokeWidth="0.8" />
             <line x1={CENTER_X} y1={CENTER_Y - 12} x2={CENTER_X} y2={CENTER_Y + 12}
-              stroke="rgba(46,230,166,0.55)" strokeWidth="0.8" />
+              stroke="rgba(0,180,255,0.55)" strokeWidth="0.8" />
             <circle cx={CENTER_X} cy={CENTER_Y} r={4}
-              fill="none" stroke="rgba(46,230,166,0.35)" strokeWidth="0.7" />
+              fill="none" stroke="rgba(0,180,255,0.35)" strokeWidth="0.7" />
             <circle cx={CENTER_X} cy={CENTER_Y} r={18}
-              fill="none" stroke="rgba(46,230,166,0.15)" strokeWidth="0.5" strokeDasharray="3 4" />
+              fill="none" stroke="rgba(0,180,255,0.15)" strokeWidth="0.5" strokeDasharray="3 4" />
           </g>
 
           {/* Plot outer border — double line */}
           <rect
             x={PX0 + 4} y={PY0 + 4} width={PW - 8} height={PH - 8}
-            fill="none" stroke="rgba(46,230,166,0.06)" strokeWidth="0.5"
+            fill="none" stroke="rgba(0,180,255,0.06)" strokeWidth="0.5"
           />
           <rect
             x={PX0} y={PY0} width={PW} height={PH}
-            fill="none" stroke="rgba(46,230,166,0.18)" strokeWidth="1"
+            fill="none" stroke="rgba(0,180,255,0.18)" strokeWidth="1"
           />
 
           {/* Corner bracket marks */}
@@ -808,7 +808,7 @@ export default function MarketMap({ competitors }: Props) {
             [PX0, PY1, 1, -1],
             [PX1, PY1, -1, -1],
           ].map(([cx, cy, sx, sy], i) => (
-            <g key={i} stroke="rgba(46,230,166,0.30)" strokeWidth="1" fill="none" pointerEvents="none">
+            <g key={i} stroke="rgba(0,180,255,0.30)" strokeWidth="1" fill="none" pointerEvents="none">
               <line x1={cx} y1={cy} x2={cx + sx * 12} y2={cy} />
               <line x1={cx} y1={cy} x2={cx}           y2={cy + sy * 12} />
             </g>
@@ -817,16 +817,16 @@ export default function MarketMap({ competitors }: Props) {
           {/* ── Axis labels ──────────────────────────────────────────── */}
 
           {/* X axis */}
-          <text x={PX0} y={PY1 + 26} fill="rgba(46,230,166,0.32)" fontSize="10"
+          <text x={PX0} y={PY1 + 26} fill="rgba(0,180,255,0.32)" fontSize="10"
             fontWeight="700" fontFamily="'Courier New', Monaco, monospace" letterSpacing="0.15em">
             NICHE · SPECIALIST
           </text>
-          <text x={PX1} y={PY1 + 26} fill="rgba(46,230,166,0.32)" fontSize="10"
+          <text x={PX1} y={PY1 + 26} fill="rgba(0,180,255,0.32)" fontSize="10"
             fontWeight="700" fontFamily="'Courier New', Monaco, monospace" letterSpacing="0.15em"
             textAnchor="end">
             BROAD · PLATFORM
           </text>
-          <text x={CENTER_X} y={PY1 + 48} fill="rgba(46,230,166,0.18)" fontSize="9"
+          <text x={CENTER_X} y={PY1 + 48} fill="rgba(0,180,255,0.18)" fontSize="9"
             fontWeight="700" fontFamily="'Courier New', Monaco, monospace" letterSpacing="0.22em"
             textAnchor="middle">
             ← MARKET FOCUS →
@@ -835,7 +835,7 @@ export default function MarketMap({ competitors }: Props) {
           {/* Y axis */}
           <text
             x={PX0 - 20} y={PY1}
-            fill="rgba(46,230,166,0.32)" fontSize="10"
+            fill="rgba(0,180,255,0.32)" fontSize="10"
             fontWeight="700" fontFamily="'Courier New', Monaco, monospace" letterSpacing="0.15em"
             transform={`rotate(-90, ${PX0 - 20}, ${CENTER_Y})`}
             textAnchor="end"
@@ -844,7 +844,7 @@ export default function MarketMap({ competitors }: Props) {
           </text>
           <text
             x={PX0 - 20} y={PY0 + 24}
-            fill="rgba(46,230,166,0.32)" fontSize="10"
+            fill="rgba(0,180,255,0.32)" fontSize="10"
             fontWeight="700" fontFamily="'Courier New', Monaco, monospace" letterSpacing="0.15em"
             transform={`rotate(-90, ${PX0 - 20}, ${CENTER_Y})`}
             textAnchor="start"
@@ -853,7 +853,7 @@ export default function MarketMap({ competitors }: Props) {
           </text>
           <text
             x={PX0 - 42} y={CENTER_Y}
-            fill="rgba(46,230,166,0.18)" fontSize="9"
+            fill="rgba(0,180,255,0.18)" fontSize="9"
             fontWeight="700" fontFamily="'Courier New', Monaco, monospace" letterSpacing="0.22em"
             transform={`rotate(-90, ${PX0 - 42}, ${CENTER_Y})`}
             textAnchor="middle"
@@ -865,16 +865,16 @@ export default function MarketMap({ competitors }: Props) {
           {[25, 50, 75].map((tick) => (
             <g key={`tick-${tick}`} pointerEvents="none">
               <line x1={toX(tick)} y1={PY1} x2={toX(tick)} y2={PY1 + 5}
-                stroke="rgba(46,230,166,0.20)" strokeWidth="1" />
+                stroke="rgba(0,180,255,0.20)" strokeWidth="1" />
               <text x={toX(tick)} y={PY1 + 16} textAnchor="middle"
-                fill="rgba(46,230,166,0.18)" fontSize="8"
+                fill="rgba(0,180,255,0.18)" fontSize="8"
                 fontFamily="'Courier New', Monaco, monospace">
                 {tick}
               </text>
               <line x1={PX0 - 5} y1={toY(tick)} x2={PX0} y2={toY(tick)}
-                stroke="rgba(46,230,166,0.20)" strokeWidth="1" />
+                stroke="rgba(0,180,255,0.20)" strokeWidth="1" />
               <text x={PX0 - 8} y={toY(tick)} textAnchor="end" dominantBaseline="middle"
-                fill="rgba(46,230,166,0.18)" fontSize="8"
+                fill="rgba(0,180,255,0.18)" fontSize="8"
                 fontFamily="'Courier New', Monaco, monospace">
                 {tick}
               </text>
@@ -907,7 +907,7 @@ export default function MarketMap({ competitors }: Props) {
           {competitors.length === 0 && (
             <g pointerEvents="none">
               <text x={CENTER_X} y={CENTER_Y - 14} textAnchor="middle" dominantBaseline="middle"
-                fill="rgba(46,230,166,0.15)" fontSize="12"
+                fill="rgba(0,180,255,0.15)" fontSize="12"
                 fontFamily="'Courier New', Monaco, monospace" fontWeight="700" letterSpacing="0.20em">
                 NO POSITIONS CHARTED
               </text>
@@ -937,7 +937,7 @@ export default function MarketMap({ competitors }: Props) {
                   width={186} height={18}
                   fill="rgba(0,2,0,0.75)"
                   rx="3"
-                  stroke="rgba(46,230,166,0.10)"
+                  stroke="rgba(0,180,255,0.10)"
                   strokeWidth="0.5"
                 />
                 {legendItems.map(({ color, label }, i) => (
@@ -951,7 +951,7 @@ export default function MarketMap({ competitors }: Props) {
                   </g>
                 ))}
                 <text x={lx + 180} y={ly + 2} textAnchor="end" dominantBaseline="middle"
-                  fill="rgba(46,230,166,0.18)" fontSize="7"
+                  fill="rgba(0,180,255,0.18)" fontSize="7"
                   fontFamily="'Courier New', Monaco, monospace">
                   ⊕ size = momentum
                 </text>
@@ -978,7 +978,7 @@ export default function MarketMap({ competitors }: Props) {
       {/* ── Hover tooltip ─────────────────────────────────────────────── */}
       {tooltip && (
         <div
-          className="pointer-events-none fixed z-50 rounded-[8px] border border-[#1a3020] px-3 py-2"
+          className="pointer-events-none fixed z-50 rounded-[8px] border border-[#1a2030] px-3 py-2"
           style={{
             left: tooltip.screenX + 14,
             top:  tooltip.screenY - 10,

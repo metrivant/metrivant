@@ -114,7 +114,7 @@ export default async function BillingPage({
   //  a client-side check.)
 
   return (
-    <div className="min-h-screen bg-[#000200] text-white">
+    <div className="min-h-screen bg-[#000002] text-white">
       <BillingTracker />
 
       {/* Sync fallback: webhook may not have fired yet when user returns from checkout */}
@@ -145,22 +145,22 @@ export default async function BillingPage({
       />
 
       {/* Header */}
-      <header className="relative z-10 flex h-14 items-center justify-between border-b border-[#0e2210] bg-[rgba(0,2,0,0.97)] px-6">
+      <header className="relative z-10 flex h-14 items-center justify-between border-b border-[#0e1022] bg-[rgba(0,2,0,0.97)] px-6">
         <div
           className="absolute inset-x-0 top-0 h-[1px]"
           style={{
             background:
-              "linear-gradient(90deg, transparent 0%, rgba(46,230,166,0.20) 40%, rgba(46,230,166,0.35) 50%, rgba(46,230,166,0.20) 60%, transparent 100%)",
+              "linear-gradient(90deg, transparent 0%, rgba(0,180,255,0.20) 40%, rgba(0,180,255,0.35) 50%, rgba(0,180,255,0.20) 60%, transparent 100%)",
           }}
         />
         <Link href="/app" className="flex items-center gap-3">
           <svg width="22" height="22" viewBox="0 0 46 46" fill="none" aria-hidden="true">
-            <circle cx="23" cy="23" r="21.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.50" />
-            <circle cx="23" cy="23" r="13"   stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.28" />
-            <circle cx="23" cy="23" r="5.5"  stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.42" />
-            <path d="M23 23 L13.91 3.51 A21.5 21.5 0 0 1 23 1.5 Z" fill="#2EE6A6" fillOpacity="0.10" />
-            <line x1="23" y1="23" x2="23" y2="1.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.80" />
-            <circle cx="23" cy="23" r="2.5" fill="#2EE6A6" />
+            <circle cx="23" cy="23" r="21.5" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.50" />
+            <circle cx="23" cy="23" r="13"   stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.28" />
+            <circle cx="23" cy="23" r="5.5"  stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.42" />
+            <path d="M23 23 L13.91 3.51 A21.5 21.5 0 0 1 23 1.5 Z" fill="#00B4FF" fillOpacity="0.10" />
+            <line x1="23" y1="23" x2="23" y2="1.5" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.80" />
+            <circle cx="23" cy="23" r="2.5" fill="#00B4FF" />
           </svg>
           <span className="text-[13px] font-bold tracking-[0.08em] text-white">METRIVANT</span>
         </Link>
@@ -208,7 +208,7 @@ export default async function BillingPage({
         {/* ── Not subscribed: current plan card + upgrade path ──────── */}
         {!hasActiveSub && (
           <>
-            <section className="mb-4 rounded-[16px] border border-[#0d2010] bg-[#020802] p-6">
+            <section className="mb-4 rounded-[16px] border border-[#0d1020] bg-[#020208] p-6">
               <div className="mb-5 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
                 Current plan
               </div>
@@ -243,7 +243,7 @@ export default async function BillingPage({
                       <li key={f} className="flex items-start gap-2">
                         <span
                           className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full"
-                          style={{ background: "#2EE6A6", opacity: 0.65 }}
+                          style={{ background: "#00B4FF", opacity: 0.65 }}
                         />
                         <span className="text-[13px] text-slate-400">{f}</span>
                       </li>
@@ -255,7 +255,7 @@ export default async function BillingPage({
                   <UpgradeClickTracker source="billing_current_plan">
                     <CheckoutButton
                       plan="pro"
-                      className="rounded-full bg-[#2EE6A6] px-5 py-2 text-[12px] font-bold text-black transition-opacity hover:opacity-90"
+                      className="rounded-full bg-[#00B4FF] px-5 py-2 text-[12px] font-bold text-black transition-opacity hover:opacity-90"
                     >
                       Upgrade
                     </CheckoutButton>
@@ -266,12 +266,12 @@ export default async function BillingPage({
 
             {/* ── Upgrade card (trial / expired users) ──────────────── */}
             <section
-              className="relative mb-4 overflow-hidden rounded-[16px] border border-[#2EE6A6]/18 bg-[#030c03] p-6"
-              style={{ boxShadow: "0 0 30px rgba(46,230,166,0.03)" }}
+              className="relative mb-4 overflow-hidden rounded-[16px] border border-[#00B4FF]/18 bg-[#03030c] p-6"
+              style={{ boxShadow: "0 0 30px rgba(0,180,255,0.03)" }}
             >
               <div
                 className="absolute inset-x-0 top-0 h-[1px]"
-                style={{ background: "linear-gradient(90deg, transparent, rgba(46,230,166,0.40), transparent)" }}
+                style={{ background: "linear-gradient(90deg, transparent, rgba(0,180,255,0.40), transparent)" }}
               />
 
               <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
@@ -286,8 +286,8 @@ export default async function BillingPage({
                 {PRO_UPGRADE_FEATURES.map((f) => (
                   <li key={f} className="flex items-start gap-2">
                     <span
-                      className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#2EE6A6]"
-                      style={{ boxShadow: "0 0 4px rgba(46,230,166,0.6)" }}
+                      className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#00B4FF]"
+                      style={{ boxShadow: "0 0 4px rgba(0,180,255,0.6)" }}
                     />
                     <span className="text-[13px] text-slate-300">{f}</span>
                   </li>
@@ -297,7 +297,7 @@ export default async function BillingPage({
               <UpgradeClickTracker source="billing_upgrade_card">
                 <CheckoutButton
                   plan="pro"
-                  className="block w-full rounded-full bg-[#2EE6A6] py-2.5 text-center text-[13px] font-bold text-black transition-opacity hover:opacity-90"
+                  className="block w-full rounded-full bg-[#00B4FF] py-2.5 text-center text-[13px] font-bold text-black transition-opacity hover:opacity-90"
                 >
                   Upgrade →
                 </CheckoutButton>
@@ -309,12 +309,12 @@ export default async function BillingPage({
         {/* ── Subscribed Analyst: upgrade to Pro path ───────────────── */}
         {hasActiveSub && validPlan === "analyst" && (
           <section
-            className="relative mb-4 overflow-hidden rounded-[16px] border border-[#2EE6A6]/12 bg-[#030c03] p-6"
-            style={{ boxShadow: "0 0 24px rgba(46,230,166,0.02)" }}
+            className="relative mb-4 overflow-hidden rounded-[16px] border border-[#00B4FF]/12 bg-[#03030c] p-6"
+            style={{ boxShadow: "0 0 24px rgba(0,180,255,0.02)" }}
           >
             <div
               className="absolute inset-x-0 top-0 h-[1px]"
-              style={{ background: "linear-gradient(90deg, transparent, rgba(46,230,166,0.28), transparent)" }}
+              style={{ background: "linear-gradient(90deg, transparent, rgba(0,180,255,0.28), transparent)" }}
             />
             <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-600">
               Upgrade to Pro
@@ -327,7 +327,7 @@ export default async function BillingPage({
               {PRO_UPGRADE_FEATURES.map((f) => (
                 <li key={f} className="flex items-start gap-2">
                   <span
-                    className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#2EE6A6]"
+                    className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#00B4FF]"
                     style={{ opacity: 0.55 }}
                   />
                   <span className="text-[13px] text-slate-400">{f}</span>
@@ -338,7 +338,7 @@ export default async function BillingPage({
               <form action="/api/stripe/upgrade" method="POST">
                 <button
                   type="submit"
-                  className="block w-full rounded-full bg-[#2EE6A6] py-2.5 text-center text-[13px] font-bold text-black transition-opacity hover:opacity-90"
+                  className="block w-full rounded-full bg-[#00B4FF] py-2.5 text-center text-[13px] font-bold text-black transition-opacity hover:opacity-90"
                 >
                   Upgrade to Pro →
                 </button>
@@ -348,13 +348,13 @@ export default async function BillingPage({
         )}
 
         {/* ── Billing contact ───────────────────────────────────────── */}
-        <section className="rounded-[16px] border border-[#0d2010] bg-[#020802] p-6">
+        <section className="rounded-[16px] border border-[#0d1020] bg-[#020208] p-6">
           <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
             Billing inquiries
           </div>
           <p className="text-[13px] text-slate-500">
             For invoices or billing questions, contact{" "}
-            <a href="mailto:billing@metrivant.com" className="text-[#2EE6A6] transition-opacity hover:opacity-80">
+            <a href="mailto:billing@metrivant.com" className="text-[#00B4FF] transition-opacity hover:opacity-80">
               billing@metrivant.com
             </a>
           </p>

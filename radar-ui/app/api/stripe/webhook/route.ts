@@ -281,8 +281,8 @@ function buildPaymentFailedEmailHtml(siteUrl: string): string {
   <tr><td align="center">
     <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;">
       <tr>
-        <td style="background:#020802;padding:20px 28px;border-bottom:1px solid #0d2010;">
-          <div style="font-size:10px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(46,230,166,0.65);margin-bottom:3px;">Metrivant</div>
+        <td style="background:#020208;padding:20px 28px;border-bottom:1px solid #0d1020;">
+          <div style="font-size:10px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(0,180,255,0.65);margin-bottom:3px;">Metrivant</div>
           <div style="font-size:17px;font-weight:700;color:#ffffff;">Payment failed</div>
         </td>
       </tr>
@@ -295,7 +295,7 @@ function buildPaymentFailedEmailHtml(siteUrl: string): string {
             Update your payment method to keep your radar running. Stripe will retry automatically, but you can resolve this now to avoid any interruption.
           </p>
           <a href="${billingUrl}"
-             style="display:inline-block;background:#2EE6A6;color:#020802;font-weight:700;font-size:13px;padding:10px 22px;border-radius:99px;text-decoration:none;">
+             style="display:inline-block;background:#00B4FF;color:#020208;font-weight:700;font-size:13px;padding:10px 22px;border-radius:99px;text-decoration:none;">
             Update payment method &rarr;
           </a>
         </td>

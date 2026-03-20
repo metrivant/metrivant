@@ -98,7 +98,7 @@ export default async function PipelinePage() {
 
   return (
     <div
-      className="min-h-screen bg-[#000200] text-white"
+      className="min-h-screen bg-[#000002] text-white"
       style={{ fontFamily: "var(--font-inter, ui-sans-serif, system-ui, sans-serif)" }}
     >
       {/* ── Blueprint dot grid ────────────────────────────────────────────── */}
@@ -106,7 +106,7 @@ export default async function PipelinePage() {
         className="pointer-events-none fixed inset-0"
         style={{
           backgroundImage:
-            "radial-gradient(rgba(46,230,166,0.45) 0.5px, transparent 0.5px)",
+            "radial-gradient(rgba(0,180,255,0.45) 0.5px, transparent 0.5px)",
           backgroundSize: "28px 28px",
           opacity: 0.055,
         }}
@@ -117,29 +117,29 @@ export default async function PipelinePage() {
         className="pointer-events-none fixed inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 70% 40% at 50% -5%, rgba(46,230,166,0.06) 0%, transparent 70%)",
+            "radial-gradient(ellipse 70% 40% at 50% -5%, rgba(0,180,255,0.06) 0%, transparent 70%)",
         }}
       />
 
       {/* ── Header ────────────────────────────────────────────────────────── */}
-      <header className="relative z-10 flex h-14 shrink-0 items-center justify-between border-b border-[#0e2210] bg-[rgba(0,2,0,0.97)] px-6">
+      <header className="relative z-10 flex h-14 shrink-0 items-center justify-between border-b border-[#0e1022] bg-[rgba(0,2,0,0.97)] px-6">
         <div
           className="absolute inset-x-0 top-0 h-[1px]"
           style={{
             background:
-              "linear-gradient(90deg, transparent 0%, rgba(46,230,166,0.30) 40%, rgba(46,230,166,0.55) 50%, rgba(46,230,166,0.30) 60%, transparent 100%)",
+              "linear-gradient(90deg, transparent 0%, rgba(0,180,255,0.30) 40%, rgba(0,180,255,0.55) 50%, rgba(0,180,255,0.30) 60%, transparent 100%)",
           }}
         />
 
         {/* Logo */}
         <Link href="/" className="flex items-center gap-3">
           <svg width="22" height="22" viewBox="0 0 46 46" fill="none" aria-hidden="true">
-            <circle cx="23" cy="23" r="21.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.50" />
-            <circle cx="23" cy="23" r="13"   stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.28" />
-            <circle cx="23" cy="23" r="5.5"  stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.42" />
-            <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#2EE6A6" fillOpacity="0.10" />
-            <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.80" />
-            <circle cx="23" cy="23" r="2.5" fill="#2EE6A6" />
+            <circle cx="23" cy="23" r="21.5" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.50" />
+            <circle cx="23" cy="23" r="13"   stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.28" />
+            <circle cx="23" cy="23" r="5.5"  stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.42" />
+            <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#00B4FF" fillOpacity="0.10" />
+            <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.80" />
+            <circle cx="23" cy="23" r="2.5" fill="#00B4FF" />
           </svg>
           <span className="text-[13px] font-bold tracking-[0.08em] text-white">METRIVANT</span>
         </Link>
@@ -154,7 +154,7 @@ export default async function PipelinePage() {
           </Link>
           <Link
             href="/app"
-            className="flex items-center gap-1.5 rounded-full border border-[#1a3a1a] bg-[#0a1a0a] px-3 py-1.5 text-[12px] font-medium text-[#2EE6A6] transition-colors hover:border-[#2EE6A6]/40"
+            className="flex items-center gap-1.5 rounded-full border border-[#1a3a1a] bg-[#0a0a1a] px-3 py-1.5 text-[12px] font-medium text-[#00B4FF] transition-colors hover:border-[#00B4FF]/40"
           >
             Open Radar
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
@@ -183,12 +183,12 @@ export default async function PipelinePage() {
 
           {/* Design callout */}
           <div
-            className="mt-6 inline-flex items-center gap-2.5 rounded-full border border-[#0e2210] bg-[#020802] px-4 py-2"
+            className="mt-6 inline-flex items-center gap-2.5 rounded-full border border-[#0e1022] bg-[#020208] px-4 py-2"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-              <circle cx="7" cy="7" r="5.5" stroke="rgba(46,230,166,0.45)" strokeWidth="1.2" />
-              <circle cx="7" cy="7" r="2.5" stroke="rgba(46,230,166,0.60)" strokeWidth="1" />
-              <line x1="7" y1="1.5" x2="7" y2="3" stroke="rgba(46,230,166,0.45)" strokeWidth="1.2" strokeLinecap="round" />
+              <circle cx="7" cy="7" r="5.5" stroke="rgba(0,180,255,0.45)" strokeWidth="1.2" />
+              <circle cx="7" cy="7" r="2.5" stroke="rgba(0,180,255,0.60)" strokeWidth="1" />
+              <line x1="7" y1="1.5" x2="7" y2="3" stroke="rgba(0,180,255,0.45)" strokeWidth="1.2" strokeLinecap="round" />
             </svg>
             <span className="font-mono text-[11px] text-slate-500">
               Status indicators reflect live pipeline health — updated every 60 seconds
@@ -201,7 +201,7 @@ export default async function PipelinePage() {
 
         {/* ── Footer philosophy ──────────────────────────────────────────── */}
         <div
-          className="mt-16 rounded-[18px] border border-[#0e1e0e] bg-[#020802] px-8 py-8"
+          className="mt-16 rounded-[18px] border border-[#0e1e0e] bg-[#020208] px-8 py-8"
         >
           <div className="grid gap-8 sm:grid-cols-3">
             <PhilosophyPillar
@@ -229,7 +229,7 @@ function PhilosophyPillar({ title, body }: { title: string; body: string }) {
     <div>
       <div
         className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em]"
-        style={{ color: "rgba(46,230,166,0.50)" }}
+        style={{ color: "rgba(0,180,255,0.50)" }}
       >
         {title}
       </div>

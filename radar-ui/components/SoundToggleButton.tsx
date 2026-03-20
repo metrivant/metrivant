@@ -31,9 +31,9 @@ export default function SoundToggleButton() {
       title={enabled ? "Sound on" : "Sound off"}
       className="flex h-8 w-8 items-center justify-center rounded-full border transition-colors"
       style={{
-        borderColor: enabled ? "rgba(46,230,166,0.30)" : "rgba(46,230,166,0.10)",
-        background:  enabled ? "rgba(46,230,166,0.06)" : "transparent",
-        color:       enabled ? "rgba(46,230,166,0.75)" : "rgba(100,116,139,0.50)",
+        borderColor: enabled ? "rgba(0,180,255,0.30)" : "rgba(0,180,255,0.10)",
+        background:  enabled ? "rgba(0,180,255,0.06)" : "transparent",
+        color:       enabled ? "rgba(0,180,255,0.75)" : "rgba(100,116,139,0.50)",
       }}
     >
       {enabled ? (

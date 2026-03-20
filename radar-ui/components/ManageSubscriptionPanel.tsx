@@ -32,7 +32,7 @@ export default function ManageSubscriptionPanel({ subState, createdAt, trialExpi
   let statusColor: string;
   if (status === "active") {
     statusLabel = isPro ? "Pro — Active" : "Analyst — Active";
-    statusColor = "#2EE6A6";
+    statusColor = "#00B4FF";
   } else if (status === "canceled_active") {
     statusLabel = "Canceled — access until period end";
     statusColor = "#f59e0b";
@@ -56,7 +56,7 @@ export default function ManageSubscriptionPanel({ subState, createdAt, trialExpi
     <>
       <button
         onClick={() => setOpen(true)}
-        className="rounded-full border border-[#1a3020] bg-[#070d07] px-4 py-1.5 text-[11px] font-medium text-slate-400 transition-colors hover:border-[#2a4a30] hover:text-slate-200"
+        className="rounded-full border border-[#1a2030] bg-[#070d07] px-4 py-1.5 text-[11px] font-medium text-slate-400 transition-colors hover:border-[#2a4a30] hover:text-slate-200"
       >
         Manage Subscription
       </button>
@@ -76,8 +76,8 @@ export default function ManageSubscriptionPanel({ subState, createdAt, trialExpi
 
             {/* Panel */}
             <motion.div
-              className="fixed left-1/2 top-1/2 z-[201] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-[20px] border border-[#1a3020] bg-[#060e06] p-7"
-              style={{ boxShadow: "0 24px 80px rgba(0,0,0,0.90), 0 0 0 1px rgba(46,230,166,0.05)" }}
+              className="fixed left-1/2 top-1/2 z-[201] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-[20px] border border-[#1a2030] bg-[#060e06] p-7"
+              style={{ boxShadow: "0 24px 80px rgba(0,0,0,0.90), 0 0 0 1px rgba(0,180,255,0.05)" }}
               initial={{ opacity: 0, scale: 0.94, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 4 }}
@@ -86,7 +86,7 @@ export default function ManageSubscriptionPanel({ subState, createdAt, trialExpi
               {/* Accent line */}
               <div
                 className="absolute inset-x-0 top-0 h-[1px] rounded-t-[20px]"
-                style={{ background: "linear-gradient(90deg, transparent, rgba(46,230,166,0.32), transparent)" }}
+                style={{ background: "linear-gradient(90deg, transparent, rgba(0,180,255,0.32), transparent)" }}
               />
 
               {/* Close */}
@@ -157,7 +157,7 @@ export default function ManageSubscriptionPanel({ subState, createdAt, trialExpi
                   <input type="hidden" name="plan" value="pro" />
                   <button
                     type="submit"
-                    className="block w-full rounded-full bg-[#2EE6A6] py-2.5 text-center text-[13px] font-bold text-black transition-opacity hover:opacity-90"
+                    className="block w-full rounded-full bg-[#00B4FF] py-2.5 text-center text-[13px] font-bold text-black transition-opacity hover:opacity-90"
                   >
                     Upgrade to Pro
                   </button>
@@ -168,7 +168,7 @@ export default function ManageSubscriptionPanel({ subState, createdAt, trialExpi
                 <form action="/api/stripe/portal" method="POST" className="mb-3">
                   <button
                     type="submit"
-                    className="block w-full rounded-full border border-[#1a3020] py-2.5 text-center text-[13px] font-medium text-slate-400 transition-colors hover:border-[#2a4a30] hover:text-slate-200"
+                    className="block w-full rounded-full border border-[#1a2030] py-2.5 text-center text-[13px] font-medium text-slate-400 transition-colors hover:border-[#2a4a30] hover:text-slate-200"
                   >
                     Open billing portal →
                   </button>

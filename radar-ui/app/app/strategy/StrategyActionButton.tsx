@@ -34,9 +34,9 @@ export default function StrategyActionButton({ insightId, patternType, response 
       {copied ? (
         <>
           <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
-            <path d="M1.5 5.5L4 8L9.5 2.5" stroke="#2EE6A6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M1.5 5.5L4 8L9.5 2.5" stroke="#00B4FF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <span style={{ color: "#2EE6A6" }}>Copied to clipboard</span>
+          <span style={{ color: "#00B4FF" }}>Copied to clipboard</span>
         </>
       ) : (
         <>

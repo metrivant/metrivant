@@ -4,7 +4,7 @@
 /* Perception shifts from observer → operator.                                */
 /*                                                                            */
 /* Colour rule:                                                               */
-/*   Green (#2EE6A6) = data truth (signals, confirmation, evidence)           */
+/*   Green (#00B4FF) = data truth (signals, confirmation, evidence)           */
 /*   Cyan  (#00E5FF) = interface structure (borders, scaffolding, UI chrome)  */
 /*   Never mix meanings.                                                      */
 /*                                                                            */
@@ -84,10 +84,10 @@
 [data-theme="hud"] body {
   background-image: radial-gradient(
     circle at 50% 50%,
-    rgba(46,230,166,0.06) 0%,
+    rgba(0,180,255,0.06) 0%,
     transparent 55%
   );
-  background-color: #000200;
+  background-color: #000002;
   background-attachment: fixed;
 }
 

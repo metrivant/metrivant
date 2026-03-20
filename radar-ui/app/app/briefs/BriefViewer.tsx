@@ -96,20 +96,20 @@ function SectionHeader({ number, label }: { number: string; label: string }) {
     <div className="mb-5 flex items-center gap-3">
       <span
         className="font-mono text-[11px] font-bold"
-        style={{ color: "rgba(46,230,166,0.40)" }}
+        style={{ color: "rgba(0,180,255,0.40)" }}
       >
         {number}
       </span>
       <span
         className="font-mono text-[11px] font-bold uppercase tracking-[0.20em]"
-        style={{ color: "rgba(46,230,166,0.72)" }}
+        style={{ color: "rgba(0,180,255,0.72)" }}
       >
         {label}
       </span>
       <div
         className="h-px flex-1"
         style={{
-          background: "linear-gradient(90deg, rgba(46,230,166,0.18) 0%, transparent 100%)",
+          background: "linear-gradient(90deg, rgba(0,180,255,0.18) 0%, transparent 100%)",
         }}
       />
     </div>
@@ -199,26 +199,26 @@ export default function BriefViewer({
 
   return (
     <article
-      className="relative rounded-[18px] border border-[#0d2010] bg-[#020802]"
-      style={isLatest ? { boxShadow: "0 0 60px rgba(46,230,166,0.025)" } : undefined}
+      className="relative rounded-[18px] border border-[#0d1020] bg-[#020208]"
+      style={isLatest ? { boxShadow: "0 0 60px rgba(0,180,255,0.025)" } : undefined}
     >
       {isLatest && (
         <div
           className="absolute inset-x-0 top-0 h-[1px] rounded-t-[18px]"
           style={{
             background:
-              "linear-gradient(90deg, transparent 0%, rgba(46,230,166,0.30) 30%, rgba(46,230,166,0.50) 50%, rgba(46,230,166,0.30) 70%, transparent 100%)",
+              "linear-gradient(90deg, transparent 0%, rgba(0,180,255,0.30) 30%, rgba(0,180,255,0.50) 50%, rgba(0,180,255,0.30) 70%, transparent 100%)",
           }}
         />
       )}
 
       {/* ── Brief header ─────────────────────────────────────────────── */}
-      <div className="border-b border-[#0d2010] px-7 py-5">
+      <div className="border-b border-[#0d1020] px-7 py-5">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div
               className="font-mono text-[10px] font-bold uppercase tracking-[0.22em]"
-              style={{ color: "rgba(46,230,166,0.45)" }}
+              style={{ color: "rgba(0,180,255,0.45)" }}
             >
               Intelligence Brief
             </div>
@@ -230,12 +230,12 @@ export default function BriefViewer({
           <div className="flex shrink-0 items-center gap-3 pt-0.5">
             {isLatest && (
               <span
-                className="flex items-center gap-1.5 rounded-full border border-[#2EE6A6]/18 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.15em]"
-                style={{ background: "rgba(46,230,166,0.06)", color: "#2EE6A6" }}
+                className="flex items-center gap-1.5 rounded-full border border-[#00B4FF]/18 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.15em]"
+                style={{ background: "rgba(0,180,255,0.06)", color: "#00B4FF" }}
               >
                 <span
-                  className="h-1.5 w-1.5 rounded-full bg-[#2EE6A6]"
-                  style={{ boxShadow: "0 0 4px rgba(46,230,166,0.8)" }}
+                  className="h-1.5 w-1.5 rounded-full bg-[#00B4FF]"
+                  style={{ boxShadow: "0 0 4px rgba(0,180,255,0.8)" }}
                 />
                 Latest
               </span>
@@ -278,7 +278,7 @@ export default function BriefViewer({
         <div className="mb-8">
           <div
             className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em]"
-            style={{ color: "rgba(46,230,166,0.45)" }}
+            style={{ color: "rgba(0,180,255,0.45)" }}
           >
             Summary
           </div>
@@ -303,7 +303,7 @@ export default function BriefViewer({
                 return (
                   <div
                     key={i}
-                    className="rounded-[12px] border border-[#0f1f0f] bg-[#030c03] p-5"
+                    className="rounded-[12px] border border-[#0f1f0f] bg-[#03030c] p-5"
                     style={{ borderLeftWidth: "3px", borderLeftColor: `${ts.color}44` }}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -324,7 +324,7 @@ export default function BriefViewer({
                       {/* Radar synergy hook */}
                       <button
                         onClick={() => focusOnRadar(move.competitor)}
-                        className="mt-7 flex shrink-0 items-center gap-1 rounded-md border border-[#0d2010] bg-[#020802] px-2 py-1 text-[10px] text-slate-600 transition-colors hover:border-[#2EE6A6]/25 hover:text-slate-400"
+                        className="mt-7 flex shrink-0 items-center gap-1 rounded-md border border-[#0d1020] bg-[#020208] px-2 py-1 text-[10px] text-slate-600 transition-colors hover:border-[#00B4FF]/25 hover:text-slate-400"
                         title={`Focus ${move.competitor} on Radar`}
                       >
                         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
@@ -350,7 +350,7 @@ export default function BriefViewer({
               {brief.strategic_implications.map((imp, i) => (
                 <div
                   key={i}
-                  className="rounded-[12px] border border-[#0f1f0f] bg-[#030c03] p-4"
+                  className="rounded-[12px] border border-[#0f1f0f] bg-[#03030c] p-4"
                 >
                   <div className="mb-1.5 text-[12px] font-bold uppercase tracking-[0.12em] text-slate-300">
                     {imp.theme}
@@ -372,7 +372,7 @@ export default function BriefViewer({
               {brief.recommended_actions.map((action, i) => (
                 <div
                   key={i}
-                  className="flex items-start gap-3 rounded-[12px] border border-[#0f1f0f] bg-[#030c03] p-4"
+                  className="flex items-start gap-3 rounded-[12px] border border-[#0f1f0f] bg-[#03030c] p-4"
                 >
                   <SeverityBadge severity={action.priority} suffix=" Priority" />
                   <p className="text-[13px] leading-relaxed text-slate-300">
@@ -389,7 +389,7 @@ export default function BriefViewer({
           <div className="mb-8">
             <SectionHeader number="04" label="Strategic Insight" />
             <div
-              className="rounded-[12px] border border-[#0f1f0f] bg-[#030c03] p-5"
+              className="rounded-[12px] border border-[#0f1f0f] bg-[#03030c] p-5"
               style={{ borderLeftWidth: "3px", borderLeftColor: "rgba(245,158,11,0.40)" }}
             >
               <p className="text-[13px] leading-relaxed text-slate-300 italic">
@@ -416,10 +416,10 @@ export default function BriefViewer({
           )}
 
         {/* ── Cross-surface navigation ──────────────────────────────── */}
-        <div className="mt-8 flex items-center gap-4 border-t border-[#0d2010] pt-5">
+        <div className="mt-8 flex items-center gap-4 border-t border-[#0d1020] pt-5">
           <span
             className="font-mono text-[9px] font-bold uppercase tracking-[0.22em]"
-            style={{ color: "rgba(46,230,166,0.28)" }}
+            style={{ color: "rgba(0,180,255,0.28)" }}
           >
             Continue in
           </span>

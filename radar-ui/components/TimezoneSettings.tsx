@@ -54,13 +54,13 @@ export default function TimezoneSettings() {
           onClick={() => selectTz(opt.value)}
           className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left text-[12px] transition-colors ${
             tz === opt.value
-              ? "border-[#2EE6A6]/30 bg-[#0a1a0a] text-[#2EE6A6]"
-              : "border-[#0d2010] text-slate-600 hover:border-[#1a3020] hover:text-slate-400"
+              ? "border-[#00B4FF]/30 bg-[#0a0a1a] text-[#00B4FF]"
+              : "border-[#0d1020] text-slate-600 hover:border-[#1a2030] hover:text-slate-400"
           }`}
         >
           <span className="font-medium tracking-[0.08em]">{opt.label}</span>
           {tz === opt.value && (
-            <span className="h-1.5 w-1.5 rounded-full bg-[#2EE6A6]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[#00B4FF]" />
           )}
         </button>
       ))}

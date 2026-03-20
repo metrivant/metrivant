@@ -48,7 +48,7 @@ const PLANS = [
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-[#000200] text-white">
+    <div className="min-h-screen bg-[#000002] text-white">
       <PublicNav />
 
       {/* Fixed atmosphere */}
@@ -65,7 +65,7 @@ export default function AboutPage() {
         className="pointer-events-none fixed inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 80% 55% at 50% -5%, rgba(46,230,166,0.07) 0%, transparent 70%)",
+            "radial-gradient(ellipse 80% 55% at 50% -5%, rgba(0,180,255,0.07) 0%, transparent 70%)",
         }}
       />
 
@@ -83,31 +83,31 @@ export default function AboutPage() {
             className="max-w-full"
           >
             {/* Rings */}
-            <circle cx="410" cy="410" r="390" stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.08" />
-            <circle cx="410" cy="410" r="285" stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.07" />
-            <circle cx="410" cy="410" r="185" stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.10" />
-            <circle cx="410" cy="410" r="95"  stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.14" />
+            <circle cx="410" cy="410" r="390" stroke="#00B4FF" strokeWidth="0.5" strokeOpacity="0.08" />
+            <circle cx="410" cy="410" r="285" stroke="#00B4FF" strokeWidth="0.5" strokeOpacity="0.07" />
+            <circle cx="410" cy="410" r="185" stroke="#00B4FF" strokeWidth="0.5" strokeOpacity="0.10" />
+            <circle cx="410" cy="410" r="95"  stroke="#00B4FF" strokeWidth="0.5" strokeOpacity="0.14" />
             {/* Crosshairs */}
-            <line x1="410" y1="15"  x2="410" y2="805" stroke="#2EE6A6" strokeWidth="0.4" strokeOpacity="0.06" strokeDasharray="3 6" />
-            <line x1="15"  y1="410" x2="805" y2="410" stroke="#2EE6A6" strokeWidth="0.4" strokeOpacity="0.06" strokeDasharray="3 6" />
+            <line x1="410" y1="15"  x2="410" y2="805" stroke="#00B4FF" strokeWidth="0.4" strokeOpacity="0.06" strokeDasharray="3 6" />
+            <line x1="15"  y1="410" x2="805" y2="410" stroke="#00B4FF" strokeWidth="0.4" strokeOpacity="0.06" strokeDasharray="3 6" />
             {/* Sweep */}
-            <line x1="410" y1="410" x2="760" y2="95" stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.14" />
+            <line x1="410" y1="410" x2="760" y2="95" stroke="#00B4FF" strokeWidth="1" strokeOpacity="0.14" />
             {/* Sector arc gradient suggestion */}
-            <path d="M410 410 L760 95 A390 390 0 0 1 790 410 Z" fill="#2EE6A6" fillOpacity="0.012" />
+            <path d="M410 410 L760 95 A390 390 0 0 1 790 410 Z" fill="#00B4FF" fillOpacity="0.012" />
             {/* Nodes */}
-            <circle cx="650" cy="200" r="5"   fill="#2EE6A6" fillOpacity="0.40" />
-            <circle cx="650" cy="200" r="12"  stroke="#2EE6A6" strokeWidth="0.6" strokeOpacity="0.14" />
-            <circle cx="650" cy="200" r="22"  stroke="#2EE6A6" strokeWidth="0.4" strokeOpacity="0.07" />
-            <circle cx="265" cy="300" r="3.5" fill="#2EE6A6" fillOpacity="0.28" />
-            <circle cx="570" cy="510" r="4"   fill="#2EE6A6" fillOpacity="0.35" />
-            <circle cx="570" cy="510" r="10"  stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.11" />
-            <circle cx="315" cy="530" r="3"   fill="#2EE6A6" fillOpacity="0.22" />
-            <circle cx="470" cy="165" r="2.5" fill="#2EE6A6" fillOpacity="0.18" />
-            <circle cx="175" cy="445" r="3"   fill="#2EE6A6" fillOpacity="0.20" />
-            <circle cx="590" cy="360" r="2"   fill="#2EE6A6" fillOpacity="0.15" />
+            <circle cx="650" cy="200" r="5"   fill="#00B4FF" fillOpacity="0.40" />
+            <circle cx="650" cy="200" r="12"  stroke="#00B4FF" strokeWidth="0.6" strokeOpacity="0.14" />
+            <circle cx="650" cy="200" r="22"  stroke="#00B4FF" strokeWidth="0.4" strokeOpacity="0.07" />
+            <circle cx="265" cy="300" r="3.5" fill="#00B4FF" fillOpacity="0.28" />
+            <circle cx="570" cy="510" r="4"   fill="#00B4FF" fillOpacity="0.35" />
+            <circle cx="570" cy="510" r="10"  stroke="#00B4FF" strokeWidth="0.5" strokeOpacity="0.11" />
+            <circle cx="315" cy="530" r="3"   fill="#00B4FF" fillOpacity="0.22" />
+            <circle cx="470" cy="165" r="2.5" fill="#00B4FF" fillOpacity="0.18" />
+            <circle cx="175" cy="445" r="3"   fill="#00B4FF" fillOpacity="0.20" />
+            <circle cx="590" cy="360" r="2"   fill="#00B4FF" fillOpacity="0.15" />
             {/* Signal arcs */}
-            <path d="M265 300 Q350 280 410 410" stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.09" fill="none" strokeDasharray="4 6" />
-            <path d="M570 510 Q500 470 410 410" stroke="#2EE6A6" strokeWidth="0.5" strokeOpacity="0.09" fill="none" strokeDasharray="4 6" />
+            <path d="M265 300 Q350 280 410 410" stroke="#00B4FF" strokeWidth="0.5" strokeOpacity="0.09" fill="none" strokeDasharray="4 6" />
+            <path d="M570 510 Q500 470 410 410" stroke="#00B4FF" strokeWidth="0.5" strokeOpacity="0.09" fill="none" strokeDasharray="4 6" />
           </svg>
         </div>
 
@@ -122,17 +122,17 @@ export default function AboutPage() {
             aria-hidden="true"
             className="mx-auto mb-8"
           >
-            <circle cx="23" cy="23" r="21.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.50" />
-            <circle cx="23" cy="23" r="13"   stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.28" />
-            <circle cx="23" cy="23" r="5.5"  stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.42" />
-            <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#2EE6A6" fillOpacity="0.10" />
-            <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.80" />
-            <circle cx="23" cy="23" r="2.5" fill="#2EE6A6" />
+            <circle cx="23" cy="23" r="21.5" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.50" />
+            <circle cx="23" cy="23" r="13"   stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.28" />
+            <circle cx="23" cy="23" r="5.5"  stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.42" />
+            <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#00B4FF" fillOpacity="0.10" />
+            <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.80" />
+            <circle cx="23" cy="23" r="2.5" fill="#00B4FF" />
           </svg>
 
           <div
             className="mb-3 text-[11px] font-medium uppercase tracking-[0.34em]"
-            style={{ color: "rgba(46,230,166,0.55)" }}
+            style={{ color: "rgba(0,180,255,0.55)" }}
           >
             Competitive Intelligence Radar
           </div>
@@ -151,13 +151,13 @@ export default function AboutPage() {
           <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link
               href="/signup"
-              className="rounded-full bg-[#2EE6A6] px-9 py-3 text-[14px] font-semibold text-black transition-opacity hover:opacity-90"
+              className="rounded-full bg-[#00B4FF] px-9 py-3 text-[14px] font-semibold text-black transition-opacity hover:opacity-90"
             >
               Start tracking
             </Link>
             <Link
               href="#pricing"
-              className="rounded-full border border-[#1a3a20] px-9 py-3 text-[14px] font-medium text-slate-400 transition-colors hover:border-[#2EE6A6]/30 hover:text-white"
+              className="rounded-full border border-[#1a3a20] px-9 py-3 text-[14px] font-medium text-slate-400 transition-colors hover:border-[#00B4FF]/30 hover:text-white"
             >
               View pricing
             </Link>
@@ -168,14 +168,14 @@ export default function AboutPage() {
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5">
           <div
             className="h-9 w-px"
-            style={{ background: "linear-gradient(to bottom, transparent, rgba(46,230,166,0.22))" }}
+            style={{ background: "linear-gradient(to bottom, transparent, rgba(0,180,255,0.22))" }}
           />
-          <div className="h-1.5 w-1.5 rounded-full bg-[#2EE6A6]" style={{ opacity: 0.35 }} />
+          <div className="h-1.5 w-1.5 rounded-full bg-[#00B4FF]" style={{ opacity: 0.35 }} />
         </div>
       </section>
 
       {/* ── 2. WHAT IT DOES ─────────────────────────────────────────────────── */}
-      <section className="border-t border-[#0e2210] px-6 py-28">
+      <section className="border-t border-[#0e1022] px-6 py-28">
         <div className="mx-auto max-w-5xl">
           <div className="mb-14 text-center">
             <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.28em] text-slate-600">
@@ -192,9 +192,9 @@ export default function AboutPage() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
 
             {/* Pricing Intelligence */}
-            <div className="rounded-[14px] border border-[#0d2010] bg-[#020802] p-6">
-              <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-[10px] border border-[#0e2210] bg-[#030c03]">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="text-[#2EE6A6]">
+            <div className="rounded-[14px] border border-[#0d1020] bg-[#020208] p-6">
+              <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-[10px] border border-[#0e1022] bg-[#03030c]">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="text-[#00B4FF]">
                   <rect x="1.5" y="9"   width="3" height="5.5" rx="0.5" stroke="currentColor" strokeWidth="1.1" />
                   <rect x="6.5" y="5.5" width="3" height="9"   rx="0.5" stroke="currentColor" strokeWidth="1.1" />
                   <rect x="11.5" y="2"  width="3" height="12.5" rx="0.5" stroke="currentColor" strokeWidth="1.1" />
@@ -207,9 +207,9 @@ export default function AboutPage() {
             </div>
 
             {/* Product Expansion */}
-            <div className="rounded-[14px] border border-[#0d2010] bg-[#020802] p-6">
-              <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-[10px] border border-[#0e2210] bg-[#030c03]">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="text-[#2EE6A6]">
+            <div className="rounded-[14px] border border-[#0d1020] bg-[#020208] p-6">
+              <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-[10px] border border-[#0e1022] bg-[#03030c]">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="text-[#00B4FF]">
                   <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.1" />
                   <circle cx="2"  cy="8" r="1.5" stroke="currentColor" strokeWidth="1" />
                   <circle cx="14" cy="8" r="1.5" stroke="currentColor" strokeWidth="1" />
@@ -228,9 +228,9 @@ export default function AboutPage() {
             </div>
 
             {/* Market Repositioning */}
-            <div className="rounded-[14px] border border-[#0d2010] bg-[#020802] p-6">
-              <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-[10px] border border-[#0e2210] bg-[#030c03]">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="text-[#2EE6A6]">
+            <div className="rounded-[14px] border border-[#0d1020] bg-[#020208] p-6">
+              <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-[10px] border border-[#0e1022] bg-[#03030c]">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="text-[#00B4FF]">
                   <rect x="1" y="1" width="14" height="14" rx="1" stroke="currentColor" strokeWidth="1.1" />
                   <line x1="8" y1="1"  x2="8" y2="15" stroke="currentColor" strokeWidth="0.7" strokeDasharray="1.5 1.5" />
                   <line x1="1" y1="8" x2="15" y2="8"  stroke="currentColor" strokeWidth="0.7" strokeDasharray="1.5 1.5" />
@@ -245,9 +245,9 @@ export default function AboutPage() {
             </div>
 
             {/* Momentum */}
-            <div className="rounded-[14px] border border-[#0d2010] bg-[#020802] p-6">
-              <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-[10px] border border-[#0e2210] bg-[#030c03]">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="text-[#2EE6A6]">
+            <div className="rounded-[14px] border border-[#0d1020] bg-[#020208] p-6">
+              <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-[10px] border border-[#0e1022] bg-[#03030c]">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="text-[#00B4FF]">
                   <path d="M2 13.5 Q8 3 14 13.5" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round" />
                   <circle cx="14" cy="13.5" r="1.8" fill="currentColor" fillOpacity="0.75" />
                   <circle cx="8"  cy="7"    r="1"   fill="currentColor" fillOpacity="0.35" />
@@ -264,7 +264,7 @@ export default function AboutPage() {
       </section>
 
       {/* ── 3. HOW IT WORKS ─────────────────────────────────────────────────── */}
-      <section className="border-t border-[#0e2210] px-6 py-28">
+      <section className="border-t border-[#0e1022] px-6 py-28">
         <div className="mx-auto max-w-5xl">
           <div className="mb-16 text-center">
             <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.28em] text-slate-600">
@@ -281,7 +281,7 @@ export default function AboutPage() {
               className="pointer-events-none absolute inset-x-0 top-[27px] hidden h-px lg:block"
               style={{
                 background:
-                  "linear-gradient(90deg, transparent 4%, rgba(46,230,166,0.18) 12%, rgba(46,230,166,0.18) 88%, transparent 96%)",
+                  "linear-gradient(90deg, transparent 4%, rgba(0,180,255,0.18) 12%, rgba(0,180,255,0.18) 88%, transparent 96%)",
               }}
             />
 
@@ -310,8 +310,8 @@ export default function AboutPage() {
               ] as { num: string; label: string; desc: string }[]
             ).map((step) => (
               <div key={step.num} className="relative flex flex-col lg:px-6">
-                <div className="relative z-10 mb-5 flex h-[54px] w-[54px] items-center justify-center rounded-full border border-[#0e2210] bg-[#020802]">
-                  <span className="font-mono text-[11px] font-bold tracking-[0.14em] text-[#2EE6A6]">
+                <div className="relative z-10 mb-5 flex h-[54px] w-[54px] items-center justify-center rounded-full border border-[#0e1022] bg-[#020208]">
+                  <span className="font-mono text-[11px] font-bold tracking-[0.14em] text-[#00B4FF]">
                     {step.num}
                   </span>
                 </div>
@@ -324,7 +324,7 @@ export default function AboutPage() {
       </section>
 
       {/* ── 4. WHY IT MATTERS ───────────────────────────────────────────────── */}
-      <section className="border-t border-[#0e2210] px-6 py-28">
+      <section className="border-t border-[#0e1022] px-6 py-28">
         <div className="mx-auto max-w-5xl">
           <div className="mb-14 text-center">
             <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.28em] text-slate-600">
@@ -354,7 +354,7 @@ export default function AboutPage() {
             ).map((item) => (
               <div
                 key={item.q}
-                className="rounded-[14px] border border-[#0d2010] bg-[#020802] p-7"
+                className="rounded-[14px] border border-[#0d1020] bg-[#020208] p-7"
               >
                 <div className="mb-3 text-[16px] font-bold text-white">{item.q}</div>
                 <p className="text-[13px] leading-relaxed text-slate-500">{item.a}</p>
@@ -365,7 +365,7 @@ export default function AboutPage() {
       </section>
 
       {/* ── 5. INTELLIGENCE SURFACES ────────────────────────────────────────── */}
-      <section className="border-t border-[#0e2210] px-6 py-28">
+      <section className="border-t border-[#0e1022] px-6 py-28">
         <div className="mx-auto max-w-5xl">
           <div className="mb-14 text-center">
             <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.28em] text-slate-600">
@@ -379,19 +379,19 @@ export default function AboutPage() {
           <div className="grid gap-4 md:grid-cols-3">
 
             {/* Radar */}
-            <div className="relative overflow-hidden rounded-[14px] border border-[#0e2210] bg-[#020802] p-7">
+            <div className="relative overflow-hidden rounded-[14px] border border-[#0e1022] bg-[#020208] p-7">
               <div className="pointer-events-none absolute -right-5 -top-5 opacity-[0.06]">
                 <svg width="130" height="130" viewBox="0 0 130 130" fill="none" aria-hidden="true">
-                  <circle cx="65" cy="65" r="60" stroke="#2EE6A6" strokeWidth="1" />
-                  <circle cx="65" cy="65" r="42" stroke="#2EE6A6" strokeWidth="0.8" />
-                  <circle cx="65" cy="65" r="24" stroke="#2EE6A6" strokeWidth="0.8" />
-                  <line x1="65" y1="5"   x2="65" y2="125" stroke="#2EE6A6" strokeWidth="0.5" />
-                  <line x1="5"  y1="65"  x2="125" y2="65" stroke="#2EE6A6" strokeWidth="0.5" />
-                  <line x1="65" y1="65" x2="115" y2="20"  stroke="#2EE6A6" strokeWidth="0.8" />
-                  <circle cx="105" cy="30" r="4" fill="#2EE6A6" />
+                  <circle cx="65" cy="65" r="60" stroke="#00B4FF" strokeWidth="1" />
+                  <circle cx="65" cy="65" r="42" stroke="#00B4FF" strokeWidth="0.8" />
+                  <circle cx="65" cy="65" r="24" stroke="#00B4FF" strokeWidth="0.8" />
+                  <line x1="65" y1="5"   x2="65" y2="125" stroke="#00B4FF" strokeWidth="0.5" />
+                  <line x1="5"  y1="65"  x2="125" y2="65" stroke="#00B4FF" strokeWidth="0.5" />
+                  <line x1="65" y1="65" x2="115" y2="20"  stroke="#00B4FF" strokeWidth="0.8" />
+                  <circle cx="105" cy="30" r="4" fill="#00B4FF" />
                 </svg>
               </div>
-              <div className="mb-3 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-[#2EE6A6]">
+              <div className="mb-3 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-[#00B4FF]">
                 Radar
               </div>
               <div className="mb-2 text-[14px] font-semibold text-white">The primary instrument.</div>
@@ -402,18 +402,18 @@ export default function AboutPage() {
             </div>
 
             {/* Market Map */}
-            <div className="relative overflow-hidden rounded-[14px] border border-[#0e2210] bg-[#020802] p-7">
+            <div className="relative overflow-hidden rounded-[14px] border border-[#0e1022] bg-[#020208] p-7">
               <div className="pointer-events-none absolute -right-4 -top-4 opacity-[0.06]">
                 <svg width="110" height="110" viewBox="0 0 110 110" fill="none" aria-hidden="true">
-                  <rect x="5" y="5" width="100" height="100" rx="2" stroke="#2EE6A6" strokeWidth="1" />
-                  <line x1="55" y1="5"  x2="55" y2="105" stroke="#2EE6A6" strokeWidth="0.6" strokeDasharray="3 4" />
-                  <line x1="5"  y1="55" x2="105" y2="55" stroke="#2EE6A6" strokeWidth="0.6" strokeDasharray="3 4" />
-                  <circle cx="75" cy="28" r="5.5" fill="#2EE6A6" fillOpacity="0.7" />
-                  <circle cx="30" cy="70" r="4"   fill="#2EE6A6" fillOpacity="0.4" />
-                  <circle cx="78" cy="72" r="3.5" fill="#2EE6A6" fillOpacity="0.3" />
+                  <rect x="5" y="5" width="100" height="100" rx="2" stroke="#00B4FF" strokeWidth="1" />
+                  <line x1="55" y1="5"  x2="55" y2="105" stroke="#00B4FF" strokeWidth="0.6" strokeDasharray="3 4" />
+                  <line x1="5"  y1="55" x2="105" y2="55" stroke="#00B4FF" strokeWidth="0.6" strokeDasharray="3 4" />
+                  <circle cx="75" cy="28" r="5.5" fill="#00B4FF" fillOpacity="0.7" />
+                  <circle cx="30" cy="70" r="4"   fill="#00B4FF" fillOpacity="0.4" />
+                  <circle cx="78" cy="72" r="3.5" fill="#00B4FF" fillOpacity="0.3" />
                 </svg>
               </div>
-              <div className="mb-3 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-[#2EE6A6]">
+              <div className="mb-3 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-[#00B4FF]">
                 Market Map
               </div>
               <div className="mb-2 text-[14px] font-semibold text-white">Positioning in two dimensions.</div>
@@ -424,18 +424,18 @@ export default function AboutPage() {
             </div>
 
             {/* Strategy */}
-            <div className="relative overflow-hidden rounded-[14px] border border-[#0e2210] bg-[#020802] p-7">
+            <div className="relative overflow-hidden rounded-[14px] border border-[#0e1022] bg-[#020208] p-7">
               <div className="pointer-events-none absolute -right-4 -top-4 opacity-[0.06]">
                 <svg width="110" height="110" viewBox="0 0 110 110" fill="none" aria-hidden="true">
-                  <circle cx="55" cy="55" r="48" stroke="#2EE6A6" strokeWidth="1" />
-                  <circle cx="55" cy="55" r="28" stroke="#2EE6A6" strokeWidth="0.8" />
-                  <line x1="55" y1="7"   x2="55" y2="27"  stroke="#2EE6A6" strokeWidth="1.5" strokeLinecap="round" />
-                  <line x1="55" y1="83"  x2="55" y2="103" stroke="#2EE6A6" strokeWidth="1.5" strokeLinecap="round" />
-                  <line x1="7"  y1="55"  x2="27" y2="55"  stroke="#2EE6A6" strokeWidth="1.5" strokeLinecap="round" />
-                  <line x1="83" y1="55"  x2="103" y2="55" stroke="#2EE6A6" strokeWidth="1.5" strokeLinecap="round" />
+                  <circle cx="55" cy="55" r="48" stroke="#00B4FF" strokeWidth="1" />
+                  <circle cx="55" cy="55" r="28" stroke="#00B4FF" strokeWidth="0.8" />
+                  <line x1="55" y1="7"   x2="55" y2="27"  stroke="#00B4FF" strokeWidth="1.5" strokeLinecap="round" />
+                  <line x1="55" y1="83"  x2="55" y2="103" stroke="#00B4FF" strokeWidth="1.5" strokeLinecap="round" />
+                  <line x1="7"  y1="55"  x2="27" y2="55"  stroke="#00B4FF" strokeWidth="1.5" strokeLinecap="round" />
+                  <line x1="83" y1="55"  x2="103" y2="55" stroke="#00B4FF" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
               </div>
-              <div className="mb-3 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-[#2EE6A6]">
+              <div className="mb-3 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-[#00B4FF]">
                 Strategy
               </div>
               <div className="mb-2 text-[14px] font-semibold text-white">Cross-competitor patterns.</div>
@@ -450,7 +450,7 @@ export default function AboutPage() {
       </section>
 
       {/* ── 6. TRUST ────────────────────────────────────────────────────────── */}
-      <section className="border-t border-[#0e2210] px-6 py-24 text-center">
+      <section className="border-t border-[#0e1022] px-6 py-24 text-center">
         <div className="mx-auto max-w-3xl">
           <div className="mb-4 text-[10px] font-bold uppercase tracking-[0.28em] text-slate-600">
             Infrastructure
@@ -477,7 +477,7 @@ export default function AboutPage() {
             ).map((item) => (
               <div
                 key={item.label}
-                className="rounded-[12px] border border-[#0d2010] bg-[#020802] px-5 py-5"
+                className="rounded-[12px] border border-[#0d1020] bg-[#020208] px-5 py-5"
               >
                 <div className="mb-2 text-[12px] font-semibold text-slate-200">{item.label}</div>
                 <p className="text-[11px] leading-relaxed text-slate-600">{item.desc}</p>
@@ -492,7 +492,7 @@ export default function AboutPage() {
         className="h-px"
         style={{
           background:
-            "linear-gradient(90deg, transparent 0%, rgba(46,230,166,0.22) 35%, rgba(46,230,166,0.38) 50%, rgba(46,230,166,0.22) 65%, transparent 100%)",
+            "linear-gradient(90deg, transparent 0%, rgba(0,180,255,0.22) 35%, rgba(0,180,255,0.38) 50%, rgba(0,180,255,0.22) 65%, transparent 100%)",
         }}
       />
 
@@ -517,12 +517,12 @@ export default function AboutPage() {
                 key={plan.name}
                 className={`relative flex flex-col rounded-[16px] border p-7 ${
                   plan.highlight
-                    ? "border-[#2EE6A6]/30 bg-[#030c03]"
-                    : "border-[#0d2010] bg-[#020802]"
+                    ? "border-[#00B4FF]/30 bg-[#03030c]"
+                    : "border-[#0d1020] bg-[#020208]"
                 }`}
                 style={
                   plan.highlight
-                    ? { boxShadow: "0 0 40px rgba(46,230,166,0.04)" }
+                    ? { boxShadow: "0 0 40px rgba(0,180,255,0.04)" }
                     : undefined
                 }
               >
@@ -531,7 +531,7 @@ export default function AboutPage() {
                     className="absolute -top-px inset-x-0 h-[1px] rounded-t-[16px]"
                     style={{
                       background:
-                        "linear-gradient(90deg, transparent, rgba(46,230,166,0.5), transparent)",
+                        "linear-gradient(90deg, transparent, rgba(0,180,255,0.5), transparent)",
                     }}
                   />
                 )}
@@ -542,7 +542,7 @@ export default function AboutPage() {
                       {plan.name}
                     </div>
                     {plan.highlight && (
-                      <span className="rounded-full bg-[#2EE6A6]/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-[#2EE6A6]">
+                      <span className="rounded-full bg-[#00B4FF]/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-[#00B4FF]">
                         Popular
                       </span>
                     )}
@@ -563,7 +563,7 @@ export default function AboutPage() {
                     <li key={f} className="flex items-start gap-2.5">
                       <span
                         className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full"
-                        style={{ background: "#2EE6A6", opacity: 0.65 }}
+                        style={{ background: "#00B4FF", opacity: 0.65 }}
                       />
                       <span className="text-[13px] text-slate-400">{f}</span>
                     </li>
@@ -574,8 +574,8 @@ export default function AboutPage() {
                   href={plan.href}
                   className={`block rounded-full py-2.5 text-center text-[13px] font-semibold transition-opacity hover:opacity-90 ${
                     plan.highlight
-                      ? "bg-[#2EE6A6] text-black"
-                      : "border border-[#1a3a20] text-slate-300 hover:border-[#2EE6A6]/30 hover:text-white"
+                      ? "bg-[#00B4FF] text-black"
+                      : "border border-[#1a3a20] text-slate-300 hover:border-[#00B4FF]/30 hover:text-white"
                   }`}
                 >
                   {plan.cta}
@@ -597,7 +597,7 @@ export default function AboutPage() {
       </section>
 
       {/* Footer strip */}
-      <div className="border-t border-[#0e2210] px-6 py-8 text-center">
+      <div className="border-t border-[#0e1022] px-6 py-8 text-center">
         <p className="text-[11px] text-slate-700">
           Metrivant · Competitive Intelligence Radar ·{" "}
           <a

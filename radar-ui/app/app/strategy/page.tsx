@@ -291,7 +291,7 @@ export default async function StrategyPage({
   };
 
   return (
-    <div className="min-h-screen bg-[#000200] text-white">
+    <div className="min-h-screen bg-[#000002] text-white">
       <StrategyTracker />
 
       {/* ── Atmospheric depth ───────────────────────────────────────── */}
@@ -308,27 +308,27 @@ export default async function StrategyPage({
         className="pointer-events-none fixed inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 60% 35% at 50% -5%, rgba(46,230,166,0.05) 0%, transparent 70%)",
+            "radial-gradient(ellipse 60% 35% at 50% -5%, rgba(0,180,255,0.05) 0%, transparent 70%)",
         }}
       />
 
       {/* ── Mini header ─────────────────────────────────────────────── */}
-      <header className="relative z-10 flex h-14 shrink-0 items-center justify-between border-b border-[#0e2210] bg-[rgba(0,2,0,0.97)] px-6">
+      <header className="relative z-10 flex h-14 shrink-0 items-center justify-between border-b border-[#0e1022] bg-[rgba(0,2,0,0.97)] px-6">
         <div
           className="absolute inset-x-0 top-0 h-[1px]"
           style={{
             background:
-              "linear-gradient(90deg, transparent 0%, rgba(46,230,166,0.20) 40%, rgba(46,230,166,0.35) 50%, rgba(46,230,166,0.20) 60%, transparent 100%)",
+              "linear-gradient(90deg, transparent 0%, rgba(0,180,255,0.20) 40%, rgba(0,180,255,0.35) 50%, rgba(0,180,255,0.20) 60%, transparent 100%)",
           }}
         />
         <Link href="/app" className="flex items-center gap-3">
           <svg width="22" height="22" viewBox="0 0 46 46" fill="none" aria-hidden="true">
-            <circle cx="23" cy="23" r="21.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.50" />
-            <circle cx="23" cy="23" r="13"   stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.28" />
-            <circle cx="23" cy="23" r="5.5"  stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.42" />
-            <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#2EE6A6" fillOpacity="0.10" />
-            <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.80" />
-            <circle cx="23" cy="23" r="2.5" fill="#2EE6A6" />
+            <circle cx="23" cy="23" r="21.5" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.50" />
+            <circle cx="23" cy="23" r="13"   stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.28" />
+            <circle cx="23" cy="23" r="5.5"  stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.42" />
+            <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#00B4FF" fillOpacity="0.10" />
+            <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.80" />
+            <circle cx="23" cy="23" r="2.5" fill="#00B4FF" />
           </svg>
           <span className="text-[13px] font-bold tracking-[0.08em] text-white">METRIVANT</span>
         </Link>
@@ -386,20 +386,20 @@ export default async function StrategyPage({
         {/* ── No data at all ────────────────────────────────────────── */}
         {!hasMovements && !hasInsights && !hasContexts && !hasActions && (
           <div
-            className="flex flex-col items-center rounded-[18px] border border-[#0d2010] px-8 py-20 text-center"
+            className="flex flex-col items-center rounded-[18px] border border-[#0d1020] px-8 py-20 text-center"
             style={{ background: "rgba(2,8,2,0.5)" }}
           >
             <div
-              className="mb-5 flex h-14 w-14 items-center justify-center rounded-full border border-[#0d2010]"
-              style={{ background: "rgba(46,230,166,0.04)" }}
+              className="mb-5 flex h-14 w-14 items-center justify-center rounded-full border border-[#0d1020]"
+              style={{ background: "rgba(0,180,255,0.04)" }}
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <circle cx="12" cy="12" r="9"   stroke="rgba(46,230,166,0.28)" strokeWidth="1.5" />
-                <circle cx="12" cy="12" r="4.5" stroke="rgba(46,230,166,0.40)" strokeWidth="1.5" />
-                <line x1="12" y1="3"  x2="12" y2="6"  stroke="rgba(46,230,166,0.40)" strokeWidth="1.5" strokeLinecap="round" />
-                <line x1="12" y1="18" x2="12" y2="21" stroke="rgba(46,230,166,0.40)" strokeWidth="1.5" strokeLinecap="round" />
-                <line x1="3"  y1="12" x2="6"  y2="12" stroke="rgba(46,230,166,0.40)" strokeWidth="1.5" strokeLinecap="round" />
-                <line x1="18" y1="12" x2="21" y2="12" stroke="rgba(46,230,166,0.40)" strokeWidth="1.5" strokeLinecap="round" />
+                <circle cx="12" cy="12" r="9"   stroke="rgba(0,180,255,0.28)" strokeWidth="1.5" />
+                <circle cx="12" cy="12" r="4.5" stroke="rgba(0,180,255,0.40)" strokeWidth="1.5" />
+                <line x1="12" y1="3"  x2="12" y2="6"  stroke="rgba(0,180,255,0.40)" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="12" y1="18" x2="12" y2="21" stroke="rgba(0,180,255,0.40)" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="3"  y1="12" x2="6"  y2="12" stroke="rgba(0,180,255,0.40)" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="18" y1="12" x2="21" y2="12" stroke="rgba(0,180,255,0.40)" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </div>
             <h2 className="text-[15px] font-semibold text-white">Pipeline building data</h2>
@@ -550,7 +550,7 @@ export default async function StrategyPage({
               />
 
               {majorSignals.length === 0 ? (
-                <div className="rounded-[14px] border border-[#0d2010] bg-[#020802] px-5 py-4">
+                <div className="rounded-[14px] border border-[#0d1020] bg-[#020208] px-5 py-4">
                   <p className="text-[13px] text-slate-600">
                     No major patterns this cycle. Patterns become major when 3+ competitors are
                     involved or confidence exceeds 82%.
@@ -658,7 +658,7 @@ function getMovementColor(type: string): string {
     case "market_reposition":      return "#FF7A00";
     case "enterprise_push":        return "#9B5CFF";
     case "ecosystem_expansion":    return "#4A9EFF";
-    default: return "#2EE6A6";
+    default: return "#00B4FF";
   }
 }
 
@@ -747,7 +747,7 @@ function IndividualMovementCard({ group }: { group: MovementGroup }) {
   const label = movementDisplayLabel(m.movement_type);
   return (
     <div
-      className="flex flex-col rounded-[14px] border bg-[#020802] p-4"
+      className="flex flex-col rounded-[14px] border bg-[#020208] p-4"
       style={{ borderColor: `${color}20` }}
     >
       <div className="mb-2 flex items-start justify-between gap-2">
@@ -835,7 +835,7 @@ function SectionHeader({
         <div className="flex items-baseline gap-3">
           <span
             className="font-mono text-[11px] font-bold"
-            style={{ color: "rgba(46,230,166,0.40)" }}
+            style={{ color: "rgba(0,180,255,0.40)" }}
           >
             {index}
           </span>
@@ -845,7 +845,7 @@ function SectionHeader({
           className="mb-1 h-px flex-1"
           style={{
             background:
-              "linear-gradient(90deg, rgba(46,230,166,0.18) 0%, transparent 100%)",
+              "linear-gradient(90deg, rgba(0,180,255,0.18) 0%, transparent 100%)",
           }}
         />
       </div>
@@ -919,7 +919,7 @@ function ConfidenceBar({
             className="h-full rounded-full"
             style={{
               width: `${coveragePct}%`,
-              backgroundColor: "rgba(46,230,166,0.55)",
+              backgroundColor: "rgba(0,180,255,0.55)",
             }}
           />
         </div>
@@ -981,7 +981,7 @@ function MajorSignalCard({ insight }: { insight: InsightRow }) {
         )}
 
         {/* Signal integrity bars */}
-        <div className="mt-4 border-t border-[#0d2010] pt-4">
+        <div className="mt-4 border-t border-[#0d1020] pt-4">
           <ConfidenceBar
             confidence={insight.confidence}
             competitorCount={insight.competitor_count}
@@ -997,7 +997,7 @@ function PatternCard({ insight }: { insight: InsightRow }) {
   const cfg = getPatternConfig(insight.pattern_type);
   return (
     <div
-      className="flex flex-col rounded-[14px] border bg-[#020802] p-5"
+      className="flex flex-col rounded-[14px] border bg-[#020208] p-5"
       style={{ borderColor: insight.is_major ? cfg.border : "#0e1e0e" }}
     >
       {/* Header row */}
@@ -1057,12 +1057,12 @@ function LandscapeStats({ contexts, total }: { contexts: ContextRow[]; total: nu
   const unanalyzed = Math.max(0, total - contexts.length);
 
   return (
-    <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-[12px] border border-[#0e1e0e] bg-[#020802] px-4 py-3">
+    <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-[12px] border border-[#0e1e0e] bg-[#020208] px-4 py-3">
       {high > 0 && (
         <div className="flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#2EE6A6]" style={{ boxShadow: "0 0 4px #2EE6A666" }} />
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#00B4FF]" style={{ boxShadow: "0 0 4px #00B4FF66" }} />
           <span className="text-[11px] text-slate-400">
-            <span className="font-semibold text-[#2EE6A6]">{high}</span> high confidence
+            <span className="font-semibold text-[#00B4FF]">{high}</span> high confidence
           </span>
         </div>
       )}
@@ -1106,7 +1106,7 @@ function ContextCard({
 }) {
   const confColor =
     ctx.confidence_level === "high"
-      ? "#2EE6A6"
+      ? "#00B4FF"
       : ctx.confidence_level === "medium"
       ? "#f59e0b"
       : "#64748b";
@@ -1211,7 +1211,7 @@ function ContextCard({
                   style={{
                     color:
                       e.verdict === "validates"
-                        ? "#2EE6A6"
+                        ? "#00B4FF"
                         : e.verdict === "contradicts"
                         ? "#ef4444"
                         : "#475569",
@@ -1235,7 +1235,7 @@ function ContextCard({
 
 function LowContextCard({ ctx }: { ctx: ContextRow }) {
   return (
-    <div className="flex items-center justify-between rounded-[12px] border border-[#0e1e0e] bg-[#020802] px-4 py-3">
+    <div className="flex items-center justify-between rounded-[12px] border border-[#0e1e0e] bg-[#020208] px-4 py-3">
       <div className="flex items-center gap-2">
         <span className="text-[13px] font-medium text-slate-400">{ctx.competitor_name}</span>
         <span className="text-[11px] text-slate-700">
@@ -1252,7 +1252,7 @@ function ResponseCard({ insight, rank }: { insight: InsightRow; rank: number }) 
   const cfg = getPatternConfig(insight.pattern_type);
   return (
     <div
-      className="flex items-start gap-4 rounded-[14px] border border-[#0e1e0e] bg-[#020802] px-5 py-4 transition-colors hover:border-[#152415]"
+      className="flex items-start gap-4 rounded-[14px] border border-[#0e1e0e] bg-[#020208] px-5 py-4 transition-colors hover:border-[#152415]"
     >
       {/* Rank number */}
       <div

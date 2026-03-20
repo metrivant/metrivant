@@ -84,8 +84,8 @@ function emailShell(title: string, bodyHtml: string, footerHtml = ""): string {
   <tr><td align="center">
     <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;">
       <tr>
-        <td style="background:#020802;padding:20px 28px;border-bottom:1px solid #0d2010;">
-          <div style="font-size:10px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(46,230,166,0.65);margin-bottom:3px;">Metrivant</div>
+        <td style="background:#020208;padding:20px 28px;border-bottom:1px solid #0d1020;">
+          <div style="font-size:10px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(0,180,255,0.65);margin-bottom:3px;">Metrivant</div>
           <div style="font-size:17px;font-weight:700;color:#ffffff;">${title}</div>
         </td>
       </tr>
@@ -126,7 +126,7 @@ export function buildHypothesisShiftEmailHtml(
       day: "numeric", month: "short", year: "numeric",
     });
     const confColor =
-      s.confidence_level === "high"   ? "#2EE6A6" :
+      s.confidence_level === "high"   ? "#00B4FF" :
       s.confidence_level === "medium" ? "#f59e0b" : "#9ca3af";
 
     return `
@@ -142,8 +142,8 @@ export function buildHypothesisShiftEmailHtml(
             <div style="font-size:10px;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;color:#f59e0b;margin-bottom:4px;">Previously</div>
             <div style="font-size:13px;line-height:1.55;color:#6b7280;">${s.previous_hypothesis}</div>
           </div>
-          <div style="background:#f0fdf4;border-left:3px solid #2EE6A6;padding:10px 14px;border-radius:0 6px 6px 0;">
-            <div style="font-size:10px;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;color:#2EE6A6;margin-bottom:4px;">Now</div>
+          <div style="background:#f0fdf4;border-left:3px solid #00B4FF;padding:10px 14px;border-radius:0 6px 6px 0;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;color:#00B4FF;margin-bottom:4px;">Now</div>
             <div style="font-size:13px;line-height:1.55;color:#374151;font-weight:500;">${s.hypothesis}</div>
           </div>
         </td>
@@ -163,7 +163,7 @@ export function buildHypothesisShiftEmailHtml(
       View Strategic Landscape &rarr;
     </a>`,
     `<div style="font-size:11px;color:#9ca3af;">
-      <a href="${siteUrl}/app" style="color:#2EE6A6;text-decoration:none;">Open radar &rarr;</a>
+      <a href="${siteUrl}/app" style="color:#00B4FF;text-decoration:none;">Open radar &rarr;</a>
     </div>`
   );
 }
@@ -181,7 +181,7 @@ export function buildWelcomeEmailHtml(siteUrl: string): string {
       Add the competitors you want to monitor. Metrivant will track their websites and surface meaningful changes as structured intelligence.
     </p>
     <a href="${onboardingUrl}"
-       style="display:inline-block;background:#2EE6A6;color:#020802;font-weight:700;font-size:13px;padding:10px 22px;border-radius:99px;text-decoration:none;">
+       style="display:inline-block;background:#00B4FF;color:#020208;font-weight:700;font-size:13px;padding:10px 22px;border-radius:99px;text-decoration:none;">
       Add your first competitor &rarr;
     </a>`,
     `<div style="font-size:11px;color:#9ca3af;">Reply to this email with any questions.</div>`
@@ -209,11 +209,11 @@ export function buildTrackingConfirmationEmailHtml(
       When Metrivant detects meaningful changes — pricing moves, product updates, repositioning — you'll receive an alert.
     </p>
     <a href="${radarUrl}"
-       style="display:inline-block;background:#2EE6A6;color:#020802;font-weight:700;font-size:13px;padding:10px 22px;border-radius:99px;text-decoration:none;">
+       style="display:inline-block;background:#00B4FF;color:#020208;font-weight:700;font-size:13px;padding:10px 22px;border-radius:99px;text-decoration:none;">
       Open radar &rarr;
     </a>`,
     `<div style="font-size:11px;color:#9ca3af;">
-      <a href="${siteUrl}/app/alerts" style="color:#2EE6A6;text-decoration:none;">Manage alerts &rarr;</a>
+      <a href="${siteUrl}/app/alerts" style="color:#00B4FF;text-decoration:none;">Manage alerts &rarr;</a>
     </div>`
   );
 }
@@ -236,7 +236,7 @@ export function buildFirstSignalEmailHtml(
       <td style="padding:12px 0;border-bottom:1px solid #f3f4f6;vertical-align:top;">
         <div style="margin-bottom:4px;">
           <span style="font-weight:700;color:#111827;font-size:14px;">${s.competitor_name}</span>
-          <span style="display:inline-block;margin-left:8px;background:rgba(46,230,166,0.10);color:#2EE6A6;font-size:10px;font-weight:700;letter-spacing:0.08em;padding:2px 8px;border-radius:99px;text-transform:uppercase;">
+          <span style="display:inline-block;margin-left:8px;background:rgba(0,180,255,0.10);color:#00B4FF;font-size:10px;font-weight:700;letter-spacing:0.08em;padding:2px 8px;border-radius:99px;text-transform:uppercase;">
             ${s.signal_type.replace(/_/g, " ")}
           </span>
         </div>
@@ -253,11 +253,11 @@ export function buildFirstSignalEmailHtml(
       ${rows}
     </table>
     <a href="${siteUrl}/app"
-       style="display:inline-block;background:#2EE6A6;color:#020802;font-weight:700;font-size:13px;padding:10px 22px;border-radius:99px;text-decoration:none;">
+       style="display:inline-block;background:#00B4FF;color:#020208;font-weight:700;font-size:13px;padding:10px 22px;border-radius:99px;text-decoration:none;">
       View on radar &rarr;
     </a>`,
     `<div style="font-size:11px;color:#9ca3af;">
-      <a href="${siteUrl}/app/alerts" style="color:#2EE6A6;text-decoration:none;">View all alerts &rarr;</a>
+      <a href="${siteUrl}/app/alerts" style="color:#00B4FF;text-decoration:none;">View all alerts &rarr;</a>
     </div>`
   );
 }

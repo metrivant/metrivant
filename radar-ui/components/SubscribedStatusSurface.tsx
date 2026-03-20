@@ -96,15 +96,15 @@ export default function SubscribedStatusSurface({
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
       className="relative mb-4 overflow-hidden rounded-[16px] border"
       style={{
-        background:   "radial-gradient(ellipse 120% 80% at 50% 0%, rgba(46,230,166,0.06) 0%, rgba(0,8,2,0.98) 65%)",
-        borderColor:  "rgba(46,230,166,0.18)",
-        boxShadow:    "0 0 48px rgba(46,230,166,0.04), inset 0 0 32px rgba(46,230,166,0.02)",
+        background:   "radial-gradient(ellipse 120% 80% at 50% 0%, rgba(0,180,255,0.06) 0%, rgba(0,8,2,0.98) 65%)",
+        borderColor:  "rgba(0,180,255,0.18)",
+        boxShadow:    "0 0 48px rgba(0,180,255,0.04), inset 0 0 32px rgba(0,180,255,0.02)",
       }}
     >
       {/* Top accent line */}
       <div
         className="absolute inset-x-0 top-0 h-[1px]"
-        style={{ background: "linear-gradient(90deg, transparent, rgba(46,230,166,0.55), transparent)" }}
+        style={{ background: "linear-gradient(90deg, transparent, rgba(0,180,255,0.55), transparent)" }}
       />
 
       <div className="p-6 sm:p-8">
@@ -112,14 +112,14 @@ export default function SubscribedStatusSurface({
         {/* Plan badge + tagline */}
         <div className="flex items-start justify-between gap-4 mb-6">
           <div>
-            <div className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.28em]" style={{ color: "rgba(46,230,166,0.45)" }}>
+            <div className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.28em]" style={{ color: "rgba(0,180,255,0.45)" }}>
               Active subscription
             </div>
 
             {/* Plan name with subtle glow pulse */}
             <div className="flex items-baseline gap-3">
               <motion.span
-                animate={{ textShadow: ["0 0 0px rgba(46,230,166,0)", "0 0 16px rgba(46,230,166,0.40)", "0 0 0px rgba(46,230,166,0)"] }}
+                animate={{ textShadow: ["0 0 0px rgba(0,180,255,0)", "0 0 16px rgba(0,180,255,0.40)", "0 0 0px rgba(0,180,255,0)"] }}
                 transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", repeatDelay: 2 }}
                 className="text-[26px] font-bold text-white leading-none tracking-tight"
               >
@@ -128,7 +128,7 @@ export default function SubscribedStatusSurface({
               <span className="text-[13px] text-slate-500 font-medium">{PLAN_PRICE[plan]}</span>
             </div>
 
-            <div className="mt-2 text-[12px] font-medium" style={{ color: "#2EE6A6" }}>
+            <div className="mt-2 text-[12px] font-medium" style={{ color: "#00B4FF" }}>
               {PLAN_TAGLINE[plan]}
             </div>
           </div>
@@ -137,11 +137,11 @@ export default function SubscribedStatusSurface({
           <div className="shrink-0 flex items-center gap-2 mt-1">
             <motion.span
               className="block h-2 w-2 rounded-full"
-              style={{ background: "#2EE6A6", boxShadow: "0 0 8px rgba(46,230,166,0.70)" }}
+              style={{ background: "#00B4FF", boxShadow: "0 0 8px rgba(0,180,255,0.70)" }}
               animate={{ opacity: [1, 0.45, 1] }}
               transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
             />
-            <span className="text-[10px] font-semibold uppercase tracking-[0.18em]" style={{ color: "rgba(46,230,166,0.55)" }}>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.18em]" style={{ color: "rgba(0,180,255,0.55)" }}>
               Live
             </span>
           </div>
@@ -152,8 +152,8 @@ export default function SubscribedStatusSurface({
           {status === "active" && currentPeriodEnd && (
             <div className="flex items-center gap-2">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <circle cx="6" cy="6" r="5" stroke="rgba(46,230,166,0.35)" strokeWidth="1" />
-                <path d="M6 3V6.5L8.5 7.8" stroke="rgba(46,230,166,0.55)" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="6" cy="6" r="5" stroke="rgba(0,180,255,0.35)" strokeWidth="1" />
+                <path d="M6 3V6.5L8.5 7.8" stroke="rgba(0,180,255,0.55)" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               <span className="text-[11px] text-slate-500">
                 Renews <span className="text-slate-400">{fmtDate(currentPeriodEnd)}</span>
@@ -185,7 +185,7 @@ export default function SubscribedStatusSurface({
         </div>
 
         {/* Divider */}
-        <div className="mb-5 h-[1px]" style={{ background: "rgba(46,230,166,0.07)" }} />
+        <div className="mb-5 h-[1px]" style={{ background: "rgba(0,180,255,0.07)" }} />
 
         {/* Achievement reward moment */}
         {achievementDef && (
@@ -195,12 +195,12 @@ export default function SubscribedStatusSurface({
             transition={{ duration: 0.40, ease: [0.22, 1, 0.36, 1], delay: 0.12 }}
             className="mb-5 flex items-center gap-3 rounded-[10px] px-3.5 py-3"
             style={{
-              background:  "rgba(46,230,166,0.04)",
-              border:      "1px solid rgba(46,230,166,0.10)",
+              background:  "rgba(0,180,255,0.04)",
+              border:      "1px solid rgba(0,180,255,0.10)",
             }}
           >
             <div className="shrink-0">
-              <AchievIcon id={achievementId} color="#2EE6A6" />
+              <AchievIcon id={achievementId} color="#00B4FF" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-[11px] font-semibold text-white/88 leading-snug">
@@ -212,7 +212,7 @@ export default function SubscribedStatusSurface({
             </div>
             <div
               className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold tabular-nums"
-              style={{ background: "rgba(46,230,166,0.12)", color: "#2EE6A6" }}
+              style={{ background: "rgba(0,180,255,0.12)", color: "#00B4FF" }}
             >
               +{achievementDef.points}
             </div>
@@ -225,7 +225,7 @@ export default function SubscribedStatusSurface({
             <button
               type="submit"
               className="text-[11px] font-medium transition-opacity hover:opacity-75"
-              style={{ color: "rgba(46,230,166,0.50)" }}
+              style={{ color: "rgba(0,180,255,0.50)" }}
             >
               Manage subscription →
             </button>
@@ -235,7 +235,7 @@ export default function SubscribedStatusSurface({
           <a
             href="mailto:billing@metrivant.com"
             className="text-[11px] font-medium transition-opacity hover:opacity-75"
-            style={{ color: "rgba(46,230,166,0.50)" }}
+            style={{ color: "rgba(0,180,255,0.50)" }}
           >
             Billing inquiries →
           </a>

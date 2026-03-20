@@ -42,8 +42,8 @@ function CloseButton({ onClose }: { onClose: () => void }) {
   return (
     <button
       onClick={onClose}
-      className="flex h-7 w-7 items-center justify-center rounded-full border border-[#1a3020] bg-[#070d07] transition-colors hover:border-[#2a4a30] hover:text-[#2EE6A6]"
-      style={{ color: "rgba(46,230,166,0.55)" }}
+      className="flex h-7 w-7 items-center justify-center rounded-full border border-[#1a2030] bg-[#070d07] transition-colors hover:border-[#2a4a30] hover:text-[#00B4FF]"
+      style={{ color: "rgba(0,180,255,0.55)" }}
       aria-label="Close overlay"
     >
       <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
@@ -59,14 +59,14 @@ function OverlayAccentLine() {
       className="absolute inset-x-0 top-0 h-[1px]"
       style={{
         background:
-          "linear-gradient(90deg, transparent 0%, rgba(46,230,166,0.28) 40%, rgba(46,230,166,0.42) 50%, rgba(46,230,166,0.28) 60%, transparent 100%)",
+          "linear-gradient(90deg, transparent 0%, rgba(0,180,255,0.28) 40%, rgba(0,180,255,0.42) 50%, rgba(0,180,255,0.28) 60%, transparent 100%)",
       }}
     />
   );
 }
 
 const PANEL_HEADER =
-  "relative z-10 flex h-12 shrink-0 items-center justify-between border-b border-[#0e2210] px-5";
+  "relative z-10 flex h-12 shrink-0 items-center justify-between border-b border-[#0e1022] px-5";
 
 // ── Gravity Map Overlay ────────────────────────────────────────────────────────
 
@@ -97,7 +97,7 @@ function MapOverlay({ onClose }: { onClose: () => void }) {
           <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
             Gravity Field
           </span>
-          <span style={{ color: "rgba(46,230,166,0.25)" }}>·</span>
+          <span style={{ color: "rgba(0,180,255,0.25)" }}>·</span>
           <span className="text-[10px] text-slate-600">
             Strategic mass distribution
           </span>
@@ -165,7 +165,7 @@ function BriefsOverlay({ onClose }: { onClose: () => void }) {
 
   return (
     <motion.div
-      className="fixed inset-0 z-[100] flex flex-col border-[#0e2210] bg-[#000200] md:inset-y-0 md:left-auto md:right-0 md:w-[500px] md:border-l"
+      className="fixed inset-0 z-[100] flex flex-col border-[#0e1022] bg-[#000002] md:inset-y-0 md:left-auto md:right-0 md:w-[500px] md:border-l"
       style={{ boxShadow: "-20px 0 60px rgba(0,0,0,0.75)" }}
       initial={{ x: "100%" }}
       animate={{ x: 0 }}
@@ -176,7 +176,7 @@ function BriefsOverlay({ onClose }: { onClose: () => void }) {
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 70% 40% at 50% -5%, rgba(46,230,166,0.04) 0%, transparent 70%)",
+            "radial-gradient(ellipse 70% 40% at 50% -5%, rgba(0,180,255,0.04) 0%, transparent 70%)",
         }}
       />
 
@@ -217,12 +217,12 @@ function BriefsOverlay({ onClose }: { onClose: () => void }) {
           <div className="space-y-4">
             {/* Latest brief headline */}
             <div
-              className="rounded-[12px] border border-[#1a3020] px-4 py-3.5"
+              className="rounded-[12px] border border-[#1a2030] px-4 py-3.5"
               style={{ background: "#070d07" }}
             >
               <div
                 className="mb-2 text-[9px] font-semibold uppercase tracking-[0.24em]"
-                style={{ color: "rgba(46,230,166,0.55)" }}
+                style={{ color: "rgba(0,180,255,0.55)" }}
               >
                 Latest Brief ·{" "}
                 {new Date(latest.generated_at).toLocaleDateString("en-US", {
@@ -289,7 +289,7 @@ function BriefsOverlay({ onClose }: { onClose: () => void }) {
                     >
                       <span
                         className="mt-0.5 text-[10px]"
-                        style={{ color: "rgba(46,230,166,0.45)" }}
+                        style={{ color: "rgba(0,180,255,0.45)" }}
                       >
                         →
                       </span>
@@ -383,7 +383,7 @@ function StrategyOverlay({ onClose }: { onClose: () => void }) {
 
   return (
     <motion.div
-      className="fixed inset-0 z-[100] flex flex-col border-[#0e2210] bg-[#000200] md:inset-y-0 md:left-auto md:right-0 md:w-[500px] md:border-l"
+      className="fixed inset-0 z-[100] flex flex-col border-[#0e1022] bg-[#000002] md:inset-y-0 md:left-auto md:right-0 md:w-[500px] md:border-l"
       style={{ boxShadow: "-20px 0 60px rgba(0,0,0,0.75)" }}
       initial={{ x: "100%" }}
       animate={{ x: 0 }}
@@ -394,7 +394,7 @@ function StrategyOverlay({ onClose }: { onClose: () => void }) {
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 70% 40% at 50% -5%, rgba(46,230,166,0.04) 0%, transparent 70%)",
+            "radial-gradient(ellipse 70% 40% at 50% -5%, rgba(0,180,255,0.04) 0%, transparent 70%)",
         }}
       />
 

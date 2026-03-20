@@ -72,11 +72,11 @@ function SignupForm() {
     return (
       <div className="flex flex-col items-center gap-4 py-4 text-center">
         <div
-          className="flex h-12 w-12 items-center justify-center rounded-full border border-[#2EE6A6]/20"
-          style={{ background: "rgba(46,230,166,0.06)" }}
+          className="flex h-12 w-12 items-center justify-center rounded-full border border-[#00B4FF]/20"
+          style={{ background: "rgba(0,180,255,0.06)" }}
         >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-            <path d="M4 10.5l4.5 4.5 7.5-9" stroke="#2EE6A6" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M4 10.5l4.5 4.5 7.5-9" stroke="#00B4FF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
         <div>
@@ -90,11 +90,11 @@ function SignupForm() {
           onClick={handleResend}
           disabled={resending || resent}
           className="mt-1 text-[12px] transition-colors disabled:opacity-50"
-          style={{ color: resent ? "rgba(46,230,166,0.70)" : "#64748b" }}
+          style={{ color: resent ? "rgba(0,180,255,0.70)" : "#64748b" }}
         >
           {resent ? "Email sent ✓" : resending ? "Sending…" : "Didn't receive it? Resend"}
         </button>
-        <Link href="/login" className="mt-1 text-[13px] text-[#2EE6A6] hover:underline">
+        <Link href="/login" className="mt-1 text-[13px] text-[#00B4FF] hover:underline">
           Back to login
         </Link>
       </div>
@@ -105,11 +105,11 @@ function SignupForm() {
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       {plan === "pro" && (
         <div
-          className="flex items-center gap-2 rounded-[10px] border border-[#2EE6A6]/18 px-3.5 py-2.5"
-          style={{ background: "rgba(46,230,166,0.04)" }}
+          className="flex items-center gap-2 rounded-[10px] border border-[#00B4FF]/18 px-3.5 py-2.5"
+          style={{ background: "rgba(0,180,255,0.04)" }}
         >
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#2EE6A6]" />
-          <span className="text-[12px] text-[#2EE6A6]/80">Pro plan selected</span>
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#00B4FF]" />
+          <span className="text-[12px] text-[#00B4FF]/80">Pro plan selected</span>
         </div>
       )}
 
@@ -130,7 +130,7 @@ function SignupForm() {
           required
           autoFocus
           autoComplete="email"
-          className="rounded-[10px] border border-[#0d2010] bg-[#030c03] px-4 py-2.5 text-[14px] text-white placeholder-slate-700 outline-none transition-colors focus:border-[#2EE6A6]/30 focus:ring-1 focus:ring-[#2EE6A6]/20"
+          className="rounded-[10px] border border-[#0d1020] bg-[#03030c] px-4 py-2.5 text-[14px] text-white placeholder-slate-700 outline-none transition-colors focus:border-[#00B4FF]/30 focus:ring-1 focus:ring-[#00B4FF]/20"
           placeholder="you@company.com"
         />
       </div>
@@ -147,7 +147,7 @@ function SignupForm() {
             required
             minLength={8}
             autoComplete="new-password"
-            className="w-full rounded-[10px] border border-[#0d2010] bg-[#030c03] px-4 py-2.5 pr-10 text-[14px] text-white placeholder-slate-700 outline-none transition-colors focus:border-[#2EE6A6]/30 focus:ring-1 focus:ring-[#2EE6A6]/20"
+            className="w-full rounded-[10px] border border-[#0d1020] bg-[#03030c] px-4 py-2.5 pr-10 text-[14px] text-white placeholder-slate-700 outline-none transition-colors focus:border-[#00B4FF]/30 focus:ring-1 focus:ring-[#00B4FF]/20"
             placeholder="Min. 8 characters"
           />
           <button
@@ -174,7 +174,7 @@ function SignupForm() {
       <button
         type="submit"
         disabled={loading}
-        className="mt-2 rounded-full bg-[#2EE6A6] py-2.5 text-[14px] font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-50"
+        className="mt-2 rounded-full bg-[#00B4FF] py-2.5 text-[14px] font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-50"
       >
         {loading ? "Creating account…" : "Start free trial"}
       </button>
@@ -195,7 +195,7 @@ function SignupForm() {
 
 export default function SignupPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#000200] px-4">
+    <div className="flex min-h-screen items-center justify-center bg-[#000002] px-4">
       <div
         className="pointer-events-none fixed inset-0"
         style={{
@@ -210,12 +210,12 @@ export default function SignupPage() {
         <div className="mb-8 flex flex-col items-center">
           <Link href="/" className="flex items-center gap-3">
             <svg width="32" height="32" viewBox="0 0 46 46" fill="none">
-              <circle cx="23" cy="23" r="21.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.50" />
-              <circle cx="23" cy="23" r="13"   stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.28" />
-              <circle cx="23" cy="23" r="5.5"  stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.42" />
-              <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#2EE6A6" fillOpacity="0.10" />
-              <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.80" />
-              <circle cx="23" cy="23" r="2.5" fill="#2EE6A6" />
+              <circle cx="23" cy="23" r="21.5" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.50" />
+              <circle cx="23" cy="23" r="13"   stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.28" />
+              <circle cx="23" cy="23" r="5.5"  stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.42" />
+              <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#00B4FF" fillOpacity="0.10" />
+              <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.80" />
+              <circle cx="23" cy="23" r="2.5" fill="#00B4FF" />
             </svg>
             <span className="text-[17px] font-bold tracking-[0.08em] text-white">METRIVANT</span>
           </Link>
@@ -225,7 +225,7 @@ export default function SignupPage() {
         </div>
 
         {/* Card */}
-        <div className="rounded-[16px] border border-[#0d2010] bg-[#020802] p-7">
+        <div className="rounded-[16px] border border-[#0d1020] bg-[#020208] p-7">
           <Suspense fallback={<div className="h-40" />}>
             <SignupForm />
           </Suspense>
@@ -233,7 +233,7 @@ export default function SignupPage() {
 
         <p className="mt-5 text-center text-[13px] text-slate-600">
           Already have an account?{" "}
-          <Link href="/login" className="text-[#2EE6A6] hover:underline">
+          <Link href="/login" className="text-[#00B4FF] hover:underline">
             Sign in
           </Link>
         </p>

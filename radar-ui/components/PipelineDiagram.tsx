@@ -166,7 +166,7 @@ const STAGES: StageInfo[] = [
 // ── Status helpers ────────────────────────────────────────────────────────────
 
 const STATUS_COLOR: Record<StageStatus, string> = {
-  ok:      "#2EE6A6",
+  ok:      "#00B4FF",
   warn:    "#f59e0b",
   stale:   "#ef4444",
   unknown: "#334155",
@@ -340,7 +340,7 @@ export default function PipelineDiagram({ initialStages }: Props) {
                   className="absolute right-0 top-0 w-px"
                   style={{
                     height: "48px",
-                    background: `linear-gradient(180deg, rgba(46,230,166,0.25), rgba(46,230,166,0.12))`,
+                    background: `linear-gradient(180deg, rgba(0,180,255,0.25), rgba(0,180,255,0.12))`,
                   }}
                 />
                 {/* Horizontal return line at the bottom */}
@@ -350,13 +350,13 @@ export default function PipelineDiagram({ initialStages }: Props) {
                     height: "1px",
                     width: "calc(800%)",
                     right: "0",
-                    background: "linear-gradient(270deg, rgba(46,230,166,0.18), rgba(46,230,166,0.06))",
+                    background: "linear-gradient(270deg, rgba(0,180,255,0.18), rgba(0,180,255,0.06))",
                   }}
                 />
                 {/* Corner arrow indicator */}
                 <div
                   className="absolute bottom-0 right-[-4px] font-mono text-[10px]"
-                  style={{ color: "rgba(46,230,166,0.30)", lineHeight: 1 }}
+                  style={{ color: "rgba(0,180,255,0.30)", lineHeight: 1 }}
                 >
                   ↙
                 </div>
@@ -415,7 +415,7 @@ export default function PipelineDiagram({ initialStages }: Props) {
             <div className="flex items-center gap-4">
               <span
                 className="font-mono text-[11px] font-bold"
-                style={{ color: "rgba(46,230,166,0.30)" }}
+                style={{ color: "rgba(0,180,255,0.30)" }}
               >
                 {selectedInfo.index}
               </span>
@@ -447,7 +447,7 @@ export default function PipelineDiagram({ initialStages }: Props) {
             </div>
             <button
               onClick={closePanel}
-              className="flex h-7 w-7 items-center justify-center rounded-full border border-[#1a3a1a] text-slate-600 transition-colors hover:border-[#2EE6A6]/30 hover:text-slate-400"
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-[#1a3a1a] text-slate-600 transition-colors hover:border-[#00B4FF]/30 hover:text-slate-400"
               aria-label="Close"
             >
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -491,14 +491,14 @@ export default function PipelineDiagram({ initialStages }: Props) {
             {/* Input / Output */}
             <div className="flex flex-col gap-4">
               <div
-                className="rounded-[12px] border border-[#0e2210] bg-[#010501] p-4"
+                className="rounded-[12px] border border-[#0e1022] bg-[#010501] p-4"
               >
                 <div className="mb-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.20em] text-slate-700">
                   Input
                 </div>
                 <div className="flex items-start gap-2">
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="mt-0.5 shrink-0" aria-hidden>
-                    <path d="M2 6h8M7 3l3 3-3 3" stroke="rgba(46,230,166,0.35)" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M2 6h8M7 3l3 3-3 3" stroke="rgba(0,180,255,0.35)" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                   <span className="text-[12px] leading-snug text-slate-400">{selectedInfo.input}</span>
                 </div>
@@ -538,7 +538,7 @@ export default function PipelineDiagram({ initialStages }: Props) {
                         backgroundColor:
                           s.id === selected
                             ? STATUS_COLOR[selectedStatus]
-                            : "rgba(46,230,166,0.10)",
+                            : "rgba(0,180,255,0.10)",
                         boxShadow:
                           s.id === selected
                             ? `0 0 4px ${STATUS_COLOR[selectedStatus]}`
@@ -685,7 +685,7 @@ function StageNode({
       {/* Stage index */}
       <div
         className="mb-1.5 font-mono text-[9px] font-bold"
-        style={{ color: "rgba(46,230,166,0.25)" }}
+        style={{ color: "rgba(0,180,255,0.25)" }}
       >
         {stage.index}
       </div>
@@ -694,7 +694,7 @@ function StageNode({
       <div className="flex items-center gap-1.5">
         <StageSymbol
           id={stage.id}
-          color={selected ? color : "rgba(46,230,166,0.35)"}
+          color={selected ? color : "rgba(0,180,255,0.35)"}
         />
         <div
           className="font-mono text-[12px] font-bold tracking-[0.14em] transition-colors"
@@ -754,10 +754,10 @@ function Connector({
                 height: "1px",
                 transform: "translateY(-50%)",
                 background: isActive
-                  ? "rgba(46,230,166,0.22)"
-                  : "rgba(46,230,166,0.12)",
+                  ? "rgba(0,180,255,0.22)"
+                  : "rgba(0,180,255,0.12)",
                 boxShadow: status === "ok"
-                  ? "0 0 4px rgba(46,230,166,0.08)"
+                  ? "0 0 4px rgba(0,180,255,0.08)"
                   : "none",
               }
             : {
@@ -767,10 +767,10 @@ function Connector({
                 width: "1px",
                 transform: "translateX(-50%)",
                 background: isActive
-                  ? "rgba(46,230,166,0.22)"
-                  : "rgba(46,230,166,0.12)",
+                  ? "rgba(0,180,255,0.22)"
+                  : "rgba(0,180,255,0.12)",
                 boxShadow: status === "ok"
-                  ? "0 0 4px rgba(46,230,166,0.08)"
+                  ? "0 0 4px rgba(0,180,255,0.08)"
                   : "none",
               }
         }
@@ -815,8 +815,8 @@ function Connector({
                 transform: "translateY(-50%) rotate(45deg)",
                 width:     "5px",
                 height:    "5px",
-                borderTop:   `1px solid ${isActive ? "rgba(46,230,166,0.40)" : "rgba(46,230,166,0.25)"}`,
-                borderRight: `1px solid ${isActive ? "rgba(46,230,166,0.40)" : "rgba(46,230,166,0.25)"}`,
+                borderTop:   `1px solid ${isActive ? "rgba(0,180,255,0.40)" : "rgba(0,180,255,0.25)"}`,
+                borderRight: `1px solid ${isActive ? "rgba(0,180,255,0.40)" : "rgba(0,180,255,0.25)"}`,
               }
             : {
                 bottom:    "2px",
@@ -824,8 +824,8 @@ function Connector({
                 transform: "translateX(-50%) rotate(45deg)",
                 width:     "5px",
                 height:    "5px",
-                borderBottom: `1px solid ${isActive ? "rgba(46,230,166,0.40)" : "rgba(46,230,166,0.25)"}`,
-                borderRight:  `1px solid ${isActive ? "rgba(46,230,166,0.40)" : "rgba(46,230,166,0.25)"}`,
+                borderBottom: `1px solid ${isActive ? "rgba(0,180,255,0.40)" : "rgba(0,180,255,0.25)"}`,
+                borderRight:  `1px solid ${isActive ? "rgba(0,180,255,0.40)" : "rgba(0,180,255,0.25)"}`,
               }
         }
       />

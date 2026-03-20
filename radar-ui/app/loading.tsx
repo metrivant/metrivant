@@ -1,6 +1,6 @@
 export default function Loading() {
   return (
-    <main className="min-h-screen bg-[#000200] text-white">
+    <main className="min-h-screen bg-[#000002] text-white">
       <div className="pointer-events-none fixed inset-0 opacity-[0.018] [background-image:radial-gradient(rgba(255,255,255,0.9)_0.5px,transparent_0.5px)] [background-size:6px_6px]" />
 
       <header className="sticky top-0 z-20 border-b border-[#0d1e0d] bg-[rgba(1,2,2,0.92)] backdrop-blur-xl">
@@ -32,7 +32,7 @@ export default function Loading() {
           </div>
           <div className="grid grid-cols-3 gap-3 md:min-w-[360px]">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="rounded-2xl border border-[#0d1e0d] bg-[#060d06] p-3">
+              <div key={i} className="rounded-2xl border border-[#0d1e0d] bg-[#06060d] p-3">
                 <div className="h-2.5 w-16 animate-pulse rounded bg-[#0d1e0d]" />
                 <div className="mt-3 h-6 w-10 animate-pulse rounded bg-[#0d1e0d]" />
               </div>
@@ -40,12 +40,12 @@ export default function Loading() {
           </div>
         </div>
 
-        <div className="mb-6 border-b border-[#0a1a0a] pb-5">
+        <div className="mb-6 border-b border-[#0a0a1a] pb-5">
           <div className="h-3 w-64 animate-pulse rounded bg-[#0a170a]" />
         </div>
 
         <div className="grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
-          <div className="rounded-[28px] border border-[#0a1a0a] bg-[#030803] p-4">
+          <div className="rounded-[28px] border border-[#0a0a1a] bg-[#030803] p-4">
             <div className="rounded-[24px] border border-[#0a170a] bg-[#040a04] p-3">
               <div className="mb-3 flex items-center justify-between px-2">
                 <div className="h-2.5 w-20 animate-pulse rounded bg-[#0d1e0d]" />
@@ -66,7 +66,7 @@ export default function Loading() {
             </div>
             <div className="space-y-2">
               {[0, 1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-14 animate-pulse rounded-xl bg-[#060d06]" />
+                <div key={i} className="h-14 animate-pulse rounded-xl bg-[#06060d]" />
               ))}
             </div>
           </div>

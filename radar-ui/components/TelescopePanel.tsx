@@ -54,7 +54,7 @@ function timeAgo(iso: string): string {
 
 function confColor(conf: number | null): string {
   if (conf == null) return "rgba(100,116,139,0.60)";
-  if (conf >= 0.65) return "rgba(46,230,166,0.80)";
+  if (conf >= 0.65) return "rgba(0,180,255,0.80)";
   if (conf >= 0.40) return "rgba(245,158,11,0.70)";
   return "rgba(100,116,139,0.60)";
 }
@@ -200,7 +200,7 @@ function SignalCard({
             fontSize: 7,
             fontWeight: 600,
             letterSpacing: "0.08em",
-            color: "rgba(46,230,166,0.65)",
+            color: "rgba(0,180,255,0.65)",
             textTransform: "uppercase",
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -247,7 +247,7 @@ function SignalCard({
         <VerdictBtn
           active={currentVerdict === "useful"}
           color="rgba(255,255,255,0.25)"
-          activeColor="rgba(46,230,166,0.85)"
+          activeColor="rgba(0,180,255,0.85)"
           title="Useful signal"
           onClick={() => handleVerdict("useful")}
         >
@@ -401,7 +401,7 @@ export default function TelescopePanel({ signals }: { signals: TelescopeSignal[]
         borderRadius: 8,
         overflow: "hidden",
         border: "1px solid rgba(255,255,255,0.06)",
-        background: "#040404",
+        background: "#040406",
       }}
     >
       {/* ── Header ── */}
@@ -421,7 +421,7 @@ export default function TelescopePanel({ signals }: { signals: TelescopeSignal[]
             fontSize: 8,
             fontWeight: 700,
             letterSpacing: "0.18em",
-            color: "rgba(46,230,166,0.55)",
+            color: "rgba(0,180,255,0.55)",
             textTransform: "uppercase",
           }}
         >

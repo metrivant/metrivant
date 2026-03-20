@@ -27,14 +27,14 @@ export function confidenceLanguage(confidence: number | null | undefined): Confi
     tier:   "strong",
     adverb: "almost certainly",
     prefix: null,
-    color:  "rgba(46,230,166,0.90)",
+    color:  "rgba(0,180,255,0.90)",
   };
 
   if (c >= 0.75) return {
     tier:   "high",
     adverb: "likely",
     prefix: null,
-    color:  "rgba(46,230,166,0.70)",
+    color:  "rgba(0,180,255,0.70)",
   };
 
   if (c >= 0.65) return {

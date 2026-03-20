@@ -22,7 +22,7 @@ export default function RadarLogo() {
         cx="23"
         cy="23"
         r="21.5"
-        stroke="#2EE6A6"
+        stroke="#00B4FF"
         strokeWidth="1.5"
         animate={{ strokeOpacity: [0.35, 0.55, 0.35] }}
         transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
@@ -33,7 +33,7 @@ export default function RadarLogo() {
         cx="23"
         cy="23"
         r="21.5"
-        stroke="#2EE6A6"
+        stroke="#00B4FF"
         strokeWidth="1.5"
         animate={{
           strokeOpacity: [0, 0, 0.9, 0.5, 0],
@@ -49,10 +49,10 @@ export default function RadarLogo() {
       />
 
       {/* Middle ring */}
-      <circle cx="23" cy="23" r="13" stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.28" />
+      <circle cx="23" cy="23" r="13" stroke="#00B4FF" strokeWidth="1" strokeOpacity="0.28" />
 
       {/* Inner ring */}
-      <circle cx="23" cy="23" r="5.5" stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.42" />
+      <circle cx="23" cy="23" r="5.5" stroke="#00B4FF" strokeWidth="1" strokeOpacity="0.42" />
 
       {/* Needle + sweep sector — continuous clockwise rotation (watch-dial).
           Entire group rotates around center (23,23). Base stays fixed at center.
@@ -75,7 +75,7 @@ export default function RadarLogo() {
         {/* Trailing sweep sector */}
         <path
           d="M23 23 L13.91 3.51 A21.5 21.5 0 0 1 23 1.5 Z"
-          fill="#2EE6A6"
+          fill="#00B4FF"
           fillOpacity="0.10"
         />
         {/* Needle — base at center, tip at 12-o'clock on the circle */}
@@ -84,14 +84,14 @@ export default function RadarLogo() {
           y1="23"
           x2="23"
           y2="1.5"
-          stroke="#2EE6A6"
+          stroke="#00B4FF"
           strokeWidth="1.5"
           strokeOpacity="0.85"
         />
       </motion.g>
 
       {/* Center dot — always visible */}
-      <circle cx="23" cy="23" r="2.5" fill="#2EE6A6" />
+      <circle cx="23" cy="23" r="2.5" fill="#00B4FF" />
     </svg>
   );
 }

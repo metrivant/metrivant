@@ -111,8 +111,8 @@ function buildTickerItems(
       items.push({
         text:     `${c.competitor_name.toUpperCase()} — ${n} signal${n !== 1 ? "s" : ""} detected · classifying`,
         tag:      "ACTIVE",
-        color:    "rgba(46,230,166,0.65)",
-        tagColor: "rgba(46,230,166,0.35)",
+        color:    "rgba(0,180,255,0.65)",
+        tagColor: "rgba(0,180,255,0.35)",
       });
     }
   }
@@ -121,8 +121,8 @@ function buildTickerItems(
     items.push({
       text:     headline.slice(0, 100),
       tag:      "SECTOR",
-      color:    "rgba(46,230,166,0.80)",
-      tagColor: "rgba(46,230,166,0.45)",
+      color:    "rgba(0,180,255,0.80)",
+      tagColor: "rgba(0,180,255,0.45)",
     });
   }
 
@@ -173,7 +173,7 @@ function TickerEntry({ item }: { item: TickerItem }) {
       <span
         aria-hidden="true"
         style={{
-          color:    "rgba(46,230,166,0.18)",
+          color:    "rgba(0,180,255,0.18)",
           margin:   "0 18px",
           fontSize: "10px",
         }}
@@ -272,7 +272,7 @@ export default function IntelligenceStrip({
 
   return (
     <div
-      className="relative z-10 flex h-[26px] shrink-0 items-stretch border-b border-[#0a1a0a] bg-[#000100]"
+      className="relative z-10 flex h-[26px] shrink-0 items-stretch border-b border-[#0a0a1a] bg-[#000100]"
     >
 
       {/* ── Clock | Date | TZ ───────────────────────────────────────────── */}
@@ -283,7 +283,7 @@ export default function IntelligenceStrip({
       >
         <span
           className="text-[11px] tabular-nums tracking-[0.06em]"
-          style={{ color: "#2EE6A6" }}
+          style={{ color: "#00B4FF" }}
         >
           {clock}
         </span>
@@ -293,7 +293,7 @@ export default function IntelligenceStrip({
         <button
           onClick={() => setShowSettings((v) => !v)}
           className="rounded px-1 py-[1px] text-[9px] font-bold tracking-[0.12em] text-slate-700 transition-colors hover:text-slate-400"
-          style={{ background: "#0a1a0a" }}
+          style={{ background: "#0a0a1a" }}
           aria-label="Change timezone"
         >
           {tzAbbr}
@@ -301,8 +301,8 @@ export default function IntelligenceStrip({
 
         {showSettings && (
           <div
-            className="absolute left-0 top-full z-50 mt-1 w-40 rounded-[10px] border border-[#1a3020] bg-[#060d06] py-1"
-            style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.92), 0 0 0 1px rgba(46,230,166,0.04)" }}
+            className="absolute left-0 top-full z-50 mt-1 w-40 rounded-[10px] border border-[#1a2030] bg-[#06060d] py-1"
+            style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.92), 0 0 0 1px rgba(0,180,255,0.04)" }}
           >
             <div className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.22em] text-slate-700">
               Timezone
@@ -311,13 +311,13 @@ export default function IntelligenceStrip({
               <button
                 key={opt.value}
                 onClick={() => selectTz(opt.value)}
-                className={`flex w-full items-center justify-between px-3 py-1 text-left text-[11px] transition-colors hover:bg-[#0a1a0a] ${
-                  tz === opt.value ? "text-[#2EE6A6]" : "text-slate-600"
+                className={`flex w-full items-center justify-between px-3 py-1 text-left text-[11px] transition-colors hover:bg-[#0a0a1a] ${
+                  tz === opt.value ? "text-[#00B4FF]" : "text-slate-600"
                 }`}
               >
                 <span>{opt.label}</span>
                 {tz === opt.value && (
-                  <span className="h-1 w-1 rounded-full bg-[#2EE6A6]" />
+                  <span className="h-1 w-1 rounded-full bg-[#00B4FF]" />
                 )}
               </button>
             ))}

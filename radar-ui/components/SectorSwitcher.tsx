@@ -149,27 +149,27 @@ export default function SectorSwitcher({
       <button
         onClick={() => { setOpen((v) => !v); setSlateConfirm(false); setPendingSwitch(null); }}
         disabled={switching}
-        className="group flex items-center gap-2 rounded-[8px] border bg-[#060d06] px-3 py-1.5 transition-all duration-150 hover:bg-[#0a140a] disabled:opacity-50"
+        className="group flex items-center gap-2 rounded-[8px] border bg-[#06060d] px-3 py-1.5 transition-all duration-150 hover:bg-[#0a140a] disabled:opacity-50"
         style={{
-          borderColor: open ? "rgba(46,230,166,0.28)" : "rgba(46,230,166,0.12)",
-          boxShadow: open ? "0 0 0 1px rgba(46,230,166,0.08)" : "none",
+          borderColor: open ? "rgba(0,180,255,0.28)" : "rgba(0,180,255,0.12)",
+          boxShadow: open ? "0 0 0 1px rgba(0,180,255,0.08)" : "none",
         }}
       >
         {/* Sector dot */}
         <span
           className="h-1.5 w-1.5 shrink-0 rounded-full transition-colors"
-          style={{ background: toast?.type === "error" ? "#ef4444" : "rgba(46,230,166,0.60)" }}
+          style={{ background: toast?.type === "error" ? "#ef4444" : "rgba(0,180,255,0.60)" }}
         />
         <div className="flex flex-col items-start leading-none">
           <span
             className="text-[8px] font-semibold uppercase tracking-[0.22em]"
-            style={{ color: "rgba(46,230,166,0.35)" }}
+            style={{ color: "rgba(0,180,255,0.35)" }}
           >
             Sector
           </span>
           <span
             className="mt-0.5 text-[11px] font-medium"
-            style={{ color: toast?.type === "error" ? "#ef4444" : "rgba(46,230,166,0.80)" }}
+            style={{ color: toast?.type === "error" ? "#ef4444" : "rgba(0,180,255,0.80)" }}
           >
             {toastLabel()}
           </span>
@@ -179,7 +179,7 @@ export default function SectorSwitcher({
           className="ml-0.5 shrink-0 opacity-40 transition-transform duration-150"
           style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
         >
-          <path d="M1 2.5L4 5.5L7 2.5" stroke="rgba(46,230,166,0.7)" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M1 2.5L4 5.5L7 2.5" stroke="rgba(0,180,255,0.7)" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
 
@@ -238,22 +238,22 @@ export default function SectorSwitcher({
       {/* ── Sector dropdown ─────────────────────────────────────────────── */}
       {open && (
         <div
-          className="absolute right-0 top-full z-50 mt-1.5 w-48 overflow-hidden rounded-[12px] border border-[#1a3020] bg-[#060d06] py-1"
+          className="absolute right-0 top-full z-50 mt-1.5 w-48 overflow-hidden rounded-[12px] border border-[#1a2030] bg-[#06060d] py-1"
           style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.8)" }}
         >
           {SECTOR_OPTIONS.map((opt) => (
             <div key={opt.value}>
               {opt.value === "custom" && (
-                <div className="mx-3 my-1 h-px bg-[#1a3020]" />
+                <div className="mx-3 my-1 h-px bg-[#1a2030]" />
               )}
               <button
                 onClick={() => handleSelect(opt.value)}
-                className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-[12px] transition-colors hover:bg-[#0a1a0a]"
-                style={{ color: opt.value === activeSector ? "#2EE6A6" : "#64748b" }}
+                className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-[12px] transition-colors hover:bg-[#0a0a1a]"
+                style={{ color: opt.value === activeSector ? "#00B4FF" : "#64748b" }}
               >
                 <span
                   className="h-1 w-1 shrink-0 rounded-full"
-                  style={{ background: opt.value === activeSector ? "#2EE6A6" : "transparent" }}
+                  style={{ background: opt.value === activeSector ? "#00B4FF" : "transparent" }}
                 />
                 {opt.label}
               </button>
@@ -265,7 +265,7 @@ export default function SectorSwitcher({
       {/* ── Sector switch confirmation ───────────────────────────────────── */}
       {pendingSwitch && (
         <div
-          className="absolute right-0 top-full z-50 mt-1.5 w-56 overflow-hidden rounded-[12px] border border-[#1a3020] bg-[#060d06] px-4 py-3.5"
+          className="absolute right-0 top-full z-50 mt-1.5 w-56 overflow-hidden rounded-[12px] border border-[#1a2030] bg-[#06060d] px-4 py-3.5"
           style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.85)" }}
         >
           <div className="mb-1 text-[11px] font-semibold text-white">
@@ -277,7 +277,7 @@ export default function SectorSwitcher({
           <div className="flex gap-2">
             <button
               onClick={() => { void executeSectorSwitch(pendingSwitch.value); setPendingSwitch(null); }}
-              className="flex-1 rounded-full border border-[#1a4025] bg-[#040d06] py-1.5 text-[10px] font-medium text-[#2EE6A6] transition-colors hover:border-[#2a5030] hover:bg-[#061006]"
+              className="flex-1 rounded-full border border-[#1a4025] bg-[#040d06] py-1.5 text-[10px] font-medium text-[#00B4FF] transition-colors hover:border-[#2a5030] hover:bg-[#061006]"
             >
               Switch
             </button>

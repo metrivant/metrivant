@@ -26,7 +26,7 @@ function timeAgo(iso: string): string {
 
 function freshnessColor(iso: string): string {
   const hours = (Date.now() - new Date(iso).getTime()) / 3_600_000;
-  if (hours < 6) return "rgba(46,230,166,0.50)";
+  if (hours < 6) return "rgba(0,180,255,0.50)";
   if (hours < 24) return "rgba(245,158,11,0.40)";
   return "rgba(100,116,139,0.45)";
 }
@@ -35,7 +35,7 @@ function freshnessColor(iso: string): string {
 
 const MOMENTUM_COLORS: Record<MomentumState, string> = {
   cooling: "#64748b",
-  stable: "#2EE6A6",
+  stable: "#00B4FF",
   rising: "#f59e0b",
   accelerating: "#ef4444",
 };
@@ -88,7 +88,7 @@ export default function MobileFeed({
             fontSize: 11,
             fontWeight: 700,
             letterSpacing: "0.18em",
-            color: "rgba(46,230,166,0.55)",
+            color: "rgba(0,180,255,0.55)",
             textTransform: "uppercase",
             marginBottom: 8,
           }}
@@ -114,7 +114,7 @@ export default function MobileFeed({
           zIndex: 20,
           background: "rgba(2,8,2,0.92)",
           backdropFilter: "blur(12px)",
-          borderBottom: "1px solid #0d2010",
+          borderBottom: "1px solid #0d1020",
           padding: "12px 16px",
         }}
       >
@@ -124,7 +124,7 @@ export default function MobileFeed({
             fontSize: 10,
             fontWeight: 700,
             letterSpacing: "0.22em",
-            color: "rgba(46,230,166,0.55)",
+            color: "rgba(0,180,255,0.55)",
             textTransform: "uppercase",
             margin: 0,
           }}
@@ -170,8 +170,8 @@ export default function MobileFeed({
             <div
               key={c.competitor_id}
               style={{
-                background: "#020802",
-                border: "1px solid #0d2010",
+                background: "#020208",
+                border: "1px solid #0d1020",
                 borderLeft: `3px solid ${accentColor}`,
                 borderRadius: 8,
                 padding: 16,

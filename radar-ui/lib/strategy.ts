@@ -102,7 +102,7 @@ export function confidenceLabel(confidence: number): string {
 }
 
 export function confidenceColor(confidence: number): string {
-  if (confidence >= 0.8) return "#2EE6A6";
+  if (confidence >= 0.8) return "#00B4FF";
   if (confidence >= 0.6) return "#f59e0b";
   return "#64748b";
 }
@@ -311,7 +311,7 @@ export function buildStrategyAlertEmailHtml(
         <tr>
           <td style="padding:0 0 16px;">
             <table width="100%" cellpadding="0" cellspacing="0"
-              style="background:#030c03;border:1px solid #152415;border-left:3px solid ${cfg.color};border-radius:10px;overflow:hidden;">
+              style="background:#03030c;border:1px solid #152415;border-left:3px solid ${cfg.color};border-radius:10px;overflow:hidden;">
               <tr>
                 <td style="padding:16px 18px;">
                   <div style="margin-bottom:6px;">
@@ -326,7 +326,7 @@ export function buildStrategyAlertEmailHtml(
                     ${insight.description}
                   </div>
                   <div style="background:#071507;border:1px solid #152415;border-radius:8px;padding:10px 14px;">
-                    <div style="font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:rgba(46,230,166,0.50);margin-bottom:4px;">
+                    <div style="font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:rgba(0,180,255,0.50);margin-bottom:4px;">
                       Recommended Response
                     </div>
                     <div style="font-size:13px;color:#c1e8d0;line-height:1.55;">
@@ -344,15 +344,15 @@ export function buildStrategyAlertEmailHtml(
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"></head>
-<body style="margin:0;padding:0;background:#000200;font-family:Inter,system-ui,sans-serif;">
+<body style="margin:0;padding:0;background:#000002;font-family:Inter,system-ui,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0">
     <tr><td align="center" style="padding:48px 24px;">
       <table width="580" cellpadding="0" cellspacing="0"
-        style="background:#020802;border:1px solid #152415;border-radius:16px;overflow:hidden;">
+        style="background:#020208;border:1px solid #152415;border-radius:16px;overflow:hidden;">
 
         <tr>
-          <td style="padding:28px 32px 24px;border-bottom:1px solid #0d2010;">
-            <div style="margin-bottom:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.22em;color:rgba(46,230,166,0.50);">
+          <td style="padding:28px 32px 24px;border-bottom:1px solid #0d1020;">
+            <div style="margin-bottom:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.22em;color:rgba(0,180,255,0.50);">
               Metrivant · Strategic Intelligence
             </div>
             <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;line-height:1.25;">
@@ -372,14 +372,14 @@ export function buildStrategyAlertEmailHtml(
             </table>
 
             <a href="${siteUrl}/app/strategy"
-              style="display:inline-block;margin-top:8px;padding:12px 24px;background:#2EE6A6;color:#000200;font-size:13px;font-weight:700;text-decoration:none;border-radius:8px;letter-spacing:0.02em;">
+              style="display:inline-block;margin-top:8px;padding:12px 24px;background:#00B4FF;color:#000002;font-size:13px;font-weight:700;text-decoration:none;border-radius:8px;letter-spacing:0.02em;">
               View Full Strategy Analysis →
             </a>
           </td>
         </tr>
 
         <tr>
-          <td style="padding:16px 32px;border-top:1px solid #0d2010;">
+          <td style="padding:16px 32px;border-top:1px solid #0d1020;">
             <p style="margin:0;font-size:11px;color:#334155;">
               Metrivant · competitive intelligence radar · updated daily
             </p>

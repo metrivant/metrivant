@@ -19,7 +19,7 @@ export default function MobileHeader({
 }: MobileHeaderProps) {
   return (
     <header
-      className="relative z-20 flex shrink-0 items-center justify-between border-b border-[#0e2210] bg-[rgba(0,0,0,0.98)] px-4 md:hidden"
+      className="relative z-20 flex shrink-0 items-center justify-between border-b border-[#0e1022] bg-[rgba(0,0,0,0.98)] px-4 md:hidden"
       style={{
         height: "56px",
         paddingTop: "env(safe-area-inset-top, 0px)",
@@ -30,19 +30,19 @@ export default function MobileHeader({
         className="absolute inset-x-0 top-0 h-[1px]"
         style={{
           background:
-            "linear-gradient(90deg, transparent 0%, rgba(46,230,166,0.25) 30%, rgba(46,230,166,0.45) 50%, rgba(46,230,166,0.25) 70%, transparent 100%)",
+            "linear-gradient(90deg, transparent 0%, rgba(0,180,255,0.25) 30%, rgba(0,180,255,0.45) 50%, rgba(0,180,255,0.25) 70%, transparent 100%)",
         }}
       />
 
       {/* Brand */}
       <Link href="/app" className="flex items-center gap-2.5" aria-label="Metrivant home">
         <svg width="28" height="28" viewBox="0 0 46 46" fill="none" aria-hidden="true">
-          <circle cx="23" cy="23" r="21.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.50" />
-          <circle cx="23" cy="23" r="13"   stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.28" />
-          <circle cx="23" cy="23" r="5.5"  stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.42" />
-          <path d="M23 23 L13.91 3.51 A21.5 21.5 0 0 1 23 1.5 Z" fill="#2EE6A6" fillOpacity="0.10" />
-          <line x1="23" y1="23" x2="23" y2="1.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.85" />
-          <circle cx="23" cy="23" r="2.5" fill="#2EE6A6" />
+          <circle cx="23" cy="23" r="21.5" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.50" />
+          <circle cx="23" cy="23" r="13"   stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.28" />
+          <circle cx="23" cy="23" r="5.5"  stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.42" />
+          <path d="M23 23 L13.91 3.51 A21.5 21.5 0 0 1 23 1.5 Z" fill="#00B4FF" fillOpacity="0.10" />
+          <line x1="23" y1="23" x2="23" y2="1.5" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.85" />
+          <circle cx="23" cy="23" r="2.5" fill="#00B4FF" />
         </svg>
         <div className="flex flex-col gap-[2px]">
           <span
@@ -53,7 +53,7 @@ export default function MobileHeader({
           </span>
           <span
             className="text-[9px] font-medium uppercase leading-none"
-            style={{ letterSpacing: "0.22em", color: "rgba(46,230,166,0.50)" }}
+            style={{ letterSpacing: "0.22em", color: "rgba(0,180,255,0.50)" }}
           >
             Intel Radar
           </span>
@@ -65,14 +65,14 @@ export default function MobileHeader({
         {/* Live status dot */}
         <span className="relative flex h-[6px] w-[6px] shrink-0">
           {!isQuiet && isFresh && lastSignalAt !== null && (
-            <span className="absolute inset-0 animate-ping rounded-full bg-[#2EE6A6] opacity-55" />
+            <span className="absolute inset-0 animate-ping rounded-full bg-[#00B4FF] opacity-55" />
           )}
           <span
             className={`relative h-[6px] w-[6px] rounded-full ${
               isQuiet
                 ? "bg-slate-600"
                 : isFresh
-                  ? "bg-[#2EE6A6] shadow-[0_0_6px_rgba(46,230,166,0.7)]"
+                  ? "bg-[#00B4FF] shadow-[0_0_6px_rgba(0,180,255,0.7)]"
                   : "bg-amber-500"
             }`}
           />

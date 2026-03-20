@@ -15,17 +15,17 @@
 ## Colour
 
 ### Foundation
-- **Background** — `#000200` — near-black with an imperceptible green tint. Not pure black. The tint is intentional: it grounds the accent colour in the canvas itself.
+- **Background** — `#000002` — near-black with an imperceptible blue tint. Not pure black. The tint is intentional: it grounds the accent colour in the canvas itself.
 - **Surface (cards, panels)** — `#070707` / `#060606` — lifted 1–2 points from background, no hue shift.
 - **Surface hover** — `#0c0c0c` — subtle lift on interaction.
 
 ### Accent
-- **Mint green** — `#2EE6A6` — the single accent colour. Used for: active state, selected state, signal confirmation, the logo, the radar sweep arm, scrollbar, text selection highlight, CTA buttons, data labels.
+- **Electric blue** — `#00B4FF` — the single accent colour. Used for: active state, selected state, signal confirmation, the logo, the radar sweep arm, scrollbar, text selection highlight, CTA buttons, data labels.
 - Never used for decoration. Always tied to a live data signal or a confirmed state.
-- At reduced opacity (`rgba(46,230,166,0.55)`) for secondary labels, taglines, and icon states.
+- At reduced opacity (`rgba(0,180,255,0.55)`) for secondary labels, taglines, and icon states.
 
 ### Signal / momentum palette (data-semantic, not decorative)
-- **Stable** — `#2EE6A6` (mint) — baseline active state
+- **Stable** — `#00B4FF` (blue) — baseline active state
 - **Rising** — `#f59e0b` (amber) — elevated activity, emerging signals
 - **Accelerating** — `#ef4444` (red) — critical threshold crossed
 - **Cooling** — `#64748b` (slate) — dormant, no recent activity
@@ -39,7 +39,7 @@
 
 ### Borders
 - Standard — `rgba(255,255,255,0.08)` / `rgba(255,255,255,0.10)`
-- Selected / active — `rgba(46,230,166,0.40)`
+- Selected / active — `rgba(0,180,255,0.40)`
 - Subtle separator — `rgba(255,255,255,0.05)`
 - Green-tinted border (dark panels) — `rgba(26,42,26,0.9)`
 
@@ -58,13 +58,13 @@
 - The wordmark is always uppercase. Never sentence case. Never lowercase.
 
 ### Tagline
-- "Competitive Intelligence Radar" — uppercase, `tracking-[0.34em]`, `10–11px`, `font-weight: 500`, rendered at `rgba(46,230,166,0.55)`.
+- "Competitive Intelligence Radar" — uppercase, `tracking-[0.34em]`, `10–11px`, `font-weight: 500`, rendered at `rgba(0,180,255,0.55)`.
 - Always appears directly below the wordmark at reduced accent opacity.
 
 ### Label style (throughout the UI)
 - Short labels: uppercase, `letter-spacing: 0.12–0.22em`, `9–10px`, `font-weight: 500–600`.
 - Category badges, section headers, status tags all follow this rule.
-- Green label colour: `rgba(46,230,166,0.55)` for data labels; `rgba(255,255,255,0.20–0.35)` for structural labels.
+- Green label colour: `rgba(0,180,255,0.55)` for data labels; `rgba(255,255,255,0.20–0.35)` for structural labels.
 
 ### Body text
 - `12–13px`, `Inter 400`, `leading-relaxed`. Never decorative. Every sentence carries information.
@@ -80,17 +80,17 @@
 - **SVG radar instrument.** Concentric rings (4) with a rotating sweep arm and a pulsing centre dot.
 - Viewbox: `46×46`, origin at `(23, 23)`.
 - Ring radii: `r=21.5` (outer), `r=15`, `r=9`, `r=4` (inner).
-- All rings and arm in `#2EE6A6`. No other colours appear in the mark.
+- All rings and arm in `#00B4FF`. No other colours appear in the mark.
 - Cardinal ticks at N / E / S / W (22% opacity) — instrument reference marks.
 
 ### Sweep arm
 - Rotates 360° continuously at `9s linear` — steady, never accelerating.
-- Arm: `stroke #2EE6A6`, `strokeWidth 1.2`, `70% opacity`.
+- Arm: `stroke #00B4FF`, `strokeWidth 1.2`, `70% opacity`.
 - Sweep wedge: filled at `8% opacity` — a trailing luminance behind the arm.
 - Blip at the arm tip: pulses between `40–100%` opacity on an `0.8s` loop.
 
 ### Centre dot
-- `r=2`, solid `#2EE6A6`, pulses `70–100%` opacity on a `2s` loop — the "alive" indicator.
+- `r=2`, solid `#00B4FF`, pulses `70–100%` opacity on a `2s` loop — the "alive" indicator.
 
 ### Ring pulse (concentric, staggered)
 - All 4 rings breathe independently, staggered by `0.6s` intervals on a `3.5s easeInOut` cycle.
@@ -115,14 +115,14 @@
 - Gives the canvas a subtle instrument-panel texture without visual noise.
 
 ### Atmospheric glow
-- `radial-gradient(ellipse 80% 50% at 50% -10%, rgba(46,230,166,0.07–0.09) 0%, transparent 70%)`.
+- `radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,180,255,0.07–0.09) 0%, transparent 70%)`.
 - Positioned above the viewport — light bleeds down from the top.
 - Animates with `glow-breathe` (8s easeInOut loop, `opacity: 1 → 0.50 → 1`) on the landing page.
 - Static at lower opacity in the app surfaces (onboarding, panels).
 
 ### Card surfaces
 - No box shadows for depth — depth is communicated through border opacity and background luminance lift.
-- Selected states: `box-shadow: 0 0 0 1px rgba(46,230,166,0.08), inset 0 1px 0 rgba(46,230,166,0.05)` — inset highlight, not a drop shadow.
+- Selected states: `box-shadow: 0 0 0 1px rgba(0,180,255,0.08), inset 0 1px 0 rgba(0,180,255,0.05)` — inset highlight, not a drop shadow.
 
 ---
 
@@ -143,7 +143,7 @@
 ### Scrollbar
 - Width: `4px`.
 - Track: transparent.
-- Thumb: `rgba(46,230,166,0.15)` at rest, `0.28` on hover. `border-radius: 2px`.
+- Thumb: `rgba(0,180,255,0.15)` at rest, `0.28` on hover. `border-radius: 2px`.
 
 ---
 
@@ -204,7 +204,7 @@ Animations are slow, smooth, and purposeful. No snap, no bounce, no easing that 
 ```
 styles/themes/
   base.css              ← shared tokens (canvas, accent, text, signal)
-  metrivant-classic.css ← classic overrides (default — green instrument)
+  metrivant-classic.css ← classic overrides (default — blue instrument)
   metrivant-hud.css     ← HUD layer (cyan interface scaffolding)
 lib/theme.ts            ← setTheme() / getTheme() / toggleTheme()
 ```
@@ -214,7 +214,7 @@ Persisted to `localStorage('metrivant-theme')`. Flash-prevention script runs bef
 
 ### Colour rule (strict)
 
-- **Green** (`#2EE6A6`) = data truth. Signals, confirmation, evidence. Present in both themes.
+- **Blue (#00B4FF) = data truth. Signals, confirmation, evidence. Present in both themes.
 - **Cyan** (`#00E5FF` / `#7AF7FF`) = interface structure. Borders, scaffolding, UI chrome. HUD theme only.
 - These meanings are never mixed. A cyan element never carries data semantics. A green element never represents UI scaffolding.
 
@@ -255,11 +255,11 @@ Adds a control layer over the same instrument:
 
 | Token | Classic | HUD |
 |---|---|---|
-| `--m-ui-accent` | `#2EE6A6` | `#00E5FF` |
-| `--m-ui-highlight` | `#2EE6A6` | `#7AF7FF` |
+| `--m-ui-accent` | `#00B4FF` | `#00E5FF` |
+| `--m-ui-highlight` | `#00B4FF` | `#7AF7FF` |
 | `--m-ui-glow` | `none` | `0 0 6px rgba(0,229,255,0.5)` |
 | `--m-ui-border` | `rgba(255,255,255,0.08)` | `rgba(0,229,255,0.12)` |
-| `--m-ui-border-active` | `rgba(46,230,166,0.40)` | `rgba(0,229,255,0.35)` |
+| `--m-ui-border-active` | `rgba(0,180,255,0.40)` | `rgba(0,229,255,0.35)` |
 
 Signal tokens (`--m-signal-*`) are permanent and never themed.
 

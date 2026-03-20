@@ -160,21 +160,21 @@ export default function SectorSelectClient() {
       <div
         className="pointer-events-none fixed inset-0"
         style={{
-          background: "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(46,230,166,0.07) 0%, transparent 70%)",
+          background: "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,180,255,0.07) 0%, transparent 70%)",
         }}
       />
 
       {/* Wordmark */}
       <div className="relative mb-10 flex flex-col items-center gap-1">
         <svg width="40" height="40" viewBox="0 0 46 46" fill="none" aria-hidden="true" className="mb-3">
-          <circle cx="23" cy="23" r="21.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.50" />
-          <circle cx="23" cy="23" r="13"   stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.28" />
-          <circle cx="23" cy="23" r="5.5"  stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.42" />
-          <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#2EE6A6" fillOpacity="0.10" />
-          <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.80" />
-          <circle cx="23" cy="23" r="2.5" fill="#2EE6A6" />
+          <circle cx="23" cy="23" r="21.5" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.50" />
+          <circle cx="23" cy="23" r="13"   stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.28" />
+          <circle cx="23" cy="23" r="5.5"  stroke="#00B4FF" strokeWidth="1"   strokeOpacity="0.42" />
+          <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#00B4FF" fillOpacity="0.10" />
+          <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.80" />
+          <circle cx="23" cy="23" r="2.5" fill="#00B4FF" />
         </svg>
-        <div className="text-[10px] font-medium uppercase tracking-[0.34em]" style={{ color: "rgba(46,230,166,0.55)" }}>
+        <div className="text-[10px] font-medium uppercase tracking-[0.34em]" style={{ color: "rgba(0,180,255,0.55)" }}>
           Competitive Intelligence Radar
         </div>
         <div className="text-[28px] font-bold leading-none text-white" style={{ letterSpacing: "0.09em" }}>
@@ -207,13 +207,13 @@ export default function SectorSelectClient() {
                   disabled={loading}
                   className="flex flex-col items-start rounded-[12px] border px-3 py-2.5 text-left transition-all duration-150 disabled:pointer-events-none disabled:opacity-40"
                   style={{
-                    borderColor: selected ? "rgba(46,230,166,0.40)" : "rgba(26,42,26,0.9)",
+                    borderColor: selected ? "rgba(0,180,255,0.40)" : "rgba(26,42,26,0.9)",
                     background:  selected ? "rgba(3,12,3,0.95)" : "rgba(5,10,5,0.80)",
-                    boxShadow:   selected ? "0 0 0 1px rgba(46,230,166,0.08), inset 0 1px 0 rgba(46,230,166,0.05)" : "none",
-                    color:       selected ? "#2EE6A6" : "rgba(100,116,139,0.80)",
+                    boxShadow:   selected ? "0 0 0 1px rgba(0,180,255,0.08), inset 0 1px 0 rgba(0,180,255,0.05)" : "none",
+                    color:       selected ? "#00B4FF" : "rgba(100,116,139,0.80)",
                   }}
                 >
-                  <div className="mb-1.5" style={{ color: selected ? "#2EE6A6" : "rgba(71,85,105,0.80)" }}>
+                  <div className="mb-1.5" style={{ color: selected ? "#00B4FF" : "rgba(71,85,105,0.80)" }}>
                     {s.icon}
                   </div>
                   <div
@@ -222,7 +222,7 @@ export default function SectorSelectClient() {
                   >
                     {s.label}
                   </div>
-                  <div className="mt-0.5 text-[10px] leading-relaxed" style={{ color: selected ? "rgba(46,230,166,0.50)" : "rgba(71,85,105,0.70)" }}>
+                  <div className="mt-0.5 text-[10px] leading-relaxed" style={{ color: selected ? "rgba(0,180,255,0.50)" : "rgba(71,85,105,0.70)" }}>
                     {s.desc}
                   </div>
                 </button>
@@ -246,7 +246,7 @@ export default function SectorSelectClient() {
           <button
             type="submit"
             disabled={!sector || loading}
-            className="rounded-full bg-[#2EE6A6] py-3 text-[14px] font-semibold text-black transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30"
+            className="rounded-full bg-[#00B4FF] py-3 text-[14px] font-semibold text-black transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30"
           >
             {loading ? LOADING_PHASES[loadingPhase] : "Start monitoring"}
           </button>

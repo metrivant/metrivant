@@ -229,7 +229,7 @@ export function buildRepositioningEmailHtml(
     const abs = Math.abs(delta);
     if (abs >= 25) return "#ef4444";
     if (abs >= 15) return "#f59e0b";
-    return "#2EE6A6";
+    return "#00B4FF";
   }
 
   const cards = shifts
@@ -243,7 +243,7 @@ export function buildRepositioningEmailHtml(
         <tr>
           <td style="padding:0 0 14px;">
             <table width="100%" cellpadding="0" cellspacing="0"
-              style="background:#030c03;border:1px solid #152415;border-left:3px solid ${color};border-radius:10px;">
+              style="background:#03030c;border:1px solid #152415;border-left:3px solid ${color};border-radius:10px;">
               <tr>
                 <td style="padding:14px 16px;">
                   <div style="font-size:14px;font-weight:600;color:#e2e8f0;margin-bottom:8px;">
@@ -281,15 +281,15 @@ export function buildRepositioningEmailHtml(
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"></head>
-<body style="margin:0;padding:0;background:#000200;font-family:Inter,system-ui,sans-serif;">
+<body style="margin:0;padding:0;background:#000002;font-family:Inter,system-ui,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0">
     <tr><td align="center" style="padding:48px 24px;">
       <table width="560" cellpadding="0" cellspacing="0"
-        style="background:#020802;border:1px solid #152415;border-radius:16px;overflow:hidden;">
+        style="background:#020208;border:1px solid #152415;border-radius:16px;overflow:hidden;">
 
         <tr>
-          <td style="padding:28px 32px 24px;border-bottom:1px solid #0d2010;">
-            <div style="margin-bottom:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.22em;color:rgba(46,230,166,0.50);">
+          <td style="padding:28px 32px 24px;border-bottom:1px solid #0d1020;">
+            <div style="margin-bottom:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.22em;color:rgba(0,180,255,0.50);">
               Metrivant · Market Map
             </div>
             <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;">
@@ -308,14 +308,14 @@ export function buildRepositioningEmailHtml(
               ${cards}
             </table>
             <a href="${siteUrl}/app/market-map"
-              style="display:inline-block;margin-top:8px;padding:12px 24px;background:#2EE6A6;color:#000200;font-size:13px;font-weight:700;text-decoration:none;border-radius:8px;">
+              style="display:inline-block;margin-top:8px;padding:12px 24px;background:#00B4FF;color:#000002;font-size:13px;font-weight:700;text-decoration:none;border-radius:8px;">
               View Market Map →
             </a>
           </td>
         </tr>
 
         <tr>
-          <td style="padding:16px 32px;border-top:1px solid #0d2010;">
+          <td style="padding:16px 32px;border-top:1px solid #0d1020;">
             <p style="margin:0;font-size:11px;color:#334155;">
               Metrivant · competitive intelligence radar · positioning updated daily
             </p>
