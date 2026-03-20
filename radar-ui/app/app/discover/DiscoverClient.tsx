@@ -10,6 +10,7 @@ import {
   type CatalogCategory,
 } from "../../../lib/catalog";
 import { getSectorConfig, getSectorLabel } from "../../../lib/sectors";
+import { EMERGING_CATALOG, type EmergingCompetitor } from "../../../lib/sector-catalog";
 
 // ── Catalog browse sectors ────────────────────────────────────────────────────
 
@@ -115,6 +116,8 @@ export default function DiscoverClient({
   const [removingDomain, setRemovingDomain] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [trackError, setTrackError] = useState<string | null>(null);
+  const [showRising, setShowRising] = useState(false);
+  const [loadingEmergingDomain, setLoadingEmergingDomain] = useState<string | null>(null);
 
   const CATALOG_SECTORS = new Set(["saas", "defense", "energy"]);
   const defaultBrowse = CATALOG_SECTORS.has(initialSector) ? initialSector : "saas";
@@ -140,8 +143,18 @@ export default function DiscoverClient({
     setActiveCategory(null);
     setQuery("");
     setPage(1);
+    setShowRising(false);
     void catalogValue;
   }
+
+  // Emerging companies for current browse context
+  const emergingList: EmergingCompetitor[] = useMemo(() => {
+    if (browseSector === "custom") {
+      // Show all emerging companies across all sectors
+      return Object.values(EMERGING_CATALOG).flat();
+    }
+    return EMERGING_CATALOG[browseSector] ?? [];
+  }, [browseSector]);
 
   const isCustomBrowse  = browseSector === "custom";
   const catalogSector   = (!isCustomBrowse && CATALOG_SECTORS.has(browseSector)) ? browseSector : "saas";
@@ -236,6 +249,57 @@ export default function DiscoverClient({
     }
   }
 
+  async function trackEmerging(entry: EmergingCompetitor) {
+    if (tracked.has(entry.domain) || loadingEmergingDomain === entry.domain) return;
+    if (atLimit) { setTrackError("limit"); return; }
+    setLoadingEmergingDomain(entry.domain);
+    setTrackError(null);
+    try {
+      const res = await fetch("/api/discover/track", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ url: entry.website_url, name: entry.name, domain: entry.domain }),
+      });
+      if (res.ok) {
+        setTracked((prev) => new Set([...prev, entry.domain]));
+        router.refresh();
+      } else if (res.status === 403) {
+        setTrackError("limit");
+      } else {
+        const data = await res.json() as { error?: string };
+        setTrackError(data.error ?? "Failed to track competitor");
+      }
+    } catch {
+      setTrackError("Network error — please try again");
+    } finally {
+      setLoadingEmergingDomain(null);
+    }
+  }
+
+  async function untrackEmerging(entry: EmergingCompetitor) {
+    if (!tracked.has(entry.domain) || removingDomain === entry.domain) return;
+    setRemovingDomain(entry.domain);
+    setTrackError(null);
+    try {
+      const res = await fetch("/api/discover/untrack", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ url: entry.website_url }),
+      });
+      if (res.ok) {
+        setTracked((prev) => { const n = new Set(prev); n.delete(entry.domain); return n; });
+        router.refresh();
+      } else {
+        const data = await res.json() as { error?: string };
+        setTrackError(data.error ?? "Failed to remove competitor");
+      }
+    } catch {
+      setTrackError("Network error — please try again");
+    } finally {
+      setRemovingDomain(null);
+    }
+  }
+
   function clearFilters() {
     setQuery("");
     setActiveCategory(null);
@@ -248,7 +312,7 @@ export default function DiscoverClient({
     <div className="mx-auto max-w-6xl px-6 pb-24 pt-8">
 
       {/* ── Sector browse + hint ─────────────────────────────────────── */}
-      <div className="mb-7 flex items-center gap-3">
+      <div className="mb-7 flex items-center justify-between gap-3">
         <div ref={browseSectorRef} className="relative">
           <button
             onClick={() => setBrowseSectorOpen((v) => !v)}
@@ -337,9 +401,171 @@ export default function DiscoverClient({
         >
           Catalog filter only — sector switching is in the radar header.
         </span>
+
+        {/* ── All / Rising toggle ──────────────────────────────────── */}
+        <div
+          className="ml-auto flex items-center"
+          style={{
+            border:       "1px solid rgba(255,255,255,0.08)",
+            borderRadius: "4px",
+            background:   "rgba(255,255,255,0.02)",
+            padding:      "2px",
+          }}
+        >
+          {([
+            { id: false, label: "All" },
+            { id: true,  label: "Rising" },
+          ] as const).map(({ id, label }) => {
+            const active = showRising === id;
+            return (
+              <button
+                key={label}
+                onClick={() => { setShowRising(id); setPage(1); setQuery(""); setActiveCategory(null); }}
+                className="px-3 py-1 text-[10px] font-medium uppercase transition-all"
+                style={{
+                  letterSpacing: "0.14em",
+                  borderRadius:  "3px",
+                  background:    active ? (id ? "rgba(245,158,11,0.12)" : "rgba(255,255,255,0.06)") : "transparent",
+                  color:         active ? (id ? "rgba(245,158,11,0.90)" : "rgba(255,255,255,0.70)") : "rgba(255,255,255,0.25)",
+                  border:        active && id ? "1px solid rgba(245,158,11,0.20)" : "1px solid transparent",
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
+      {/* ── Rising view ─────────────────────────────────────────────── */}
+      {showRising && (
+        <>
+          <div className="mb-5 flex items-center gap-2.5 px-4 py-2.5"
+            style={{
+              background:   "rgba(245,158,11,0.03)",
+              border:       "1px solid rgba(245,158,11,0.10)",
+              borderRadius: "4px",
+            }}
+          >
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "rgba(245,158,11,0.70)" }} />
+            <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "0.03em" }}>
+              Curated emerging competitors — fast-moving, recently funded, and worth watching.
+            </span>
+          </div>
+
+          {trackError && (
+            trackError === "limit" ? (
+              <div className="mb-5 flex items-center justify-between px-4 py-3 text-[12px]"
+                style={{ borderRadius: "4px", border: "1px solid rgba(245,158,11,0.20)", background: "rgba(245,158,11,0.04)", color: "rgba(245,158,11,0.80)" }}
+              >
+                <span><span className="font-semibold">Limit reached.</span><span className="ml-2 opacity-70">Maximum {COMPETITOR_LIMIT} competitors. Remove one to add another.</span></span>
+                <button onClick={() => setTrackError(null)} className="ml-4 opacity-40 hover:opacity-80" aria-label="Dismiss">✕</button>
+              </div>
+            ) : (
+              <div className="mb-5 flex items-center justify-between px-4 py-3 text-[12px]"
+                style={{ borderRadius: "4px", border: "1px solid rgba(239,68,68,0.20)", background: "rgba(239,68,68,0.04)", color: "rgba(239,68,68,0.75)" }}
+              >
+                {trackError}
+                <button onClick={() => setTrackError(null)} className="ml-4 opacity-40 hover:opacity-80">✕</button>
+              </div>
+            )
+          )}
+
+          <div className="grid gap-px sm:grid-cols-2 lg:grid-cols-3"
+            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "8px", overflow: "hidden" }}
+          >
+            {emergingList.map((entry) => {
+              const isTracked  = tracked.has(entry.domain);
+              const isLoading  = loadingEmergingDomain === entry.domain;
+              const isRemoving = removingDomain === entry.domain;
+              return (
+                <div key={entry.domain}
+                  className="flex flex-col p-5 transition-colors"
+                  style={{ background: isTracked ? "rgba(46,230,166,0.025)" : "#070707" }}
+                  onMouseEnter={(e) => { if (!isTracked) (e.currentTarget as HTMLDivElement).style.background = "#0c0c0c"; }}
+                  onMouseLeave={(e) => { if (!isTracked) (e.currentTarget as HTMLDivElement).style.background = "#070707"; }}
+                >
+                  {/* Logo + name */}
+                  <div className="mb-3 flex flex-col items-center gap-2.5">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center"
+                      style={{ borderRadius: "6px", border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.03)" }}
+                    >
+                      <CompanyLogo domain={entry.domain} name={entry.name} />
+                    </div>
+                    <div className="text-center">
+                      <div className="text-[13px] font-medium text-white" style={{ letterSpacing: "0.04em", lineHeight: 1.3 }}>
+                        {entry.name}
+                      </div>
+                      <div className="mt-0.5 text-[10px]" style={{ color: "rgba(255,255,255,0.22)", letterSpacing: "0.06em" }}>
+                        {entry.domain}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Rising badge */}
+                  <div className="mb-3 flex items-center justify-center">
+                    <span className="inline-flex items-center gap-1 rounded-[3px] px-2 py-0.5 text-[9px] font-medium uppercase"
+                      style={{ letterSpacing: "0.14em", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.18)", color: "rgba(245,158,11,0.75)" }}
+                    >
+                      <span className="h-1 w-1 rounded-full" style={{ background: "rgba(245,158,11,0.80)" }} />
+                      Rising
+                    </span>
+                  </div>
+
+                  {/* Rationale */}
+                  <p className="mb-4 text-center text-[10px] leading-snug"
+                    style={{ color: "rgba(255,255,255,0.18)", letterSpacing: "0.03em" }}
+                  >
+                    {entry.rationale}
+                  </p>
+
+                  {/* CTA */}
+                  {isTracked ? (
+                    <div className="mt-auto flex gap-2">
+                      <div className="flex flex-1 items-center justify-center py-2 text-[11px] font-medium"
+                        style={{ borderRadius: "4px", border: "1px solid rgba(46,230,166,0.20)", background: "rgba(46,230,166,0.06)", color: "#2EE6A6", letterSpacing: "0.08em" }}
+                      >
+                        ✓ Tracking
+                      </div>
+                      <button
+                        onClick={() => untrackEmerging(entry)}
+                        disabled={isRemoving}
+                        className="flex items-center justify-center px-3 py-2 transition-colors disabled:opacity-40"
+                        style={{ borderRadius: "4px", border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "rgba(255,255,255,0.25)" }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(239,68,68,0.35)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(239,68,68,0.75)"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.06)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.25)"; }}
+                        aria-label={`Remove ${entry.name}`}
+                        title="Remove from radar"
+                      >
+                        {isRemoving ? <span className="text-[10px]">…</span> : (
+                          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                            <path d="M2 2l8 8M10 2L2 10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => trackEmerging(entry)}
+                      disabled={isLoading || atLimit}
+                      title={atLimit ? "Competitor limit reached" : undefined}
+                      className="mt-auto w-full py-2 text-[11px] font-medium uppercase transition-all disabled:cursor-not-allowed disabled:opacity-40"
+                      style={{ borderRadius: "4px", border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "rgba(255,255,255,0.35)", letterSpacing: "0.10em" }}
+                      onMouseEnter={(e) => { if (!isLoading && !atLimit) { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.22)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.75)"; } }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.10)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.35)"; }}
+                    >
+                      {isLoading ? "Adding…" : "Track"}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
       {/* ── Search ───────────────────────────────────────────────────── */}
+      {!showRising && (<>
       <div className="relative mb-6">
         <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -705,8 +931,10 @@ export default function DiscoverClient({
         </div>
       )}
 
+      </>)}
+
       {/* ── Pagination ───────────────────────────────────────────────── */}
-      {hasMore && (
+      {!showRising && hasMore && (
         <div className="mt-10 flex justify-center">
           <button
             onClick={() => setPage((p) => p + 1)}

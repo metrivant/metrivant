@@ -277,6 +277,58 @@ export const SECTOR_CATALOG: Record<string, SectorDefaultCompetitor[]> = {
   // "custom" has no defaults — user adds manually
 };
 
+// ── Emerging catalog ─────────────────────────────────────────────────────────
+//
+// 5 rising companies per sector — fast-moving, recently funded, and crawlable.
+// Surfaced via the "Rising" toggle in Discover. Static and curated; not scored
+// by pipeline momentum (they may not be tracked yet).
+
+export type EmergingCompetitor = {
+  name:        string;
+  domain:      string;
+  website_url: string;
+  sector:      string;
+  rationale:   string;
+};
+
+export const EMERGING_CATALOG: Record<string, EmergingCompetitor[]> = {
+  saas: [
+    { name: "Cursor",    domain: "cursor.com",     website_url: "https://cursor.com",     sector: "saas", rationale: "AI code editor — fastest-growing dev tool, pricing evolving rapidly" },
+    { name: "Glean",     domain: "glean.com",       website_url: "https://glean.com",       sector: "saas", rationale: "Enterprise AI search — $4.6B valuation, aggressive enterprise push" },
+    { name: "Cognition", domain: "cognition.ai",    website_url: "https://cognition.ai",    sector: "saas", rationale: "Devin AI agent — SWE automation, frequent positioning shifts" },
+    { name: "Writer",    domain: "writer.com",      website_url: "https://writer.com",      sector: "saas", rationale: "Enterprise AI writing platform — active pricing and tier changes" },
+    { name: "Runway",    domain: "runwayml.com",    website_url: "https://runwayml.com",    sector: "saas", rationale: "Generative AI video — rapid capability launches and creative tooling expansion" },
+  ],
+  cybersecurity: [
+    { name: "Abnormal Security", domain: "abnormalsecurity.com", website_url: "https://abnormalsecurity.com", sector: "cybersecurity", rationale: "AI email security — high-momentum enterprise expansion" },
+    { name: "Axonius",           domain: "axonius.com",          website_url: "https://axonius.com",          sector: "cybersecurity", rationale: "Cyber asset management — converging with CSPM players" },
+    { name: "Torq",              domain: "torq.io",              website_url: "https://torq.io",              sector: "cybersecurity", rationale: "Security hyperautomation — no-code SOC workflows" },
+    { name: "Hunters",           domain: "hunters.ai",           website_url: "https://hunters.ai",           sector: "cybersecurity", rationale: "Open XDR SOC platform — displacing SIEMs in mid-market" },
+    { name: "Semgrep",           domain: "semgrep.dev",          website_url: "https://semgrep.dev",          sector: "cybersecurity", rationale: "Static analysis & AppSec — expanding from OSS to enterprise" },
+  ],
+  fintech: [
+    { name: "Stedi",    domain: "stedi.com",    website_url: "https://stedi.com",    sector: "fintech", rationale: "B2B payments infrastructure — API-first EDI and transaction layer" },
+    { name: "Lithic",   domain: "lithic.com",   website_url: "https://lithic.com",   sector: "fintech", rationale: "Card issuing platform — developer-led, active pricing signals" },
+    { name: "Parafin",  domain: "parafin.com",  website_url: "https://parafin.com",  sector: "fintech", rationale: "Embedded capital for platforms — growing SMB lending distribution" },
+    { name: "Sardine",  domain: "sardine.ai",   website_url: "https://sardine.ai",   sector: "fintech", rationale: "AI fraud prevention — expanding from payments to identity" },
+    { name: "Slope",    domain: "slope.so",     website_url: "https://slope.so",     sector: "fintech", rationale: "B2B BNPL — net terms automation, competing with Resolve and Balance" },
+  ],
+  defense: [
+    { name: "Shield AI",          domain: "shield.ai",            website_url: "https://shield.ai",            sector: "defense", rationale: "Autonomous AI for air combat — growing DoD contracts" },
+    { name: "Skydio",             domain: "skydio.com",           website_url: "https://skydio.com",           sector: "defense", rationale: "Drone autonomy — dominant US-made alternative to DJI" },
+    { name: "Rebellion Defense",  domain: "rebelliondefense.com", website_url: "https://rebelliondefense.com", sector: "defense", rationale: "AI software for defense — rapid capability announcements" },
+    { name: "Sarcos",             domain: "sarcos.com",           website_url: "https://sarcos.com",           sector: "defense", rationale: "Robotic exoskeleton systems — industrial and defense applications" },
+    { name: "Hadrian",            domain: "hadrian.com",          website_url: "https://hadrian.com",          sector: "defense", rationale: "Precision manufacturing for defense — autonomous machine shop" },
+  ],
+  energy: [
+    { name: "Fervo Energy",    domain: "fervoenergy.com",  website_url: "https://fervoenergy.com",  sector: "energy", rationale: "Next-gen geothermal — Google partnership, scaling commercial projects" },
+    { name: "Form Energy",     domain: "formenergy.com",   website_url: "https://formenergy.com",   sector: "energy", rationale: "Iron-air long-duration batteries — utility-scale grid storage" },
+    { name: "Antora Energy",   domain: "antoraenergy.com", website_url: "https://antoraenergy.com", sector: "energy", rationale: "Thermal battery for industrial heat — decarbonising heavy industry" },
+    { name: "Rondo Energy",    domain: "rondoenergy.com",  website_url: "https://rondoenergy.com",  sector: "energy", rationale: "Heat batteries for decarbonising industry — active project announcements" },
+    { name: "Ascend Elements", domain: "ascendelements.com", website_url: "https://ascendelements.com", sector: "energy", rationale: "Battery materials from recycling — EV supply chain positioning" },
+  ],
+};
+
 /** Returns all defaults for a sector, sorted by priority. */
 export function getSectorDefaults(sector: string): SectorDefaultCompetitor[] {
   return SECTOR_CATALOG[sector] ?? [];
