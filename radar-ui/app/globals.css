@@ -12,7 +12,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter);
+  --font-sans: var(--font-share-tech-mono);
 }
 
 
@@ -21,7 +21,7 @@ body {
   height: 100%;
   background-color: #000002;
   color: #ffffff;
-  font-family: var(--font-inter), Inter, system-ui, -apple-system, sans-serif;
+  font-family: var(--font-share-tech-mono), var(--font-inter), Inter, system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -120,6 +120,96 @@ body {
 }
 [data-theme="classic"] ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 180, 255, 0.28);
+}
+
+/* ── Electricity scatter — faint lightning crawl background ───────────── */
+@keyframes electricity-crawl-1 {
+  0%   { clip-path: inset(0 100% 85% 0); opacity: 0; }
+  8%   { clip-path: inset(0 20% 85% 30%); opacity: 0.045; }
+  12%  { clip-path: inset(0 20% 85% 30%); opacity: 0; }
+  100% { clip-path: inset(0 100% 85% 0); opacity: 0; }
+}
+@keyframes electricity-crawl-2 {
+  0%   { clip-path: inset(60% 0 0 100%); opacity: 0; }
+  35%  { clip-path: inset(60% 0 0 100%); opacity: 0; }
+  42%  { clip-path: inset(60% 40% 0 10%); opacity: 0.04; }
+  46%  { clip-path: inset(60% 40% 0 10%); opacity: 0; }
+  100% { clip-path: inset(60% 0 0 100%); opacity: 0; }
+}
+@keyframes electricity-crawl-3 {
+  0%   { clip-path: inset(30% 100% 30% 0); opacity: 0; }
+  65%  { clip-path: inset(30% 100% 30% 0); opacity: 0; }
+  72%  { clip-path: inset(30% 5% 30% 50%); opacity: 0.035; }
+  76%  { clip-path: inset(30% 5% 30% 50%); opacity: 0; }
+  100% { clip-path: inset(30% 100% 30% 0); opacity: 0; }
+}
+.electricity-bg::before,
+.electricity-bg::after,
+.electricity-bg > .elec-3 {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0px,
+    transparent 3px,
+    rgba(0,180,255,0.07) 3px,
+    rgba(0,180,255,0.03) 4px,
+    transparent 4px,
+    transparent 60px
+  );
+}
+.electricity-bg::before {
+  background: repeating-linear-gradient(
+    175deg,
+    transparent 0px,
+    transparent 80px,
+    rgba(0,180,255,0.06) 80px,
+    rgba(0,180,255,0.02) 82px,
+    transparent 82px,
+    transparent 200px
+  );
+  animation: electricity-crawl-1 12s ease-in-out infinite;
+}
+.electricity-bg::after {
+  background: repeating-linear-gradient(
+    -160deg,
+    transparent 0px,
+    transparent 120px,
+    rgba(0,180,255,0.05) 120px,
+    rgba(0,180,255,0.02) 121px,
+    transparent 121px,
+    transparent 280px
+  );
+  animation: electricity-crawl-2 16s ease-in-out infinite;
+}
+.electricity-bg > .elec-3 {
+  position: fixed;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent 0px,
+    transparent 150px,
+    rgba(0,180,255,0.04) 150px,
+    rgba(0,180,255,0.015) 152px,
+    transparent 152px,
+    transparent 350px
+  );
+  animation: electricity-crawl-3 20s ease-in-out infinite;
+}
+
+/* ── Hero copy line-by-line glow escalation ──────────────────────────── */
+.hero-line {
+  display: block;
+}
+.hero-line-1 { color: rgba(148,163,184,0.65); }
+.hero-line-2 { color: rgba(148,163,184,0.80); font-weight: 500; }
+.hero-line-3 { color: rgba(200,220,240,0.90); font-weight: 600; text-shadow: 0 0 8px rgba(0,180,255,0.15); }
+.hero-line-4 {
+  color: rgba(0,180,255,0.95);
+  font-weight: 700;
+  text-shadow: 0 0 12px rgba(0,180,255,0.35), 0 0 24px rgba(0,180,255,0.12);
 }
 
 /* ── Tagline sheen — intermittent left-to-right light sweep ──────────── */

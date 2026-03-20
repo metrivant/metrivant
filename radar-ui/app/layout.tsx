@@ -30,7 +30,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL("https://metrivant.com"),
   title: {
-    default: "Metrivant — Competitive Intelligence Radar",
+    default: "Metrivant — Competitive Intelligence",
     template: "%s — Metrivant",
   },
   description:
@@ -38,14 +38,14 @@ export const metadata: Metadata = {
   openGraph: {
     type:        "website",
     siteName:    "Metrivant",
-    title:       "Metrivant — Competitive Intelligence Radar",
+    title:       "Metrivant — Competitive Intelligence",
     description: "Track competitor pricing, product launches, hiring signals, and strategic movements before they affect your market.",
     url:         "https://metrivant.com",
-    images: [{ url: "/opengraph-image.png", width: 1200, height: 630, alt: "Metrivant — Competitive Intelligence Radar" }],
+    images: [{ url: "/opengraph-image.png", width: 1200, height: 630, alt: "Metrivant — Competitive Intelligence" }],
   },
   twitter: {
     card:        "summary_large_image",
-    title:       "Metrivant — Competitive Intelligence Radar",
+    title:       "Metrivant — Competitive Intelligence",
     description: "Track competitor pricing, product launches, hiring signals, and strategic movements before they affect your market.",
     images:      ["/opengraph-image.png"],
   },

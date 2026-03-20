@@ -41,7 +41,7 @@ const jsonLd = [
 
 export default function LandingPage() {
   return (
-    <div className="flex min-h-screen w-full flex-col bg-[#000002] text-white">
+    <div className="electricity-bg flex min-h-screen w-full flex-col bg-[#000002] text-white">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -49,6 +49,7 @@ export default function LandingPage() {
       <PublicNav />
       <LandingFeaturePrompt />
       <IntelligencePulse />
+      <div className="elec-3" />
 
       {/* Dot grid */}
       <div
@@ -85,15 +86,18 @@ export default function LandingPage() {
           className="hero-fade-up mt-1 text-[11px] font-medium uppercase tracking-[0.34em] tagline-sheen"
           style={{ fontFamily: "var(--font-share-tech-mono)", ...LABEL_COLOR_STYLE, animationDelay: "220ms" }}
         >
-          Competitive Intelligence Radar
+          Competitive Intelligence
         </h2>
 
-        <p
-          className="hero-fade-up mt-4 max-w-xs text-[13px] leading-relaxed text-slate-500"
+        <div
+          className="hero-fade-up mt-5 flex flex-col items-center gap-1.5 text-[13px]"
           style={{ fontFamily: "var(--font-share-tech-mono)", animationDelay: "320ms" }}
         >
-          Continuous competitor monitoring. Changes become signals. Signals become movements. Movements become strategy.
-        </p>
+          <span className="hero-line hero-line-1">Continuous competitor monitoring.</span>
+          <span className="hero-line hero-line-2">Changes become signals.</span>
+          <span className="hero-line hero-line-3">Signals become movements.</span>
+          <span className="hero-line hero-line-4">Movements become strategy.</span>
+        </div>
 
         <div className="hero-fade-up" style={{ animationDelay: "440ms" }}>
           <LandingCTAButtons />
@@ -125,7 +129,7 @@ export default function LandingPage() {
               body:  "Four-factor scoring separates strategic moves from cosmetic noise.",
             },
             {
-              label: "Pre-public detection",
+              label: "Early detection",
               body:  "Detects operational shifts before they reach press releases or filings.",
             },
           ].map(({ label, body }) => (

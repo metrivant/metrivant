@@ -93,16 +93,17 @@ export default function PipelineExperience() {
     if (!el) return;
     const rect = el.getBoundingClientRect();
     const vh = window.innerHeight;
-    // Progress maps across the full section scroll range.
-    // raw: 0 when section top hits viewport bottom, 1 when top reaches 30% from top.
-    const raw = (vh - rect.top) / (vh * 0.70);
+    // Progress maps across the full section height (not just viewport).
+    // Use section's own height for much slower mapping.
+    const sectionH = el.offsetHeight;
+    const scrolled = vh - rect.top; // how much of the section has scrolled past viewport top
+    const raw = scrolled / sectionH;
     const clamped = Math.max(0, Math.min(1, raw));
-    // Delay start: animation stays at 0 until user has scrolled 20% into the section.
-    // Then remap 0.20-1.0 → 0-1 with an easeOut curve for slower stage progression.
-    const THRESHOLD = 0.20;
+    // Delay start: animation stays at 0 until user has scrolled 30% into the section.
+    const THRESHOLD = 0.30;
     const remapped = clamped <= THRESHOLD ? 0 : (clamped - THRESHOLD) / (1 - THRESHOLD);
-    // EaseOut for slower horizontal progression (stages advance more gradually)
-    const eased = 1 - Math.pow(1 - remapped, 1.6);
+    // Strong easeOut — horizontal stages advance very gradually at the start
+    const eased = 1 - Math.pow(1 - remapped, 2.2);
     setProgress(eased);
   }, []);
 
@@ -137,7 +138,7 @@ export default function PipelineExperience() {
         background: "#000002",
         overflow: "hidden",
         // Tall section gives scroll animation room to breathe
-        minHeight: "80vh",
+        minHeight: "120vh",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",

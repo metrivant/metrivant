@@ -226,73 +226,79 @@ const FEATURES = [
     Icon: IconRadar,
     tag: "Live Radar",
     headline: "25 competitors. Real-time momentum.",
-    body: "Nodes pulse by acceleration. One glance shows who demands attention.",
+    body: "Up to 25 competitors plotted by momentum score on a live SVG radar. Nodes closest to the boundary are accelerating. Size encodes velocity. Echo pulses show activity rate. One glance tells you who demands attention — before the rest of the market notices.",
   },
   {
     Icon: IconSignal,
     tag: "Signal Detection",
     headline: "Every change. Automatically classified.",
-    body: "Pricing, features, hiring, positioning — surfaced as confidence-scored signals.",
+    body: "Pricing tables, feature announcements, hiring patterns, product positioning — Metrivant monitors key pages across every competitor. When something shifts, it surfaces as a confidence-scored signal with severity, type, and evidence. You get intelligence, not raw notifications.",
   },
   {
     Icon: IconAI,
     tag: "AI Interpretation",
     headline: "Intent, not just change.",
-    body: "Each signal analyzed for strategic meaning. Confidence scores separate moves from noise.",
+    body: "Each signal is analyzed by GPT-4o to determine strategic intent. Pricing move or cosmetic tweak? Feature launch or UI refresh? Four-factor confidence scoring (section weight, recency, observation count, page class) tells you how certain to be. Calibrated language tells you how to act.",
   },
   {
     Icon: IconMovement,
     tag: "Strategic Movements",
     headline: "Trajectory, not snapshot.",
-    body: "Signals cluster into confirmed movements with velocity and timing.",
+    body: "Individual signals cluster into confirmed strategic movements — with velocity, signal count, confidence level, and time window. Movement narratives are AI-synthesized to explain what is happening and why it matters. You see where rivals are heading, not just where they were.",
   },
   {
     Icon: IconAlert,
     tag: "Real-time Alerts",
     headline: "Critical acceleration. Instant.",
-    body: "High-momentum thresholds trigger alerts before press releases land.",
+    body: "When a competitor hits the accelerating threshold — high momentum, fresh signals, confirmed movement — Metrivant fires a critical alert with the movement type and confidence level. Not a daily digest. Not a weekly report. Immediate, before anyone else knows.",
   },
   {
     Icon: IconBrief,
     tag: "Intelligence Briefs",
     headline: "Weekly strategic digest.",
-    body: "AI-synthesized briefing: what moved, what it means, what to do.",
+    body: "Every week the system synthesizes detected movements, sector media narratives, and cross-competitor patterns into a strategic digest. What moved, what it implies for your position, and what you should consider doing about it. AI-assembled from pre-generated intelligence artifacts, not raw data.",
   },
   {
     Icon: IconMap,
     tag: "Market Map",
     headline: "Competitive landscape in two dimensions.",
-    body: "Live positioning chart. Watch rivals drift upmarket in real time.",
+    body: "A live 2×2 positioning chart scoring every competitor on Market Focus (niche to platform) and Customer Segment (SMB to enterprise). Watch rivals drift upmarket over time. Significant shifts (>15 points) trigger repositioning alerts automatically.",
   },
   {
     Icon: IconStrategy,
     tag: "Strategy Panel",
     headline: "Cross-competitor pattern detection.",
-    body: "Convergence, pricing wars, enterprise shifts — across all rivals simultaneously.",
+    body: "AI-powered pattern analysis detects feature convergence, pricing wars, enterprise shifts, and category expansions across all monitored rivals simultaneously. Minimum 2 competitors per pattern. Patterns that no single-competitor view could surface become visible here.",
   },
   {
     Icon: IconEvidence,
     tag: "Evidence Chain",
     headline: "Zero hallucinations.",
-    body: "Every signal traceable to its source diff. Previous vs current. Timestamped.",
+    body: "Click any signal and see the exact diff that triggered it. Previous text versus current text. Which page. When it changed. Confidence score and interpretation. Metrivant shows its work at every layer — trust is built into the architecture, not bolted on.",
   },
   {
     Icon: IconDiscover,
     tag: "Discovery",
     headline: "Sector catalogue. One-click tracking.",
-    body: "SaaS, Defense, Energy, Fintech, and more. Sector-aware terminology.",
+    body: "Browse a curated catalogue of 280+ competitors across SaaS, Defense, Energy, Fintech, Cybersecurity, Healthcare, AI Infrastructure, and more. Add rivals to your radar in one click. Sector-aware terminology means every movement type is expressed in the language your market uses.",
+  },
+  {
+    Icon: IconConstellation,
+    tag: "Telescope",
+    headline: "The competitive sky. Rendered live.",
+    body: "The Telescope in the sidebar cycles through cosmic scenes that mirror market states — Starfield for baseline observation, Nebula for slow emerging trends, Supernova for dramatic market events. Data-driven: scene selection reflects your actual radar statistics. Click to advance manually.",
   },
   {
     Icon: IconGravity,
     tag: "ORBIT Mode",
-    headline: "Spacetime gravity field.",
-    body: "Physics simulation. Momentum warps the field. Tension filaments pulse between converging rivals.",
+    headline: "Gravity field. Spacetime physics.",
+    body: "Switch to ORBIT mode and the radar transforms into a heliocentric physics simulation. The highest-mass competitor sits at the center. Others orbit at radii proportional to their momentum. Tension filaments pulse between rivals converging on the same strategy. Conjunction arcs highlight proximity. It is not decoration — it is a different way to read competitive force.",
   },
   {
     Icon: IconCaveman,
     tag: "Evolutionary Edge",
     headline: "Hardwired instinct. Precision instrument.",
-    body: "Tracking rivals is ancient. Metrivant gives that circuitry the tool it was built for.",
+    body: "For hundreds of thousands of years, survival meant tracking rival groups, reading movements, detecting resource shifts before they happened. That instinct is still hardwired into every strategist. Signals, patterns, territory, timing — the primitives of survival are the primitives of market intelligence. Metrivant gives that ancient circuitry a precision instrument.",
     _variant: "primal",
   },
 ] as const;
@@ -417,7 +423,7 @@ export default function AboutOverlay({
               <p className="text-[14px] font-medium leading-relaxed text-slate-300" style={{ fontFamily: "var(--font-orbitron)" }}>
                 Competitive intelligence radar.
               </p>
-              <p className="mt-2 text-[12px] leading-relaxed text-slate-600" style={{ fontFamily: "var(--font-share-tech-mono)" }}>
+              <p className="mt-2 text-[12px] leading-[1.7] text-slate-500" style={{ fontFamily: "var(--font-inter)", letterSpacing: "0.01em" }}>
                 Evidence-grounded. Confidence-gated. No speculation.
               </p>
             </div>
@@ -464,7 +470,7 @@ export default function AboutOverlay({
                           <div className="mb-1.5 text-[14px] font-semibold leading-snug text-white" style={{ fontFamily: "var(--font-orbitron)" }}>
                             {headline}
                           </div>
-                          <p className="text-[12px] leading-relaxed text-slate-500" style={{ fontFamily: "var(--font-share-tech-mono)" }}>
+                          <p className="text-[12px] leading-[1.7] text-slate-400" style={{ fontFamily: "var(--font-inter)", letterSpacing: "0.01em" }}>
                             {body}
                           </p>
                         </div>
