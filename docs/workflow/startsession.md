@@ -659,6 +659,23 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
   Migration 056 also idempotently applied cumulative signal_type + source_type CHECK constraints.
   Pools 2–6 promote handlers are now unblocked. (2026-03-19)
 
+- [I] `chk_signal_type` stale CHECK constraint blocked ALL pool promote handlers (careers, investor,
+  product, procurement, regulatory). Error code 23514. Root cause: original constraint created manually
+  pre-migration, never dropped by migrations 038–056 which manage `signals_signal_type_check` by name.
+  PostgreSQL enforces ALL CHECK constraints. Fixed 2026-03-20: migration 060 drops `chk_signal_type`,
+  re-adds `signals_signal_type_check` with full cumulative type set. Also drops stale `chk_source_type`.
+  Pattern: when diagnosing constraint violations, check for MULTIPLE constraints with `pg_constraint`
+  or test-insert — migration-managed name may not be the only one active.
+
+- [I] `next/dynamic` with `ssr: false` in Server Components causes Turbopack build failure at deploy time
+  (error: "Ecmascript file had an error" at the dynamic() call line). tsc passes locally — this is a
+  Turbopack-only restriction in Next.js 16 App Router. Fix: wrap in a thin `"use client"` component
+  that re-exports the dynamic import. Pattern: PipelineSection.tsx wraps PipelineExperience.tsx. (2026-03-20)
+
+- [B] `pool_events` table does NOT have a `pool_type` column. Pool type is inferred from `event_type` +
+  `source_type` columns. Querying `pool_events` by pool requires filtering on these columns, not a
+  `pool_type` field. Use `select=*&limit=1` to discover schema before writing queries. (2026-03-20)
+
 - [B] `heal-coverage` does NOT emit pipeline_events. It uses Sentry check-ins + captureMessage
   only. After adding recordEvent (2026-03-19), stage name is "heal" — visible in pipeline_events
   from next daily run (05:00 UTC). No pipeline_events for "heal" stage = expected until then.
