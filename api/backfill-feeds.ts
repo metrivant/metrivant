@@ -99,6 +99,8 @@ async function handler(req: ApiReq, res: ApiRes) {
   };
 
   let competitorsProcessed = 0;
+  let fullyCoveredSkipped  = 0;
+  let totalCompetitors     = 0;
   let budgetExhausted      = false;
 
   try {
@@ -113,6 +115,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     if (compErr) throw compErr;
 
     const allCompetitors = (competitors ?? []) as CompetitorRow[];
+    totalCompetitors = allCompetitors.length;
 
     // Collect competitors that need EDGAR regulatory discovery.
     // Must run sequentially after all parallel work — SEC rate limit: 10 req/s.
@@ -156,6 +159,14 @@ async function handler(req: ApiReq, res: ApiRes) {
           const feedStatusMap = new Map<string, string>(
             existingFeeds.map((f) => [f.pool_type, f.discovery_status])
           );
+
+          // Short-circuit: skip competitors already fully covered across all 6 pools.
+          // Avoids all discovery network calls and subsequent upserts when no work is needed.
+          if (POOL_TYPES.every((p) => feedStatusMap.get(p) === "active")) {
+            fullyCoveredSkipped += 1;
+            competitorsProcessed += 1;
+            return;
+          }
 
           // Only attempt discovery when pool is not already active
           const needsDiscovery = (pool: PoolType): boolean =>
@@ -424,7 +435,9 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     return res.status(200).json({
       ok:                   true,
+      totalCompetitors,
       competitorsProcessed,
+      fullyCoveredSkipped,
       regulatoryProcessed:  regulatoryQueue.length,
       budgetExhausted,
       runtimeDurationMs,
