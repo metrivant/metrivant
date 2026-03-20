@@ -1,871 +1,339 @@
 "use client";
 
-import React, {
-  useRef,
-  useState,
-  useMemo,
-  useCallback,
-  useEffect,
-  memo,
-} from "react";
+import React, { useRef, useState, useMemo, useEffect } from "react";
 import * as THREE from "three";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { motion, AnimatePresence } from "framer-motion";
-import Link from "next/link";
 
-// ── Constants ────────────────────────────────────────────────────────────────
+// ── Pipeline stages — 1-to-1 with the real Metrivant detection pipeline ────────
 
-const GREEN = "#2EE6A6";
-const GREEN_VEC = new THREE.Color(GREEN);
-const WHITE_DIM = "rgba(255,255,255,0.12)";
-const STAGE_COUNT = 7;
-const TRANSITION_DURATION = 1.2;
-const PARTICLE_COUNT = 48;
-
-const STAGE_LABELS = [
-  "INPUT",
-  "INGESTION",
-  "PROCESSING",
-  "INTERPRETATION",
-  "OUTPUT",
-  "CONVERGENCE",
-  "ENTER METRIVANT",
+const STAGES = [
+  { label: "COMPETITORS", desc: "Active rivals registered for continuous surveillance"   },
+  { label: "PAGES",       desc: "High-value URLs scheduled for periodic crawls"           },
+  { label: "SNAPSHOTS",   desc: "Full page content captured and sectioned each run"       },
+  { label: "DIFFS",       desc: "Sections compared against stable baselines"              },
+  { label: "SIGNALS",     desc: "Changes confidence-gated and classified by type"         },
+  { label: "MOVEMENTS",   desc: "Signal clusters synthesised into strategic moves"        },
+  { label: "RADAR",       desc: "Intelligence converges into the live radar field"        },
 ] as const;
 
-// Camera positions per stage (x, y, z)
-const STAGE_CAMERAS: [number, number, number][] = [
-  [0, 2, 8],
-  [0, 2, 8],
-  [0, 3, 9],
-  [0, 2, 8],
-  [0, 3, 8],
-  [0, 2, 8],
-  [0, 0, 6],
-];
+// ── Constants ─────────────────────────────────────────────────────────────────
 
-// ── Types ────────────────────────────────────────────────────────────────────
+const GREEN     = "#2EE6A6";
+const GREEN_VEC = new THREE.Color(GREEN);
+const N         = STAGES.length;       // 7
+const SPACING   = 1.3;
+const NODE_X    = Array.from({ length: N }, (_, i) => (i - (N - 1) / 2) * SPACING);
 
-interface StageProps {
-  opacity: number;
+const PARTICLE_COUNT = 22;
+const DT_PER_SEC     = (N - 1) / 10;  // traverse full pipeline in 10 s
+
+// ── 2D Pipeline Schematic (SVG) ───────────────────────────────────────────────
+// Looks like a real pipe diagram: rectangular pipe segments + circular junctions.
+
+const SCHEMATIC_VB_W  = 800;
+const SCHEMATIC_VB_H  = 72;
+const NODE_CY         = 28;
+const NODE_R_NORMAL   = 7;
+const NODE_R_ACTIVE   = 10;
+const PIPE_H          = 5;
+const PIPE_GAP        = 3;   // gap between pipe end and node edge
+const PAD             = 40;  // left/right padding in viewBox units
+const NODE_CX         = Array.from(
+  { length: N },
+  (_, i) => PAD + (i / (N - 1)) * (SCHEMATIC_VB_W - PAD * 2)
+);
+
+function PipelineSchematic({ activeStage }: { activeStage: number }) {
+  return (
+    <svg
+      viewBox={`0 0 ${SCHEMATIC_VB_W} ${SCHEMATIC_VB_H}`}
+      style={{ width: "100%", height: "84px", display: "block" }}
+      aria-hidden="true"
+    >
+      {/* ── Pipe segments ───────────────────────────────────────────── */}
+      {Array.from({ length: N - 1 }, (_, i) => {
+        const x1  = NODE_CX[i] + NODE_R_NORMAL + PIPE_GAP;
+        const x2  = NODE_CX[i + 1] - NODE_R_NORMAL - PIPE_GAP;
+        const lit = i < activeStage;
+        return (
+          <rect
+            key={i}
+            x={x1}
+            y={NODE_CY - PIPE_H / 2}
+            width={x2 - x1}
+            height={PIPE_H}
+            rx={2.5}
+            fill={lit ? GREEN : "#0d2010"}
+            style={{ transition: "fill 0.5s ease" }}
+          />
+        );
+      })}
+
+      {/* ── Node junctions ──────────────────────────────────────────── */}
+      {NODE_CX.map((cx, i) => {
+        const isActive = i === activeStage;
+        const isPast   = i < activeStage;
+        const r        = isActive ? NODE_R_ACTIVE : NODE_R_NORMAL;
+        return (
+          <g key={i}>
+            {/* Outer glow ring for active node */}
+            {isActive && (
+              <circle
+                cx={cx}
+                cy={NODE_CY}
+                r={NODE_R_ACTIVE + 8}
+                fill="none"
+                stroke={GREEN}
+                strokeWidth={1}
+                opacity={0.2}
+              />
+            )}
+            {/* Node circle */}
+            <circle
+              cx={cx}
+              cy={NODE_CY}
+              r={r}
+              fill={isActive ? GREEN : isPast ? "rgba(46,230,166,0.25)" : "#060d06"}
+              stroke={
+                isActive
+                  ? GREEN
+                  : isPast
+                  ? "rgba(46,230,166,0.45)"
+                  : "rgba(46,230,166,0.12)"
+              }
+              strokeWidth={isActive ? 0 : 1.5}
+              style={{ transition: "fill 0.5s ease, stroke 0.5s ease" }}
+            />
+            {/* Stage label */}
+            <text
+              x={cx}
+              y={SCHEMATIC_VB_H - 4}
+              textAnchor="middle"
+              fontSize={7}
+              letterSpacing={1.2}
+              fontFamily="monospace"
+              fill={
+                isActive
+                  ? GREEN
+                  : isPast
+                  ? "rgba(46,230,166,0.35)"
+                  : "rgba(100,116,139,0.30)"
+              }
+              style={{
+                textTransform: "uppercase",
+                transition: "fill 0.5s ease",
+              }}
+            >
+              {STAGES[i].label}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
 }
 
-// ── Utility: smooth lerp for camera ──────────────────────────────────────────
+// ── 3D Scene — particles flowing through nodes ───────────────────────────────
 
-function useSmoothCamera(
-  targetPos: [number, number, number],
-  duration: number,
-  onTransitionEnd: () => void
-) {
-  const { camera } = useThree();
-  const target = useRef(new THREE.Vector3(...targetPos));
-  const transitioning = useRef(false);
-  const elapsed = useRef(0);
-  const startPos = useRef(new THREE.Vector3());
-
-  useEffect(() => {
-    target.current.set(...targetPos);
-    startPos.current.copy(camera.position);
-    transitioning.current = true;
-    elapsed.current = 0;
-  }, [targetPos, camera]);
-
-  useFrame((_, delta) => {
-    if (!transitioning.current) return;
-    elapsed.current += delta;
-    const t = Math.min(elapsed.current / duration, 1);
-    // ease-in-out cubic
-    const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-
-    camera.position.lerpVectors(startPos.current, target.current, ease);
-    camera.lookAt(0, 0, 0);
-
-    if (t >= 1) {
-      transitioning.current = false;
-      onTransitionEnd();
-    }
-  });
-
-  return transitioning;
-}
-
-// ── Stage 1: INPUT — Scattered particles ─────────────────────────────────────
-
-const InputStage = memo(function InputStage({ opacity }: StageProps) {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
+function PipelineScene({ activeStage }: { activeStage: number }) {
+  const particleMeshRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
-  const positions = useMemo(() => {
-    const arr: [number, number, number][] = [];
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      arr.push([
-        (Math.random() - 0.5) * 8,
-        (Math.random() - 0.5) * 6,
-        (Math.random() - 0.5) * 6,
-      ]);
-    }
-    return arr;
-  }, []);
+  const particleTs = useRef<Float32Array>(
+    (() => {
+      const arr = new Float32Array(PARTICLE_COUNT);
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        arr[i] = (i / PARTICLE_COUNT) * (N - 1);
+      }
+      return arr;
+    })()
+  );
 
-  useFrame(({ clock }) => {
-    if (!meshRef.current) return;
-    const t = clock.getElapsedTime();
+  useFrame((_, delta) => {
+    const pts = particleTs.current;
     for (let i = 0; i < PARTICLE_COUNT; i++) {
-      const [x, y, z] = positions[i];
-      dummy.position.set(
-        x + Math.sin(t * 0.3 + i) * 0.15,
-        y + Math.cos(t * 0.25 + i * 0.7) * 0.15,
-        z + Math.sin(t * 0.2 + i * 1.3) * 0.1
-      );
-      dummy.scale.setScalar(0.06 + Math.sin(t + i) * 0.02);
-      dummy.updateMatrix();
-      meshRef.current.setMatrixAt(i, dummy.matrix);
+      pts[i] = (pts[i] + delta * DT_PER_SEC) % (N - 1);
     }
-    meshRef.current.instanceMatrix.needsUpdate = true;
+    if (!particleMeshRef.current) return;
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      const t    = pts[i];
+      const seg  = Math.min(Math.floor(t), N - 2);
+      const frac = t - seg;
+      const x    = NODE_X[seg] + (NODE_X[seg + 1] - NODE_X[seg]) * frac;
+      dummy.position.set(x, 0, 0);
+      dummy.scale.setScalar(0.05);
+      dummy.updateMatrix();
+      particleMeshRef.current.setMatrixAt(i, dummy.matrix);
+    }
+    particleMeshRef.current.instanceMatrix.needsUpdate = true;
   });
 
   return (
     <group>
-      <instancedMesh ref={meshRef} args={[undefined, undefined, PARTICLE_COUNT]}>
-        <sphereGeometry args={[1, 8, 8]} />
-        <meshBasicMaterial
-          color={GREEN_VEC}
-          transparent
-          opacity={opacity * 0.8}
-        />
-      </instancedMesh>
-    </group>
-  );
-});
-
-// ── Stage 2: INGESTION — Wireframe icosahedron collecting particles ──────────
-
-const IngestionStage = memo(function IngestionStage({ opacity }: StageProps) {
-  const groupRef = useRef<THREE.Group>(null);
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const dummy = useMemo(() => new THREE.Object3D(), []);
-  const count = 30;
-
-  const particles = useMemo(() => {
-    const arr: { start: THREE.Vector3; end: THREE.Vector3; speed: number }[] =
-      [];
-    for (let i = 0; i < count; i++) {
-      const outside = new THREE.Vector3(
-        (Math.random() - 0.5) * 6,
-        (Math.random() - 0.5) * 4,
-        (Math.random() - 0.5) * 4
-      );
-      const inside = new THREE.Vector3(
-        (Math.random() - 0.5) * 1.2,
-        (Math.random() - 0.5) * 1.2,
-        (Math.random() - 0.5) * 1.2
-      );
-      arr.push({ start: outside, end: inside, speed: 0.15 + Math.random() * 0.25 });
-    }
-    return arr;
-  }, []);
-
-  useFrame(({ clock }) => {
-    if (!groupRef.current || !meshRef.current) return;
-    groupRef.current.rotation.y = clock.getElapsedTime() * 0.08;
-    groupRef.current.rotation.x = Math.sin(clock.getElapsedTime() * 0.05) * 0.1;
-
-    const t = clock.getElapsedTime();
-    for (let i = 0; i < count; i++) {
-      const p = particles[i];
-      const progress = (Math.sin(t * p.speed + i * 2) + 1) / 2;
-      dummy.position.lerpVectors(p.start, p.end, progress);
-      dummy.scale.setScalar(0.05);
-      dummy.updateMatrix();
-      meshRef.current.setMatrixAt(i, dummy.matrix);
-    }
-    meshRef.current.instanceMatrix.needsUpdate = true;
-  });
-
-  return (
-    <group ref={groupRef}>
-      <mesh>
-        <icosahedronGeometry args={[1.8, 1]} />
-        <meshBasicMaterial
-          color={GREEN_VEC}
-          wireframe
-          transparent
-          opacity={opacity * 0.4}
-        />
-      </mesh>
-      <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
-        <sphereGeometry args={[1, 6, 6]} />
-        <meshBasicMaterial
-          color={GREEN_VEC}
-          transparent
-          opacity={opacity * 0.9}
-        />
-      </instancedMesh>
-    </group>
-  );
-});
-
-// ── Stage 3: PROCESSING — Grid of connected nodes ───────────────────────────
-
-const ProcessingStage = memo(function ProcessingStage({ opacity }: StageProps) {
-  const groupRef = useRef<THREE.Group>(null);
-
-  const grid = useMemo(() => {
-    const nodes: [number, number, number][] = [];
-    const size = 3;
-    for (let x = -size; x <= size; x += 1.5) {
-      for (let z = -size; z <= size; z += 1.5) {
-        nodes.push([x, 0, z]);
-      }
-    }
-    return nodes;
-  }, []);
-
-  const lines = useMemo(() => {
-    const points: THREE.Vector3[] = [];
-    for (let i = 0; i < grid.length; i++) {
-      for (let j = i + 1; j < grid.length; j++) {
-        const dx = Math.abs(grid[i][0] - grid[j][0]);
-        const dz = Math.abs(grid[i][2] - grid[j][2]);
-        if ((dx <= 1.5 && dz === 0) || (dz <= 1.5 && dx === 0)) {
-          points.push(
-            new THREE.Vector3(...grid[i]),
-            new THREE.Vector3(...grid[j])
-          );
-        }
-      }
-    }
-    return new THREE.BufferGeometry().setFromPoints(points);
-  }, [grid]);
-
-  useFrame(({ clock }) => {
-    if (!groupRef.current) return;
-    groupRef.current.rotation.y = clock.getElapsedTime() * 0.04;
-  });
-
-  return (
-    <group ref={groupRef}>
-      {grid.map((pos, i) => (
-        <mesh key={i} position={pos}>
-          <boxGeometry args={[0.2, 0.2, 0.2]} />
+      {/* Pipe connections */}
+      {Array.from({ length: N - 1 }, (_, i) => (
+        <mesh
+          key={i}
+          position={[(NODE_X[i] + NODE_X[i + 1]) / 2, 0, 0]}
+          rotation={[0, 0, Math.PI / 2]}
+        >
+          <cylinderGeometry args={[0.04, 0.04, SPACING * 0.72, 6]} />
           <meshBasicMaterial
             color={GREEN_VEC}
-            wireframe
             transparent
-            opacity={opacity * 0.6}
+            opacity={i < activeStage ? 0.5 : 0.1}
           />
         </mesh>
       ))}
-      <lineSegments geometry={lines}>
-        <lineBasicMaterial
-          color={GREEN_VEC}
-          transparent
-          opacity={opacity * 0.2}
-        />
-      </lineSegments>
+
+      {/* Pipeline nodes */}
+      {NODE_X.map((x, i) => {
+        const isActive = i === activeStage;
+        const isPast   = i < activeStage;
+        return (
+          <group key={i} position={[x, 0, 0]}>
+            <mesh>
+              <sphereGeometry args={[isActive ? 0.22 : 0.13, 16, 16]} />
+              <meshBasicMaterial
+                color={GREEN_VEC}
+                transparent
+                opacity={isActive ? 1.0 : isPast ? 0.5 : 0.15}
+              />
+            </mesh>
+            {isActive && (
+              <>
+                <mesh>
+                  <sphereGeometry args={[0.32, 12, 12]} />
+                  <meshBasicMaterial color={GREEN_VEC} transparent opacity={0.10} />
+                </mesh>
+                <mesh>
+                  <sphereGeometry args={[0.48, 12, 12]} />
+                  <meshBasicMaterial color={GREEN_VEC} transparent opacity={0.04} />
+                </mesh>
+              </>
+            )}
+          </group>
+        );
+      })}
+
+      {/* Flowing particles */}
+      <instancedMesh ref={particleMeshRef} args={[undefined, undefined, PARTICLE_COUNT]}>
+        <sphereGeometry args={[1, 6, 6]} />
+        <meshBasicMaterial color={GREEN_VEC} transparent opacity={0.85} />
+      </instancedMesh>
     </group>
   );
-});
-
-// ── Stage 4: INTERPRETATION — Atom model ─────────────────────────────────────
-
-const InterpretationStage = memo(function InterpretationStage({
-  opacity,
-}: StageProps) {
-  const groupRef = useRef<THREE.Group>(null);
-  const orbitals = useMemo(() => {
-    return [
-      { radius: 2.2, speed: 0.6, tilt: 0 },
-      { radius: 2.5, speed: 0.45, tilt: Math.PI / 3 },
-      { radius: 2.0, speed: 0.55, tilt: -Math.PI / 4 },
-    ];
-  }, []);
-
-  const ringLines = useMemo(() => {
-    return orbitals.map((o) => {
-      const curve = new THREE.EllipseCurve(0, 0, o.radius, o.radius, 0, Math.PI * 2, false, 0);
-      const pts = curve.getPoints(64);
-      const geo = new THREE.BufferGeometry().setFromPoints(
-        pts.map((p) => new THREE.Vector3(p.x, 0, p.y))
-      );
-      const mat = new THREE.LineBasicMaterial({
-        color: GREEN_VEC,
-        transparent: true,
-        opacity: 0.25,
-      });
-      return new THREE.Line(geo, mat);
-    });
-  }, [orbitals]);
-
-  useFrame(({ clock }) => {
-    if (!groupRef.current) return;
-    groupRef.current.rotation.y = clock.getElapsedTime() * 0.05;
-    ringLines.forEach((l) => {
-      (l.material as THREE.LineBasicMaterial).opacity = opacity * 0.25;
-    });
-  });
-
-  return (
-    <group ref={groupRef}>
-      {/* Central glowing sphere */}
-      <mesh>
-        <sphereGeometry args={[0.5, 24, 24]} />
-        <meshBasicMaterial
-          color={GREEN_VEC}
-          transparent
-          opacity={opacity * 0.7}
-        />
-      </mesh>
-      <mesh>
-        <sphereGeometry args={[0.65, 24, 24]} />
-        <meshBasicMaterial
-          color={GREEN_VEC}
-          wireframe
-          transparent
-          opacity={opacity * 0.2}
-        />
-      </mesh>
-
-      {/* Orbital rings + electrons */}
-      {orbitals.map((o, i) => (
-        <group key={i} rotation={[o.tilt, 0, 0]}>
-          <primitive object={ringLines[i]} />
-          <OrbitalElectron
-            radius={o.radius}
-            speed={o.speed}
-            opacity={opacity}
-          />
-        </group>
-      ))}
-
-    </group>
-  );
-});
-
-function OrbitalElectron({
-  radius,
-  speed,
-  opacity,
-}: {
-  radius: number;
-  speed: number;
-  opacity: number;
-}) {
-  const meshRef = useRef<THREE.Mesh>(null);
-
-  useFrame(({ clock }) => {
-    if (!meshRef.current) return;
-    const t = clock.getElapsedTime() * speed;
-    meshRef.current.position.set(
-      Math.cos(t) * radius,
-      0,
-      Math.sin(t) * radius
-    );
-  });
-
-  return (
-    <mesh ref={meshRef}>
-      <sphereGeometry args={[0.1, 8, 8]} />
-      <meshBasicMaterial
-        color={GREEN_VEC}
-        transparent
-        opacity={opacity * 0.9}
-      />
-    </mesh>
-  );
 }
 
-// ── Stage 5: OUTPUT — Upward arrows from a plane ─────────────────────────────
-
-const OutputStage = memo(function OutputStage({ opacity }: StageProps) {
-  const groupRef = useRef<THREE.Group>(null);
-
-  const arrows = useMemo(() => {
-    const arr: { x: number; z: number; speed: number; offset: number }[] = [];
-    for (let i = 0; i < 12; i++) {
-      arr.push({
-        x: (Math.random() - 0.5) * 4,
-        z: (Math.random() - 0.5) * 4,
-        speed: 0.4 + Math.random() * 0.3,
-        offset: Math.random() * Math.PI * 2,
-      });
-    }
-    return arr;
-  }, []);
-
-  useFrame(({ clock }) => {
-    if (!groupRef.current) return;
-    groupRef.current.rotation.y = clock.getElapsedTime() * 0.03;
-  });
-
-  return (
-    <group ref={groupRef}>
-      {/* Base plane */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.5, 0]}>
-        <planeGeometry args={[6, 6, 8, 8]} />
-        <meshBasicMaterial
-          color={GREEN_VEC}
-          wireframe
-          transparent
-          opacity={opacity * 0.15}
-        />
-      </mesh>
-
-      {/* Rising cones */}
-      {arrows.map((a, i) => (
-        <RisingCone key={i} {...a} opacity={opacity} />
-      ))}
-
-    </group>
-  );
-});
-
-function RisingCone({
-  x,
-  z,
-  speed,
-  offset,
-  opacity,
-}: {
-  x: number;
-  z: number;
-  speed: number;
-  offset: number;
-  opacity: number;
-}) {
-  const meshRef = useRef<THREE.Mesh>(null);
-
-  useFrame(({ clock }) => {
-    if (!meshRef.current) return;
-    const t = clock.getElapsedTime();
-    const y = -1.5 + ((t * speed + offset) % 4);
-    meshRef.current.position.set(x, y, z);
-    meshRef.current.material;
-  });
-
-  return (
-    <mesh ref={meshRef} rotation={[0, 0, 0]}>
-      <coneGeometry args={[0.12, 0.4, 4]} />
-      <meshBasicMaterial
-        color={GREEN_VEC}
-        wireframe
-        transparent
-        opacity={opacity * 0.7}
-      />
-    </mesh>
-  );
-}
-
-// ── Stage 6: CONVERGENCE — Radar-like concentric rings ───────────────────────
-
-const ConvergenceStage = memo(function ConvergenceStage({
-  opacity,
-}: StageProps) {
-  const groupRef = useRef<THREE.Group>(null);
-  const sweepRef = useRef<THREE.Group>(null);
-
-  const ringLines = useMemo(() => {
-    return [1.0, 1.8, 2.6, 3.4].map((r, i) => {
-      const curve = new THREE.EllipseCurve(0, 0, r, r, 0, Math.PI * 2, false, 0);
-      const pts = curve.getPoints(64);
-      const geo = new THREE.BufferGeometry().setFromPoints(
-        pts.map((p) => new THREE.Vector3(p.x, 0, p.y))
-      );
-      const mat = new THREE.LineBasicMaterial({
-        color: GREEN_VEC,
-        transparent: true,
-        opacity: 0.15 + i * 0.08,
-      });
-      return new THREE.Line(geo, mat);
-    });
-  }, []);
-
-  const sweepLine = useMemo(() => {
-    const geo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(3.4, 0, 0),
-    ]);
-    const mat = new THREE.LineBasicMaterial({
-      color: GREEN_VEC,
-      transparent: true,
-      opacity: 0.6,
-    });
-    return new THREE.Line(geo, mat);
-  }, []);
-
-  useFrame(({ clock }) => {
-    if (!groupRef.current || !sweepRef.current) return;
-    groupRef.current.rotation.x = -Math.PI / 6;
-    sweepRef.current.rotation.y = clock.getElapsedTime() * 0.5;
-    // Update opacities for fade
-    ringLines.forEach((l, i) => {
-      (l.material as THREE.LineBasicMaterial).opacity = opacity * (0.15 + i * 0.08);
-    });
-    (sweepLine.material as THREE.LineBasicMaterial).opacity = opacity * 0.6;
-  });
-
-  return (
-    <group ref={groupRef}>
-      {ringLines.map((lineObj, i) => (
-        <primitive key={i} object={lineObj} />
-      ))}
-
-      {/* Rotating sweep line */}
-      <group ref={sweepRef}>
-        <primitive object={sweepLine} />
-      </group>
-
-      {/* Center dot */}
-      <mesh>
-        <sphereGeometry args={[0.08, 12, 12]} />
-        <meshBasicMaterial
-          color={GREEN_VEC}
-          transparent
-          opacity={opacity * 0.9}
-        />
-      </mesh>
-
-    </group>
-  );
-});
-
-// ── Stage 7: ENTER METRIVANT — Glowing dot in void ──────────────────────────
-
-const EnterStage = memo(function EnterStage({ opacity }: StageProps) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const glowRef = useRef<THREE.Mesh>(null);
-
-  useFrame(({ clock }) => {
-    if (!meshRef.current || !glowRef.current) return;
-    const t = clock.getElapsedTime();
-    const scale = 1 + Math.sin(t * 0.8) * 0.15;
-    meshRef.current.scale.setScalar(scale);
-    glowRef.current.scale.setScalar(scale * 2.5);
-  });
-
-  return (
-    <group>
-      <mesh ref={meshRef}>
-        <sphereGeometry args={[0.12, 16, 16]} />
-        <meshBasicMaterial
-          color={GREEN_VEC}
-          transparent
-          opacity={opacity}
-        />
-      </mesh>
-      <mesh ref={glowRef}>
-        <sphereGeometry args={[0.12, 16, 16]} />
-        <meshBasicMaterial
-          color={GREEN_VEC}
-          transparent
-          opacity={opacity * 0.15}
-        />
-      </mesh>
-    </group>
-  );
-});
-
-// ── Stage container with fade ────────────────────────────────────────────────
-
-const STAGES = [
-  InputStage,
-  IngestionStage,
-  ProcessingStage,
-  InterpretationStage,
-  OutputStage,
-  ConvergenceStage,
-  EnterStage,
-] as const;
-
-function StageRenderer({
-  activeStage,
-  onTransitionEnd,
-}: {
-  activeStage: number;
-  onTransitionEnd: () => void;
-}) {
-  const [visibleStage, setVisibleStage] = useState(activeStage);
-  const [fadeOpacity, setFadeOpacity] = useState(1);
-  const fadeRef = useRef({ phase: "idle" as "idle" | "out" | "in", target: activeStage });
-  const opacityRef = useRef(1);
-
-  useEffect(() => {
-    if (activeStage !== visibleStage) {
-      fadeRef.current = { phase: "out", target: activeStage };
-    }
-  }, [activeStage, visibleStage]);
-
-  useFrame((_, delta) => {
-    const f = fadeRef.current;
-    if (f.phase === "out") {
-      opacityRef.current = Math.max(0, opacityRef.current - delta / (TRANSITION_DURATION * 0.4));
-      setFadeOpacity(opacityRef.current);
-      if (opacityRef.current <= 0) {
-        setVisibleStage(f.target);
-        f.phase = "in";
-      }
-    } else if (f.phase === "in") {
-      opacityRef.current = Math.min(1, opacityRef.current + delta / (TRANSITION_DURATION * 0.6));
-      setFadeOpacity(opacityRef.current);
-      if (opacityRef.current >= 1) {
-        f.phase = "idle";
-      }
-    }
-  });
-
-  const StageComponent = STAGES[visibleStage];
-
-  return <StageComponent opacity={fadeOpacity} />;
-}
-
-// ── Camera controller ────────────────────────────────────────────────────────
-
-function CameraController({
-  activeStage,
-  onTransitionEnd,
-}: {
-  activeStage: number;
-  onTransitionEnd: () => void;
-}) {
-  useSmoothCamera(STAGE_CAMERAS[activeStage], TRANSITION_DURATION, onTransitionEnd);
-  return null;
-}
-
-// ── Scene ────────────────────────────────────────────────────────────────────
-
-function Scene({
-  activeStage,
-  transitioning,
-  onTransitionEnd,
-}: {
-  activeStage: number;
-  transitioning: boolean;
-  onTransitionEnd: () => void;
-}) {
-  const controlsRef = useRef<React.ComponentRef<typeof OrbitControls>>(null);
-
-  return (
-    <>
-      <CameraController
-        activeStage={activeStage}
-        onTransitionEnd={onTransitionEnd}
-      />
-      <OrbitControls
-        ref={controlsRef}
-        enableDamping
-        dampingFactor={0.05}
-        minPolarAngle={Math.PI / 4}
-        maxPolarAngle={(3 * Math.PI) / 4}
-        minDistance={3}
-        maxDistance={12}
-        enabled={!transitioning}
-        enablePan={false}
-      />
-      <StageRenderer
-        activeStage={activeStage}
-        onTransitionEnd={onTransitionEnd}
-      />
-    </>
-  );
-}
-
-// ── Navigation overlay ───────────────────────────────────────────────────────
-
-function NavigationOverlay({
-  activeStage,
-  transitioning,
-  onNext,
-  onPrev,
-}: {
-  activeStage: number;
-  transitioning: boolean;
-  onNext: () => void;
-  onPrev: () => void;
-}) {
-  const isFinal = activeStage === STAGE_COUNT - 1;
-  const label = STAGE_LABELS[activeStage];
-
-  return (
-    <div
-      style={{
-        position: "absolute",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        padding: "24px 32px",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 16,
-        pointerEvents: "none",
-        zIndex: 10,
-      }}
-    >
-      {/* Stage label */}
-      <AnimatePresence mode="wait">
-        <motion.span
-          key={label}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 0.6, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.4 }}
-          style={{
-            fontFamily: "monospace",
-            fontSize: 12,
-            letterSpacing: 3,
-            color: "white",
-          }}
-        >
-          {isFinal ? "" : label}
-        </motion.span>
-      </AnimatePresence>
-
-      {/* Progress dots */}
-      <div style={{ display: "flex", gap: 8 }}>
-        {Array.from({ length: STAGE_COUNT }).map((_, i) => (
-          <div
-            key={i}
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              background: i === activeStage ? GREEN : "rgba(255,255,255,0.2)",
-              transition: "background 0.3s",
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Buttons */}
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          pointerEvents: "auto",
-        }}
-      >
-        {activeStage > 0 && !isFinal && (
-          <button
-            onClick={onPrev}
-            disabled={transitioning}
-            style={{
-              padding: "8px 20px",
-              border: `1px solid rgba(255,255,255,0.2)`,
-              borderRadius: 4,
-              background: "transparent",
-              color: "rgba(255,255,255,0.5)",
-              fontFamily: "monospace",
-              fontSize: 13,
-              letterSpacing: 1,
-              cursor: transitioning ? "not-allowed" : "pointer",
-              opacity: transitioning ? 0.4 : 1,
-              transition: "opacity 0.2s",
-            }}
-          >
-            &larr; Back
-          </button>
-        )}
-
-        {isFinal ? (
-          <Link
-            href="/signup"
-            style={{
-              padding: "10px 28px",
-              border: "none",
-              borderRadius: 4,
-              background: GREEN,
-              color: "#000200",
-              fontFamily: "monospace",
-              fontSize: 14,
-              fontWeight: 700,
-              letterSpacing: 1.5,
-              cursor: "pointer",
-              textDecoration: "none",
-              display: "inline-flex",
-              alignItems: "center",
-            }}
-          >
-            ENTER METRIVANT
-          </Link>
-        ) : (
-          <button
-            onClick={onNext}
-            disabled={transitioning}
-            style={{
-              padding: "8px 20px",
-              border: `1px solid ${GREEN}`,
-              borderRadius: 4,
-              background: "transparent",
-              color: GREEN,
-              fontFamily: "monospace",
-              fontSize: 13,
-              letterSpacing: 1,
-              cursor: transitioning ? "not-allowed" : "pointer",
-              opacity: transitioning ? 0.4 : 1,
-              transition: "opacity 0.2s",
-            }}
-          >
-            Next &rarr;
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Main component ───────────────────────────────────────────────────────────
+// ── Main component ────────────────────────────────────────────────────────────
 
 export default function PipelineExperience() {
   const [activeStage, setActiveStage] = useState(0);
-  const [transitioning, setTransitioning] = useState(false);
 
-  const handleNext = useCallback(() => {
-    if (transitioning || activeStage >= STAGE_COUNT - 1) return;
-    setTransitioning(true);
-    setActiveStage((s) => s + 1);
-  }, [transitioning, activeStage]);
-
-  const handlePrev = useCallback(() => {
-    if (transitioning || activeStage <= 0) return;
-    setTransitioning(true);
-    setActiveStage((s) => s - 1);
-  }, [transitioning, activeStage]);
-
-  const handleTransitionEnd = useCallback(() => {
-    setTransitioning(false);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveStage((s) => (s + 1) % N);
+    }, 2600);
+    return () => clearInterval(timer);
   }, []);
+
+  const stage = STAGES[activeStage];
 
   return (
     <div
       style={{
         height: "520px",
         width: "100%",
-        position: "relative",
         background: "#000200",
         overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      <Canvas
-        camera={{ position: [0, 2, 8], fov: 50, near: 0.1, far: 100 }}
-        style={{ width: "100%", height: "100%" }}
-        gl={{ antialias: true, alpha: false }}
-        onCreated={({ gl }) => {
-          gl.setClearColor(new THREE.Color("#000200"));
+      {/* ── 2D pipeline schematic — top ───────────────────────────── */}
+      <div
+        style={{
+          borderBottom: "1px solid rgba(13,32,16,0.8)",
+          padding: "14px 20px 0",
         }}
       >
-        <Scene
-          activeStage={activeStage}
-          transitioning={transitioning}
-          onTransitionEnd={handleTransitionEnd}
-        />
-      </Canvas>
+        {/* Section label */}
+        <div
+          style={{
+            fontFamily: "monospace",
+            fontSize: 9,
+            letterSpacing: "0.22em",
+            color: "rgba(46,230,166,0.38)",
+            textTransform: "uppercase",
+            marginBottom: 6,
+          }}
+        >
+          Detection Pipeline
+        </div>
+        <PipelineSchematic activeStage={activeStage} />
+      </div>
 
-      <NavigationOverlay
-        activeStage={activeStage}
-        transitioning={transitioning}
-        onNext={handleNext}
-        onPrev={handlePrev}
-      />
+      {/* ── 3D canvas — pointer-events off so page remains scrollable ─ */}
+      <div style={{ flex: 1, position: "relative" }}>
+        <Canvas
+          camera={{ position: [0, 1.0, 6], fov: 52, near: 0.1, far: 100 }}
+          style={{ width: "100%", height: "100%", pointerEvents: "none" }}
+          gl={{ antialias: true, alpha: false }}
+          onCreated={({ gl }) => {
+            gl.setClearColor(new THREE.Color("#000200"));
+          }}
+        >
+          <PipelineScene activeStage={activeStage} />
+        </Canvas>
+      </div>
+
+      {/* ── Stage annotation — bottom ─────────────────────────────── */}
+      <div
+        style={{
+          height: "76px",
+          borderTop: "1px solid rgba(13,32,16,0.8)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 6,
+          padding: "0 24px",
+        }}
+      >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeStage}
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -5 }}
+            transition={{ duration: 0.3 }}
+            style={{ textAlign: "center" }}
+          >
+            <div
+              style={{
+                fontFamily: "monospace",
+                fontSize: 11,
+                letterSpacing: "0.18em",
+                color: GREEN,
+                textTransform: "uppercase",
+                marginBottom: 3,
+              }}
+            >
+              {stage.label}
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: "rgba(100,116,139,0.75)",
+                letterSpacing: "0.04em",
+              }}
+            >
+              {stage.desc}
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
