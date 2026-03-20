@@ -1,9 +1,16 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Space_Grotesk } from "next/font/google";
 import { createClient } from "../../../lib/supabase/server";
 import DiscoverClient from "./DiscoverClient";
 
 export const dynamic = "force-dynamic";
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600"],
+  display: "swap",
+});
 
 export default async function DiscoverPage() {
   const supabase = await createClient();
@@ -13,7 +20,6 @@ export default async function DiscoverPage() {
 
   if (!user) redirect("/login");
 
-  // Pre-load already-tracked domains and org sector
   let trackedDomains: string[] = [];
   let orgSector = "saas";
   try {
@@ -47,83 +53,97 @@ export default async function DiscoverPage() {
       }
     }
   } catch {
-    // Table may not exist yet — silently continue
+    // continue silently
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-
-      {/* ── Atmospheric depth ──────────────────────────────────────────── */}
+    <div
+      className={`min-h-screen bg-black text-white ${spaceGrotesk.className}`}
+      style={{ letterSpacing: "0.01em" }}
+    >
+      {/* ── Dot grid ───────────────────────────────────────────────────── */}
       <div
         className="pointer-events-none fixed inset-0"
         style={{
-          backgroundImage:
-            "radial-gradient(rgba(255,255,255,0.85) 0.5px, transparent 0.5px)",
+          backgroundImage: "radial-gradient(rgba(255,255,255,0.9) 0.5px, transparent 0.5px)",
           backgroundSize: "6px 6px",
-          opacity: 0.018,
-        }}
-      />
-      <div
-        className="pointer-events-none fixed inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 70% 40% at 50% -5%, rgba(46,230,166,0.06) 0%, transparent 70%)",
+          opacity: 0.016,
         }}
       />
 
-      {/* ── Mini header ────────────────────────────────────────────────── */}
-      <header className="relative z-10 flex h-14 shrink-0 items-center justify-between border-b border-[#0e2210] bg-[rgba(0,0,0,0.98)] px-6">
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <header
+        className="relative z-10 flex h-14 shrink-0 items-center justify-between px-6"
+        style={{
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          background: "rgba(0,0,0,0.98)",
+        }}
+      >
+        {/* Brand top-edge line */}
         <div
           className="absolute inset-x-0 top-0 h-[1px]"
           style={{
             background:
-              "linear-gradient(90deg, transparent 0%, rgba(46,230,166,0.20) 40%, rgba(46,230,166,0.35) 50%, rgba(46,230,166,0.20) 60%, transparent 100%)",
+              "linear-gradient(90deg, transparent 0%, rgba(46,230,166,0.18) 40%, rgba(46,230,166,0.30) 50%, rgba(46,230,166,0.18) 60%, transparent 100%)",
           }}
         />
         <Link href="/app" className="flex items-center gap-3">
-          <svg width="22" height="22" viewBox="0 0 46 46" fill="none" aria-hidden="true">
-            <circle cx="23" cy="23" r="21.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.50" />
-            <circle cx="23" cy="23" r="13"   stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.28" />
-            <circle cx="23" cy="23" r="5.5"  stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.42" />
+          <svg width="20" height="20" viewBox="0 0 46 46" fill="none" aria-hidden="true">
+            <circle cx="23" cy="23" r="21.5" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.45" />
+            <circle cx="23" cy="23" r="13"   stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.25" />
+            <circle cx="23" cy="23" r="5.5"  stroke="#2EE6A6" strokeWidth="1"   strokeOpacity="0.38" />
             <path d="M23 23 L17.8 2.6 A21.5 21.5 0 0 1 38.2 9.8 Z" fill="#2EE6A6" fillOpacity="0.10" />
-            <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.80" />
+            <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.75" />
             <circle cx="23" cy="23" r="2.5" fill="#2EE6A6" />
           </svg>
-          <span className="text-[13px] font-bold tracking-[0.08em] text-white">METRIVANT</span>
+          <span
+            className="text-[12px] font-semibold text-white"
+            style={{ letterSpacing: "0.14em" }}
+          >
+            METRIVANT
+          </span>
         </Link>
 
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-6">
           <Link
             href="/app/settings"
-            className="text-[12px] text-slate-600 transition-colors hover:text-slate-400"
+            className="text-[11px] font-medium transition-colors"
+            style={{ color: "rgba(255,255,255,0.25)", letterSpacing: "0.06em" }}
           >
             Settings
           </Link>
           <Link
             href="/app"
-            className="flex items-center gap-1.5 text-[12px] text-slate-500 transition-colors hover:text-slate-300"
+            className="flex items-center gap-1.5 text-[11px] font-medium transition-colors hover:text-white"
+            style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "0.06em" }}
           >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-              <path d="M7.5 2L3.5 6L7.5 10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M7.5 2L3.5 6L7.5 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             Radar
           </Link>
         </div>
       </header>
 
-      {/* ── Page hero ──────────────────────────────────────────────────── */}
-      <div className="relative mx-auto max-w-6xl px-6 pb-2 pt-10">
-        <div className="mb-1 flex items-center gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-600">
-            Discovery
-          </span>
+      {/* ── Hero ───────────────────────────────────────────────────────── */}
+      <div className="relative mx-auto max-w-6xl px-6 pb-2 pt-12">
+        <div
+          className="mb-3 text-[9px] font-medium uppercase"
+          style={{ letterSpacing: "0.28em", color: "rgba(255,255,255,0.20)" }}
+        >
+          Catalog
         </div>
-        <h1 className="text-[22px] font-bold tracking-tight text-white">
-          Who&apos;s making moves in your market?
+        <h1
+          className="text-[28px] font-light text-white"
+          style={{ letterSpacing: "0.02em", lineHeight: 1.15 }}
+        >
+          Select your targets.
         </h1>
-        <p className="mt-1 max-w-lg text-[13px] leading-relaxed text-slate-500">
-          Add competitors to your radar and Metrivant starts watching them immediately —
-          pricing changes, feature launches, positioning shifts. Browse by category or search by name.
+        <p
+          className="mt-2 text-[13px] font-light"
+          style={{ color: "rgba(255,255,255,0.30)", letterSpacing: "0.03em" }}
+        >
+          Add a competitor. Metrivant watches immediately.
         </p>
       </div>
 
