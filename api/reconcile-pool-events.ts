@@ -31,7 +31,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     Sentry.captureException(error);
     Sentry.captureCheckIn({ monitorSlug: "reconcile-pool-events", status: "error", checkInId });
     await Sentry.flush(2000);
-    res.status(500).json({ ok: false, error: String(error) });
+    res.status(500).json({ ok: false, error: error instanceof Error ? error.message : JSON.stringify(error) });
   }
 }
 

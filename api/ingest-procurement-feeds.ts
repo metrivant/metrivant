@@ -326,7 +326,7 @@ async function handler(req: ApiReq, res: ApiRes) {
           stage:  "procurement_ingest",
           status: "failure",
           duration_ms: feedElapsed(),
-          metadata: { source_id: feed.id, error: String(feedError) },
+          metadata: { source_id: feed.id, error: feedError instanceof Error ? feedError.message : JSON.stringify(feedError) },
         });
       }
     }
@@ -443,7 +443,7 @@ async function handler(req: ApiReq, res: ApiRes) {
           stage:  "procurement_ingest",
           status: "failure",
           duration_ms: sourceElapsed(),
-          metadata: { source_id: source.id, source_name: source.source_name, error: String(sourceError) },
+          metadata: { source_id: source.id, source_name: source.source_name, error: sourceError instanceof Error ? sourceError.message : JSON.stringify(sourceError) },
         });
       }
     }

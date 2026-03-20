@@ -474,7 +474,7 @@ async function handler(req: ApiReq, res: ApiRes) {
           stage:  "procurement_promote",
           status: "failure",
           duration_ms: elapsed(),
-          metadata: { pool_event_id: event.id, error: String(eventError) },
+          metadata: { pool_event_id: event.id, error: eventError instanceof Error ? eventError.message : JSON.stringify(eventError) },
         });
       }
     }

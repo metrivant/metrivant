@@ -349,7 +349,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   } catch (err) {
     Sentry.captureCheckIn({ monitorSlug: "ingest-media-feeds", status: "error", checkInId });
     Sentry.captureException(err);
-    res.status(500).json({ ok: false, error: String(err), runId });
+    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : JSON.stringify(err), runId });
   }
 }
 
