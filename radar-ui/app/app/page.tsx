@@ -28,6 +28,7 @@ import KnowledgePanel from "../../components/KnowledgePanel";
 import RadarRealtimeSync from "../../components/RadarRealtimeSync";
 import { getRadarFeed } from "../../lib/api";
 import { createClient } from "../../lib/supabase/server";
+import { createServiceClient } from "../../lib/supabase/service";
 import { getSubscriptionState } from "../../lib/subscription";
 
 // ── Sector news — Google News RSS, cached 1 hour ──────────────────────────────
@@ -191,15 +192,15 @@ export default async function Page() {
   let telescopeSignals: TelescopeSignal[] = [];
   if (orgId) {
     try {
-      const supabase = await createClient();
+      const service = createServiceClient();
       const competitorIds = competitors.map((c) => c.competitor_id);
       if (competitorIds.length > 0) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data } = await (supabase as any)
+        const { data } = await (service as any)
           .from("signals")
           .select("id, signal_type, summary, confidence_score, detected_at, competitor_id")
           .in("competitor_id", competitorIds)
-          .in("status", ["pending", "active", "interpreted"])
+          .in("status", ["pending", "pending_review", "interpreted"])
           .order("detected_at", { ascending: false })
           .limit(30);
         const nameMap = new Map(competitors.map((c) => [c.competitor_id, c.competitor_name]));
