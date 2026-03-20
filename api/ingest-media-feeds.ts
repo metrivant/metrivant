@@ -6,7 +6,7 @@ import { verifyCronSecret } from "../lib/withCronAuth";
 import { parseFeed } from "../lib/feed-parser";
 import { SECTOR_MEDIA_SOURCES, getConfiguredSectors } from "../lib/sector-media-sources";
 import { extractKeywords, computeContentHash } from "../lib/media-keyword-extractor";
-import { generateRunId } from "../lib/pipeline-metrics";
+import { generateRunId, recordEvent, startTimer } from "../lib/pipeline-metrics";
 
 // Cluster detection thresholds (see migrations/044_media_pool.sql spec).
 const MIN_ARTICLES_FOR_CLUSTER = 5;
@@ -334,6 +334,20 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     Sentry.captureCheckIn({ monitorSlug: "ingest-media-feeds", status: "ok", checkInId });
 
+    void recordEvent({
+      run_id: runId,
+      stage: "media_ingest",
+      status: "success",
+      metadata: {
+        sectors: configuredSectors.length,
+        feedsFetched: totalFeedsFetched,
+        feedsFailed: totalFeedsFailed,
+        observationsInserted: totalObservationsInserted,
+        observationsDuplicate: totalObservationsDuplicate,
+        narrativesUpserted: totalNarrativesUpserted,
+      },
+    });
+
     res.status(200).json({
       ok:                    true,
       runId,
@@ -349,6 +363,12 @@ async function handler(req: ApiReq, res: ApiRes) {
   } catch (err) {
     Sentry.captureCheckIn({ monitorSlug: "ingest-media-feeds", status: "error", checkInId });
     Sentry.captureException(err);
+    void recordEvent({
+      run_id: runId,
+      stage: "media_ingest",
+      status: "failure",
+      metadata: { error: err instanceof Error ? err.message : JSON.stringify(err) },
+    });
     res.status(500).json({ ok: false, error: err instanceof Error ? err.message : JSON.stringify(err), runId });
   }
 }
