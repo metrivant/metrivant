@@ -1,8 +1,14 @@
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import PublicNav from "../components/PublicNav";
 import LandingLogo from "../components/LandingLogo";
 import LandingFeaturePrompt from "../components/LandingFeaturePrompt";
 import LandingCTAButtons from "../components/LandingCTAButtons";
+
+const PipelineExperience = dynamic(
+  () => import("../components/PipelineExperience"),
+  { ssr: false, loading: () => <div className="h-screen w-full bg-[#000200]" /> }
+);
 
 const LABEL_COLOR_STYLE = { color: "rgba(46,230,166,0.55)" } as const;
 
@@ -66,7 +72,7 @@ export default function LandingPage() {
       />
 
       {/* ── Hero ────────────────────────────────────────────────────── */}
-      <section className="relative flex flex-1 flex-col items-center justify-center px-6 pb-24 pt-32 text-center">
+      <section className="relative flex flex-1 flex-col items-center justify-center px-6 pb-16 pt-28 text-center">
         {/* Animated radar logo */}
         <div className="hero-fade-up" style={{ animationDelay: "0ms" }}>
           <LandingLogo />
@@ -86,10 +92,10 @@ export default function LandingPage() {
         </h2>
 
         <p
-          className="hero-fade-up mt-4 max-w-sm text-[14px] leading-relaxed text-slate-400"
+          className="hero-fade-up mt-4 max-w-xs text-[13px] leading-relaxed text-slate-500"
           style={{ animationDelay: "320ms" }}
         >
-          Automated monitoring across every rival. Pricing shifts, product launches, and strategy pivots — surfaced as signals, not noise.
+          Continuous competitor monitoring. Page changes become signals. Signals become movements. Movements become briefs.
         </p>
 
         <div className="hero-fade-up" style={{ animationDelay: "440ms" }}>
@@ -98,57 +104,85 @@ export default function LandingPage() {
 
         {/* Pricing teaser */}
         <div
-          className="hero-fade-up mt-6 flex items-center gap-2.5 text-[12px]"
+          className="hero-fade-up mt-5 flex items-center gap-2 text-[11px]"
           style={{ animationDelay: "560ms" }}
         >
-          <Link href="/pricing" className="text-slate-600 transition-colors hover:text-slate-400">
-            From $9/mo
-          </Link>
-          <span className="h-0.5 w-0.5 rounded-full bg-slate-700" />
-          <span className="text-slate-700">Free trial included</span>
+          <span className="text-slate-600">From $9/mo</span>
           <span className="h-0.5 w-0.5 rounded-full bg-slate-700" />
           <Link href="/pricing" className="text-slate-500 transition-colors hover:text-white">
-            See all plans →
+            Plans →
           </Link>
         </div>
       </section>
 
       {/* ── Differentiation row ──────────────────────────────────────── */}
-      <section className="relative border-t border-[#0d2010] px-6 py-16">
-        <div className="mx-auto grid max-w-2xl gap-10 sm:grid-cols-3">
+      <section className="relative border-t border-[#0d2010] px-6 py-10">
+        <div className="mx-auto grid max-w-2xl gap-8 sm:grid-cols-3">
           {[
             {
-              label: "Evidence-backed",
-              body:  "Every signal is grounded in real page changes — not AI guesswork.",
+              label: "Evidence-grounded",
+              body:  "Every signal traces to a real page change. No inference without observation.",
             },
             {
-              label: "Zero noise",
-              body:  "Confidence scoring filters cosmetic page changes from real strategic moves. Signals, not notifications.",
+              label: "Confidence-gated",
+              body:  "Four-factor scoring separates strategic moves from cosmetic noise.",
             },
             {
-              label: "Early signal",
-              body:  "Detects competitor intent before it surfaces in press or public filings.",
+              label: "Pre-public detection",
+              body:  "Surfaces intent from page changes before press releases or filings.",
             },
           ].map(({ label, body }) => (
-            <div key={label} className="flex flex-col gap-3">
+            <div key={label} className="flex flex-col gap-2">
               <div className="text-[10px] font-bold uppercase tracking-[0.22em]" style={LABEL_COLOR_STYLE}>
                 {label}
               </div>
-              <p className="text-[13px] leading-relaxed text-slate-500">{body}</p>
+              <p className="text-[12px] leading-relaxed text-slate-500">{body}</p>
             </div>
           ))}
         </div>
       </section>
 
+      {/* ── 3D Pipeline Experience (desktop only) ──────────────────── */}
+      <section className="relative hidden border-t border-[#0d2010] md:block">
+        <PipelineExperience />
+      </section>
+
+      {/* ── Mobile CTA (replaces 3D on mobile) ────────────────────── */}
+      <section className="relative border-t border-[#0d2010] px-6 py-16 text-center md:hidden">
+        <div
+          className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-[#0d2010]"
+          style={{ background: "rgba(46,230,166,0.04)" }}
+        >
+          <svg width="28" height="28" viewBox="0 0 46 46" fill="none" aria-hidden="true">
+            <circle cx="23" cy="23" r="20" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.4" />
+            <circle cx="23" cy="23" r="12" stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.25" />
+            <circle cx="23" cy="23" r="5" stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.35" />
+            <circle cx="23" cy="23" r="2" fill="#2EE6A6" />
+          </svg>
+        </div>
+        <div className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-slate-600">
+          Detection Pipeline
+        </div>
+        <p className="mx-auto mb-6 max-w-xs text-[12px] leading-relaxed text-slate-600">
+          Pages → Snapshots → Diffs → Signals → Movements → Radar
+        </p>
+        <Link
+          href="/signup"
+          className="inline-block rounded-full bg-[#2EE6A6] px-10 py-3 text-[13px] font-bold tracking-[0.08em] text-black transition-opacity hover:opacity-90"
+        >
+          ENTER METRIVANT
+        </Link>
+      </section>
+
       {/* ── Pricing snapshot ─────────────────────────────────────────── */}
-      <section className="relative border-t border-[#0d2010] px-6 pb-24">
+      <section className="relative border-t border-[#0d2010] px-6 pb-16">
         <div className="mx-auto max-w-3xl">
-          <div className="mb-8 pt-16 text-center">
+          <div className="mb-6 pt-12 text-center">
             <div className="text-[10px] font-bold uppercase tracking-[0.28em] text-slate-600">
               Pricing
             </div>
-            <h2 className="mt-1.5 text-[20px] font-semibold text-white">
-              Full intelligence stack. Start now.
+            <h2 className="mt-1.5 text-[18px] font-semibold text-white">
+              Full stack. No setup.
             </h2>
           </div>
 
@@ -160,7 +194,7 @@ export default function LandingPage() {
                 $9<span className="text-[13px] font-normal text-slate-500">/mo</span>
               </div>
               <ul className="mt-3 space-y-1.5">
-                {["10 competitors monitored", "Weekly intelligence digest", "Live radar dashboard"].map((f) => (
+                {["10 competitors", "Weekly brief", "Live radar"].map((f) => (
                   <li key={f} className="flex items-center gap-2">
                     <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "rgba(46,230,166,0.55)" }} />
                     <span className="text-[11px] text-slate-500">{f}</span>
@@ -195,12 +229,11 @@ export default function LandingPage() {
               </div>
               <ul className="mt-3 space-y-1.5">
                 {[
-                  "Up to 25 rivals monitored",
-                  "Instant alerts on critical moves",
-                  "Deep-dive per-competitor profiles",
+                  "25 competitors",
+                  "Real-time alerts",
                   "90-day signal history",
-                  "Cross-competitor pattern detection",
-                  "Live market positioning map",
+                  "Cross-competitor patterns",
+                  "Market positioning map",
                 ].map((f) => (
                   <li key={f} className="flex items-center gap-2">
                     <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "#2EE6A6", opacity: 0.85 }} />
@@ -217,10 +250,10 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <p className="mt-6 text-center text-[11px] text-slate-700">
-            All plans include a free trial ·{" "}
+          <p className="mt-4 text-center text-[11px] text-slate-700">
+            Free trial on all plans ·{" "}
             <Link href="/pricing" className="text-slate-500 hover:text-white transition-colors">
-              Full plan comparison →
+              Compare →
             </Link>
           </p>
         </div>
