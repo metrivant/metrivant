@@ -24,27 +24,30 @@ const ENERGY_PAGES  = ["investor-relations", "news", "projects", "operations"];
 
 // ── SaaS ──────────────────────────────────────────────────────────────────────
 
+// Curated for Software & AI: prioritises companies with high signal density —
+// frequent pricing moves, feature launches, positioning shifts, and AI capability
+// changes. Covers AI models, DevTools, PM, design, and B2B platform.
 const SAAS_DEFAULTS: SectorDefaultCompetitor[] = [
   { name: "Salesforce",   domain: "salesforce.com",   website_url: "https://salesforce.com",   priority: 1,  default_pages: SAAS_PAGES },
   { name: "HubSpot",      domain: "hubspot.com",      website_url: "https://hubspot.com",      priority: 2,  default_pages: SAAS_PAGES },
-  { name: "Notion",       domain: "notion.so",        website_url: "https://notion.so",        priority: 3,  default_pages: SAAS_PAGES },
-  { name: "GitHub",       domain: "github.com",       website_url: "https://github.com",       priority: 4,  default_pages: SAAS_PAGES },
-  { name: "Figma",        domain: "figma.com",        website_url: "https://figma.com",        priority: 5,  default_pages: SAAS_PAGES },
-  { name: "OpenAI",       domain: "openai.com",       website_url: "https://openai.com",       priority: 6,  default_pages: SAAS_PAGES },
-  { name: "Stripe",       domain: "stripe.com",       website_url: "https://stripe.com",       priority: 7,  default_pages: SAAS_PAGES },
-  { name: "Datadog",      domain: "datadoghq.com",    website_url: "https://datadoghq.com",    priority: 8,  default_pages: SAAS_PAGES },
-  { name: "Vercel",       domain: "vercel.com",       website_url: "https://vercel.com",       priority: 9,  default_pages: SAAS_PAGES },
-  { name: "Anthropic",    domain: "anthropic.com",    website_url: "https://anthropic.com",    priority: 10, default_pages: SAAS_PAGES },
-  { name: "Slack",        domain: "slack.com",        website_url: "https://slack.com",        priority: 11, default_pages: SAAS_PAGES },
-  { name: "Linear",       domain: "linear.app",       website_url: "https://linear.app",       priority: 12, default_pages: SAAS_PAGES },
-  { name: "Zoom",         domain: "zoom.us",          website_url: "https://zoom.us",          priority: 13, default_pages: SAAS_PAGES },
-  { name: "Atlassian",    domain: "atlassian.com",    website_url: "https://atlassian.com",    priority: 14, default_pages: SAAS_PAGES },
-  { name: "monday.com",   domain: "monday.com",       website_url: "https://monday.com",       priority: 15, default_pages: SAAS_PAGES },
-  { name: "Loom",         domain: "loom.com",         website_url: "https://loom.com",         priority: 16, default_pages: SAAS_PAGES },
-  { name: "Miro",         domain: "miro.com",         website_url: "https://miro.com",         priority: 17, default_pages: SAAS_PAGES },
-  { name: "Zapier",       domain: "zapier.com",       website_url: "https://zapier.com",       priority: 18, default_pages: SAAS_PAGES },
-  { name: "Intercom",     domain: "intercom.com",     website_url: "https://intercom.com",     priority: 19, default_pages: SAAS_PAGES },
-  { name: "Segment",      domain: "segment.com",      website_url: "https://segment.com",      priority: 20, default_pages: SAAS_PAGES },
+  { name: "GitHub",       domain: "github.com",       website_url: "https://github.com",       priority: 3,  default_pages: SAAS_PAGES },
+  { name: "GitLab",       domain: "gitlab.com",       website_url: "https://gitlab.com",       priority: 4,  default_pages: SAAS_PAGES },
+  { name: "OpenAI",       domain: "openai.com",       website_url: "https://openai.com",       priority: 5,  default_pages: SAAS_PAGES },
+  { name: "Anthropic",    domain: "anthropic.com",    website_url: "https://anthropic.com",    priority: 6,  default_pages: SAAS_PAGES },
+  { name: "Mistral",      domain: "mistral.ai",       website_url: "https://mistral.ai",       priority: 7,  default_pages: SAAS_PAGES },
+  { name: "Figma",        domain: "figma.com",        website_url: "https://figma.com",        priority: 8,  default_pages: SAAS_PAGES },
+  { name: "Notion",       domain: "notion.so",        website_url: "https://notion.so",        priority: 9,  default_pages: SAAS_PAGES },
+  { name: "Linear",       domain: "linear.app",       website_url: "https://linear.app",       priority: 10, default_pages: SAAS_PAGES },
+  { name: "Vercel",       domain: "vercel.com",       website_url: "https://vercel.com",       priority: 11, default_pages: SAAS_PAGES },
+  { name: "Supabase",     domain: "supabase.com",     website_url: "https://supabase.com",     priority: 12, default_pages: SAAS_PAGES },
+  { name: "Atlassian",    domain: "atlassian.com",    website_url: "https://atlassian.com",    priority: 13, default_pages: SAAS_PAGES },
+  { name: "Datadog",      domain: "datadoghq.com",    website_url: "https://datadoghq.com",    priority: 14, default_pages: SAAS_PAGES },
+  { name: "Stripe",       domain: "stripe.com",       website_url: "https://stripe.com",       priority: 15, default_pages: SAAS_PAGES },
+  { name: "Zapier",       domain: "zapier.com",       website_url: "https://zapier.com",       priority: 16, default_pages: SAAS_PAGES },
+  { name: "Perplexity",   domain: "perplexity.ai",    website_url: "https://perplexity.ai",    priority: 17, default_pages: SAAS_PAGES },
+  { name: "Groq",         domain: "groq.com",         website_url: "https://groq.com",         priority: 18, default_pages: SAAS_PAGES },
+  { name: "Cloudflare",   domain: "cloudflare.com",   website_url: "https://cloudflare.com",   priority: 19, default_pages: SAAS_PAGES },
+  { name: "Intercom",     domain: "intercom.com",     website_url: "https://intercom.com",     priority: 20, default_pages: SAAS_PAGES },
 ];
 
 // ── Defense ───────────────────────────────────────────────────────────────────

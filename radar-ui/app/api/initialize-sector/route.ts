@@ -12,10 +12,6 @@ const VALID_SECTORS = [
   "energy",
   "defense",
   "fintech",
-  "ai-infrastructure",
-  "devtools",
-  "healthcare",
-  "consumer-tech",
   "custom",
 ] as const;
 

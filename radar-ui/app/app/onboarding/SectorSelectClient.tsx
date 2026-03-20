@@ -6,32 +6,14 @@ import { useRouter } from "next/navigation";
 const SECTOR_OPTIONS = [
   {
     value: "saas",
-    label: "SaaS",
-    desc: "Software, analytics, CRM, developer tools",
+    label: "Software & AI",
+    desc: "B2B software, AI models, developer tools",
     icon: (
       <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
         <rect x="2" y="4" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.2" />
         <line x1="2" y1="7.5" x2="16" y2="7.5" stroke="currentColor" strokeWidth="0.9" strokeOpacity="0.55" />
         <circle cx="4.5" cy="6" r="0.8" fill="currentColor" fillOpacity="0.55" />
         <circle cx="7"   cy="6" r="0.8" fill="currentColor" fillOpacity="0.38" />
-      </svg>
-    ),
-  },
-  {
-    value: "ai-infrastructure",
-    label: "AI Infrastructure",
-    desc: "AI platforms, compute, model providers",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-        <circle cx="9"  cy="9"  r="2"   stroke="currentColor" strokeWidth="1.2" />
-        <circle cx="3"  cy="9"  r="1.2" fill="currentColor" fillOpacity="0.55" />
-        <circle cx="15" cy="9"  r="1.2" fill="currentColor" fillOpacity="0.55" />
-        <circle cx="9"  cy="3"  r="1.2" fill="currentColor" fillOpacity="0.55" />
-        <circle cx="9"  cy="15" r="1.2" fill="currentColor" fillOpacity="0.55" />
-        <line x1="4.2" y1="9" x2="7"   y2="9" stroke="currentColor" strokeWidth="0.9" />
-        <line x1="11"  y1="9" x2="13.8" y2="9" stroke="currentColor" strokeWidth="0.9" />
-        <line x1="9"   y1="4.2" x2="9" y2="7"   stroke="currentColor" strokeWidth="0.9" />
-        <line x1="9"   y1="11"  x2="9" y2="13.8" stroke="currentColor" strokeWidth="0.9" />
       </svg>
     ),
   },
@@ -59,7 +41,7 @@ const SECTOR_OPTIONS = [
   },
   {
     value: "energy",
-    label: "Energy",
+    label: "Energy & Resources",
     desc: "Oil, gas, renewables, energy services",
     icon: (
       <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
@@ -69,8 +51,8 @@ const SECTOR_OPTIONS = [
   },
   {
     value: "defense",
-    label: "Defense",
-    desc: "Defense contractors and aerospace",
+    label: "Defense & Aerospace",
+    desc: "Defense contractors and aerospace firms",
     icon: (
       <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
         <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.2" />
@@ -79,42 +61,6 @@ const SECTOR_OPTIONS = [
         <line x1="2" y1="9"  x2="4.5" y2="9"  stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
         <line x1="13.5" y1="9" x2="16" y2="9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
         <circle cx="9" cy="9" r="2.2" stroke="currentColor" strokeWidth="1.1" />
-      </svg>
-    ),
-  },
-  {
-    value: "devtools",
-    label: "DevTools",
-    desc: "Developer tooling, CI/CD, IDE platforms",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-        <polyline points="5,6 2,9 5,12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-        <polyline points="13,6 16,9 13,12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-        <line x1="11" y1="4" x2="7" y2="14" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeOpacity="0.70" />
-      </svg>
-    ),
-  },
-  {
-    value: "healthcare",
-    label: "Healthcare",
-    desc: "Health tech and digital health platforms",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-        <rect x="2" y="2" width="14" height="14" rx="3" stroke="currentColor" strokeWidth="1.2" />
-        <line x1="9" y1="5.5" x2="9"   y2="12.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-        <line x1="5.5" y1="9" x2="12.5" y2="9"   stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    value: "consumer-tech",
-    label: "Consumer Tech",
-    desc: "Consumer electronics and digital products",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-        <rect x="3" y="2.5" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-        <line x1="6" y1="15.5" x2="12" y2="15.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-        <line x1="9" y1="12.5" x2="9"  y2="15.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
       </svg>
     ),
   },

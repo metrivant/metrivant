@@ -30,8 +30,8 @@ export interface SectorConfig {
 
 const SAAS_CONFIG: SectorConfig = {
   id: "saas",
-  label: "Software",
-  description: "Track competitors in the software and technology sector",
+  label: "Software & AI",
+  description: "Track competitors across software, AI models, and developer tools",
   catalogCategories: [
     "project-management",
     "developer-tools",
@@ -70,7 +70,7 @@ const SAAS_CONFIG: SectorConfig = {
 
 const DEFENSE_CONFIG: SectorConfig = {
   id: "defense",
-  label: "Defense",
+  label: "Defense & Aerospace",
   description: "Track defense contractors, aerospace firms, and government suppliers",
   catalogCategories: [
     "defense-primes",
@@ -108,7 +108,7 @@ const DEFENSE_CONFIG: SectorConfig = {
 
 const ENERGY_CONFIG: SectorConfig = {
   id: "energy",
-  label: "Energy",
+  label: "Energy & Resources",
   description: "Track oil, gas, renewables, and energy sector competitors",
   catalogCategories: [
     "oil-gas",
@@ -185,16 +185,12 @@ export function translateSignalType(
 
 // Label map for all sectors including those without a full SectorConfig.
 const SECTOR_LABELS: Record<string, string> = {
-  saas:               "Software",
-  defense:            "Defense",
-  energy:             "Energy",
-  cybersecurity:      "Cybersecurity",
-  fintech:            "Fintech",
-  "ai-infrastructure": "AI Infrastructure",
-  devtools:           "DevTools",
-  healthcare:         "Healthcare",
-  "consumer-tech":    "Consumer Tech",
-  custom:             "Custom",
+  saas:          "Software & AI",
+  defense:       "Defense & Aerospace",
+  energy:        "Energy & Resources",
+  cybersecurity: "Cybersecurity",
+  fintech:       "Fintech",
+  custom:        "Custom",
 };
 
 /** Return the display label for any sector string. Falls back to capitalised slug. */

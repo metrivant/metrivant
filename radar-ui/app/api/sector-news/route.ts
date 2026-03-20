@@ -3,15 +3,11 @@ import { captureException } from "../../../lib/sentry";
 export const dynamic = "force-dynamic";
 
 const SECTOR_QUERIES: Record<string, string> = {
-  saas:               "B2B SaaS software competitive market",
-  defense:            "defense aerospace government contract",
-  energy:             "energy oil gas renewables market",
-  cybersecurity:      "cybersecurity threat intelligence breach",
-  fintech:            "fintech financial technology market",
-  "ai-infrastructure": "artificial intelligence AI infrastructure market",
-  devtools:           "developer tools software platform",
-  healthcare:         "healthcare technology digital health",
-  "consumer-tech":    "consumer technology product launch",
+  saas:          "B2B software AI developer tools competitive market",
+  defense:       "defense aerospace government contract",
+  energy:        "energy oil gas renewables market",
+  cybersecurity: "cybersecurity threat intelligence breach",
+  fintech:       "fintech financial technology market",
 };
 
 export async function GET(request: Request) {

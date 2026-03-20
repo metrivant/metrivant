@@ -14,15 +14,11 @@ import { getSectorConfig, getSectorLabel } from "../../../lib/sectors";
 // ── Catalog browse sectors ────────────────────────────────────────────────────
 
 const BROWSE_SECTOR_OPTIONS = [
-  { value: "ai-infrastructure", label: "AI Infrastructure" },
-  { value: "consumer-tech",     label: "Consumer Tech" },
-  { value: "cybersecurity",     label: "Cybersecurity" },
-  { value: "defense",           label: "Defense" },
-  { value: "devtools",          label: "DevTools" },
-  { value: "energy",            label: "Energy" },
-  { value: "fintech",           label: "Fintech" },
-  { value: "healthcare",        label: "Healthcare" },
-  { value: "saas",              label: "Software" },
+  { value: "saas",          label: "Software & AI"      },
+  { value: "fintech",       label: "Fintech"             },
+  { value: "cybersecurity", label: "Cybersecurity"       },
+  { value: "defense",       label: "Defense & Aerospace" },
+  { value: "energy",        label: "Energy & Resources"  },
 ] as const;
 
 const BROWSE_SECTOR_CUSTOM = { value: "custom", label: "Custom" } as const;
