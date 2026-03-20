@@ -139,7 +139,7 @@ function NavLink({
     <Link
       href={href}
       onClick={handleClick}
-      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-medium transition-all duration-150"
+      className="flex items-center gap-3 rounded-lg px-3 py-2.5 font-mono text-[10px] font-medium uppercase tracking-[0.14em] transition-all duration-150"
       style={style}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
