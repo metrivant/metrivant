@@ -48,29 +48,35 @@
 ## Typography
 
 ### Typefaces
-- **Inter** — primary typeface. Used for all body text, labels, data readouts, and navigation. Weights: 400, 500, 600, 700.
-- **Space Grotesk** — secondary typeface. Used selectively in data-dense surfaces (Discover page) where a geometric monospace-adjacent rhythm is preferred. Not a global replacement for Inter.
-- System fallback stack: `Inter, system-ui, -apple-system, sans-serif`
+- **Orbitron** — heading / display typeface. Used for: wordmark (METRIVANT), section headings, feature tags, pricing headlines, pipeline headings, HUD labels. Weights: 400–900. Sci-fi geometric aesthetic.
+- **Share Tech Mono** — site-wide default body typeface. Used for: all body text, navigation, pricing cards, CTAs, data readouts, labels, differentiation row. Weight: 400. Monospace terminal aesthetic.
+- **Inter** — long-form readability typeface. Used selectively for: About overlay feature descriptions, brief content, settings text — any surface where paragraph-length text needs optimal legibility at small sizes. Weights: 400–700.
+- CSS variable system: `--font-orbitron`, `--font-share-tech-mono`, `--font-inter` (set in `layout.tsx`).
+- Default body: `font-family: var(--font-share-tech-mono), var(--font-inter), Inter, system-ui, -apple-system, sans-serif`
 - Font smoothing: `-webkit-font-smoothing: antialiased`
 
 ### Wordmark
-- **METRIVANT** — all-caps, bold (700), `letter-spacing: 0.09em`, `28–34px`.
+- **METRIVANT** — all-caps, Orbitron bold (700), `letter-spacing: 0.09em`, `28–34px` (hero), `14–15px` (nav).
 - The wordmark is always uppercase. Never sentence case. Never lowercase.
+- Orbitron is applied to both the nav brand and the hero H1 — they must always match.
 
 ### Tagline
-- "Competitive Intelligence Radar" — uppercase, `tracking-[0.34em]`, `10–11px`, `font-weight: 500`, rendered at `rgba(0,180,255,0.55)`.
+- "Competitive Intelligence" — uppercase, Share Tech Mono, `tracking-[0.34em]`, `10–11px`, `font-weight: 500`, rendered at `rgba(0,180,255,0.55)`.
+- "Radar" was removed from the tagline (2026-03-20). The product identity is "Competitive Intelligence", not "Radar".
 - Always appears directly below the wordmark at reduced accent opacity.
+- Animated with `tagline-sheen`: electric flicker (text-shadow pulses at 75-79% of 6s cycle) + gradient sweep.
 
 ### Label style (throughout the UI)
-- Short labels: uppercase, `letter-spacing: 0.12–0.22em`, `9–10px`, `font-weight: 500–600`.
+- Short labels: Orbitron uppercase, `letter-spacing: 0.12–0.22em`, `9–11px`, `font-weight: 500–700`.
 - Category badges, section headers, status tags all follow this rule.
-- Green label colour: `rgba(0,180,255,0.55)` for data labels; `rgba(255,255,255,0.20–0.35)` for structural labels.
+- Accent label colour: `rgba(0,180,255,0.55)` for data labels; `rgba(255,255,255,0.20–0.35)` for structural labels.
 
 ### Body text
-- `12–13px`, `Inter 400`, `leading-relaxed`. Never decorative. Every sentence carries information.
+- `12–13px`, Share Tech Mono 400, `leading-relaxed`. Never decorative. Every sentence carries information.
+- For long-form paragraphs (About overlay, briefs): Inter 400 at `leading-[1.7]` for improved readability.
 
 ### Numeric / data readouts
-- Same Inter stack. Tabular spacing not enforced but values are displayed at `font-weight: 600` to distinguish from prose.
+- Share Tech Mono stack. Values displayed at `font-weight: 600` to distinguish from prose.
 
 ---
 
@@ -96,9 +102,13 @@
 - All 4 rings breathe independently, staggered by `0.6s` intervals on a `3.5s easeInOut` cycle.
 - Creates the impression of continuous outward propagation without literal animation of radius.
 
+### Signal nodes (landing logo)
+- 4 small blips (r=0.9–1.2) on the rings, appearing/disappearing on staggered 3.5–5s cycles.
+- Represent intermittent signal detection on the radar.
+
 ### Interactive behaviour (landing logo)
-- Click triggers: sonar ping audio (260 Hz sine, 2.4s resonant decay, harmonic overtone at 390 Hz) + a single expanding ring animation from centre outward.
-- The sound is a deliberate design choice — submarine sonar register.
+- Click triggers: futuristic crystalline ding (1046 Hz C6 sine + 3138 Hz shimmer + 523 Hz triangle warmth, 80ms metallic echo, 0.5s total) + expanding ring animation.
+- The sound was updated from submarine sonar to a futuristic ding (2026-03-20).
 
 ### Usage sizes
 - Landing hero: `72px` rendered (46×46 viewbox, scaled up)
@@ -113,6 +123,17 @@
 - `radial-gradient(rgba(255,255,255,0.85) 0.5px, transparent 0.5px)` at `6×6px`, `opacity: 0.018`.
 - Applied as a `pointer-events-none fixed` layer behind all content.
 - Gives the canvas a subtle instrument-panel texture without visual noise.
+
+### Electricity background (landing page)
+- `ElectricityBackground.tsx` — client component rendering randomized SVG lightning bolts.
+- Fixed overlay, `pointer-events: none`, `z-index: 1`.
+- Bolt generation: 6–11 jagged segments, random horizontal drift, 400–1000px height.
+- Flash timing: erratic 2–5 second intervals. 1–2 bolts per flash.
+- Double-flash pattern: 50% chance of a second flash 80–120ms after the first.
+- Flash duration: 80–150ms (appears and vanishes quickly).
+- Bolt opacity: `0.04–0.10` — atmospheric, not distracting.
+- Glow layer: duplicate path at `strokeWidth: 6`, `opacity: 0.3`, `filter: blur(4px)`.
+- Colour: `#00B4FF` — same accent as all other elements.
 
 ### Atmospheric glow
 - `radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,180,255,0.07–0.09) 0%, transparent 70%)`.
@@ -165,6 +186,7 @@ Animations are slow, smooth, and purposeful. No snap, no bounce, no easing that 
 | `glow-breathe` | `8s` | `ease-in-out` | Atmospheric glow loop |
 | `skeleton-pulse` | `1.8s` | `ease-in-out` | Loading skeleton |
 | `cta-pulse` | `3s` | `ease-in-out` | Primary CTA glow |
+| `tagline-sheen` | `6s` | `ease-in-out` | Electric flicker + gradient sweep on tagline |
 | `upgrade-glow` | `16s` | `ease-in-out` | Intermittent upgrade prompt |
 | Radar sweep | `9s` | `linear` | Logo arm rotation |
 | Ring breathe | `3.5s` | `ease-in-out` | Logo ring stagger |
@@ -180,7 +202,7 @@ Animations are slow, smooth, and purposeful. No snap, no bounce, no easing that 
 
 - Functional. One sentence does one job.
 - Never "dashboard" — always "radar", "instrument", "signal", "movement".
-- Precision language: "Confidence-gated", "Evidence-grounded", "Pre-public detection".
+- Precision language: "Confidence-gated", "Evidence-grounded", "Early detection".
 - Error messages are direct and suggest recovery: "Adjust your search or clear filters."
 - Empty states are informational, not reassuring: "No targets found."
 - Loading states reflect actual system activity: "Adding rivals to your radar…", "Setting up monitoring pages…"
@@ -188,11 +210,45 @@ Animations are slow, smooth, and purposeful. No snap, no bounce, no easing that 
 
 ---
 
+## Hero Copy — Line-by-Line Glow Escalation
+
+Three lines, each progressively more intense:
+1. "Changes become signals." — `slate-400 @ 80%`, `font-weight: 500`
+2. "Signals become movements." — `slate-200 @ 90%`, `font-weight: 600`, `text-shadow: 0 0 8px rgba(0,180,255,0.15)`
+3. "Movements become strategy." — `cyan @ 95%`, `font-weight: 700`, `text-shadow: 0 0 12px rgba(0,180,255,0.35), 0 0 24px rgba(0,180,255,0.12)`
+
+The escalation communicates increasing strategic value as raw changes become actionable strategy.
+
+---
+
+## 45-Second Engagement Feature (IntelligencePulse)
+
+A circular radar-shaped panel that appears 45 seconds after landing. Session-gated (sessionStorage).
+
+### Phase progression
+- **Phase 0** (0s): Small circular radar (120px) appears bottom-right with animated pulsing rings + sweep arm.
+- **Phase 1** (2.2s): Signal card + movement detection info appears inside the expanded circle.
+- **Phase 2** (5.5s): Circle expands to 480px centered on screen with backdrop blur.
+- **Phase 3** (7s): Radar logo becomes interactive — hover reveals "Enter Metrivant" CTA.
+
+### Interaction
+- Hover the radar → "Enter Metrivant" button appears (Orbitron, cyan, neon glow).
+- Click → electrical pulse sound (white noise zap through bandpass + sine tail) + rapid flicker sequence (10 steps, 60ms each) → redirect to `/signup`.
+- Dismissible via close button or backdrop click.
+
+### Visual
+- Circular panel: `border-radius: 50%`, `#020208` background, `rgba(0,180,255,0.15–0.25)` border.
+- Concentric ring decorations inside the circle (85%, 65% of diameter).
+- Box shadow: `0 0 80px rgba(0,180,255,0.10)` when expanded.
+- Electrical pulse overlay on click: radial cyan gradient flash.
+
+---
+
 ## What This Brand Is Not
 
 - Not a consumer product. No pastels, no rounded-everything, no micro-animations on every element.
 - Not a data visualisation tool. The radar is a specific instrument — not a generic chart surface.
-- Not enterprise grey. The black-and-green identity is intentional and distinctive. Not blue, not navy, not purple.
+- Not enterprise grey. The black-and-blue identity is intentional and distinctive. Not green, not navy, not purple.
 - Not loud. The single accent colour is used sparingly. When it appears, it means something.
 
 ---
