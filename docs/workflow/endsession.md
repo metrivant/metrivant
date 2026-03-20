@@ -152,44 +152,4 @@ Must specify: surface (runtime|frontend|both), mode (build|fix|refactor), blast 
 
 ## CURRENT ANSWER (2026-03-19, updated)
 
-The highest-leverage objective is **retroactive feed discovery for all existing competitors**. Competitors onboarded before the pool system was built (pools 1–6) have zero `competitor_feeds` rows — meaning the entire pool pipeline produces nothing for them. The feed discovery libraries already exist and are proven in `api/onboard-competitor.ts`: `lib/feed-discovery.ts` (newsroom RSS), `lib/ats-discovery.ts` (careers ATS), `lib/investor-feed-discovery.ts` (EDGAR), `lib/product-feed-discovery.ts` (changelog/blog RSS), `lib/edgar-discovery.ts` (regulatory SEC). A one-time backfill endpoint that loops over all active competitors with missing feeds and runs these discovery functions would immediately multiply signal density across all 6 active pools — every discovered feed generates ongoing pool events on every hourly cron cycle, compounding indefinitely. A human engineer needs 3–5 days to safely extract, test, and deploy. Claude Code can do it in one session. Zero schema changes, zero new deps, runtime surface only.
-
-```
-NEXT SESSION PROMPT:
-──────────────────────────────────────────────────────────────
-Build a retroactive feed discovery endpoint for all existing competitors.
-
-Context: `api/onboard-competitor.ts` runs feed discovery (newsroom, careers/ATS,
-investor/EDGAR, product, procurement, regulatory) for newly onboarded competitors.
-Competitors onboarded before pools were built have zero competitor_feeds rows —
-the pool pipeline produces nothing for them.
-
-Feed discovery libs already exist:
-- lib/feed-discovery.ts (discoverFeed — newsroom RSS)
-- lib/ats-discovery.ts (discoverAts — careers ATS endpoints)
-- lib/investor-feed-discovery.ts (discoverInvestorFeed — EDGAR investor)
-- lib/product-feed-discovery.ts (discoverProductFeed — changelog/blog RSS)
-- lib/edgar-discovery.ts (discoverEdgarFeed — regulatory SEC filings)
-
-Task:
-1. Read all 5 feed discovery libs + api/onboard-competitor.ts (steps 4–9) to understand
-   the upsert patterns and error handling.
-2. Create `api/backfill-feeds.ts` — cron-authenticated endpoint that:
-   - Fetches all active competitors
-   - For each: queries competitor_feeds to find which pool_types are missing
-   - Runs the matching discovery function for each missing pool_type
-   - Upserts results into competitor_feeds (same pattern as onboard-competitor)
-   - Emits pipeline_events per discovery attempt (stage: "feed_backfill")
-   - Processes in chunks (CONCURRENCY=5) to respect budget
-3. Add cron entry in vercel.json: weekly (same day as expand-coverage), after expand-coverage.
-   maxDuration: 90s.
-4. Surface ownership: runtime surface only (api/, lib/). No radar-ui changes.
-5. No new dependencies. No schema changes.
-6. Acceptance: `npx tsc --noEmit` passes. Response includes per-pool discovery stats.
-7. Report: estimated feeds discoverable, LLM call count (only ATS/product use heuristics,
-   no GPT), failure modes guarded.
-
-Constraints: never overwrite existing active feeds. Skip competitors already fully covered.
-Procurement path-probing is lightweight (no LLM). EDGAR requires company name + domain.
-──────────────────────────────────────────────────────────────
-```
+**COMPLETED** — `api/backfill-feeds.ts` built and deployed with weekly cron. All 6 pools (newsroom, careers, investor, product, procurement, regulatory), chunked concurrency=5, sequential EDGAR for SEC rate limits, wall-clock guard, Sentry monitoring, per-pool stats response.
