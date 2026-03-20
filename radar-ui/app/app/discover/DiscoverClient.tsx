@@ -18,7 +18,6 @@ import { getSectorConfig, getSectorLabel } from "../../../lib/sectors";
 const BROWSE_SECTOR_OPTIONS = [
   { value: "ai-infrastructure", label: "AI Infrastructure" },
   { value: "consumer-tech",     label: "Consumer Tech" },
-  { value: "custom",            label: "Custom" },
   { value: "cybersecurity",     label: "Cybersecurity" },
   { value: "defense",           label: "Defense" },
   { value: "devtools",          label: "DevTools" },
@@ -27,6 +26,8 @@ const BROWSE_SECTOR_OPTIONS = [
   { value: "healthcare",        label: "Healthcare" },
   { value: "saas",              label: "Software" },
 ] as const;
+
+const BROWSE_SECTOR_CUSTOM = { value: "custom", label: "Custom" } as const;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -380,6 +381,18 @@ export default function DiscoverClient({
                   {opt.label}
                 </button>
               ))}
+              <div className="my-1 border-t border-[#1a3020]" />
+              <button
+                onClick={() => handleBrowseSectorSelect(BROWSE_SECTOR_CUSTOM.value)}
+                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-[12px] transition-colors hover:bg-[#0a1a0a]"
+                style={{ color: BROWSE_SECTOR_CUSTOM.value === browseSector ? "#2EE6A6" : "#64748b" }}
+              >
+                <span
+                  className="h-1 w-1 shrink-0 rounded-full"
+                  style={{ background: BROWSE_SECTOR_CUSTOM.value === browseSector ? "#2EE6A6" : "transparent" }}
+                />
+                {BROWSE_SECTOR_CUSTOM.label}
+              </button>
             </div>
           )}
         </div>
@@ -566,26 +579,26 @@ export default function DiscoverClient({
                 key={entry.id}
                 className="flex flex-col rounded-[14px] border border-[#0d2010] bg-[#020802] p-5 transition-colors hover:border-[#152a15]"
               >
-                <div className="mb-3 flex items-start gap-3">
+                <div className="mb-3 flex flex-col items-center gap-2">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-[#030c03]">
                     <CompanyLogo domain={entry.domain} name={entry.company_name} />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[14px] font-semibold leading-tight text-white">
+                  <div className="text-center">
+                    <div className="text-[14px] font-semibold leading-tight text-white">
                       {entry.company_name}
                     </div>
-                    <div className="mt-0.5 truncate text-[11px] text-slate-600">
+                    <div className="mt-0.5 text-[11px] text-slate-600">
                       {entry.domain}
                     </div>
                   </div>
                 </div>
 
-                <div className="mb-3 flex items-center gap-2">
+                <div className="mb-3 flex items-center justify-center gap-2">
                   <CategoryBadge category={entry.category} />
                 </div>
 
                 {CATEGORY_TEASER[entry.category] && (
-                  <p className="mb-4 text-[11px] leading-snug text-slate-700">
+                  <p className="mb-4 text-center text-[11px] leading-snug text-slate-700">
                     {CATEGORY_TEASER[entry.category]}
                   </p>
                 )}
