@@ -275,8 +275,6 @@ export default async function Page() {
             {/* ── Pipeline link — opens public engineering schematic ─────── */}
             <Link
               href="/pipeline"
-              target="_blank"
-              rel="noopener"
               className="hidden items-center gap-1.5 rounded-full border border-[#0e2210] bg-[#020802] px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 transition-colors hover:border-[#1e4020] hover:text-[rgba(46,230,166,0.70)] md:inline-flex"
               title="View how Metrivant works — live pipeline status"
             >
