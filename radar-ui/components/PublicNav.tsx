@@ -23,7 +23,7 @@ export default function PublicNav() {
             <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.80" />
             <circle cx="23" cy="23" r="2.5" fill="#00B4FF" />
           </svg>
-          <span className="text-[14px] font-bold tracking-[0.08em] text-white md:text-[15px]">METRIVANT</span>
+          <span className="text-[14px] font-bold tracking-[0.08em] text-white md:text-[15px]" style={{ fontFamily: "var(--font-orbitron)" }}>METRIVANT</span>
         </Link>
 
         {/* Desktop nav — hidden on mobile */}

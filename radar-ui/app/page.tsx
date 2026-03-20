@@ -93,7 +93,6 @@ export default function LandingPage() {
           className="hero-fade-up mt-5 flex flex-col items-center gap-1.5 text-[13px]"
           style={{ fontFamily: "var(--font-share-tech-mono)", animationDelay: "320ms" }}
         >
-          <span className="hero-line hero-line-1">Continuous competitor monitoring.</span>
           <span className="hero-line hero-line-2">Changes become signals.</span>
           <span className="hero-line hero-line-3">Signals become movements.</span>
           <span className="hero-line hero-line-4">Movements become strategy.</span>

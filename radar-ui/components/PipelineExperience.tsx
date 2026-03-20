@@ -93,18 +93,16 @@ export default function PipelineExperience() {
     if (!el) return;
     const rect = el.getBoundingClientRect();
     const vh = window.innerHeight;
-    // Progress maps across the full section height (not just viewport).
-    // Use section's own height for much slower mapping.
     const sectionH = el.offsetHeight;
-    const scrolled = vh - rect.top; // how much of the section has scrolled past viewport top
+    // scrolled: 0 when section top enters viewport bottom, sectionH when section bottom exits viewport top
+    const scrolled = vh - rect.top;
+    // Map 0..sectionH → 0..1, representing how far through the section the user has scrolled
     const raw = scrolled / sectionH;
     const clamped = Math.max(0, Math.min(1, raw));
-    // Delay start: animation stays at 0 until user has scrolled 30% into the section.
-    const THRESHOLD = 0.30;
+    // Delay start: wait until 20% scrolled, then map linearly across the remaining 80%
+    const THRESHOLD = 0.20;
     const remapped = clamped <= THRESHOLD ? 0 : (clamped - THRESHOLD) / (1 - THRESHOLD);
-    // Strong easeOut — horizontal stages advance very gradually at the start
-    const eased = 1 - Math.pow(1 - remapped, 2.2);
-    setProgress(eased);
+    setProgress(Math.min(1, remapped));
   }, []);
 
   useEffect(() => {
@@ -136,16 +134,24 @@ export default function PipelineExperience() {
       style={{
         width: "100%",
         background: "#000002",
-        overflow: "hidden",
-        // Tall section gives scroll animation room to breathe
-        minHeight: "120vh",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "64px 0",
+        // Tall section: user scrolls through this height while sticky content stays visible
+        height: "200vh",
+        position: "relative",
       }}
     >
+      {/* Sticky container — stays centered in viewport while section scrolls */}
+      <div
+        style={{
+          position: "sticky",
+          top: 0,
+          height: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "64px 0",
+        }}
+      >
       {/* Section header */}
       <div style={{ textAlign: "center", marginBottom: 48 }}>
         <div
@@ -329,6 +335,7 @@ export default function PipelineExperience() {
           </div>
         )}
       </div>
+      </div>{/* end sticky */}
     </div>
   );
 }
