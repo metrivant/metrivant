@@ -10,7 +10,7 @@ import React, {
 } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls, Text } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
@@ -134,17 +134,6 @@ const InputStage = memo(function InputStage({ opacity }: StageProps) {
           opacity={opacity * 0.8}
         />
       </instancedMesh>
-      <Text
-        position={[0, -3.2, 0]}
-        fontSize={0.3}
-        color={GREEN}
-        anchorX="center"
-        anchorY="middle"
-        font={undefined}
-        fillOpacity={opacity}
-      >
-        INPUT
-      </Text>
     </group>
   );
 });
@@ -212,17 +201,6 @@ const IngestionStage = memo(function IngestionStage({ opacity }: StageProps) {
           opacity={opacity * 0.9}
         />
       </instancedMesh>
-      <Text
-        position={[0, -3.2, 0]}
-        fontSize={0.3}
-        color={GREEN}
-        anchorX="center"
-        anchorY="middle"
-        font={undefined}
-        fillOpacity={opacity}
-      >
-        INGESTION
-      </Text>
     </group>
   );
 });
@@ -285,17 +263,6 @@ const ProcessingStage = memo(function ProcessingStage({ opacity }: StageProps) {
           opacity={opacity * 0.2}
         />
       </lineSegments>
-      <Text
-        position={[0, -3.2, 0]}
-        fontSize={0.3}
-        color={GREEN}
-        anchorX="center"
-        anchorY="middle"
-        font={undefined}
-        fillOpacity={opacity}
-      >
-        PROCESSING
-      </Text>
     </group>
   );
 });
@@ -371,17 +338,6 @@ const InterpretationStage = memo(function InterpretationStage({
         </group>
       ))}
 
-      <Text
-        position={[0, -3.2, 0]}
-        fontSize={0.3}
-        color={GREEN}
-        anchorX="center"
-        anchorY="middle"
-        font={undefined}
-        fillOpacity={opacity}
-      >
-        INTERPRETATION
-      </Text>
     </group>
   );
 });
@@ -460,17 +416,6 @@ const OutputStage = memo(function OutputStage({ opacity }: StageProps) {
         <RisingCone key={i} {...a} opacity={opacity} />
       ))}
 
-      <Text
-        position={[0, -3.2, 0]}
-        fontSize={0.3}
-        color={GREEN}
-        anchorX="center"
-        anchorY="middle"
-        font={undefined}
-        fillOpacity={opacity}
-      >
-        OUTPUT
-      </Text>
     </group>
   );
 });
@@ -580,17 +525,6 @@ const ConvergenceStage = memo(function ConvergenceStage({
         />
       </mesh>
 
-      <Text
-        position={[0, -3.2, 0]}
-        fontSize={0.3}
-        color={GREEN}
-        anchorX="center"
-        anchorY="middle"
-        font={undefined}
-        fillOpacity={opacity}
-      >
-        CONVERGENCE
-      </Text>
     </group>
   );
 });
