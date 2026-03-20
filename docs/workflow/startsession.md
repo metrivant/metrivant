@@ -207,27 +207,37 @@ Do NOT use this rule to:
 - refactor working code for style
 - introduce new patterns
 
-### Parallel Execution Maximisation (capacity rule)
+### Execution Mode: Sequential (stability rule — 2026-03-20)
 
-Default posture: maximise concurrent tool calls in every message.
+Default posture: ONE task at a time. Sequential execution. No parallel agents.
+
+**Rationale:** Parallel agents + heavy builds (next build, tsc) exhaust CPU/RAM and crash the session.
 
 | Operation type | Parallel? |
 |---|---|
-| Independent file reads | YES — issue all Read calls in one message |
-| Independent REST/SQL queries | YES — issue all Bash calls in one message |
-| Independent edits to different files | YES — issue all Edit calls in one message |
-| Agent spawns for unrelated subtasks | YES — spawn all in one message |
-| Read then edit same file | NO — sequential (edit depends on read content) |
-| Chained queries (output of A feeds B) | NO — sequential |
+| Independent file reads (2-3 small files) | YES — lightweight, OK |
+| Independent edits to different files | YES — lightweight, OK |
+| Agent spawns | NO — one agent at a time, foreground only |
+| Heavy commands (build, tsc, npm install) | NO — one at a time, never background |
+| REST/SQL queries | YES — lightweight, OK |
 
-Agent delegation decision:
-- Task requires >3 independent searches across codebase → spawn Explore agent
-- Task requires edits to 2+ unrelated subsystems simultaneously → spawn parallel agents in worktrees
-- Task is a single-file targeted edit → direct, no agent overhead
-- Task requires full read of a 4000+ line file for analysis → spawn agent with focused instructions
-- Research question that may require many search rounds → spawn agent to protect main context
+**Crash prevention guardrails:**
+- Never run `next build` and `tsc --noEmit` simultaneously
+- Never spawn more than 1 agent at a time
+- Never run background builds — always foreground with timeout
+- If a task is large, break it into commits: implement → commit → push → next piece
+- Prefer `tsc --noEmit` over `next build` for verification (lighter)
+- After each objective: commit and push immediately before starting next
 
-Never serialise what can be parallelised. Every sequential round-trip costs a full user-wait cycle.
+**Agent delegation decision:**
+- Task requires >3 independent searches → spawn ONE Explore agent (foreground)
+- Task requires edits to 2+ subsystems → do them sequentially, not parallel agents
+- Research question → spawn ONE agent, wait for result, then proceed
+
+**One objective at a time:**
+- Complete current objective fully (implement → verify → commit → push)
+- Only then start next objective
+- Never interleave objectives
 
 ### Context Window Discipline (capacity rule)
 
