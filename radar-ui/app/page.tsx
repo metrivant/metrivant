@@ -207,7 +207,8 @@ export default function LandingPage() {
                   "Real-time alerts",
                   "Movement synthesis",
                   "Cross-competitor patterns",
-                  "ORBIT gravity field",
+                  "ORBIT mode",
+                  "Gravity field",
                 ].map((f) => (
                   <li key={f} className="flex items-center gap-2">
                     <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "#00B4FF", opacity: 0.85 }} />

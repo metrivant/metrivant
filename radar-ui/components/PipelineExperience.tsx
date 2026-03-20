@@ -17,13 +17,13 @@ import { useRef, useState, useEffect, useCallback } from "react";
 // ── Pipeline stages — customer-facing ────────────────────────────────────────
 
 const STAGES = [
-  { label: "TRACK",      desc: "Register any competitor for continuous monitoring" },
-  { label: "MONITOR",    desc: "Watch their key pages — pricing, features, changelog" },
-  { label: "CAPTURE",    desc: "Snapshot content and section it for comparison" },
-  { label: "DETECT",     desc: "Surface what actually shifted from the baseline" },
-  { label: "CLASSIFY",   desc: "Score confidence and filter noise from signal" },
-  { label: "SYNTHESISE", desc: "Cluster signals into strategic movements" },
-  { label: "RADAR",      desc: "See everything — live, in one place" },
+  { label: "TRACK",      desc: "Register any competitor for continuous monitoring",  icon: "◎" },
+  { label: "MONITOR",    desc: "Watch their key pages — pricing, features, changelog", icon: "◉" },
+  { label: "CAPTURE",    desc: "Snapshot content and section it for comparison",    icon: "⧫" },
+  { label: "DETECT",     desc: "Surface what actually shifted from the baseline",   icon: "△" },
+  { label: "CLASSIFY",   desc: "Score confidence and filter noise from signal",     icon: "⬡" },
+  { label: "SYNTHESISE", desc: "Cluster signals into strategic movements",          icon: "⟐" },
+  { label: "RADAR",      desc: "See everything — live, in one place",               icon: "⊛" },
 ] as const;
 
 const N = STAGES.length;
@@ -99,8 +99,8 @@ export default function PipelineExperience() {
     // Map 0..sectionH → 0..1, representing how far through the section the user has scrolled
     const raw = scrolled / sectionH;
     const clamped = Math.max(0, Math.min(1, raw));
-    // Delay start: wait until 20% scrolled, then map linearly across the remaining 80%
-    const THRESHOLD = 0.20;
+    // Delay start: wait until 30% scrolled, then map linearly across the remaining 70%
+    const THRESHOLD = 0.30;
     const remapped = clamped <= THRESHOLD ? 0 : (clamped - THRESHOLD) / (1 - THRESHOLD);
     setProgress(Math.min(1, remapped));
   }, []);
@@ -252,6 +252,16 @@ export default function PipelineExperience() {
                   style={{ transition: "all 0.4s ease" }}
                 />
               )}
+              {/* Icon below node */}
+              <text
+                x={cx} y={PIPE_Y + NODE_R + 18}
+                textAnchor="middle"
+                fontSize={isActive ? 14 : 11}
+                fill={isActive ? ACCENT : isPast ? "rgba(0,180,255,0.30)" : "rgba(100,116,139,0.15)"}
+                style={{ transition: "fill 0.4s ease, font-size 0.4s ease" }}
+              >
+                {STAGES[i].icon}
+              </text>
               {/* Label above node */}
               <text
                 x={cx} y={PIPE_Y - NODE_R - 16}

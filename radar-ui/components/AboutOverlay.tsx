@@ -259,10 +259,10 @@ const FEATURES = [
     body: "Every week the system synthesizes detected movements, sector media narratives, and cross-competitor patterns into a strategic digest. What moved, what it implies for your position, and what you should consider doing about it. AI-assembled from pre-generated intelligence artifacts, not raw data.",
   },
   {
-    Icon: IconMap,
-    tag: "Market Map",
-    headline: "Competitive landscape in two dimensions.",
-    body: "A live 2×2 positioning chart scoring every competitor on Market Focus (niche to platform) and Customer Segment (SMB to enterprise). Watch rivals drift upmarket over time. Significant shifts (>15 points) trigger repositioning alerts automatically.",
+    Icon: IconGravity,
+    tag: "Gravity Field",
+    headline: "The competitive landscape as spacetime.",
+    body: "A Three.js gravity surface where each competitor deforms the field proportional to their momentum. High-mass nodes create visible wells. The topology of the field shows competitive density, isolation, and convergence at a glance. Surface color encodes signal intensity from cool blue to hot white.",
   },
   {
     Icon: IconStrategy,
@@ -279,8 +279,8 @@ const FEATURES = [
   {
     Icon: IconDiscover,
     tag: "Discovery",
-    headline: "Sector catalogue. One-click tracking.",
-    body: "Browse a curated catalogue of 280+ competitors across SaaS, Defense, Energy, Fintech, Cybersecurity, Healthcare, AI Infrastructure, and more. Add rivals to your radar in one click. Sector-aware terminology means every movement type is expressed in the language your market uses.",
+    headline: "Five sectors. One-click tracking.",
+    body: "Browse a curated catalogue across SaaS, Defense, Energy, Fintech, and Cybersecurity. Add rivals to your radar in one click. Sector-aware terminology means every movement type, signal label, and pattern name is expressed in the language your market uses. More sectors arriving quarterly.",
   },
   {
     Icon: IconConstellation,
