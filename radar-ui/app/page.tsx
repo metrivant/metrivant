@@ -5,6 +5,7 @@ import LandingFeaturePrompt from "../components/LandingFeaturePrompt";
 import LandingCTAButtons from "../components/LandingCTAButtons";
 import PipelineSection from "../components/PipelineSection";
 import IntelligencePulse from "../components/IntelligencePulse";
+import ElectricityBackground from "../components/ElectricityBackground";
 
 const LABEL_COLOR_STYLE = { color: "rgba(0,180,255,0.55)" } as const;
 
@@ -41,7 +42,7 @@ const jsonLd = [
 
 export default function LandingPage() {
   return (
-    <div className="electricity-bg flex min-h-screen w-full flex-col bg-[#000002] text-white">
+    <div className="flex min-h-screen w-full flex-col bg-[#000002] text-white">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -49,7 +50,7 @@ export default function LandingPage() {
       <PublicNav />
       <LandingFeaturePrompt />
       <IntelligencePulse />
-      <div className="elec-3" />
+      <ElectricityBackground />
 
       {/* Dot grid */}
       <div
