@@ -137,36 +137,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── 3D Pipeline Experience (desktop only) ──────────────────── */}
-      <section className="relative hidden border-t border-[#0d2010] md:block">
+      {/* ── Pipeline Experience — scroll-triggered SVG narrative ──── */}
+      <section className="relative border-t border-[#0d2010]">
         <PipelineSection />
-      </section>
-
-      {/* ── Mobile CTA (replaces 3D on mobile) ────────────────────── */}
-      <section className="relative border-t border-[#0d2010] px-6 py-16 text-center md:hidden">
-        <div
-          className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-[#0d2010]"
-          style={{ background: "rgba(46,230,166,0.04)" }}
-        >
-          <svg width="28" height="28" viewBox="0 0 46 46" fill="none" aria-hidden="true">
-            <circle cx="23" cy="23" r="20" stroke="#2EE6A6" strokeWidth="1.5" strokeOpacity="0.4" />
-            <circle cx="23" cy="23" r="12" stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.25" />
-            <circle cx="23" cy="23" r="5" stroke="#2EE6A6" strokeWidth="1" strokeOpacity="0.35" />
-            <circle cx="23" cy="23" r="2" fill="#2EE6A6" />
-          </svg>
-        </div>
-        <div className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-slate-600">
-          Detection Pipeline
-        </div>
-        <p className="mx-auto mb-6 max-w-xs text-[12px] leading-relaxed text-slate-600">
-          Pages → Snapshots → Diffs → Signals → Movements → Radar
-        </p>
-        <Link
-          href="/signup"
-          className="inline-block rounded-full bg-[#2EE6A6] px-10 py-3 text-[13px] font-bold tracking-[0.08em] text-black transition-opacity hover:opacity-90"
-        >
-          ENTER METRIVANT
-        </Link>
       </section>
 
       {/* ── Pricing snapshot ─────────────────────────────────────────── */}

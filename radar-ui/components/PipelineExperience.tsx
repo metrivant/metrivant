@@ -1,338 +1,388 @@
 "use client";
 
-import React, { useRef, useState, useMemo, useEffect } from "react";
-import * as THREE from "three";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { motion, AnimatePresence } from "framer-motion";
+/**
+ * PipelineExperience — Scroll-triggered SVG pipeline narrative
+ *
+ * Pure SVG. No Three.js. Customer-facing copy.
+ * A data packet travels the pipeline as the section scrolls into view.
+ * At RADAR, a mini radar pulses — connecting process to product.
+ */
 
-// ── Pipeline stages — 1-to-1 with the real Metrivant detection pipeline ────────
+import { useRef, useState, useEffect, useCallback } from "react";
+
+// ── Pipeline stages — customer-facing ────────────────────────────────────────
 
 const STAGES = [
-  { label: "COMPETITORS", desc: "Active rivals registered for continuous surveillance"   },
-  { label: "PAGES",       desc: "High-value URLs scheduled for periodic crawls"           },
-  { label: "SNAPSHOTS",   desc: "Full page content captured and sectioned each run"       },
-  { label: "DIFFS",       desc: "Sections compared against stable baselines"              },
-  { label: "SIGNALS",     desc: "Changes confidence-gated and classified by type"         },
-  { label: "MOVEMENTS",   desc: "Signal clusters synthesised into strategic moves"        },
-  { label: "RADAR",       desc: "Intelligence converges into the live radar field"        },
+  { label: "TRACK",     desc: "Register any competitor for continuous monitoring" },
+  { label: "MONITOR",   desc: "Watch their pages for every change, every day" },
+  { label: "CAPTURE",   desc: "Snapshot content, section by section" },
+  { label: "DETECT",    desc: "Surface what actually shifted" },
+  { label: "CLASSIFY",  desc: "Score confidence. Filter noise." },
+  { label: "SYNTHESISE", desc: "Cluster signals into strategic movements" },
+  { label: "RADAR",     desc: "See it all — live, in one place" },
 ] as const;
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+const N = STAGES.length;
+const GREEN = "#2EE6A6";
 
-const GREEN     = "#2EE6A6";
-const GREEN_VEC = new THREE.Color(GREEN);
-const N         = STAGES.length;       // 7
-const SPACING   = 1.3;
-const NODE_X    = Array.from({ length: N }, (_, i) => (i - (N - 1) / 2) * SPACING);
+// ── Mini radar SVG (rendered at the RADAR node when packet arrives) ──────────
 
-const PARTICLE_COUNT = 22;
-const DT_PER_SEC     = (N - 1) / 10;  // traverse full pipeline in 10 s
-
-// ── 2D Pipeline Schematic (SVG) ───────────────────────────────────────────────
-// Looks like a real pipe diagram: rectangular pipe segments + circular junctions.
-
-const SCHEMATIC_VB_W  = 800;
-const SCHEMATIC_VB_H  = 72;
-const NODE_CY         = 28;
-const NODE_R_NORMAL   = 7;
-const NODE_R_ACTIVE   = 10;
-const PIPE_H          = 5;
-const PIPE_GAP        = 3;   // gap between pipe end and node edge
-const PAD             = 40;  // left/right padding in viewBox units
-const NODE_CX         = Array.from(
-  { length: N },
-  (_, i) => PAD + (i / (N - 1)) * (SCHEMATIC_VB_W - PAD * 2)
-);
-
-function PipelineSchematic({ activeStage }: { activeStage: number }) {
+function MiniRadar({ active }: { active: boolean }) {
   return (
-    <svg
-      viewBox={`0 0 ${SCHEMATIC_VB_W} ${SCHEMATIC_VB_H}`}
-      style={{ width: "100%", height: "84px", display: "block" }}
-      aria-hidden="true"
-    >
-      {/* ── Pipe segments ───────────────────────────────────────────── */}
-      {Array.from({ length: N - 1 }, (_, i) => {
-        const x1  = NODE_CX[i] + NODE_R_NORMAL + PIPE_GAP;
-        const x2  = NODE_CX[i + 1] - NODE_R_NORMAL - PIPE_GAP;
-        const lit = i < activeStage;
-        return (
-          <rect
-            key={i}
-            x={x1}
-            y={NODE_CY - PIPE_H / 2}
-            width={x2 - x1}
-            height={PIPE_H}
-            rx={2.5}
-            fill={lit ? GREEN : "#0d2010"}
-            style={{ transition: "fill 0.5s ease" }}
-          />
-        );
-      })}
-
-      {/* ── Node junctions ──────────────────────────────────────────── */}
-      {NODE_CX.map((cx, i) => {
-        const isActive = i === activeStage;
-        const isPast   = i < activeStage;
-        const r        = isActive ? NODE_R_ACTIVE : NODE_R_NORMAL;
-        return (
-          <g key={i}>
-            {/* Outer glow ring for active node */}
-            {isActive && (
-              <circle
-                cx={cx}
-                cy={NODE_CY}
-                r={NODE_R_ACTIVE + 8}
-                fill="none"
-                stroke={GREEN}
-                strokeWidth={1}
-                opacity={0.2}
-              />
-            )}
-            {/* Node circle */}
-            <circle
-              cx={cx}
-              cy={NODE_CY}
-              r={r}
-              fill={isActive ? GREEN : isPast ? "rgba(46,230,166,0.25)" : "#060d06"}
-              stroke={
-                isActive
-                  ? GREEN
-                  : isPast
-                  ? "rgba(46,230,166,0.45)"
-                  : "rgba(46,230,166,0.12)"
-              }
-              strokeWidth={isActive ? 0 : 1.5}
-              style={{ transition: "fill 0.5s ease, stroke 0.5s ease" }}
-            />
-            {/* Stage label */}
-            <text
-              x={cx}
-              y={SCHEMATIC_VB_H - 4}
-              textAnchor="middle"
-              fontSize={7}
-              letterSpacing={1.2}
-              fontFamily="monospace"
-              fill={
-                isActive
-                  ? GREEN
-                  : isPast
-                  ? "rgba(46,230,166,0.35)"
-                  : "rgba(100,116,139,0.30)"
-              }
-              style={{
-                textTransform: "uppercase",
-                transition: "fill 0.5s ease",
-              }}
-            >
-              {STAGES[i].label}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-// ── 3D Scene — particles flowing through nodes ───────────────────────────────
-
-function PipelineScene({ activeStage }: { activeStage: number }) {
-  const particleMeshRef = useRef<THREE.InstancedMesh>(null);
-  const dummy = useMemo(() => new THREE.Object3D(), []);
-
-  const particleTs = useRef<Float32Array>(
-    (() => {
-      const arr = new Float32Array(PARTICLE_COUNT);
-      for (let i = 0; i < PARTICLE_COUNT; i++) {
-        arr[i] = (i / PARTICLE_COUNT) * (N - 1);
-      }
-      return arr;
-    })()
-  );
-
-  useFrame((_, delta) => {
-    const pts = particleTs.current;
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      pts[i] = (pts[i] + delta * DT_PER_SEC) % (N - 1);
-    }
-    if (!particleMeshRef.current) return;
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      const t    = pts[i];
-      const seg  = Math.min(Math.floor(t), N - 2);
-      const frac = t - seg;
-      const x    = NODE_X[seg] + (NODE_X[seg + 1] - NODE_X[seg]) * frac;
-      dummy.position.set(x, 0, 0);
-      dummy.scale.setScalar(0.05);
-      dummy.updateMatrix();
-      particleMeshRef.current.setMatrixAt(i, dummy.matrix);
-    }
-    particleMeshRef.current.instanceMatrix.needsUpdate = true;
-  });
-
-  return (
-    <group>
-      {/* Pipe connections */}
-      {Array.from({ length: N - 1 }, (_, i) => (
-        <mesh
-          key={i}
-          position={[(NODE_X[i] + NODE_X[i + 1]) / 2, 0, 0]}
-          rotation={[0, 0, Math.PI / 2]}
-        >
-          <cylinderGeometry args={[0.04, 0.04, SPACING * 0.72, 6]} />
-          <meshBasicMaterial
-            color={GREEN_VEC}
-            transparent
-            opacity={i < activeStage ? 0.5 : 0.1}
-          />
-        </mesh>
+    <g>
+      {/* Rings */}
+      {[16, 11, 6].map((r, i) => (
+        <circle
+          key={r}
+          cx={0} cy={0} r={r}
+          fill="none"
+          stroke={GREEN}
+          strokeWidth={0.6}
+          opacity={active ? 0.3 + i * 0.1 : 0.08}
+          style={{ transition: "opacity 0.6s ease" }}
+        />
       ))}
-
-      {/* Pipeline nodes */}
-      {NODE_X.map((x, i) => {
-        const isActive = i === activeStage;
-        const isPast   = i < activeStage;
-        return (
-          <group key={i} position={[x, 0, 0]}>
-            <mesh>
-              <sphereGeometry args={[isActive ? 0.22 : 0.13, 16, 16]} />
-              <meshBasicMaterial
-                color={GREEN_VEC}
-                transparent
-                opacity={isActive ? 1.0 : isPast ? 0.5 : 0.15}
-              />
-            </mesh>
-            {isActive && (
-              <>
-                <mesh>
-                  <sphereGeometry args={[0.32, 12, 12]} />
-                  <meshBasicMaterial color={GREEN_VEC} transparent opacity={0.10} />
-                </mesh>
-                <mesh>
-                  <sphereGeometry args={[0.48, 12, 12]} />
-                  <meshBasicMaterial color={GREEN_VEC} transparent opacity={0.04} />
-                </mesh>
-              </>
-            )}
-          </group>
-        );
-      })}
-
-      {/* Flowing particles */}
-      <instancedMesh ref={particleMeshRef} args={[undefined, undefined, PARTICLE_COUNT]}>
-        <sphereGeometry args={[1, 6, 6]} />
-        <meshBasicMaterial color={GREEN_VEC} transparent opacity={0.85} />
-      </instancedMesh>
-    </group>
+      {/* Center dot */}
+      <circle
+        cx={0} cy={0} r={2}
+        fill={GREEN}
+        opacity={active ? 0.9 : 0.15}
+        style={{ transition: "opacity 0.6s ease" }}
+      >
+        {active && (
+          <animate attributeName="opacity" values="0.9;0.5;0.9" dur="2s" repeatCount="indefinite" />
+        )}
+      </circle>
+      {/* Sweep arm */}
+      <line
+        x1={0} y1={0} x2={0} y2={-15}
+        stroke={GREEN}
+        strokeWidth={0.8}
+        opacity={active ? 0.6 : 0}
+        style={{ transition: "opacity 0.6s ease", transformOrigin: "0 0" }}
+      >
+        {active && (
+          <animateTransform
+            attributeName="transform"
+            type="rotate"
+            from="0" to="360"
+            dur="4s"
+            repeatCount="indefinite"
+          />
+        )}
+      </line>
+      {/* Expanding pulse ring on arrival */}
+      {active && (
+        <circle
+          cx={0} cy={0} r={4}
+          fill="none"
+          stroke={GREEN}
+          strokeWidth={0.8}
+        >
+          <animate attributeName="r" values="4;22" dur="2.5s" repeatCount="indefinite" />
+          <animate attributeName="opacity" values="0.5;0" dur="2.5s" repeatCount="indefinite" />
+        </circle>
+      )}
+    </g>
   );
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function PipelineExperience() {
-  const [activeStage, setActiveStage] = useState(0);
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const [progress, setProgress] = useState(0); // 0–1 scroll progress
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setActiveStage((s) => (s + 1) % N);
-    }, 2600);
-    return () => clearInterval(timer);
+  const handleScroll = useCallback(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const vh = window.innerHeight;
+    // Start when section top hits bottom of viewport, end when section bottom hits top
+    const start = rect.top - vh;
+    const end = rect.bottom;
+    const range = end - start;
+    if (range <= 0) return;
+    const raw = 1 - (rect.top - vh * 0.15) / (range * 0.65);
+    setProgress(Math.max(0, Math.min(1, raw)));
   }, []);
 
-  const stage = STAGES[activeStage];
+  useEffect(() => {
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [handleScroll]);
+
+  // Derive active stage from progress
+  const activeStage = Math.min(N - 1, Math.floor(progress * N));
+  const packetProgress = progress; // 0–1 across full pipeline
+  const radarActive = progress >= 0.92;
+
+  // SVG layout
+  const VB_W = 900;
+  const VB_H = 200;
+  const PAD_X = 65;
+  const PIPE_Y = 80;
+  const NODE_R = 12;
+  const nodeXs = Array.from({ length: N }, (_, i) =>
+    PAD_X + (i / (N - 1)) * (VB_W - PAD_X * 2)
+  );
+
+  // Packet position
+  const packetX = PAD_X + packetProgress * (VB_W - PAD_X * 2);
 
   return (
     <div
+      ref={sectionRef}
       style={{
-        height: "520px",
         width: "100%",
         background: "#000200",
         overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
+        padding: "48px 0 56px",
       }}
     >
-      {/* ── 2D pipeline schematic — top ───────────────────────────── */}
+      {/* Section label */}
       <div
         style={{
-          borderBottom: "1px solid rgba(13,32,16,0.8)",
-          padding: "14px 20px 0",
+          textAlign: "center",
+          marginBottom: 32,
         }}
       >
-        {/* Section label */}
         <div
           style={{
             fontFamily: "monospace",
             fontSize: 9,
-            letterSpacing: "0.22em",
-            color: "rgba(46,230,166,0.38)",
+            letterSpacing: "0.28em",
+            color: "rgba(46,230,166,0.40)",
             textTransform: "uppercase",
-            marginBottom: 6,
+            marginBottom: 8,
           }}
         >
-          Detection Pipeline
+          How it works
         </div>
-        <PipelineSchematic activeStage={activeStage} />
-      </div>
-
-      {/* ── 3D canvas — pointer-events off so page remains scrollable ─ */}
-      <div style={{ flex: 1, position: "relative" }}>
-        <Canvas
-          camera={{ position: [0, 1.0, 6], fov: 52, near: 0.1, far: 100 }}
-          style={{ width: "100%", height: "100%", pointerEvents: "none" }}
-          gl={{ antialias: true, alpha: false }}
-          onCreated={({ gl }) => {
-            gl.setClearColor(new THREE.Color("#000200"));
+        <div
+          style={{
+            fontSize: 18,
+            fontWeight: 600,
+            color: "rgba(255,255,255,0.85)",
+            letterSpacing: "0.02em",
           }}
         >
-          <PipelineScene activeStage={activeStage} />
-        </Canvas>
+          From page change to strategic intelligence
+        </div>
       </div>
 
-      {/* ── Stage annotation — bottom ─────────────────────────────── */}
+      {/* Pipeline SVG */}
+      <svg
+        viewBox={`0 0 ${VB_W} ${VB_H}`}
+        style={{ width: "100%", maxWidth: 960, display: "block", margin: "0 auto" }}
+        aria-hidden="true"
+      >
+        <defs>
+          {/* Packet glow */}
+          <radialGradient id="packet-glow">
+            <stop offset="0%" stopColor={GREEN} stopOpacity="0.6" />
+            <stop offset="100%" stopColor={GREEN} stopOpacity="0" />
+          </radialGradient>
+          {/* Pipe gradient for lit segments */}
+          <linearGradient id="pipe-lit" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor={GREEN} stopOpacity="0.5" />
+            <stop offset="100%" stopColor={GREEN} stopOpacity="0.25" />
+          </linearGradient>
+        </defs>
+
+        {/* ── Pipe segments ── */}
+        {Array.from({ length: N - 1 }, (_, i) => {
+          const x1 = nodeXs[i] + NODE_R + 4;
+          const x2 = nodeXs[i + 1] - NODE_R - 4;
+          const lit = i < activeStage;
+          return (
+            <rect
+              key={`pipe-${i}`}
+              x={x1}
+              y={PIPE_Y - 2}
+              width={x2 - x1}
+              height={4}
+              rx={2}
+              fill={lit ? "url(#pipe-lit)" : "rgba(46,230,166,0.06)"}
+              style={{ transition: "fill 0.5s ease" }}
+            />
+          );
+        })}
+
+        {/* ── Nodes ── */}
+        {nodeXs.map((cx, i) => {
+          const isActive = i === activeStage;
+          const isPast = i < activeStage;
+          const isRadar = i === N - 1;
+
+          return (
+            <g key={`node-${i}`}>
+              {/* Outer glow for active/past nodes */}
+              {(isActive || isPast) && (
+                <circle
+                  cx={cx} cy={PIPE_Y}
+                  r={isActive ? NODE_R + 12 : NODE_R + 6}
+                  fill="none"
+                  stroke={GREEN}
+                  strokeWidth={isActive ? 1 : 0.5}
+                  opacity={isActive ? 0.18 : 0.06}
+                  style={{ transition: "all 0.5s ease" }}
+                />
+              )}
+
+              {/* Node circle */}
+              {isRadar && radarActive ? (
+                <g transform={`translate(${cx},${PIPE_Y})`}>
+                  <MiniRadar active={radarActive} />
+                </g>
+              ) : (
+                <circle
+                  cx={cx} cy={PIPE_Y}
+                  r={isActive ? NODE_R + 2 : NODE_R}
+                  fill={
+                    isActive
+                      ? "rgba(46,230,166,0.15)"
+                      : isPast
+                      ? "rgba(46,230,166,0.08)"
+                      : "rgba(46,230,166,0.02)"
+                  }
+                  stroke={
+                    isActive
+                      ? GREEN
+                      : isPast
+                      ? "rgba(46,230,166,0.35)"
+                      : "rgba(46,230,166,0.10)"
+                  }
+                  strokeWidth={isActive ? 1.5 : 1}
+                  style={{ transition: "all 0.4s ease" }}
+                />
+              )}
+
+              {/* Inner dot */}
+              {!(isRadar && radarActive) && (
+                <circle
+                  cx={cx} cy={PIPE_Y}
+                  r={isActive ? 3.5 : isPast ? 2.5 : 1.5}
+                  fill={isActive || isPast ? GREEN : "rgba(46,230,166,0.15)"}
+                  opacity={isActive ? 0.9 : isPast ? 0.6 : 0.3}
+                  style={{ transition: "all 0.4s ease" }}
+                />
+              )}
+
+              {/* Stage label */}
+              <text
+                x={cx}
+                y={PIPE_Y - NODE_R - 14}
+                textAnchor="middle"
+                fontSize={8.5}
+                fontWeight={isActive ? 700 : 600}
+                letterSpacing="1.5"
+                fontFamily="monospace"
+                fill={
+                  isActive ? GREEN
+                  : isPast ? "rgba(46,230,166,0.40)"
+                  : "rgba(100,116,139,0.28)"
+                }
+                style={{ transition: "fill 0.4s ease" }}
+              >
+                {STAGES[i].label}
+              </text>
+
+              {/* Description — below node */}
+              <text
+                x={cx}
+                y={PIPE_Y + NODE_R + 22}
+                textAnchor="middle"
+                fontSize={8}
+                fontFamily="system-ui, -apple-system, sans-serif"
+                fill={
+                  isActive ? "rgba(255,255,255,0.55)"
+                  : isPast ? "rgba(255,255,255,0.22)"
+                  : "rgba(255,255,255,0.08)"
+                }
+                style={{ transition: "fill 0.5s ease" }}
+              >
+                {STAGES[i].desc}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* ── Data packet — travels the pipeline ── */}
+        {progress > 0.01 && progress < 0.98 && (
+          <g>
+            {/* Glow */}
+            <circle
+              cx={packetX} cy={PIPE_Y}
+              r={18}
+              fill="url(#packet-glow)"
+            />
+            {/* Core */}
+            <circle
+              cx={packetX} cy={PIPE_Y}
+              r={4}
+              fill={GREEN}
+              opacity={0.95}
+            />
+            {/* Trailing glow line */}
+            <line
+              x1={Math.max(PAD_X, packetX - 40)}
+              y1={PIPE_Y}
+              x2={packetX}
+              y2={PIPE_Y}
+              stroke={GREEN}
+              strokeWidth={2}
+              opacity={0.12}
+              strokeLinecap="round"
+            />
+          </g>
+        )}
+
+        {/* ── Arrival burst at RADAR ── */}
+        {radarActive && (
+          <circle
+            cx={nodeXs[N - 1]} cy={PIPE_Y}
+            r={4}
+            fill="none"
+            stroke={GREEN}
+            strokeWidth={1.2}
+          >
+            <animate attributeName="r" values="4;35" dur="3s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.4;0" dur="3s" repeatCount="indefinite" />
+          </circle>
+        )}
+      </svg>
+
+      {/* Active stage callout — below the SVG */}
       <div
         style={{
-          height: "76px",
-          borderTop: "1px solid rgba(13,32,16,0.8)",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 6,
-          padding: "0 24px",
+          textAlign: "center",
+          marginTop: 28,
+          minHeight: 40,
         }}
       >
-        <AnimatePresence mode="wait">
-          <motion.div
+        {progress > 0.02 && (
+          <div
             key={activeStage}
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -5 }}
-            transition={{ duration: 0.3 }}
-            style={{ textAlign: "center" }}
+            style={{
+              animation: "content-reveal 0.3s ease-out both",
+            }}
           >
             <div
               style={{
                 fontFamily: "monospace",
-                fontSize: 11,
+                fontSize: 12,
                 letterSpacing: "0.18em",
-                color: GREEN,
+                color: radarActive ? GREEN : "rgba(255,255,255,0.70)",
                 textTransform: "uppercase",
-                marginBottom: 3,
+                fontWeight: 700,
               }}
             >
-              {stage.label}
+              {radarActive ? "Intelligence, live" : `Step ${activeStage + 1} — ${STAGES[activeStage].label}`}
             </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "rgba(100,116,139,0.75)",
-                letterSpacing: "0.04em",
-              }}
-            >
-              {stage.desc}
-            </div>
-          </motion.div>
-        </AnimatePresence>
+          </div>
+        )}
       </div>
     </div>
   );
