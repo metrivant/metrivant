@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
 import { createHash } from "crypto";
 import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
+import { findCrossPoolDuplicate } from "../lib/cross-pool-dedup";
 
 // Feed signals are given a fixed confidence of 0.80:
 //   • Above the 0.65 CONFIDENCE_INTERPRET threshold → status='pending' immediately
@@ -276,6 +277,17 @@ async function handler(req: ApiReq, res: ApiRes) {
           .filter(Boolean)
           .join(". ")
           .slice(0, 500);
+
+        // ── Cross-pool dedup check ──────────────────────────────────────────
+        const dedup = await findCrossPoolDuplicate(
+          event.competitor_id, signalType, currentExcerpt, event.published_at ?? new Date().toISOString()
+        );
+        if (dedup.isDuplicate) {
+          await supabase.from("pool_events").update({ normalization_status: "duplicate" }).eq("id", event.id);
+          rowsDuplicate += 1;
+          void recordEvent({ run_id: runId, stage: "feed_promote", status: "skipped", duration_ms: elapsed(), metadata: { pool_event_id: event.id, reason: `cross_pool_dedup:${dedup.matchReason}`, matched_signal: dedup.matchedSignalId } });
+          continue;
+        }
 
         // ── Create signal ──────────────────────────────────────────────────────
         // confidence 0.80 ≥ CONFIDENCE_INTERPRET (0.65) → status='pending'

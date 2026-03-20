@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
 import { createHash } from "crypto";
 import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
+import { findCrossPoolDuplicate } from "../lib/cross-pool-dedup";
 
 // Careers signals are given a fixed confidence of 0.75:
 //   • At or above the 0.65 CONFIDENCE_INTERPRET threshold → status='pending'
@@ -344,6 +345,16 @@ async function handler(req: ApiReq, res: ApiRes) {
 
           if (existingHashes.has(pattern.signalHash)) {
             signalsDuplicate += 1;
+            continue;
+          }
+
+          // ── Cross-pool dedup check ──────────────────────────────────────
+          const dedup = await findCrossPoolDuplicate(
+            competitorId, pattern.signalType, pattern.currentExcerpt, new Date().toISOString()
+          );
+          if (dedup.isDuplicate) {
+            signalsDuplicate += 1;
+            void recordEvent({ run_id: runId, stage: "careers_promote", status: "skipped", duration_ms: elapsed2(), metadata: { reason: `cross_pool_dedup:${dedup.matchReason}`, matched_signal: dedup.matchedSignalId } });
             continue;
           }
 

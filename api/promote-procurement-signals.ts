@@ -6,6 +6,7 @@ import { verifyCronSecret } from "../lib/withCronAuth";
 import { createHash } from "crypto";
 import { classifyProcurementEvent, HIGH_VALUE_PROCUREMENT_TYPES } from "../lib/procurement-classifier";
 import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
+import { findCrossPoolDuplicate } from "../lib/cross-pool-dedup";
 
 // Process up to 25 pending procurement pool events per run.
 const BATCH_SIZE = 25;
@@ -394,6 +395,17 @@ async function handler(req: ApiReq, res: ApiRes) {
           .filter(Boolean)
           .join(". ")
           .slice(0, 500);
+
+        // ── Cross-pool dedup check ──────────────────────────────────────────
+        const dedup = await findCrossPoolDuplicate(
+          event.competitor_id, meta.procurementEventType, currentExcerpt, event.published_at ?? new Date().toISOString()
+        );
+        if (dedup.isDuplicate) {
+          await supabase.from("pool_events").update({ normalization_status: "duplicate" }).eq("id", event.id);
+          rowsDuplicate += 1;
+          void recordEvent({ run_id: runId, stage: "procurement_promote", status: "skipped", duration_ms: elapsed(), metadata: { pool_event_id: event.id, reason: `cross_pool_dedup:${dedup.matchReason}`, matched_signal: dedup.matchedSignalId } });
+          continue;
+        }
 
         // ── Create signal ──────────────────────────────────────────────────────
         const { data: newSignal, error: signalError } = await supabase
