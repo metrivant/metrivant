@@ -1,14 +1,9 @@
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import PublicNav from "../components/PublicNav";
 import LandingLogo from "../components/LandingLogo";
 import LandingFeaturePrompt from "../components/LandingFeaturePrompt";
 import LandingCTAButtons from "../components/LandingCTAButtons";
-
-const PipelineExperience = dynamic(
-  () => import("../components/PipelineExperience"),
-  { ssr: false, loading: () => <div className="h-screen w-full bg-[#000200]" /> }
-);
+import PipelineSection from "../components/PipelineSection";
 
 const LABEL_COLOR_STYLE = { color: "rgba(46,230,166,0.55)" } as const;
 
@@ -144,7 +139,7 @@ export default function LandingPage() {
 
       {/* ── 3D Pipeline Experience (desktop only) ──────────────────── */}
       <section className="relative hidden border-t border-[#0d2010] md:block">
-        <PipelineExperience />
+        <PipelineSection />
       </section>
 
       {/* ── Mobile CTA (replaces 3D on mobile) ────────────────────── */}
