@@ -838,7 +838,7 @@ export default function PipelineExperience() {
   return (
     <div
       style={{
-        height: "100vh",
+        height: "520px",
         width: "100%",
         position: "relative",
         background: "#000200",
