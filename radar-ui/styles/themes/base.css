@@ -1,0 +1,34 @@
+/* ── Metrivant base tokens ─────────────────────────────────────────────────── */
+/* Shared design tokens across all themes.                                    */
+/* Theme files override the --m-ui-* layer; signal semantics are permanent.   */
+
+:root {
+  /* ── Canvas ──────────────────────────────────────────────────────────────── */
+  --m-bg:             #000200;
+  --m-surface:        #070707;
+  --m-surface-hover:  #0c0c0c;
+
+  /* ── Brand accent (permanent — never themed) ─────────────────────────────── */
+  --m-accent:         #2EE6A6;
+  --m-accent-dim:     rgba(46,230,166,0.55);
+  --m-accent-ghost:   rgba(46,230,166,0.08);
+
+  /* ── UI chrome (theme-switchable) ────────────────────────────────────────── */
+  --m-ui-accent:        var(--m-accent);
+  --m-ui-highlight:     var(--m-accent);
+  --m-ui-glow:          none;
+  --m-ui-border:        rgba(255,255,255,0.08);
+  --m-ui-border-active: rgba(46,230,166,0.40);
+
+  /* ── Text hierarchy ──────────────────────────────────────────────────────── */
+  --m-text-primary:   #ffffff;
+  --m-text-secondary: rgba(148,163,184,0.80);
+  --m-text-muted:     rgba(100,116,139,0.80);
+  --m-text-dim:       rgba(71,85,105,0.70);
+
+  /* ── Signal semantics (never themed — data truth) ────────────────────────── */
+  --m-signal-stable:       #2EE6A6;
+  --m-signal-rising:       #f59e0b;
+  --m-signal-accelerating: #ef4444;
+  --m-signal-cooling:      #64748b;
+}

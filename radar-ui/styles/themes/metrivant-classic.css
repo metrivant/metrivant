@@ -1,0 +1,10 @@
+/* ── Classic theme — passive radar instrument ─────────────────────────────── */
+/* The default. Green = data truth. No interface chrome overlay.              */
+
+[data-theme="classic"] {
+  --m-ui-accent:        var(--m-accent);
+  --m-ui-highlight:     var(--m-accent);
+  --m-ui-glow:          none;
+  --m-ui-border:        rgba(255,255,255,0.08);
+  --m-ui-border-active: rgba(46,230,166,0.40);
+}

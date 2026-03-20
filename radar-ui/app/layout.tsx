@@ -64,8 +64,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" data-theme="classic" suppressHydrationWarning>
       <body className={`${inter.variable} font-[family-name:var(--font-inter)] antialiased`}>
+        {/* Theme flash prevention — runs before React hydration */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('metrivant-theme');if(t==='hud')document.documentElement.setAttribute('data-theme','hud')}catch(e){}`,
+          }}
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

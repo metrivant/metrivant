@@ -1,3 +1,6 @@
+@import "../styles/themes/base.css";
+@import "../styles/themes/metrivant-classic.css";
+@import "../styles/themes/metrivant-hud.css";
 @import "tailwindcss";
 
 :root {

@@ -5,7 +5,8 @@
 ## Identity
 
 - The product is a **precision instrument**, not a dashboard.
-- The metaphor is a **ship radar / sonar station** — military-grade, calm, purpose-built.
+- Two perception modes: **Classic** (passive radar instrument) and **HUD** (active pilot interface).
+- Classic = observer. HUD = operator. Same data, different relationship to it.
 - Every visual element encodes data. Nothing is decorative.
 - The tone is: composed, evidence-grounded, high signal, low noise.
 
@@ -193,3 +194,86 @@ Animations are slow, smooth, and purposeful. No snap, no bounce, no easing that 
 - Not a data visualisation tool. The radar is a specific instrument — not a generic chart surface.
 - Not enterprise grey. The black-and-green identity is intentional and distinctive. Not blue, not navy, not purple.
 - Not loud. The single accent colour is used sparingly. When it appears, it means something.
+
+---
+
+## Dual-Theme System
+
+### Architecture
+
+```
+styles/themes/
+  base.css              ← shared tokens (canvas, accent, text, signal)
+  metrivant-classic.css ← classic overrides (default — green instrument)
+  metrivant-hud.css     ← HUD layer (cyan interface scaffolding)
+lib/theme.ts            ← setTheme() / getTheme() / toggleTheme()
+```
+
+Toggle: `<html data-theme="classic">` or `<html data-theme="hud">`.
+Persisted to `localStorage('metrivant-theme')`. Flash-prevention script runs before hydration.
+
+### Colour rule (strict)
+
+- **Green** (`#2EE6A6`) = data truth. Signals, confirmation, evidence. Present in both themes.
+- **Cyan** (`#00E5FF` / `#7AF7FF`) = interface structure. Borders, scaffolding, UI chrome. HUD theme only.
+- These meanings are never mixed. A cyan element never carries data semantics. A green element never represents UI scaffolding.
+
+### Classic theme (default)
+
+The existing aesthetic. Green is the only accent. Borders are white at low opacity. No overlays. Passive observation.
+
+### HUD theme
+
+Adds a control layer over the same instrument:
+
+**Global effects (immediate, no DOM changes):**
+- Scanline overlay — `1px` horizontal lines at `1.5%` opacity, full viewport
+- Horizontal scan line — single cyan line sweeping top→bottom on `7s` linear loop
+- Emission glow — radial green gradient centered on viewport
+- Scrollbar — shifts from green to cyan
+- Text selection — shifts from green to cyan
+
+**Opt-in component classes (no-ops in classic):**
+- `.hud-panel` — dual-line border (inner + outer glow) on containers
+- `.hud-framed` — chamfered/clipped corners (`8px` cuts)
+- `.hud-numeric` — glowing data readout (`text-shadow: 0 0 6px rgba(122,247,255,0.4)`)
+- `.hud-label` — cyan chrome label (`letter-spacing: 0.14em`, uppercase)
+- `.hud-connector` — thin cyan separator line
+
+**Signal encoding classes:**
+- `.signal-weak` — dotted border (unconfirmed signals)
+- `.signal-confirmed` — solid border (confirmed)
+- `.signal-active` — pulsing opacity (active change)
+
+**Motion (HUD-specific):**
+- `hud-scan` — horizontal scan line sweep (`7s linear`)
+- `hud-pulse` — signal activity pulse (`2s ease-in-out`)
+- `hud-flicker` — micro-flicker for ambient elements (random-feel opacity variance)
+- All HUD motion: linear or exponential decay. No easing bounce.
+
+### Token layer
+
+| Token | Classic | HUD |
+|---|---|---|
+| `--m-ui-accent` | `#2EE6A6` | `#00E5FF` |
+| `--m-ui-highlight` | `#2EE6A6` | `#7AF7FF` |
+| `--m-ui-glow` | `none` | `0 0 6px rgba(0,229,255,0.5)` |
+| `--m-ui-border` | `rgba(255,255,255,0.08)` | `rgba(0,229,255,0.12)` |
+| `--m-ui-border-active` | `rgba(46,230,166,0.40)` | `rgba(0,229,255,0.35)` |
+
+Signal tokens (`--m-signal-*`) are permanent and never themed.
+
+### Safety constraints
+
+The theme system only changes:
+- Colours
+- Borders
+- Overlays (pseudo-elements)
+- Animation layers
+
+It does not change:
+- DOM structure
+- Spacing
+- Layout grid
+- Component hierarchy
+- Any functional behaviour

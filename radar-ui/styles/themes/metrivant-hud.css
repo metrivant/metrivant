@@ -1,0 +1,227 @@
+/* ── HUD theme — Pilot Interface Layer ────────────────────────────────────── */
+/*                                                                            */
+/* Active operator interface over the instrument.                             */
+/* Perception shifts from observer → operator.                                */
+/*                                                                            */
+/* Colour rule:                                                               */
+/*   Green (#2EE6A6) = data truth (signals, confirmation, evidence)           */
+/*   Cyan  (#00E5FF) = interface structure (borders, scaffolding, UI chrome)  */
+/*   Never mix meanings.                                                      */
+/*                                                                            */
+/* Implementation:                                                            */
+/*   Global effects  → immediate (scanlines, emission, scan, scrollbar)       */
+/*   Component effects → opt-in via CSS classes (.hud-panel, .hud-framed, etc)*/
+/*   No DOM or layout changes.                                                */
+
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  1. TOKEN OVERRIDES                                                       */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+[data-theme="hud"] {
+  --m-ui-accent:        #00E5FF;
+  --m-ui-highlight:     #7AF7FF;
+  --m-ui-glow:          0 0 6px rgba(0,229,255,0.5);
+  --m-ui-border:        rgba(0,229,255,0.12);
+  --m-ui-border-active: rgba(0,229,255,0.35);
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  2. SCANLINE OVERLAY                                                      */
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* 1px horizontal lines at 1.5% opacity. Covers entire viewport.             */
+/* Uses body::before — reserved for this layer in HUD theme.                 */
+
+[data-theme="hud"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 2px,
+    rgba(255,255,255,0.015) 2px,
+    rgba(255,255,255,0.015) 3px
+  );
+  pointer-events: none;
+  z-index: 10000;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  3. HORIZONTAL SCAN LINE                                                  */
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* A single cyan line that sweeps top→bottom on a 7s linear loop.            */
+/* Uses body::after — reserved for this layer in HUD theme.                  */
+
+[data-theme="hud"] body::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 1px;
+  top: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0,229,255,0.10) 15%,
+    rgba(0,229,255,0.25) 50%,
+    rgba(0,229,255,0.10) 85%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 10001;
+  animation: hud-scan 7s linear infinite;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  4. EMISSION CENTER GLOW                                                  */
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* Radial green emission from viewport center — soft vignette falloff.       */
+
+[data-theme="hud"] body {
+  background-image: radial-gradient(
+    circle at 50% 50%,
+    rgba(46,230,166,0.06) 0%,
+    transparent 55%
+  );
+  background-color: #000200;
+  background-attachment: fixed;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  5. SCROLLBAR                                                             */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+[data-theme="hud"] ::-webkit-scrollbar-thumb {
+  background: rgba(0,229,255,0.18);
+}
+[data-theme="hud"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,229,255,0.35);
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  6. SELECTION                                                             */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+[data-theme="hud"] ::selection {
+  background: rgba(0,229,255,0.18);
+  color: #ffffff;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  7. SKELETON SHIMMER (override)                                           */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+[data-theme="hud"] .skeleton-shimmer {
+  background: rgba(0,229,255,0.06);
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  8. OPT-IN COMPONENT CLASSES                                              */
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* These classes are no-ops in classic theme.                                 */
+/* Components add them to their DOM; HUD theme activates the visuals.        */
+
+/* ── .hud-panel — dual-line framed container ──────────────────────────────── */
+
+[data-theme="hud"] .hud-panel {
+  border: 1px solid rgba(0,229,255,0.15);
+  box-shadow: var(--m-ui-glow);
+  position: relative;
+}
+
+[data-theme="hud"] .hud-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(122,247,255,0.08);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* ── .hud-framed — chamfered corner container ─────────────────────────────── */
+
+[data-theme="hud"] .hud-framed {
+  clip-path: polygon(
+    8px 0, calc(100% - 8px) 0,
+    100% 8px, 100% calc(100% - 8px),
+    calc(100% - 8px) 100%, 8px 100%,
+    0 calc(100% - 8px), 0 8px
+  );
+}
+
+/* ── .hud-numeric — glowing data readout ──────────────────────────────────── */
+
+[data-theme="hud"] .hud-numeric {
+  text-shadow: 0 0 6px rgba(122,247,255,0.4);
+  letter-spacing: 0.14em;
+}
+
+/* ── .hud-label — system chrome label ─────────────────────────────────────── */
+
+[data-theme="hud"] .hud-label {
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(0,229,255,0.50);
+}
+
+/* ── .hud-connector — thin cyan separator line ────────────────────────────── */
+
+[data-theme="hud"] .hud-connector {
+  border-color: rgba(0,229,255,0.12);
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  9. SIGNAL ENCODING — DATA LINE STYLES                                    */
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* Encode signal strength via border pattern.                                 */
+
+[data-theme="hud"] .signal-weak {
+  border-style: dotted;
+}
+
+[data-theme="hud"] .signal-confirmed {
+  border-style: solid;
+}
+
+[data-theme="hud"] .signal-active {
+  animation: hud-pulse 2s ease-in-out infinite;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  10. KEYFRAMES                                                            */
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* All HUD motion: linear or exponential decay. No easing bounce.            */
+
+/* Horizontal scan line — sweeps top to bottom */
+@keyframes hud-scan {
+  0%   { top: -2px;   opacity: 0; }
+  3%   { opacity: 1; }
+  97%  { opacity: 1; }
+  100% { top: 100vh;  opacity: 0; }
+}
+
+/* Signal pulse — for active change indicators */
+@keyframes hud-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+
+/* Micro flicker — random-feel opacity variance for ambient elements */
+@keyframes hud-flicker {
+  0%, 91% { opacity: 1; }
+  92%     { opacity: 0.35; }
+  93%     { opacity: 1; }
+  96%     { opacity: 0.55; }
+  97%     { opacity: 1; }
+  100%    { opacity: 1; }
+}
