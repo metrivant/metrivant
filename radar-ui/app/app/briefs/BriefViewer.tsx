@@ -28,23 +28,6 @@ function deriveTrajectory(move: string): TrajectoryLabel {
   return "Strategic Movement";
 }
 
-// Severity → confidence proxy (displayed in dossier cards)
-function deriveConfidence(severity: BriefSeverity): number {
-  return severity === "high" ? 0.82 : severity === "medium" ? 0.60 : 0.38;
-}
-
-// Short intelligence interpretation for each trajectory + severity combination
-function deriveBriefInterpretation(trajectory: TrajectoryLabel, severity: BriefSeverity): string {
-  const prefix = severity === "high" ? "Immediate" : severity === "medium" ? "Elevated" : "Low-level";
-  switch (trajectory) {
-    case "Enterprise Expansion":  return `${prefix} pressure on enterprise segment`;
-    case "Pricing War":           return `${prefix} pricing competition detected`;
-    case "Product Acceleration":  return `${prefix} velocity in product surface`;
-    case "Market Repositioning":  return `${prefix} shift in competitive narrative`;
-    case "Ecosystem Expansion":   return `${prefix} platform and partnership play`;
-    default:                      return `${prefix} competitive activity detected`;
-  }
-}
 
 const TRAJECTORY_STYLES: Record<TrajectoryLabel, { color: string; bg: string; border: string }> = {
   "Enterprise Expansion":  { color: "#c084fc", bg: "rgba(192,132,252,0.08)", border: "rgba(192,132,252,0.22)" },
@@ -178,76 +161,6 @@ function StrategicPressureBlock({ groups }: { groups: PressureGroup[] }) {
   );
 }
 
-// ── Strategic Timeline ─────────────────────────────────────────────────────────
-
-function StrategicTimeline({
-  moves,
-  generatedAt,
-}: {
-  moves: BriefMove[];
-  generatedAt: string;
-}) {
-  const dateStr = new Date(generatedAt).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-
-  return (
-    <div>
-      <SectionHeader number="04" label="Signal Timeline" />
-      <div className="relative pl-8">
-        {/* Vertical rule */}
-        <div
-          className="absolute left-[7px] top-1 bottom-2 w-px"
-          style={{
-            background:
-              "linear-gradient(180deg, rgba(46,230,166,0.18) 0%, transparent 100%)",
-          }}
-        />
-        <div className="flex flex-col gap-5">
-          {moves.map((move, i) => {
-            const traj = deriveTrajectory(move.move);
-            const ts = TRAJECTORY_STYLES[traj];
-            return (
-              <div key={i} className="relative">
-                {/* Timeline dot */}
-                <div
-                  className="absolute -left-[25px] top-1.5 h-[9px] w-[9px] rounded-full border"
-                  style={{
-                    backgroundColor: `${ts.color}22`,
-                    borderColor: ts.border,
-                  }}
-                >
-                  <div
-                    className="absolute inset-[2px] rounded-full"
-                    style={{ backgroundColor: ts.color }}
-                  />
-                </div>
-
-                <div className="mb-0.5 flex items-center gap-2">
-                  <span className="font-mono text-[10px] text-slate-700">{dateStr}</span>
-                  <span className="text-slate-800">·</span>
-                  <span
-                    className="text-[10px] font-semibold uppercase tracking-[0.12em]"
-                    style={{ color: ts.color }}
-                  >
-                    {traj}
-                  </span>
-                </div>
-                <p className="text-[12px] font-semibold leading-snug text-slate-300">
-                  {move.competitor}
-                </p>
-                <p className="mt-0.5 text-[12px] leading-relaxed text-slate-500">
-                  {move.move}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -387,24 +300,20 @@ export default function BriefViewer({
               {brief.major_moves.map((move, i) => {
                 const traj = deriveTrajectory(move.move);
                 const ts = TRAJECTORY_STYLES[traj];
-                const conf = deriveConfidence(move.severity);
-                const confPct = Math.round(conf * 100);
-                const interpretation = deriveBriefInterpretation(traj, move.severity);
                 return (
                   <div
                     key={i}
-                    className="rounded-[12px] border border-[#0f1f0f] bg-[#030c03] p-4"
+                    className="rounded-[12px] border border-[#0f1f0f] bg-[#030c03] p-5"
                     style={{ borderLeftWidth: "3px", borderLeftColor: `${ts.color}44` }}
                   >
-                    {/* Trajectory + severity row */}
-                    <div className="mb-2.5 flex items-center gap-2">
-                      <TrajectoryBadge trajectory={traj} />
-                      <SeverityBadge severity={move.severity} />
-                    </div>
-
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="mb-1 text-[13px] font-semibold text-white">
+                      <div className="min-w-0 flex-1">
+                        {/* Trajectory + severity row */}
+                        <div className="mb-3 flex items-center gap-2">
+                          <TrajectoryBadge trajectory={traj} />
+                          <SeverityBadge severity={move.severity} />
+                        </div>
+                        <div className="mb-1.5 text-[14px] font-semibold text-white">
                           {move.competitor}
                         </div>
                         <div className="text-[13px] leading-relaxed text-slate-400">
@@ -415,7 +324,7 @@ export default function BriefViewer({
                       {/* Radar synergy hook */}
                       <button
                         onClick={() => focusOnRadar(move.competitor)}
-                        className="flex shrink-0 items-center gap-1 rounded-md border border-[#0d2010] bg-[#020802] px-2 py-1 text-[10px] text-slate-600 transition-colors hover:border-[#2EE6A6]/25 hover:text-slate-400"
+                        className="mt-7 flex shrink-0 items-center gap-1 rounded-md border border-[#0d2010] bg-[#020802] px-2 py-1 text-[10px] text-slate-600 transition-colors hover:border-[#2EE6A6]/25 hover:text-slate-400"
                         title={`Focus ${move.competitor} on Radar`}
                       >
                         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
@@ -425,28 +334,6 @@ export default function BriefViewer({
                         </svg>
                         Radar
                       </button>
-                    </div>
-
-                    {/* Dossier footer — confidence bar + interpretation */}
-                    <div className="mt-3 flex items-center gap-4 border-t border-[#0d1a0d] pt-2.5">
-                      <div className="flex flex-1 items-center gap-2">
-                        <span className="w-[60px] shrink-0 text-[10px] text-slate-700">Confidence</span>
-                        <div className="h-[2px] flex-1 overflow-hidden rounded-full bg-[#0d1a0d]">
-                          <div
-                            className="h-full rounded-full"
-                            style={{ width: `${confPct}%`, backgroundColor: ts.color }}
-                          />
-                        </div>
-                        <span
-                          className="w-[28px] text-right font-mono text-[10px] tabular-nums"
-                          style={{ color: ts.color }}
-                        >
-                          {confPct}%
-                        </span>
-                      </div>
-                      <span className="shrink-0 text-[11px] italic text-slate-600">
-                        {interpretation}
-                      </span>
                     </div>
                   </div>
                 );
@@ -497,9 +384,19 @@ export default function BriefViewer({
           </div>
         )}
 
-        {/* ── Section 04: Signal Timeline ───────────────────────────── */}
-        {brief.major_moves.length > 0 && (
-          <StrategicTimeline moves={brief.major_moves} generatedAt={generatedAt} />
+        {/* ── Closing Insight ──────────────────────────────────────── */}
+        {brief.closing_insight && (
+          <div className="mb-8">
+            <SectionHeader number="04" label="Strategic Insight" />
+            <div
+              className="rounded-[12px] border border-[#0f1f0f] bg-[#030c03] p-5"
+              style={{ borderLeftWidth: "3px", borderLeftColor: "rgba(245,158,11,0.40)" }}
+            >
+              <p className="text-[13px] leading-relaxed text-slate-300 italic">
+                {brief.closing_insight}
+              </p>
+            </div>
+          </div>
         )}
 
         {/* ── Empty state ───────────────────────────────────────────── */}
