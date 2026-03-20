@@ -21,6 +21,7 @@ import SyncSubscription from "../../components/SyncSubscription";
 import DailyBriefOverlay from "../../components/DailyBriefOverlay";
 import MobileNav from "../../components/MobileNav";
 import AchievementsButton from "../../components/AchievementsButton";
+import ThemeToggle from "../../components/ThemeToggle";
 import SoundToggleButton from "../../components/SoundToggleButton";
 import InitBanner from "../../components/InitBanner";
 import KnowledgePanel from "../../components/KnowledgePanel";
@@ -280,6 +281,7 @@ export default async function Page() {
               />
               Pipeline
             </Link>
+            <ThemeToggle />
           </div>
 
           {/* ── Right: stats + notification ────────────────────────────── */}
