@@ -113,12 +113,12 @@ async function run() {
   }));
 
   // ── 7. Movements + narratives freshness ────────────────────────
-  const { data: recentMovements } = await supabase
+  const { count: recentMovements } = await supabase
     .from("strategic_movements")
     .select("*", { count: "exact", head: true })
     .gte("created_at", sevenDaysAgo);
 
-  const { data: recentNarratives } = await supabase
+  const { count: recentNarratives } = await supabase
     .from("radar_narratives")
     .select("*", { count: "exact", head: true })
     .gte("created_at", sevenDaysAgo);
@@ -131,8 +131,8 @@ async function run() {
     .maybeSingle();
 
   results["7_ai_layer_freshness"] = {
-    movements_7d: recentMovements?.count ?? 0,
-    narratives_7d: recentNarratives?.count ?? 0,
+    movements_7d: recentMovements ?? 0,
+    narratives_7d: recentNarratives ?? 0,
     latest_brief: latestBrief ? { created: latestBrief.created_at, week: latestBrief.week_start } : null,
   };
 
@@ -161,20 +161,20 @@ async function run() {
   }));
 
   // ── 10. Interpretation queue depth ─────────────────────────────
-  const { data: pendingInterp } = await supabase
+  const { count: pendingInterp } = await supabase
     .from("signals")
     .select("*", { count: "exact", head: true })
     .eq("status", "pending")
     .in("relevance_level", ["high", "medium"]);
 
-  const { data: pendingReview } = await supabase
+  const { count: pendingReview } = await supabase
     .from("signals")
     .select("*", { count: "exact", head: true })
     .eq("status", "pending_review");
 
   results["10_interpretation_queue"] = {
-    pending_high_medium: pendingInterp?.count ?? 0,
-    pending_review: pendingReview?.count ?? 0,
+    pending_high_medium: pendingInterp ?? 0,
+    pending_review: pendingReview ?? 0,
   };
 
   // ── 11. URL migration verification ─────────────────────────────
