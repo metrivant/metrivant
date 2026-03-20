@@ -705,6 +705,19 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
   page, restoring scroll, while Three.js continues rendering. Correct pattern when OrbitControls or scene
   interaction is removed. Applied in `PipelineExperience.tsx`. (2026-03-20)
 
+- [B] CSS `::before`/`::after` pseudo-elements on React flex/grid containers are unreliable for
+  fixed-position overlays with `clip-path` or complex gradient animations. The pseudo-elements render
+  but may be invisible due to stacking context, clip-path not animating, or the parent's `overflow`
+  property. Fix: use actual DOM elements (client components) instead of CSS pseudo-elements for
+  overlay effects like lightning/electricity backgrounds. Applied: `ElectricityBackground.tsx` replaced
+  `.electricity-bg::before/::after` CSS approach. (2026-03-20)
+
+- [B] Scroll-triggered pipeline animation: for a tall section (>100vh) where content should remain
+  visible while the user scrolls through, use `position: sticky; top: 0; height: 100vh` on the
+  content container inside a tall outer div. The outer div's height determines total scroll distance.
+  Without sticky: content scrolls away before the animation completes. Progress formula:
+  `scrolled = vh - rect.top; raw = scrolled / sectionH`. Applied in `PipelineExperience.tsx`. (2026-03-20)
+
 - `@sentry/nextjs` in radar-ui requires `instrumentation.ts` + `sentry.server.config.ts` +
   `sentry.edge.config.ts` for automatic server/edge error capture. Without these files, only
   manually-instrumented call sites (captureException, captureCheckIn) report to Sentry — unhandled
