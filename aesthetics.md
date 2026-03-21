@@ -32,6 +32,20 @@ One colour. Electric blue. `#00B4FF`. This is the only accent colour in the enti
 
 **Rule:** The accent is never decorative. Every use of `#00B4FF` is tied to a live data state, a confirmed action, or a brand mark. If an element glows blue, it means something.
 
+### Purple accent (AI interpretation panels only)
+
+Purple complements the blue on AI-generated intelligence panels. Very minimal — only 3 uses:
+
+| Token | Value | Usage |
+|---|---|---|
+| `--purple-dim` | `rgba(139,92,246,0.35)` | Border-left on Strategic Advisory panel |
+| `--purple-ghost` | `rgba(139,92,246,0.08)` | Background tint on intelligence panels |
+| `--purple-text` | `rgba(139,92,246,0.75)` | Label text on advisory/hypothesis sections |
+
+Background surfaces: `#08061a` (advisory), `#06051a` (hypothesis). Border: `#1a1830`, `#18142a`.
+
+**Rule:** Purple is ONLY used on AI-generated interpretation sections. It distinguishes "AI synthesized" from "system detected." Never on data elements, signals, navigation, or buttons.
+
 ---
 
 ## 3. TEXT HIERARCHY
@@ -272,7 +286,36 @@ SVG radar instrument. Concentric rings (4) with rotating sweep arm and pulsing c
 
 ---
 
-## 14. VOICE
+## 14. ORBIT MODE (Pro plan only)
+
+ORBIT mode transforms the radar into a heliocentric physics simulation. Pure black background (`#000002`). The highest-signal competitor sits at the center as a bright sun-like node. All others orbit at radii proportional to their mass (momentum + pressure).
+
+**What renders:**
+- Central star: bright white node, radius +14 from base, outer glow (`#00B4FF` at 0.04), corona ring
+- Orbital nodes: same BlipNodes as standard radar, positioned by Kepler physics
+- 4 concentric orbit path rings: r=95, 175, 265, 360 — fading blue opacity
+- Orbital animation: 60fps via `useAnimationFrame`, Kepler periods (inner orbits faster)
+
+**What does NOT render:**
+- No HUD panels
+- No signal ticker
+- No conjunction arcs
+- No gravity field contours
+- No mass auras
+- No background gradients — pure black only
+
+**Animation physics:**
+- Shell radii: [22, 95, 175, 265, 360] SVG units
+- Shell capacity: [1, 3, 7, 12, ∞]
+- Base period: 28s at r=95 (Kepler: T ∝ r^1.5)
+- Frame rate: 60fps (16ms budget)
+- Golden angle distribution within each shell
+
+**Access:** Pro plan only. The Radar/ORBIT toggle is hidden for Analyst plan users.
+
+---
+
+## 15. VOICE
 
 - Functional. One sentence does one job.
 - Never "dashboard" — always "radar", "instrument", "signal", "movement".
@@ -284,7 +327,7 @@ SVG radar instrument. Concentric rings (4) with rotating sweep arm and pulsing c
 
 ---
 
-## 15. WHAT THIS AESTHETIC IS NOT
+## 16. WHAT THIS AESTHETIC IS NOT
 
 - Not a consumer product. No pastels, no rounded-everything, no playful micro-animations.
 - Not a generic SaaS dashboard. No gradient backgrounds, no coloured sidebar, no card grids with icons.
@@ -296,7 +339,7 @@ The product feels like a classified intelligence terminal. Calm. Authoritative. 
 
 ---
 
-## 16. APPLYING TO A NEW PAGE
+## 17. APPLYING TO A NEW PAGE
 
 To build any new page that conforms to the Metrivant aesthetic:
 

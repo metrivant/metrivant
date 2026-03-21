@@ -1016,10 +1016,12 @@ export default function Radar({
   competitors,
   sector,
   orgId,
+  plan,
 }: {
   competitors: RadarCompetitor[];
   sector?: string;
   orgId?: string;
+  plan?: string;
 }) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -1243,7 +1245,7 @@ export default function Radar({
   const orbitEverRef = useRef(false);
 
   // ── ORBIT animation — useAnimationFrame loop ─────────────────────────────
-  // orbitTimeRef stores raw timestamp (ms). orbitTick triggers re-renders at ≈15fps.
+  // orbitTimeRef stores raw timestamp (ms). orbitTick triggers re-renders at 60fps.
   const orbitTimeRef = useRef(0);
   const [orbitTick, setOrbitTick] = useState(0);
   // Paused shell tracking — maps shell index → frozen angle (radians)
@@ -1254,12 +1256,12 @@ export default function Radar({
   const [migrationTick, setMigrationTick] = useState(0);
 
   // Framer Motion's useAnimationFrame runs on every rAF tick with proper cleanup.
-  // Updates React state at ≈15fps (66ms budget) — enough for graceful orbital motion.
+  // Updates React state at 60fps (16ms budget) — ultra-smooth orbital motion.
   const lastTickRef = useRef(0);
   useAnimationFrame((t) => {
     if (!orbitMode) return;
     orbitTimeRef.current = t;
-    if (t - lastTickRef.current > 66) {
+    if (t - lastTickRef.current > 16) {
       setOrbitTick(t);
       lastTickRef.current = t;
     }
@@ -1851,8 +1853,8 @@ export default function Radar({
               </div>
               {/* Right: mode toggle + latest change */}
               <div className="flex items-center gap-4">
-                {/* Radar mode toggle: Standard / Gravity Field */}
-                <div
+                {/* Radar mode toggle: Standard / ORBIT — Pro plan only */}
+                {plan === "pro" && <div
                   className="flex items-center gap-0.5 rounded-[8px] p-0.5"
                   style={{
                     background: orbitMode ? "#07051a" : "#020208",
@@ -1884,25 +1886,7 @@ export default function Radar({
                   >
                     ORBIT
                   </button>
-                </div>
-
-                {/* Enhanced sub-toggle — HUD overlay */}
-                <button
-                  onClick={() => setOrbitHudActive((v) => !v)}
-                  className="rounded-[6px] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] transition-all duration-300"
-                  style={{
-                    background: orbitHudActive ? "rgba(203,213,225,0.10)" : "transparent",
-                    color: orbitHudActive ? "#e2e8f0" : "#3a4a5a",
-                    boxShadow: orbitHudActive
-                      ? "inset 0 0 0 1px rgba(203,213,225,0.28)"
-                      : "inset 0 0 0 1px rgba(30,30,40,0.6)",
-                    marginLeft: "4px",
-                  }}
-                  aria-label={orbitHudActive ? "Disable HUD overlay" : "Enable HUD overlay"}
-                  title="HUD — tactical intelligence overlay"
-                >
-                  HUD
-                </button>
+                </div>}
 
                 {/* Latest change */}
                 {(() => {
@@ -2296,18 +2280,28 @@ export default function Radar({
                   {/* Moved outside radarClip (see below) so they render in full SVG space.       */}
                   {null /* rings rendered after radarClip group — see orbit-ring-outer below */}
 
-                  {/* ── ORBIT: Central star — clean white dot, no bloom or flares ── */}
+                  {/* ── ORBIT: Central star — bright sun-like node ── */}
                   {centralStarId && (() => {
                     const starPos = orbitPositions.get(centralStarId);
                     if (!starPos) return null;
                     const starC = sorted.find(c => c.competitor_id === centralStarId);
-                    const starR = getNodeSize(Number(starC?.momentum_score ?? 0)) + 6;
+                    const starR = getNodeSize(Number(starC?.momentum_score ?? 0)) + 14;
                     return (
                       <g style={{ pointerEvents: "none" }}>
+                        {/* Outer glow */}
+                        <circle cx={starPos.x} cy={starPos.y} r={starR + 20}
+                          fill="#00B4FF" fillOpacity="0.04" />
+                        <circle cx={starPos.x} cy={starPos.y} r={starR + 10}
+                          fill="#ffffff" fillOpacity="0.06" />
+                        {/* Core — bright white */}
                         <circle cx={starPos.x} cy={starPos.y} r={starR}
                           fill="#ffffff" fillOpacity="1.0" />
-                        <circle cx={starPos.x} cy={starPos.y} r={starR + 3}
-                          fill="none" stroke="#ffffff" strokeWidth="0.8" strokeOpacity="0.30" />
+                        {/* Inner ring */}
+                        <circle cx={starPos.x} cy={starPos.y} r={starR + 4}
+                          fill="none" stroke="#ffffff" strokeWidth="1.0" strokeOpacity="0.40" />
+                        {/* Outer corona ring */}
+                        <circle cx={starPos.x} cy={starPos.y} r={starR + 8}
+                          fill="none" stroke="#00B4FF" strokeWidth="0.6" strokeOpacity="0.18" />
                       </g>
                     );
                   })()}
@@ -2456,54 +2450,7 @@ export default function Radar({
                       });
                   })()}
 
-                  {/* ── ORBIT: Conjunction arcs — brief arc when same-type nodes approach ── */}
-                  {orbitHudActive && (() => {
-                    const conjunctions: React.ReactNode[] = [];
-                    const CONJ_DIST = 70;
-                    const seen = new Set<string>();
-                    for (let i = 0; i < sorted.length; i++) {
-                      for (let j = i + 1; j < sorted.length; j++) {
-                        const a = sorted[i], b = sorted[j];
-                        if (!a.latest_movement_type || a.latest_movement_type !== b.latest_movement_type) continue;
-                        const pA = animatedOrbitPositions.get(a.competitor_id);
-                        const pB = animatedOrbitPositions.get(b.competitor_id);
-                        if (!pA || !pB) continue;
-                        const dx = pB.x - pA.x, dy = pB.y - pA.y;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        if (dist > CONJ_DIST) continue;
-                        const key = [a.competitor_id, b.competitor_id].sort().join('|');
-                        if (seen.has(key)) continue;
-                        seen.add(key);
-                        // Proximity factor: 1 = touching, 0 = at threshold
-                        const proximity = 1 - dist / CONJ_DIST;
-                        // Arc midpoint slightly offset perpendicular
-                        const mx = (pA.x + pB.x) / 2;
-                        const my = (pA.y + pB.y) / 2;
-                        const px = -dy / dist * 20;
-                        const py =  dx / dist * 20;
-                        const d = `M ${pA.x.toFixed(1)},${pA.y.toFixed(1)} Q ${(mx + px).toFixed(1)},${(my + py).toFixed(1)} ${pB.x.toFixed(1)},${pB.y.toFixed(1)}`;
-                        const arcColor = getMovementColor(a.latest_movement_type);
-                        conjunctions.push(
-                          <g key={`conj-${key}`} style={{ pointerEvents: "none" }}>
-                            <path d={d} fill="none"
-                              stroke={arcColor}
-                              strokeWidth={0.6 + proximity * 0.8}
-                              strokeOpacity={0.15 + proximity * 0.40}
-                            />
-                            <text x={mx + px * 0.5} y={my + py * 0.5 - 5}
-                              textAnchor="middle"
-                              fill={arcColor} fillOpacity={0.35 + proximity * 0.30}
-                              fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
-                              fontSize="5" letterSpacing="0.14em"
-                            >
-                              CONJUNCTION
-                            </text>
-                          </g>
-                        );
-                      }
-                    }
-                    return <g>{conjunctions}</g>;
-                  })()}
+                  {/* Conjunction arcs removed — baseline ORBIT mode */}
 
                   {/* ── ORBIT: Migration rings — node moving to new shell ── */}
                   {migrationTick >= 0 && (() => {
@@ -3511,8 +3458,8 @@ export default function Radar({
               ))}
             </div>
 
-            {/* Signal ticker — Gravity Field mode only */}
-            {orbitMode && !isolated && tickerItems.length > 0 && (
+            {/* Signal ticker — removed from baseline ORBIT mode */}
+            {false && orbitMode && !isolated && tickerItems.length > 0 && (
               <div
                 className="relative h-7 overflow-hidden border-t border-[#0d1020]"
                 style={{
