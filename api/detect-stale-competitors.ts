@@ -38,11 +38,11 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     const { data: pageRows } = await supabase
       .from("monitored_pages")
-      .select("competitor_id, health_state")
+      .select("id, competitor_id, health_state")
       .eq("active", true)
       .in("competitor_id", competitorIds);
 
-    const pages = (pageRows ?? []) as { competitor_id: string; health_state: string | null }[];
+    const pages = (pageRows ?? []) as { id: string; competitor_id: string; health_state: string | null }[];
 
     // Build per-competitor page stats
     const pageStats = new Map<string, { total: number; healthy: number }>();
@@ -67,23 +67,135 @@ async function handler(req: ApiReq, res: ApiRes) {
       signalCounts.set(s.competitor_id, (signalCounts.get(s.competitor_id) ?? 0) + 1);
     }
 
-    // ── Classify each competitor ─────────────────────────────────────────
+    // ── Pre-load pipeline stage data for diagnosis ──────────────────────
+    // For stale competitors with healthy pages, diagnose WHERE the pipeline is stuck.
+    const pageIds: string[] = [];
+    for (const p of pages) pageIds.push(p.id);
+
+    // Recent snapshots per page (last 14d)
+    const { data: snapRows } = await supabase
+      .from("snapshots")
+      .select("monitored_page_id, sections_extracted")
+      .gte("fetched_at", windowCutoff)
+      .in("monitored_page_id", pageIds.slice(0, 200));
+
+    const snapCounts = new Map<string, { total: number; extracted: number }>();
+    for (const s of (snapRows ?? []) as { monitored_page_id: string; sections_extracted: boolean }[]) {
+      const stats = snapCounts.get(s.monitored_page_id) ?? { total: 0, extracted: 0 };
+      stats.total++;
+      if (s.sections_extracted) stats.extracted++;
+      snapCounts.set(s.monitored_page_id, stats);
+    }
+
+    // Recent diffs per page (last 14d)
+    const { data: diffRows } = await supabase
+      .from("section_diffs")
+      .select("monitored_page_id, signal_detected")
+      .gte("last_seen_at", windowCutoff)
+      .in("monitored_page_id", pageIds.slice(0, 200));
+
+    const diffCounts = new Map<string, { total: number; signalDetected: number }>();
+    for (const d of (diffRows ?? []) as { monitored_page_id: string; signal_detected: boolean }[]) {
+      const stats = diffCounts.get(d.monitored_page_id) ?? { total: 0, signalDetected: 0 };
+      stats.total++;
+      if (d.signal_detected) stats.signalDetected++;
+      diffCounts.set(d.monitored_page_id, stats);
+    }
+
+    // ── Classify + diagnose + repair each competitor ─────────────────────
     let staleCount = 0;
     let deadCount = 0;
+    let autoRepaired = 0;
     const staleCompetitors: string[] = [];
     const deadCompetitors: string[] = [];
 
     for (const comp of competitors) {
       const stats = pageStats.get(comp.id);
-      if (!stats || stats.total === 0) continue; // no active pages — skip
+      if (!stats || stats.total === 0) continue;
 
       const signals = signalCounts.get(comp.id) ?? 0;
-      if (signals > 0) continue; // producing signals — healthy
+      if (signals > 0) continue;
 
       if (stats.healthy > 0) {
-        // Has healthy pages but no signals → stale (something wrong in pipeline for this competitor)
         staleCount++;
         staleCompetitors.push(comp.name);
+
+        // ── Auto-diagnosis: find which pipeline stage is stuck ──────────
+        const compPages = pages.filter((p) => p.competitor_id === comp.id);
+        let diagnosis = "unknown";
+        let repairAttempted = false;
+
+        // Check snapshots: are pages being fetched?
+        const hasSnapshots = compPages.some((p) => {
+          const sc = snapCounts.get(p.id);
+          return sc && sc.total > 0;
+        });
+
+        if (!hasSnapshots) {
+          diagnosis = "no_snapshots_14d";
+          // Repair: reset last_fetched_at to force re-fetch on next cycle
+          for (const p of compPages) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (supabase as any)
+              .from("monitored_pages")
+              .update({ last_fetched_at: null })
+              .eq("id", p.id);
+          }
+          repairAttempted = true;
+          autoRepaired++;
+        } else {
+          // Check extraction: are sections being extracted?
+          const hasExtraction = compPages.some((p) => {
+            const sc = snapCounts.get(p.id);
+            return sc && sc.extracted > 0;
+          });
+
+          if (!hasExtraction) {
+            diagnosis = "snapshots_not_extracted";
+            // Repair: mark latest snapshots as not extracted to re-queue
+            for (const p of compPages) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              await (supabase as any)
+                .from("snapshots")
+                .update({ sections_extracted: false })
+                .eq("monitored_page_id", p.id)
+                .gte("fetched_at", windowCutoff)
+                .limit(3);
+            }
+            repairAttempted = true;
+            autoRepaired++;
+          } else {
+            // Check diffs: are any diffs being produced?
+            const hasDiffs = compPages.some((p) => {
+              const dc = diffCounts.get(p.id);
+              return dc && dc.total > 0;
+            });
+
+            if (!hasDiffs) {
+              diagnosis = "no_diffs_produced";
+              // Possible cause: baselines are stale. Reset them to force new baseline cycle.
+              for (const p of compPages) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                await (supabase as any)
+                  .from("section_baselines")
+                  .delete()
+                  .eq("monitored_page_id", p.id);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                await (supabase as any)
+                  .from("monitored_pages")
+                  .update({ health_state: "baseline_maturing" })
+                  .eq("id", p.id);
+              }
+              repairAttempted = true;
+              autoRepaired++;
+            } else {
+              // Diffs exist but no signals — everything is noise-suppressed or below confidence
+              diagnosis = "diffs_exist_all_suppressed";
+              // No auto-repair for this — it's working correctly, just no meaningful changes
+            }
+          }
+        }
+
         Sentry.captureMessage("stale_competitor", {
           level: "warning",
           extra: {
@@ -93,10 +205,11 @@ async function handler(req: ApiReq, res: ApiRes) {
             healthy_pages: stats.healthy,
             last_signal_at: comp.last_signal_at,
             window_days: STALE_WINDOW_DAYS,
+            diagnosis,
+            repair_attempted: repairAttempted,
           },
         });
       } else {
-        // All pages are non-healthy → coverage dead
         deadCount++;
         deadCompetitors.push(comp.name);
         Sentry.captureMessage("competitor_coverage_dead", {
@@ -121,6 +234,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         competitors_checked: competitors.length,
         stale: staleCount,
         dead: deadCount,
+        auto_repaired: autoRepaired,
         stale_names: staleCompetitors.slice(0, 10),
         dead_names: deadCompetitors.slice(0, 10),
       },
@@ -135,6 +249,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       competitors: competitors.length,
       stale: staleCount,
       dead: deadCount,
+      autoRepaired: autoRepaired,
       staleCompetitors: staleCompetitors.slice(0, 20),
       deadCompetitors: deadCompetitors.slice(0, 20),
       runtimeDurationMs: elapsed(),
