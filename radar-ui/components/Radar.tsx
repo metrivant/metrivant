@@ -2934,25 +2934,32 @@ export default function Radar({
                 const q4MidDeg = 225;
                 const LABEL_R  = HUD_R + 14;
 
+                // Font sizes scale inversely with zoom so text stays readable at all levels.
+                // At zoom=1: label=10, value=12. At zoom=2: label=5, value=6 (same screen size).
+                // Clamped to prevent absurdly large text when zoomed way out.
+                const hudLabelSize = Math.min(16, Math.max(5, 10 / zoom));
+                const hudValueSize = Math.min(20, Math.max(6, 12 / zoom));
+                const hudGap = Math.max(4, 8 / zoom);
+
                 const qLabel = (deg: number, text: string, valueText?: string) => {
                   const rad = deg * Math.PI / 180;
                   const lx  = CENTER + LABEL_R * Math.cos(rad);
                   const ly  = CENTER + LABEL_R * Math.sin(rad);
                   return (
                     <g key={`hud-lbl-${deg}`}>
-                      <text x={lx} y={ly - (valueText ? 5 : 0)}
+                      <text x={lx} y={ly - (valueText ? hudGap : 0)}
                         textAnchor="middle" dominantBaseline="middle"
-                        fill="#7dd3fc" fillOpacity={selected ? 0.50 : 0.22}
-                        fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
-                        fontSize="5" letterSpacing="0.22em">
+                        fill="#7dd3fc" fillOpacity={selected ? 0.55 : 0.25}
+                        fontFamily="var(--font-orbitron), ui-monospace, monospace"
+                        fontSize={hudLabelSize} letterSpacing="0.22em">
                         {text}
                       </text>
                       {valueText && (
-                        <text x={lx} y={ly + 6}
+                        <text x={lx} y={ly + hudGap}
                           textAnchor="middle" dominantBaseline="middle"
-                          fill="#e2e8f0" fillOpacity={selected ? 0.80 : 0.20}
+                          fill="#e2e8f0" fillOpacity={selected ? 0.85 : 0.25}
                           fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
-                          fontSize="6" fontWeight="600" letterSpacing="0.10em">
+                          fontSize={hudValueSize} fontWeight="600" letterSpacing="0.10em">
                           {valueText}
                         </text>
                       )}
@@ -2968,7 +2975,7 @@ export default function Radar({
 
                     {/* Base ring */}
                     <circle cx={CENTER} cy={CENTER} r={HUD_R}
-                      fill="none" stroke="rgba(100,180,255,0.10)" strokeWidth="0.8" />
+                      fill="none" stroke="rgba(100,180,255,0.10)" strokeWidth={Math.max(0.8, 1.2 / zoom)} />
 
                     {/* ── Q1: Signal quality — top-right (-85° to -5°) ─────── */}
                     {Array.from({ length: 8 }, (_, i) => {
