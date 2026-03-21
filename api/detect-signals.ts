@@ -6,6 +6,7 @@ import { verifyCronSecret } from "../lib/withCronAuth";
 import { createHash } from "crypto";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "../lib/rate-limit";
 import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
+import { loadActiveNoiseRules, isNoiseSuppressed } from "../lib/noise-pattern-learner";
 
 // ── Signal weight constants ───────────────────────────────────────────────────
 // Base confidence contribution by section type.
@@ -394,6 +395,13 @@ async function handler(req: ApiReq, res: ApiRes) {
       }
     }
 
+    // ── Pre-batch: load active noise suppression rules ─────────────────────
+    const noiseRuleCompIds = [...new Set(
+      eligibleDiffs.map((d) => d.monitored_pages?.competitor_id).filter(Boolean) as string[]
+    )];
+    const noiseRuleMap = await loadActiveNoiseRules(noiseRuleCompIds);
+    let suppressedByNoiseRule = 0;
+
     for (const diff of eligibleDiffs) {
       rowsProcessed += 1;
       const elapsed = startTimer();
@@ -470,6 +478,20 @@ async function handler(req: ApiReq, res: ApiRes) {
               note: "section_type not mapped in classifySignal — signal filed as content_change/low",
             },
           });
+        }
+
+        // ── Noise suppression rule check ─────────────────────────────────────
+        const noiseRuleId = isNoiseSuppressed(noiseRuleMap, diff.section_type, competitorId, signal.signal_type);
+        if (noiseRuleId) {
+          await supabase
+            .from("section_diffs")
+            .update({ signal_detected: true, is_noise: true, noise_reason: "noise_pattern_rule" })
+            .eq("id", diff.id);
+          suppressedByNoiseRule += 1;
+          signalsSuppressed += 1;
+          rowsSucceeded += 1;
+          void recordEvent({ run_id: runId, stage: "signal", status: "skipped", section_diff_id: diff.id, monitored_page_id: diff.monitored_page_id, duration_ms: elapsed(), metadata: { signal_count: 0, suppressed_by: "noise_pattern_rule", rule_id: noiseRuleId } });
+          continue;
         }
 
         // ── Confidence gate ───────────────────────────────────────────────────
@@ -633,6 +655,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       signalsCreated,
       signalsSuppressed,
       suppressedByNoise,
+      suppressedByNoiseRule,
       suppressedByLowConfidence,
       signalsDeduplicated,
       signalsPendingReview,
@@ -668,6 +691,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       signalsCreated,
       signalsSuppressed,
       suppressedByNoise,
+      suppressedByNoiseRule,
       suppressedByLowConfidence,
       signalsDeduplicated,
       signalsPendingReview,
