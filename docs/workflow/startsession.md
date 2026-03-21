@@ -778,6 +778,43 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
   via HTTP GET to the failed handler's API path. Maps stage names to API paths via STAGE_TO_PATH lookup.
   Does NOT retry validation or self-healing handlers — only core pipeline stages. (2026-03-21)
 
+- [B] `suggest-competitors` (weekly Sunday 08:00 UTC) extracts company entities from media_observations
+  via GPT-4o-mini, scores them (article freq 30% + source diversity 30% + recency 20% + domain 20%),
+  auto-accepts score ≥0.70 (triggers onboard-competitor), auto-rejects <0.35, pending 0.35-0.69.
+  Migration 064: competitor_suggestions table. (2026-03-21)
+
+- [B] HUD overlay (`orbitHudActive`) is purely additive — toggling it must NOT alter the underlying
+  radar or ORBIT visuals. The HUD renders OUTSIDE radarClip at r=442 (OUTER_RADIUS+22). Previous bugs:
+  (1) `orbitMode || orbitHudActive` hid radar grid when HUD on in standard mode — fixed to `orbitMode` only
+  (2) `orbitMode && orbitHudActive` applied saturate(0) brightness(3.2) filter — removed entirely
+  (3) Relationship line colour overridden to white — removed.
+  HUD text is zoom-scaled: fontSize = base / zoom, clamped to readable range. (2026-03-21)
+
+- [B] HUD compound opacity trap: all HUD elements multiply parent group opacity × element opacity.
+  At ambient (no selection), parent was 0.45 × element 0.07 = 0.03 effective — invisible.
+  Fixed: parent ambient 0.85, inactive arcs 0.18, labels 0.45. Always verify effective opacity
+  is ≥ 0.15 for any visible HUD element. (2026-03-21)
+
+- [B] ORBIT mode: the central star (shell 0) must NOT render as a BlipNode — it renders as a dedicated
+  larger white circle instead. The `sorted.map` in the BlipNode loop skips `centralStarId` and renders
+  a clickable hit area + name label directly. Previous bug: BlipNode rendered on top of the sun with a
+  depth offset, causing duplicate nodes. (2026-03-21)
+
+- [B] ORBIT is Pro-plan-only. The Radar/ORBIT toggle is wrapped in `{plan === "pro" && (<>...</>)}`.
+  The `plan` prop is passed from app/page.tsx to Radar. Analyst users see standard radar only. (2026-03-21)
+
+- [B] Brand typography tiers (aesthetics.md §3) — strict rules, never break:
+  Tier 1: Orbitron for METRIVANT wordmark, Share Tech Mono for tagline
+  Tier 2: Orbitron for titles (18-22px, semibold)
+  Tier 3: Orbitron for mini titles/labels (9-11px, uppercase)
+  Tier 4: System monospace for body (inherited from `<body>`), Inter for 3+ sentence paragraphs
+  Tier 5: System monospace for micro text (10-11px)
+  CSS utility classes: .mv-title, .mv-label, .mv-body, .mv-body-long, .mv-micro (2026-03-21)
+
+- [B] Purple accent (rgba(139,92,246)) is used ONLY on AI-generated intelligence interpretation panels
+  (Strategic Advisory, Running Hypothesis). Never on data elements, signals, or navigation.
+  Surfaces: #08061a / #06051a backgrounds, #1a1830 / #18142a borders. (2026-03-21)
+
 - `@sentry/nextjs` in radar-ui requires `instrumentation.ts` + `sentry.server.config.ts` +
   `sentry.edge.config.ts` for automatic server/edge error capture. Without these files, only
   manually-instrumented call sites (captureException, captureCheckIn) report to Sentry — unhandled

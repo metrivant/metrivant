@@ -116,6 +116,7 @@ Then continue with fast-path steps 2–5.
 - Self-recovery: if a commit or push fails, diagnose and fix autonomously. Do not report failure and stop.
 - Alignment rule: every operational pattern captured in step 2 must be findable by a fresh session reading startsession.md. Knowledge captured only in memory is invisible to sessions that don't load that specific memory file — prefer startsession.md for universal rules.
 - Crash resilience: the startsession.md crash-resilience rule means critical knowledge should already be captured incrementally during the session. Endsession is the final sweep, not the only capture point.
+- Documentation sweep: every endsession MUST verify that all documentation in `docs/` reflects the current state. Key files to check: `METRIVANT_MASTER_REFERENCE.md` (system reference), `aesthetics.md` (brand), `startsession.md` (operational knowledge), `CLAUDE.md` (both surfaces). If any doc references features, pools, handlers, migrations, or UI components that were added/changed/removed this session, update the doc. Stale documentation is worse than no documentation — it causes incorrect decisions in future sessions.
 
 ---
 
