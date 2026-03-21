@@ -2121,7 +2121,7 @@ export default function Radar({
 
               {/* ── Rotating grid layer — rings, crosshairs, ticks ─── */}
               {/* Hidden in ORBIT mode — the circular instrument dissolves. */}
-              <g style={{ opacity: orbitMode || orbitHudActive ? 0 : 1, transition: "opacity 0.8s ease" }}>
+              <g style={{ opacity: orbitMode ? 0 : 1, transition: "opacity 0.8s ease" }}>
               <motion.g
                 animate={{ rotate: 360 }}
                 transition={{ duration: 120, repeat: Infinity, ease: "linear" }}
@@ -2445,9 +2445,7 @@ export default function Radar({
                   {selected && (() => {
                     const selPos = animatedOrbitPositions.get(selected.competitor_id);
                     if (!selPos || !selected.latest_movement_type) return null;
-                    const relColor = orbitHudActive
-                      ? "rgba(255,255,255,0.50)"
-                      : selectedColor;
+                    const relColor = selectedColor;
                     return sorted
                       .filter(
                         (c) =>
@@ -2655,7 +2653,7 @@ export default function Radar({
               <g style={{
                 opacity: entryPhase >= 2 ? 1 : 0,
                 transition: "opacity 0.4s ease, filter 0.8s ease",
-                filter: orbitMode && orbitHudActive ? "saturate(0) brightness(3.2)" : "none",
+                filter: "none",
               }}>
               {sorted.map((competitor, index) => {
                 // In ORBIT mode, skip rendering BlipNode for the central star —
