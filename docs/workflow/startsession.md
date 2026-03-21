@@ -756,6 +756,28 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
   competitor_ids in the batch). Lookup is O(1) Map check per diff — no per-diff DB query.
   Rules auto-deactivate when noise_rate drops below 80% on next learning run. (2026-03-21)
 
+- [B] Signal velocity anomaly dampening (`lib/velocity-dampener.ts`) caps signals per competitor per
+  detect-signals run at 5× their 14-day daily average (absolute cap 15). Prevents website redesign
+  floods from overwhelming the pipeline. State is per-run (no persistent storage). New competitors
+  with avg=0 get MIN_DAILY_AVERAGE=0.5 → cap of 3 signals/run until history builds. (2026-03-21)
+
+- [B] Confidence self-calibration (`lib/confidence-calibrator.ts`) runs inside learn-noise-patterns
+  (weekly). Reads signal_feedback → computes per-section_type accuracy rate → writes weight_multiplier
+  to `confidence_calibration` table. detect-signals applies multiplier on top of existing calibration
+  chain (calibration_reports → confidence_calibration → effectiveWeights). Multiplier range: 0.60–1.15.
+  Minimum 10 feedback samples before calibration kicks in. Migration 066. (2026-03-21)
+
+- [B] Double hallucination gate: `validate-interpretations` (hourly :35) validates AI interpretations
+  against raw evidence. `validate-movements` (hourly :42) validates AI movement narratives against
+  supporting signals. Both use GPT-4o-mini as validator. Hallucinated interpretations → signal
+  confidence -0.15. Hallucinated movements → confidence_level downgraded (high→medium).
+  Migrations 065 + 067 add validation_status columns. (2026-03-21)
+
+- [B] `retry-failed-stages` (hourly :50) checks pipeline_events for failures in last 2h, skips stages
+  that already self-recovered (have a success event in the same window), retries up to 3 stages per run
+  via HTTP GET to the failed handler's API path. Maps stage names to API paths via STAGE_TO_PATH lookup.
+  Does NOT retry validation or self-healing handlers — only core pipeline stages. (2026-03-21)
+
 - `@sentry/nextjs` in radar-ui requires `instrumentation.ts` + `sentry.server.config.ts` +
   `sentry.edge.config.ts` for automatic server/edge error capture. Without these files, only
   manually-instrumented call sites (captureException, captureCheckIn) report to Sentry — unhandled
