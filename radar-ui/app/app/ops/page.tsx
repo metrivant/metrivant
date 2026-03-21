@@ -9,19 +9,20 @@ import { createServiceClient } from "../../../lib/supabase/service";
 import { RepairActionRow } from "./RepairActionRow";
 import PipelineTrigger from "../../../components/PipelineTrigger";
 import OpsAutoRefresh from "./OpsAutoRefresh";
+import SystemTests from "./SystemTests";
 
 export const dynamic = "force-dynamic";
 
 // ── Staleness thresholds (minutes) ──────────────────────────────────────────
 const STALE_THRESHOLDS: Record<string, number> = {
-  // radar-ui crons
+  // ── radar-ui crons ──────────────────────────────────────────────────────────
   "/api/check-signals":        90,
   "/api/update-momentum":      390,
   "/api/generate-brief":       10_080,
   "/api/strategic-analysis":   1_500,
   "/api/update-positioning":   1_500,
-  "/api/record-positions":     70,
-  // backend runtime crons (also write to cron_heartbeats via shared Supabase)
+  "/api/generate-actions":     1_500,
+  // ── core pipeline (hourly) ──────────────────────────────────────────────────
   "fetch-snapshots":            70,
   "extract-sections":           70,
   "build-baselines":            70,
@@ -34,8 +35,8 @@ const STALE_THRESHOLDS: Record<string, number> = {
   "detect-movements":           70,
   "synthesize-movement-narratives": 70,
   "generate-radar-narratives":  70,
-  "generate-sector-intelligence": 10_080,
-  // pool ingest handlers — hourly, stale if >90 min
+  "attribute-pool-contexts":    70,
+  // ── pool ingest (hourly) ────────────────────────────────────────────────────
   "ingest-feeds":               90,
   "ingest-careers":             90,
   "ingest-investor-feeds":      90,
@@ -43,25 +44,37 @@ const STALE_THRESHOLDS: Record<string, number> = {
   "ingest-procurement-feeds":   90,
   "ingest-regulatory-feeds":    90,
   "ingest-media-feeds":         90,
-  // pool promote handlers — hourly, stale if >90 min
+  // ── pool promote (hourly) ───────────────────────────────────────────────────
   "promote-feed-signals":       90,
   "promote-careers-signals":    90,
   "promote-investor-signals":   90,
   "promote-product-signals":    90,
   "promote-procurement-signals":90,
   "promote-regulatory-signals": 90,
-  "promote-media-signals":     90,
-  // validation handlers — hourly
-  "validate-interpretations":  90,
-  "validate-movements":        90,
-  // self-healing handlers — hourly/daily/weekly
-  "retry-failed-stages":       90,
-  "detect-stale-competitors":  1_500,
-  "resolve-coverage":          1_500,
-  "check-feed-health":         10_080,
-  "repair-feeds":              10_080,
-  "learn-noise-patterns":      10_080,
-  "suggest-competitors":       10_080,
+  "promote-media-signals":      90,
+  // ── validation (hourly) ─────────────────────────────────────────────────────
+  "validate-interpretations":   90,
+  "validate-movements":         90,
+  // ── self-healing (hourly/daily/weekly) ──────────────────────────────────────
+  "retry-failed-stages":        90,
+  "watchdog":                   20,    // every 15 min
+  "detect-stale-competitors":   1_500,
+  "heal-coverage":              1_500,
+  "resolve-coverage":           1_500,
+  // ── daily/weekly maintenance ────────────────────────────────────────────────
+  "promote-baselines":          1_500,
+  "retention":                  1_500,
+  "suggest-selector-repairs":   1_500,
+  "reconcile-pool-events":      1_500,
+  "detect-pool-sequences":      1_500,
+  "generate-sector-intelligence": 10_080,
+  "expand-coverage":            10_080,
+  "calibrate-weights":          10_080,
+  "backfill-feeds":             10_080,
+  "check-feed-health":          10_080,
+  "repair-feeds":               10_080,
+  "learn-noise-patterns":       10_080,
+  "suggest-competitors":        10_080,
 };
 
 const DEFAULT_THRESHOLD = 1_500; // 25 hours — daily/weekly jobs not explicitly listed
@@ -203,12 +216,29 @@ function aggregateStages(events: PipelineEvent[]): StageStat[] {
     byStage.get(e.stage)!.push(e);
   }
   const STAGE_ORDER = [
+    // core pipeline (in execution order)
     "fetch-snapshots",
     "extract-sections",
     "build-baselines",
     "detect-diffs",
     "detect-signals",
     "interpret-signals",
+    "detect-ambient-activity",
+    "update-pressure-index",
+    "update-signal-velocity",
+    "detect-movements",
+    "synthesize-movement-narratives",
+    "generate-radar-narratives",
+    // pool ingest/promote
+    "ingest-feeds", "ingest-careers", "ingest-investor-feeds",
+    "ingest-product-feeds", "ingest-procurement-feeds", "ingest-regulatory-feeds",
+    "ingest-media-feeds",
+    "promote-feed-signals", "promote-careers-signals", "promote-investor-signals",
+    "promote-product-signals", "promote-procurement-signals", "promote-regulatory-signals",
+    "promote-media-signals",
+    // validation + self-healing
+    "validate-interpretations", "validate-movements",
+    "cron_retry", "heal", "resolve",
   ];
   const ordered: StageStat[] = [];
   // Known stages first, in pipeline order
@@ -295,9 +325,15 @@ const POOL_LABELS: Record<string, string> = {
   lever_api:           "Careers (Lever)",
   ashby_api:           "Careers (Ashby)",
   investor_feed:       "Investor",
+  sec_feed:            "Investor (SEC EDGAR)",
   product_feed:        "Product",
+  product_rss:         "Product (RSS)",
+  product_atom:        "Product (Atom)",
   procurement_feed:    "Procurement",
+  award_feed:          "Procurement (Awards)",
   regulatory_feed:     "Regulatory",
+  media_rss:           "Media (RSS)",
+  media_atom:          "Media (Atom)",
 };
 
 function aggregatePools(rows: PoolEventRow[]): PoolStat[] {
@@ -618,6 +654,56 @@ export default async function OpsPage() {
     }
   } catch { /* non-fatal */ }
 
+  // ── Heal / Resolve Coverage Stats (24h) ─────────────────────────────────
+  let healAttempts = 0, healSuccesses = 0;
+  let resolveAttempts = 0, resolveSuccesses = 0;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: healRows } = await (service as any)
+      .from("pipeline_events")
+      .select("status")
+      .eq("stage", "heal")
+      .gte("created_at", ago24h);
+    for (const r of (healRows ?? []) as { status: string }[]) {
+      healAttempts++;
+      if (r.status === "success") healSuccesses++;
+    }
+  } catch { /* non-fatal */ }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: resolveRows } = await (service as any)
+      .from("pipeline_events")
+      .select("status")
+      .eq("stage", "resolve")
+      .gte("created_at", ago24h);
+    for (const r of (resolveRows ?? []) as { status: string }[]) {
+      resolveAttempts++;
+      if (r.status === "success") resolveSuccesses++;
+    }
+  } catch { /* non-fatal */ }
+
+  // ── Noise Suppression Rules ────────────────────────────────────────────
+  let noiseRulesActive = 0;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { count } = await (service as any)
+      .from("noise_suppression_rules")
+      .select("*", { count: "exact", head: true })
+      .eq("active", true);
+    noiseRulesActive = count ?? 0;
+  } catch { /* non-fatal */ }
+
+  // ── Confidence Calibration ─────────────────────────────────────────────
+  let calibrationEntries = 0;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { count } = await (service as any)
+      .from("confidence_calibration")
+      .select("*", { count: "exact", head: true });
+    calibrationEntries = count ?? 0;
+  } catch { /* non-fatal */ }
+
   // ── Competitor Suggestions ────────────────────────────────────────────────
   let suggestionRows: CompetitorSuggestionRow[] = [];
   try {
@@ -662,20 +748,20 @@ export default async function OpsPage() {
         }}
       />
       <div
-        className="pointer-events-none fixed inset-0"
+        className="pointer-events-none fixed inset-0 animate-[glow-breathe_8s_ease-in-out_infinite]"
         style={{
           background:
-            "radial-gradient(ellipse 60% 35% at 50% -5%, rgba(0,180,255,0.04) 0%, transparent 70%)",
+            "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,180,255,0.09) 0%, transparent 70%)",
         }}
       />
 
       {/* ── Header ────────────────────────────────────────────────────────── */}
-      <header className="relative z-10 flex h-14 shrink-0 items-center justify-between border-b border-[#0e1022] bg-[rgba(0,2,0,0.97)] px-6">
+      <header className="relative z-10 flex h-14 shrink-0 items-center justify-between border-b border-[#0d1020] bg-[#000002]/[0.97] px-6">
         <div
           className="absolute inset-x-0 top-0 h-[1px]"
           style={{
             background:
-              "linear-gradient(90deg, transparent 0%, rgba(0,180,255,0.20) 40%, rgba(0,180,255,0.35) 50%, rgba(0,180,255,0.20) 60%, transparent 100%)",
+              "linear-gradient(90deg, transparent, rgba(0,180,255,0.45), transparent)",
           }}
         />
         <Link href="/app" className="flex items-center gap-3">
@@ -711,10 +797,13 @@ export default async function OpsPage() {
         {/* ── Title ─────────────────────────────────────────────────────── */}
         <div className="mb-10 flex items-start justify-between gap-6">
           <div>
-            <div className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-slate-600">
+            <div
+              className="mb-1 text-[10px] font-bold uppercase tracking-[0.22em]"
+              style={{ fontFamily: "var(--font-orbitron)", color: "rgba(0,180,255,0.55)" }}
+            >
               Operator
             </div>
-            <h1 className="text-[22px] font-bold leading-tight tracking-tight text-white">
+            <h1 className="text-[22px] font-semibold leading-tight tracking-[0.02em] text-white" style={{ fontFamily: "var(--font-orbitron)" }}>
               Pipeline Observatory
             </h1>
             <p className="mt-1.5 max-w-lg text-[13px] leading-relaxed text-slate-500">
@@ -774,10 +863,10 @@ export default async function OpsPage() {
             {cronRows.length === 0 ? (
               <EmptyState message="No cron heartbeats found — cron_heartbeats table may not be applied." />
             ) : (
-              <div className="overflow-hidden rounded-[14px] border border-[#0e1e0e]">
+              <div className="overflow-hidden rounded-[14px] border border-[#0d1020]">
                 <table className="w-full text-[12px]">
                   <thead>
-                    <tr className="border-b border-[#0e1e0e] bg-[#020208]">
+                    <tr className="border-b border-[#0d1020] bg-[#020208]">
                       <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Route</th>
                       <th className="px-4 py-2.5 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Last Run</th>
                       <th className="px-4 py-2.5 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Duration</th>
@@ -799,7 +888,7 @@ export default async function OpsPage() {
                       return (
                         <tr
                           key={row.route}
-                          className="border-b border-[#0a0a1a] last:border-0 transition-colors hover:bg-[#040c04]"
+                          className="border-b border-[#0d1020] last:border-0 transition-colors hover:bg-[#03030c]"
                         >
                           <td className="px-4 py-3 font-mono text-[11px] text-slate-300">
                             {row.route}
@@ -871,7 +960,7 @@ export default async function OpsPage() {
             {signalQuality.total === 0 ? (
               <EmptyState message="No signals in the last 7 days." />
             ) : (
-              <div className="rounded-[14px] border border-[#0e1e0e] bg-[#020208] p-5">
+              <div className="rounded-[14px] border border-[#0d1020] bg-[#020208] p-5">
                 <div className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
                   <MiniStat label="Total Signals"   value={signalQuality.total} />
                   <MiniStat label="Suppressed"       value={signalQuality.suppressed}
@@ -887,7 +976,7 @@ export default async function OpsPage() {
                   <MiniStat label="Interpreted" value={signalQuality.interpreted} />
                 </div>
 
-                <div className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-700">
+                <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-600" style={{ fontFamily: "var(--font-orbitron)" }}>
                   Confidence Distribution
                 </div>
                 <div className="mt-2 flex flex-col gap-2.5">
@@ -936,15 +1025,15 @@ export default async function OpsPage() {
               </div>
             )}
             {activityStats.length > 0 && (
-              <div className="mt-4 rounded-[12px] border border-[#0a0a1a] bg-[#020208] px-4 py-3">
-                <div className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-700">
+              <div className="mt-4 rounded-[12px] border border-[#0d1020] bg-[#020208] px-4 py-3">
+                <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-600" style={{ fontFamily: "var(--font-orbitron)" }}>
                   Ambient Events (24h) — {activityRows.length} total
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {activityStats.map((a) => (
                     <span
                       key={a.type}
-                      className="rounded-full border border-[#0e2010] bg-[#020208] px-2.5 py-1 font-mono text-[11px] text-slate-500"
+                      className="rounded-full border border-[#0d1020] bg-[#020208] px-2.5 py-1 font-mono text-[11px] text-slate-500"
                     >
                       {a.type} <span className="text-slate-400 tabular-nums">{a.count}</span>
                     </span>
@@ -1004,10 +1093,10 @@ export default async function OpsPage() {
                     </div>
                   ))}
                 </div>
-                <div className="overflow-hidden rounded-[14px] border border-[#0e1e0e]">
+                <div className="overflow-hidden rounded-[14px] border border-[#0d1020]">
                   <table className="w-full text-[12px]">
                     <thead>
-                      <tr className="border-b border-[#0e1e0e] bg-[#020208]">
+                      <tr className="border-b border-[#0d1020] bg-[#020208]">
                         <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Competitor</th>
                         <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Page</th>
                         <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">URL</th>
@@ -1020,7 +1109,7 @@ export default async function OpsPage() {
                         return (
                           <tr
                             key={row.id}
-                            className="border-b border-[#0a0a1a] last:border-0 transition-colors hover:bg-[#040c04]"
+                            className="border-b border-[#0d1020] last:border-0 transition-colors hover:bg-[#03030c]"
                           >
                             <td className="px-4 py-3 font-mono text-[11px] text-slate-300">
                               {row.competitors?.name ?? "—"}
@@ -1105,8 +1194,8 @@ export default async function OpsPage() {
                   const count = feedHealthRows.filter((f) => f.feed_health_state === state).length;
                   const color = state === "healthy" ? "#00B4FF" : state === "stale" ? "#f59e0b" : "#ef4444";
                   return (
-                    <div key={state} className="rounded-[14px] border border-[#0e1e0e] bg-[#020208] px-4 py-4">
-                      <div className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-700">{state}</div>
+                    <div key={state} className="rounded-[14px] border border-[#0d1020] bg-[#020208] px-4 py-4">
+                      <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-600" style={{ fontFamily: "var(--font-orbitron)" }}>{state}</div>
                       <div className="font-mono text-[26px] font-bold tabular-nums leading-none" style={{ color }}>{count}</div>
                       <div className="mt-1.5 text-[10px] text-slate-700">feeds</div>
                     </div>
@@ -1115,10 +1204,10 @@ export default async function OpsPage() {
               </div>
             )}
             {feedHealthRows.filter((f) => f.feed_health_state !== "healthy").length > 0 && (
-              <div className="mt-3 overflow-hidden rounded-[14px] border border-[#0e1e0e]">
+              <div className="mt-3 overflow-hidden rounded-[14px] border border-[#0d1020]">
                 <table className="w-full text-[12px]">
                   <thead>
-                    <tr className="border-b border-[#0e1e0e] bg-[#020208]">
+                    <tr className="border-b border-[#0d1020] bg-[#020208]">
                       <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Competitor</th>
                       <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Pool</th>
                       <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">URL</th>
@@ -1130,7 +1219,7 @@ export default async function OpsPage() {
                     {feedHealthRows.filter((f) => f.feed_health_state !== "healthy").map((row) => {
                       const color = row.feed_health_state === "stale" ? "#f59e0b" : "#ef4444";
                       return (
-                        <tr key={row.id} className="border-b border-[#0a0a1a] last:border-0 transition-colors hover:bg-[#040c04]">
+                        <tr key={row.id} className="border-b border-[#0d1020] last:border-0 transition-colors hover:bg-[#03030c]">
                           <td className="px-4 py-3 font-mono text-[11px] text-slate-300">{row.competitors?.name ?? "—"}</td>
                           <td className="px-4 py-3 font-mono text-[11px] text-slate-500">{row.pool_type}</td>
                           <td className="max-w-[200px] truncate px-4 py-3 font-mono text-[11px] text-slate-700">{row.feed_url}</td>
@@ -1165,10 +1254,10 @@ export default async function OpsPage() {
             {staleCompetitors.length === 0 ? (
               <EmptyState message="All monitored competitors have recent signal activity." />
             ) : (
-              <div className="overflow-hidden rounded-[14px] border border-[#0e1e0e]">
+              <div className="overflow-hidden rounded-[14px] border border-[#0d1020]">
                 <table className="w-full text-[12px]">
                   <thead>
-                    <tr className="border-b border-[#0e1e0e] bg-[#020208]">
+                    <tr className="border-b border-[#0d1020] bg-[#020208]">
                       <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Competitor</th>
                       <th className="px-4 py-2.5 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Pages</th>
                       <th className="px-4 py-2.5 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Healthy</th>
@@ -1181,7 +1270,7 @@ export default async function OpsPage() {
                       const isDead = c.healthy_pages === 0;
                       const color = isDead ? "#ef4444" : "#f59e0b";
                       return (
-                        <tr key={c.id} className="border-b border-[#0a0a1a] last:border-0 transition-colors hover:bg-[#040c04]">
+                        <tr key={c.id} className="border-b border-[#0d1020] last:border-0 transition-colors hover:bg-[#03030c]">
                           <td className="px-4 py-3 font-mono text-[11px] text-slate-300">{c.name}</td>
                           <td className="px-4 py-3 text-right font-mono text-[11px] tabular-nums text-slate-500">{c.page_count}</td>
                           <td className="px-4 py-3 text-right font-mono text-[11px] tabular-nums text-slate-500">{c.healthy_pages}</td>
@@ -1202,14 +1291,12 @@ export default async function OpsPage() {
             )}
           </section>
 
-          {/* Section 11 merged into Section 14 (Self-Healing) */}
-
           {/* ═══════════════════════════════════════════════════════════════
-              SECTION 12 — Competitor Suggestions (auto-discovered)
+              SECTION 11 — Competitor Suggestions (auto-discovered)
           ═══════════════════════════════════════════════════════════════ */}
           <section>
             <SectionHeader
-              index="12"
+              index="11"
               title="Competitor Suggestions"
               subtitle={
                 suggestionRows.length === 0
@@ -1236,10 +1323,10 @@ export default async function OpsPage() {
                     );
                   })}
                 </div>
-                <div className="overflow-hidden rounded-[14px] border border-[#0e1e0e]">
+                <div className="overflow-hidden rounded-[14px] border border-[#0d1020]">
                   <table className="w-full text-[12px]">
                     <thead>
-                      <tr className="border-b border-[#0e1e0e] bg-[#020208]">
+                      <tr className="border-b border-[#0d1020] bg-[#020208]">
                         <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Company</th>
                         <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Sector</th>
                         <th className="px-4 py-2.5 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Articles</th>
@@ -1252,7 +1339,7 @@ export default async function OpsPage() {
                       {suggestionRows.map((row) => {
                         const color = row.status === "accepted" ? "#00B4FF" : row.status === "pending" ? "#f59e0b" : "#64748b";
                         return (
-                          <tr key={row.id} className="border-b border-[#0a0a1a] last:border-0 transition-colors hover:bg-[#040c04]">
+                          <tr key={row.id} className="border-b border-[#0d1020] last:border-0 transition-colors hover:bg-[#03030c]">
                             <td className="px-4 py-3">
                               <div className="font-mono text-[11px] text-slate-300">{row.company_name}</div>
                               {row.domain && (
@@ -1281,17 +1368,17 @@ export default async function OpsPage() {
           </section>
 
           {/* ═══════════════════════════════════════════════════════════════
-              SECTION 13 — Intelligence Quality (24h)
+              SECTION 12 — Intelligence Quality (24h)
           ═══════════════════════════════════════════════════════════════ */}
           <section>
             <SectionHeader
-              index="13"
+              index="12"
               title="Intelligence Quality"
               subtitle="Hallucination detection across interpretations and movements · last 24h"
             />
             <div className="grid gap-3 sm:grid-cols-2">
               {/* Interpretation validation */}
-              <div className="rounded-[14px] border border-[#0e1e0e] bg-[#020208] p-4">
+              <div className="rounded-[14px] border border-[#0d1020] bg-[#020208] p-4">
                 <div className="mb-3 font-mono text-[11px] font-bold text-slate-300">Interpretation Validation</div>
                 <div className="flex items-baseline gap-4">
                   <div>
@@ -1309,7 +1396,7 @@ export default async function OpsPage() {
                 </div>
               </div>
               {/* Movement validation */}
-              <div className="rounded-[14px] border border-[#0e1e0e] bg-[#020208] p-4">
+              <div className="rounded-[14px] border border-[#0d1020] bg-[#020208] p-4">
                 <div className="mb-3 font-mono text-[11px] font-bold text-slate-300">Movement Validation</div>
                 <div className="flex items-baseline gap-4">
                   <div>
@@ -1330,41 +1417,87 @@ export default async function OpsPage() {
           </section>
 
           {/* ═══════════════════════════════════════════════════════════════
-              SECTION 14 — Self-Healing (24h)
+              SECTION 13 — Self-Healing & Recovery (24h)
           ═══════════════════════════════════════════════════════════════ */}
           <section>
             <SectionHeader
-              index="14"
-              title="Self-Healing"
-              subtitle="Automatic recovery actions · last 24h"
+              index="13"
+              title="Self-Healing & Recovery"
+              subtitle="Automatic recovery, noise learning, calibration, and dampening · last 24h"
             />
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-[14px] border border-[#0e1e0e] bg-[#020208] px-4 py-4">
-                <div className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-700">Cron Retries</div>
+            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              <div className="rounded-[14px] border border-[#0d1020] bg-[#020208] px-4 py-4 transition-transform duration-300 hover:-translate-y-0.5">
+                <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-600" style={{ fontFamily: "var(--font-orbitron)" }}>Cron Retries</div>
                 <div className="font-mono text-[26px] font-bold tabular-nums leading-none" style={{ color: cronRetriesAttempted > 0 ? "#f59e0b" : "rgba(148,163,184,0.4)" }}>
                   {cronRetriesSucceeded}/{cronRetriesAttempted}
                 </div>
                 <div className="mt-1.5 text-[10px] text-slate-700">succeeded / attempted</div>
               </div>
-              <div className="rounded-[14px] border border-[#0e1e0e] bg-[#020208] px-4 py-4">
-                <div className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-700">Velocity Dampened</div>
+              <div className="rounded-[14px] border border-[#0d1020] bg-[#020208] px-4 py-4 transition-transform duration-300 hover:-translate-y-0.5">
+                <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-600" style={{ fontFamily: "var(--font-orbitron)" }}>Heal Coverage</div>
+                <div className="font-mono text-[26px] font-bold tabular-nums leading-none" style={{ color: healAttempts > 0 ? "#00B4FF" : "rgba(148,163,184,0.4)" }}>
+                  {healSuccesses}/{healAttempts}
+                </div>
+                <div className="mt-1.5 text-[10px] text-slate-700">heuristic URL repairs</div>
+              </div>
+              <div className="rounded-[14px] border border-[#0d1020] bg-[#020208] px-4 py-4 transition-transform duration-300 hover:-translate-y-0.5">
+                <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-600" style={{ fontFamily: "var(--font-orbitron)" }}>Resolve Coverage</div>
+                <div className="font-mono text-[26px] font-bold tabular-nums leading-none" style={{ color: resolveAttempts > 0 ? "#00B4FF" : "rgba(148,163,184,0.4)" }}>
+                  {resolveSuccesses}/{resolveAttempts}
+                </div>
+                <div className="mt-1.5 text-[10px] text-slate-700">AI-powered URL repairs</div>
+              </div>
+              <div className="rounded-[14px] border border-[#0d1020] bg-[#020208] px-4 py-4 transition-transform duration-300 hover:-translate-y-0.5">
+                <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-600" style={{ fontFamily: "var(--font-orbitron)" }}>Velocity Dampened</div>
                 <div className="font-mono text-[26px] font-bold tabular-nums leading-none" style={{ color: velocityDampened > 0 ? "#f59e0b" : "rgba(148,163,184,0.4)" }}>
                   {velocityDampened}
                 </div>
-                <div className="mt-1.5 text-[10px] text-slate-700">signals suppressed (redesign floods)</div>
+                <div className="mt-1.5 text-[10px] text-slate-700">redesign flood suppression</div>
               </div>
-              <div className="rounded-[14px] border border-[#0e1e0e] bg-[#020208] px-4 py-4">
-                <div className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-700">Cross-Pool Dedup</div>
+              <div className="rounded-[14px] border border-[#0d1020] bg-[#020208] px-4 py-4 transition-transform duration-300 hover:-translate-y-0.5">
+                <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-600" style={{ fontFamily: "var(--font-orbitron)" }}>Cross-Pool Dedup</div>
                 <div className="font-mono text-[26px] font-bold tabular-nums leading-none" style={{ color: dedupCount > 0 ? "#00B4FF" : "rgba(148,163,184,0.4)" }}>
                   {dedupCount}
                 </div>
                 <div className="mt-1.5 text-[10px] text-slate-700">duplicates prevented</div>
               </div>
+              <div className="rounded-[14px] border border-[#0d1020] bg-[#020208] px-4 py-4 transition-transform duration-300 hover:-translate-y-0.5">
+                <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-600" style={{ fontFamily: "var(--font-orbitron)" }}>Noise Rules</div>
+                <div className="font-mono text-[26px] font-bold tabular-nums leading-none" style={{ color: noiseRulesActive > 0 ? "#00B4FF" : "rgba(148,163,184,0.4)" }}>
+                  {noiseRulesActive}
+                </div>
+                <div className="mt-1.5 text-[10px] text-slate-700">active suppression rules</div>
+              </div>
             </div>
+            {calibrationEntries > 0 && (
+              <div className="mt-3 rounded-[12px] border border-[#0d1020] bg-[#020208] px-4 py-3">
+                <span className="font-mono text-[10px] text-slate-600">
+                  Confidence calibration: <span className="text-slate-400">{calibrationEntries}</span> section types calibrated
+                </span>
+              </div>
+            )}
+          </section>
+
+          {/* ═══════════════════════════════════════════════════════════════
+              SECTION — System Tests
+          ═══════════════════════════════════════════════════════════════ */}
+          <section>
+            <SectionHeader
+              index="SYS"
+              title="System Tests"
+              subtitle="Comprehensive test suite · database, pipeline, signals, crons, pools, AI layers, self-healing, runtime API"
+            />
+            <SystemTests />
           </section>
 
         </div>
       </div>
+      {/* Inject CRON_SECRET for client-side test runner */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `window.__CRON_SECRET=${JSON.stringify(process.env.CRON_SECRET ?? "")};`,
+        }}
+      />
       <OpsAutoRefresh />
     </div>
   );
@@ -1377,14 +1510,22 @@ function SectionHeader({ index, title, subtitle }: { index: string; title: strin
     <div className="mb-6">
       <div className="flex items-end gap-4">
         <div className="flex items-baseline gap-3">
-          <span className="font-mono text-[11px] font-bold" style={{ color: "rgba(0,180,255,0.40)" }}>
+          <span
+            className="text-[10px] font-bold uppercase tracking-[0.22em]"
+            style={{ fontFamily: "var(--font-orbitron)", color: "rgba(0,180,255,0.55)" }}
+          >
             {index}
           </span>
-          <h2 className="text-[18px] font-semibold tracking-tight text-white">{title}</h2>
+          <h2
+            className="text-[18px] font-semibold tracking-[0.02em] text-white"
+            style={{ fontFamily: "var(--font-orbitron)" }}
+          >
+            {title}
+          </h2>
         </div>
         <div
           className="mb-1 h-px flex-1"
-          style={{ background: "linear-gradient(90deg, rgba(0,180,255,0.18) 0%, transparent 100%)" }}
+          style={{ background: "linear-gradient(90deg, rgba(0,180,255,0.25) 0%, transparent 100%)" }}
         />
       </div>
       <p className="mt-1 text-[12px] text-slate-600">{subtitle}</p>
@@ -1442,8 +1583,11 @@ function StatCard({
   note?:  string;
 }) {
   return (
-    <div className="rounded-[14px] border border-[#0e1e0e] bg-[#020208] px-4 py-4">
-      <div className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-700">
+    <div className="rounded-[14px] border border-[#0d1020] bg-[#020208] px-4 py-4 transition-transform duration-300 hover:-translate-y-0.5">
+      <div
+        className="mb-1 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-600"
+        style={{ fontFamily: "var(--font-orbitron)" }}
+      >
         {label}
       </div>
       <div className="font-mono text-[26px] font-bold tabular-nums leading-none" style={{ color: accent }}>
@@ -1463,8 +1607,8 @@ function StageCard({ stat }: { stat: StageStat }) {
 
   return (
     <div
-      className="relative rounded-[14px] border bg-[#020208] p-4"
-      style={{ borderColor: stat.errors > 0 ? "rgba(239,68,68,0.20)" : "#0e1e0e" }}
+      className="relative rounded-[14px] border bg-[#020208] p-4 transition-transform duration-300 hover:-translate-y-0.5"
+      style={{ borderColor: stat.errors > 0 ? "rgba(239,68,68,0.20)" : "#0d1020" }}
     >
       <div className="mb-3 flex items-start justify-between">
         <div className="font-mono text-[11px] font-bold text-slate-300">{stat.stage}</div>
@@ -1480,7 +1624,7 @@ function StageCard({ stat }: { stat: StageStat }) {
         </span>
         <span className="text-[11px] text-slate-600">runs</span>
       </div>
-      <div className="mt-3 flex items-center gap-4 border-t border-[#0a0a1a] pt-3 font-mono text-[10px] tabular-nums text-slate-700">
+      <div className="mt-3 flex items-center gap-4 border-t border-[#0d1020] pt-3 font-mono text-[10px] tabular-nums text-slate-700">
         {stat.avgMs != null && (
           <span>avg <span className="text-slate-500">{formatDuration(stat.avgMs)}</span></span>
         )}
@@ -1512,7 +1656,7 @@ function ConfBar({
   return (
     <div className="flex items-center gap-3">
       <div className="w-[110px] shrink-0 text-[11px] text-slate-500">{label}</div>
-      <div className="h-[4px] flex-1 overflow-hidden rounded-full bg-[#0d1f0d]">
+      <div className="h-[4px] flex-1 overflow-hidden rounded-full bg-[#0d1020]">
         <div
           className="h-full rounded-full transition-all"
           style={{ width: `${pct}%`, backgroundColor: color, boxShadow: `0 0 4px ${color}55` }}
@@ -1529,7 +1673,7 @@ function ConfBar({
 function PoolCard({ stat }: { stat: PoolStat }) {
   const promoteRate = stat.total > 0 ? Math.round((stat.promoted / stat.total) * 100) : 0;
   return (
-    <div className="rounded-[14px] border border-[#0e1e0e] bg-[#020208] p-4">
+    <div className="rounded-[14px] border border-[#0d1020] bg-[#020208] p-4 transition-transform duration-300 hover:-translate-y-0.5">
       <div className="mb-2 font-mono text-[11px] font-bold text-slate-300">{stat.label}</div>
       <div className="flex items-baseline gap-1.5">
         <span className="font-mono text-[24px] font-bold tabular-nums leading-none text-[#00B4FF]">
@@ -1537,7 +1681,7 @@ function PoolCard({ stat }: { stat: PoolStat }) {
         </span>
         <span className="text-[11px] text-slate-600">events</span>
       </div>
-      <div className="mt-3 flex items-center gap-4 border-t border-[#0a0a1a] pt-3 font-mono text-[10px] tabular-nums text-slate-700">
+      <div className="mt-3 flex items-center gap-4 border-t border-[#0d1020] pt-3 font-mono text-[10px] tabular-nums text-slate-700">
         <span>promoted <span className="text-slate-500">{stat.promoted}</span></span>
         <span>·</span>
         <span>suppressed <span className="text-slate-500">{stat.suppressed}</span></span>
@@ -1551,7 +1695,7 @@ function PoolCard({ stat }: { stat: PoolStat }) {
 function MiniStat({ label, value, note }: { label: string; value: number | string; note?: string }) {
   return (
     <div>
-      <div className="mb-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-slate-700">{label}</div>
+      <div className="mb-0.5 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-600" style={{ fontFamily: "var(--font-orbitron)" }}>{label}</div>
       <div className="font-mono text-[20px] font-bold tabular-nums leading-none text-white">{value}</div>
       {note && <div className="mt-0.5 font-mono text-[10px] text-slate-600">{note}</div>}
     </div>
@@ -1560,7 +1704,7 @@ function MiniStat({ label, value, note }: { label: string; value: number | strin
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-[12px] border border-[#0a0a1a] bg-[#020208] px-4 py-5">
+    <div className="flex items-center gap-3 rounded-[12px] border border-[#0d1020] bg-[#020208] px-4 py-5">
       <div
         className="h-2 w-2 shrink-0 rounded-full"
         style={{ backgroundColor: "rgba(100,116,139,0.5)" }}

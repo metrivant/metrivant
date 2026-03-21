@@ -122,37 +122,45 @@ Then continue with fast-path steps 2–5.
 
 ## METRIVANT PERFECT STATE — THE DESTINATION
 
-The backend and frontend have fundamentally different definitions of "perfect." The backend is a machine — it succeeds when it runs autonomously, produces accurate intelligence, and never requires intervention. The frontend is a product — it succeeds when a human opens it, understands the truth about their competitive landscape in seconds, takes action, and comes back tomorrow.
+**Perfect state = all automatic recursive improvement loops are in place.** The system does not merely run — it gets better at running. Every week, the detection is more accurate, the noise is lower, the coverage is wider, and the intelligence is more trustworthy. No human tunes it. The system tunes itself. "Perfect" is not a static target — it is the state where every improvement mechanism that can exist does exist and is active.
 
-These are different problems. Engineering perfection is invisible to users. Product perfection is felt.
+The backend and frontend have fundamentally different definitions of "perfect." The backend is a machine — it succeeds when it runs autonomously, produces accurate intelligence, and every recursive improvement loop is active. The frontend is a product — it succeeds when a human opens it, understands the truth about their competitive landscape in seconds, takes action, and comes back tomorrow — and the product improves from that usage.
 
----
-
-### RUNTIME PERFECT STATE (the machine)
-
-The runtime is perfect when it runs indefinitely without human intervention and the quality of its output improves every week.
-
-**Input layer (zero-touch):** The system continuously discovers new competitors from media signals and auto-onboards them when confidence exceeds threshold. It monitors every relevant page across 7 pools, self-repairs broken URLs via AI suggestion, auto-discovers replacement feed URLs, and expands page coverage into new page types. Every competitor that matters is tracked. Every feed that exists is ingested. No operator configures anything.
-
-**Detection layer (zero-noise):** Every change detected is either a genuine competitive signal or is silently suppressed. Noise patterns are learned from user feedback and auto-applied. Cross-pool deduplication ensures each real-world event produces exactly one signal. Velocity anomaly dampening prevents website redesigns from flooding the pipeline. Confidence scoring is self-calibrating. The signal-to-noise ratio improves every week.
-
-**Intelligence layer (zero-hallucination):** AI interpretations are validated against raw evidence by a second model. Movement narratives are validated against their supporting signals. Hallucinated outputs are confidence-downgraded and prevented from polluting downstream artifacts. The user never sees intelligence the system doesn't trust. The system never shows its internal quality machinery — it simply delivers trustworthy output.
-
-**Self-healing layer (zero-maintenance):** Failed crons retry themselves. Broken pages find new URLs. Stale competitors get diagnosed and unblocked. Noise patterns are learned and suppressed. New competitors are discovered and onboarded. The system gets better every week without being touched.
-
-**Current status: SUBSTANTIALLY COMPLETE.** All five pillars are implemented. The remaining runtime work is operational — monitoring, tuning thresholds, expanding sector coverage. No architectural gaps remain.
+These are different problems. Engineering perfection is invisible to users. Product perfection is felt. Both require recursive improvement.
 
 ---
 
-### FRONTEND PERFECT STATE (the product)
+### RUNTIME PERFECT STATE (the self-improving machine)
 
-The frontend is perfect when every interaction answers a question the user already has, every screen delivers value in under 3 seconds, and every feature earns its existence by driving retention or conversion.
+The runtime is perfect when it runs indefinitely without human intervention and the quality of its output improves every week — automatically.
+
+**Core principle: recursive improvement.** Every subsystem that can learn from its own output does. Every failure mode that can be auto-repaired is. Every quality signal that can be fed back into the system is. The operator's role reduces to zero over time — not because the system is static, but because it adapts.
+
+**Input layer (zero-touch, self-expanding):** The system continuously discovers new competitors from media signals and auto-onboards them when confidence exceeds threshold. It monitors every relevant page across 7 pools, self-repairs broken URLs via heuristic then AI suggestion, auto-discovers replacement feed URLs, and expands page coverage into new page types. Every competitor that matters is tracked. Every feed that exists is ingested. No operator configures anything. **Recursive loop:** media observations → competitor suggestions → auto-onboard → expanded monitoring → richer media observations.
+
+**Detection layer (zero-noise, self-calibrating):** Every change detected is either a genuine competitive signal or is silently suppressed. Noise patterns are learned from user feedback and auto-applied. Cross-pool deduplication ensures each real-world event produces exactly one signal. Velocity anomaly dampening prevents website redesigns from flooding the pipeline. Confidence scoring is self-calibrating via weekly feedback analysis. **Recursive loops:** signal feedback → noise suppression rules → cleaner signals → better feedback. Signal feedback → confidence calibration → more accurate gating → fewer false positives.
+
+**Intelligence layer (zero-hallucination, self-validating):** AI interpretations are validated against raw evidence by a second model. Movement narratives are validated against their supporting signals. Hallucinated outputs are confidence-downgraded and prevented from polluting downstream artifacts. The user never sees intelligence the system doesn't trust. **Recursive loop:** validation results → confidence adjustments → higher-quality inputs to downstream synthesis → fewer hallucinations to validate.
+
+**Self-healing layer (zero-maintenance, self-diagnosing):** Failed crons retry themselves. Broken pages escalate through a 3-tier repair chain (heuristic → AI → deactivation). Stale competitors get auto-diagnosed and unblocked per pipeline stage. Feed health is monitored and repaired weekly. The system gets better every week without being touched. **Recursive loop:** failures → auto-repair → fewer failures → repair handlers idle → system converges toward stability.
+
+**Observability layer (zero-blind-spots):** Every pipeline stage writes to pipeline_events. Every self-healing action is logged. The ops page surfaces all system state in one view. System tests validate every subsystem on demand. Sentry monitors every cron. The operator never needs to ask "what happened?" — the system tells them before they ask. **Recursive loop:** observability reveals drift → drift triggers self-healing → self-healing logs outcomes → observability confirms resolution.
+
+**Current status: SUBSTANTIALLY COMPLETE.** All recursive improvement loops are implemented. The remaining runtime work is operational — monitoring, tuning thresholds, expanding sector coverage. No architectural gaps remain. The system is self-improving.
+
+---
+
+### FRONTEND PERFECT STATE (the self-improving product)
+
+The frontend is perfect when every interaction answers a question the user already has, every screen delivers value in under 3 seconds, every feature earns its existence by driving retention or conversion — and user behaviour feeds back into the system to make it smarter.
+
+**Core principle: the user improves the system by using the system.** Every signal reviewed, every brief opened, every competitor clicked generates data that the backend's recursive loops consume. The frontend's job is to make these feedback actions effortless — invisible to the user, invaluable to the machine.
 
 **First value (zero-wait):** A user signs up, selects their sector, and within minutes understands what the product does. Not hours — minutes. An onboarding progress indicator shows pipeline status: "Monitoring 7 pages... First snapshot captured... Baseline building..." The empty radar state communicates certainty: your intelligence is coming. The first signal arrives with a notification. The first brief arrives on Monday. The user never wonders "is this thing working?"
 
 **Core loop (zero-friction):** The user opens the radar → sees who is moving → clicks a competitor → reads the intelligence → understands the implication → acts. Every step in this loop takes under 2 seconds. No loading spinners. No dead clicks. No confusion about what to do next. The intelligence drawer answers: what changed, what it means, and what to do. The evidence chain is one click away. The user trusts the system because the system shows its work — but only when asked.
 
-**Signal feedback (zero-waste):** The user can mark any signal as "valid" or "noise" with one click. This isn't a feature for the user — it's the input that activates the entire backend learning loop. Noise patterns, confidence calibration, and interpretation quality all depend on this data. Without it, the backend's self-learning systems are inert. The UI must make feedback effortless — a thumb up/down on each signal card, not a form. The user helps the system by using the system.
+**Signal feedback (zero-waste — the critical recursive bridge):** The user can mark any signal as "valid" or "noise" with one click. This isn't a feature for the user — it's the input that activates the entire backend learning loop. Noise patterns, confidence calibration, and interpretation quality all depend on this data. Without it, the backend's self-learning systems are inert. The UI must make feedback effortless — a thumb up/down on each signal card, not a form. **Recursive loop:** user feedback → noise_suppression_rules (weekly learn-noise-patterns) → cleaner signals → less noise shown → happier user → more feedback. User feedback → confidence_calibration (weekly calibrate-weights) → more accurate scoring → better signal quality → more trust → more engagement.
 
 **Weekly brief (zero-effort intelligence):** The Monday email is the #1 retention mechanism. It arrives in the inbox, reads in 90 seconds, and tells the user three things: what moved, what it means for them, and what they should consider doing. If the brief is good, the user opens Metrivant. If the brief is slop, the user cancels. Brief quality is the product's heartbeat.
 
@@ -162,10 +170,12 @@ The frontend is perfect when every interaction answers a question the user alrea
 
 **Mobile (zero-exclusion):** The core intelligence — signals, movements, briefs, alerts — is accessible on mobile. The radar is desktop-first (SVG precision requires screen space), but the intelligence drawer, briefs, and alerts work on any device. A user checking their phone on Monday morning sees the brief. A critical alert reaches them wherever they are.
 
-**Emotional state (zero-anxiety):** The product feels calm, authoritative, and trustworthy. Not gamified. Not noisy. Not desperate for attention. The user opens it and feels like they're looking at the truth. The aesthetic — dark canvas, electric blue, precision typography — communicates: this is a serious instrument for serious operators. The 45-second engagement feature is the last resort for landing page visitors, not a pattern for the core product.
+**Emotional state (zero-anxiety):** The product feels calm, authoritative, and trustworthy. Not gamified. Not noisy. Not desperate for attention. The user opens it and feels like they're looking at the truth. The aesthetic — dark canvas, electric blue, precision typography — communicates: this is a serious instrument for serious operators.
 
-**Current status: SIGNIFICANT GAPS REMAIN.** The backend is a machine that works. The frontend is a product that needs to earn its users. The gaps are:
-1. Signal feedback UI does not exist (backend learning loops are inert)
+**Ops observability (zero-blind-spots):** The ops page surfaces every system state in one view: pipeline stages, cron health, signal quality, pool activity, coverage health, feed health, stale competitors, competitor suggestions, intelligence validation, self-healing metrics, and comprehensive system tests. The operator runs one button and knows if every recursive loop is active. **Recursive loop:** ops visibility → faster diagnosis → targeted fixes → improved system → fewer issues to diagnose.
+
+**Current status: SIGNIFICANT GAPS REMAIN.** The backend's recursive loops are all implemented. The frontend needs to close the bridge:
+1. Signal feedback UI does not exist (backend learning loops are inert without user input)
 2. First-value onboarding has no progress indicator (user waits in the dark)
 3. Brief quality is untested with real users
 4. Feature discovery relies on exploration, not guidance
@@ -176,34 +186,35 @@ The frontend is perfect when every interaction answers a question the user alrea
 
 ### THE DISTINCTION
 
-The backend asks: "Is the system correct?"
-The frontend asks: "Does the user care?"
+The backend asks: "Is every recursive improvement loop active?"
+The frontend asks: "Does the user's behaviour feed those loops?"
 
-A technically perfect backend producing intelligence that nobody reads is a failure. A slightly imperfect backend producing intelligence that a user opens every Monday morning and acts on is a success.
+A system with all recursive loops implemented but no user input is a machine talking to itself. A system where users interact naturally and those interactions make the machine smarter is a flywheel. Perfect state is when the flywheel is turning.
 
-**The runtime is the engine. The frontend is the reason the engine exists.**
+**The runtime is the engine. The frontend is the fuel. User behaviour is the spark.**
 
-Every remaining session should prioritize the frontend — because the backend is done and the product is not.
+Every remaining session should prioritize closing the feedback bridge — because the backend's self-improvement loops are built but waiting for user input to activate.
 
 ---
 
 ### THE GAP
 
-The gap between current state and perfect state is the standing question below. Each session closes one gap. There is a finite number of gaps. We are heading toward the end.
+The gap between current state and perfect state is measured by: **how many recursive improvement loops are fully active end-to-end (backend + frontend + user)?** Each session closes one gap in this chain. The system converges toward a state where every loop turns autonomously.
 
 ---
 
 ## STANDING QUESTION — ASK AT EVERY SESSION END
 
-> "From a birds-eye view of the current system state: what is the single highest-leverage objective that Claude Code is capable of achieving at maximum capacity — the task that would take a human engineer the most calendar time, has a clear implementation path, and compounds the most value over time?"
+> "From a birds-eye view of the current system state: what is the single highest-leverage objective that Claude Code is capable of achieving at maximum capacity — the task that would activate the most recursive improvement loops, take a human engineer the most calendar time, has a clear implementation path, and compounds the most value over time?"
 
 Answer in one paragraph. Do not implement unless explicitly approved.
 
 Evaluation criteria (rank by):
-1. **Calendar-time multiplier** — how many human-days does this save?
-2. **Compound value** — does this produce more signal density / coverage / accuracy over time?
-3. **Implementation clarity** — is the path unambiguous with existing patterns?
-4. **Risk** — low blast radius strongly preferred; schema changes or new deps reduce ranking
+1. **Recursive activation** — does this activate or strengthen a self-improvement loop?
+2. **Calendar-time multiplier** — how many human-days does this save?
+3. **Compound value** — does this produce more signal density / coverage / accuracy over time?
+4. **Implementation clarity** — is the path unambiguous with existing patterns?
+5. **Risk** — low blast radius strongly preferred; schema changes or new deps reduce ranking
 
 Then immediately output the following block, filled in with the answer above as a ready-to-paste Claude Code session-start prompt:
 
