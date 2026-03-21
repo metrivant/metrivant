@@ -17,14 +17,21 @@ function timingSafeEqual(a: string, b: string): boolean {
 /**
  * Verifies the Authorization: Bearer <CRON_SECRET> header.
  *
- * Returns true if the request is authorised (or if CRON_SECRET is not set,
- * which allows local development without configuring the secret).
+ * Production: if CRON_SECRET is not set (or empty), returns 503 — fail-closed.
+ * Development: allows unauthenticated access for local testing.
  *
  * Returns false and writes a 401 response if the secret is set but the
  * header is missing or incorrect.
  */
 export function verifyCronSecret(req: ApiReq, res: ApiRes): boolean {
   if (!CRON_SECRET) {
+    const isProduction =
+      process.env.VERCEL_ENV === "production" ||
+      process.env.NODE_ENV === "production";
+    if (isProduction) {
+      res.status(503).json({ ok: false, error: "cron_secret_not_configured" });
+      return false;
+    }
     return true;
   }
 

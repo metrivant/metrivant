@@ -17,6 +17,7 @@ import { discoverProductFeed } from "../lib/product-feed-discovery";
 import { discoverEdgarFeed } from "../lib/edgar-discovery";
 import type { Category } from "../lib/url-scorer";
 import { seedSmartRules, getStaticRules, SmartRule } from "../lib/onboarding-selectors";
+import { isPrivateUrl } from "../lib/url-safety";
 
 // Shape written to monitored_pages.discovery_candidates — operator audit trail only.
 // Not read by any pipeline stage.
@@ -286,6 +287,11 @@ async function handler(req: ApiReq, res: ApiRes) {
       baseUrl = normalizeUrl(website_url);
     } catch {
       return res.status(400).json({ ok: false, error: "website_url must be a valid URL" });
+    }
+
+    // SSRF guard: block private/internal URLs before any discovery or validation.
+    if (isPrivateUrl(baseUrl)) {
+      return res.status(400).json({ ok: false, error: "private or internal URLs are not allowed" });
     }
 
     /*

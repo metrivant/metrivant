@@ -243,13 +243,19 @@ async function handler(req: ApiReq, res: ApiRes) {
       for (const s of preSelected) neededSignalIds.add(s.signal_id);
     }
 
-    const { data: interpRows } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: interpRows } = await (supabase as any)
       .from("interpretations")
-      .select("signal_id, summary")
+      .select("signal_id, summary, validation_status")
       .in("signal_id", [...neededSignalIds]);
 
     const summaryBySignalId = new Map<string, string>();
-    for (const i of (interpRows ?? []) as { signal_id: string; summary: string }[]) {
+    const hallucinatedSignalIds = new Set<string>();
+    for (const i of (interpRows ?? []) as { signal_id: string; summary: string; validation_status: string | null }[]) {
+      if (i.validation_status === "hallucinated") {
+        hallucinatedSignalIds.add(i.signal_id);
+        continue; // exclude hallucinated interpretations from narrative evidence
+      }
       if (i.summary) summaryBySignalId.set(i.signal_id, i.summary);
     }
 
@@ -266,8 +272,8 @@ async function handler(req: ApiReq, res: ApiRes) {
       const comp    = competitorMap.get(competitorId)!;
       const rawSigs = signalsByCompetitor.get(competitorId) ?? [];
 
-      // Build SignalForNarrative array with changed_content_snippet
-      const signalsWithMeta: SignalForNarrative[] = rawSigs.map((s) => ({
+      // Build SignalForNarrative array — exclude hallucinated signals
+      const signalsWithMeta: SignalForNarrative[] = rawSigs.filter((s) => !hallucinatedSignalIds.has(s.id)).map((s) => ({
         signal_id:               s.id,
         page_class:              s.monitored_pages?.page_class ?? "standard",
         section_type:            s.monitored_pages?.page_type  ?? "unknown",

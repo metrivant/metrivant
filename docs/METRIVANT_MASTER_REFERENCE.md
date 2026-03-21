@@ -1,6 +1,6 @@
 METRIVANT — MASTER SYSTEM REFERENCE
-Version: v4.2 (billing integration, plan enforcement, clean slate hardening)
-Last updated: 2026-03-15
+Version: v4.4 (backend hardening — SSRF, fail-closed auth, hallucination gating, pool visibility, stale-content, circuit breaker, quarantine, baseline suppression)
+Last updated: 2026-03-21
 
 This document is the single authoritative reference for the Metrivant system.
 It replaces: ARCHITECTURE_INDEX, MASTER_ARCHITECTURE_PLAN, SYSTEM_ARCHITECTURE,
@@ -75,15 +75,30 @@ competitors
 ================================================
 
 ── Runtime (vercel.json — metrivant-runtime) ──────────────────────────────────
+── 50 cron entries total (verified against vercel.json 2026-03-21) ──
 
 Fetch cadence:
   :00,:30  fetch-snapshots?page_class=ambient     (blog, careers)
   :02      fetch-snapshots?page_class=high_value  (pricing, changelog, newsroom) — every hour
   :04      fetch-snapshots?page_class=standard    (homepage, features) — every 3h
 
-Pool 1 ingestion (newsroom):
-  :10      ingest-feeds
-  :12      promote-feed-signals
+Pool ingestion (all pools active — migrations 056-060 applied 2026-03-19):
+  :10      ingest-feeds              (newsroom)
+  :11      ingest-careers
+  :14      ingest-investor-feeds
+  :29      ingest-product-feeds
+  :32      ingest-procurement-feeds
+  :37      ingest-media-feeds
+  :43      ingest-regulatory-feeds
+
+Pool promotion:
+  :12      promote-feed-signals      (newsroom)
+  :13      promote-careers-signals
+  :16      promote-investor-signals
+  :31      promote-product-signals
+  :34      promote-procurement-signals
+  :40      promote-media-signals
+  :46      promote-regulatory-signals
 
 Processing pipeline (every 30 min):
   :15,:45  extract-sections
@@ -94,19 +109,40 @@ Processing pipeline (every 30 min):
   :25,:55  update-pressure-index
 
 Interpretation + movements + AI synthesis (every 60 min):
-  :28      interpret-signals
+  :28,:58  interpret-signals          (twice hourly — 15 signals/batch)
   :30      synthesize-movement-narratives
   :45      generate-radar-narratives
   :50      update-signal-velocity
   :55      detect-movements
 
-Weekly:
-  Mon 07:00  generate-sector-intelligence
+AI quality validation (every 60 min):
+  :35      validate-interpretations   (GPT-4o-mini hallucination check — advisory only, does NOT gate output)
+  :42      validate-movements         (GPT-4o-mini movement grounding check — advisory only)
+
+Self-healing + self-improving (various cadences):
+  :50      attribute-pool-contexts    (hourly)
+  :50      retry-failed-stages        (hourly — re-invokes failed stages, max 3/run)
+  */15     watchdog                   (every 15 min — freshness check)
+
+Weekly (Mon/Wed/Fri or Sunday):
+  Mon,Wed,Fri 07:00  generate-sector-intelligence
+  Sun 03:30  calibrate-weights
+  Sun 06:00  expand-coverage
+  Sun 06:00  check-feed-health
+  Sun 06:30  repair-feeds
+  Sun 07:00  backfill-feeds
+  Sun 07:00  learn-noise-patterns
+  Sun 08:00  suggest-competitors
 
 Daily:
   02:00  promote-baselines
   03:00  retention
   04:00  suggest-selector-repairs
+  05:00  heal-coverage
+  05:30  resolve-coverage
+  06:30  detect-stale-competitors
+  22:30  reconcile-pool-events
+  22:45  detect-pool-sequences
 
 ── Frontend (radar-ui/vercel.json — metrivant-ui) ────────────────────────────
 
@@ -240,6 +276,8 @@ Formula:
 
 Signal window: 7 days
 Activity window: 48 hours
+Pool signal visibility (v4.4): signals with monitored_page_id=null are loaded
+  separately by competitor_id and merged into signalWeightByCompetitor.
 
 When pressure_index >= 5.0:
   → promotes pending_review signals → pending
@@ -247,18 +285,35 @@ When pressure_index >= 5.0:
 
 -- Stage 8: Interpretation (interpret-signals) --
 
-1. reset_stuck_signals(30min)   — re-queues abandoned in_progress
-2. fail_exhausted_signals(5)    — marks over-retried as failed
+1. reset_stuck_signals(240min)  — re-queues abandoned in_progress (4h threshold)
+2. fail_exhausted_signals(12)   — marks over-retried as failed (MAX_RETRIES=12, 6h survival window)
 3. re-queue stale prompt versions (bounded to 20/cycle)
-4. claim_pending_signals(5)     — FOR UPDATE SKIP LOCKED (atomic)
-5. For each claimed signal:
+4. claim_pending_signals(15)    — FOR UPDATE SKIP LOCKED (atomic, BATCH_SIZE=15)
+5. Relevance classification via gpt-4o-mini (parallel, best-effort):
+   - low relevance → skip interpretation, mark interpreted (save cost)
+6. For each claimed signal (CONCURRENCY=4, wall_clock_guard=25s):
+   - circuit breaker: 3 consecutive AI failures → skip remaining, release to pending (v4.4)
    - skip if previous_excerpt === current_excerpt (noise suppression)
-   - build prompt: competitor, signal_type, severity, page_type, page_url, excerpts
-   - call OpenAI gpt-4o-mini (temperature=0, seed=42, json_object)
+   - model routing: gpt-4o for high_value pages / conf >= 0.75, gpt-4o-mini otherwise
+   - build prompt with competitor context + operator feedback history
+   - call OpenAI (temperature=0, seed=42, json_object, timeout=20s) (v4.4)
+   - quality guard: reject generic boilerplate, min 20-char summary
    - upsert interpretation, mark signal interpreted
+   - fire-and-forget: update competitor_contexts
+   - reset circuit breaker counter on success
 
 Signal status flow: pending → in_progress → interpreted | failed
 PROMPT_VERSION = "v1" — bump to re-interpret all signals on next cycle.
+
+Hardening (v4.4):
+  - OpenAI client timeout: 20s (within Vercel 30s function timeout)
+  - Circuit breaker: 3 consecutive failures → release remaining signals to pending (no retry_count increment)
+  - MAX_RETRIES=12 (6h survival at 30min cadence, up from 5/2.5h)
+  - Hallucination gating: generate-radar-narratives and synthesize-movement-narratives now
+    filter interpretations with validation_status='hallucinated' (v4.4)
+  RESIDUAL: validate-interpretations runs at :35; narratives at :45. A ~10-minute timing gap
+    exists where a new interpretation may be consumed before validation. In practice, most
+    interpretations from :28 are validated by :35 before the :45 narrative run.
 
 -- Stage 9: Movement Detection (detect-movements) --
 
@@ -721,6 +776,16 @@ then on next run all signals with prompt_hash != new version are re-queued).
 Database size:
   SELECT pg_size_pretty(pg_database_size(current_database()));
 
+Schema export (DISASTER RECOVERY — must be done manually):
+  Core pipeline tables have no CREATE TABLE migration (see migration 000 comment).
+  To create a disaster-recovery schema backup:
+    1. Connect to production Supabase via psql or Supabase SQL Editor
+    2. Run: pg_dump --schema-only --no-owner --no-privileges > schema_export_YYYY-MM-DD.sql
+       (Or from Supabase dashboard: Settings → Database → Download schema)
+    3. Save as: migrations/000_full_schema_export_YYYY-MM-DD.sql
+    4. Commit to version control
+  Recommended: run monthly or after any significant schema change.
+
 ================================================
 22. DEBUGGING ENTRY POINT
 ================================================
@@ -927,6 +992,113 @@ Layer 6 — Weekly Brief Generation
                 Runtime api/generate-brief.ts is a DISABLED STUB ({ok:true, disabled:true}).
 
 ================================================
+28b. AI QUALITY VALIDATION LAYERS (v4.4 — hardened with gating)
+================================================
+
+Two post-hoc validation crons check AI-generated content for grounding in evidence.
+Both are GPT-4o-mini-based (cheaper model validates more expensive model output).
+
+Layer V1 — Interpretation Validation (validate-interpretations, :35 hourly)
+  Input:   interpretations WHERE validation_status IS NULL
+  Check:   Does the summary/strategic_implication follow logically from old_content/new_content?
+  Output:  interpretations.validation_status = 'valid' | 'weak' | 'hallucinated'
+  Action on hallucinated:
+    - Confidence penalty: signal.confidence_score -= 0.15 (min 0.20)
+    - Sentry warning: interpretation_hallucinated
+  Downstream gating (v4.4):
+    - generate-radar-narratives: filters interpretations with validation_status='hallucinated'
+      from summaryBySignalId and excludes their signal IDs from signalsWithMeta
+    - synthesize-movement-narratives: skips hallucinated rows when building interpMap
+  RESIDUAL timing gap:
+    - validate-interpretations runs at :35; generate-radar-narratives runs at :45.
+      Interpretations created at :28 are usually validated by :35 before the :45 run.
+      But interpretations created at :58 won't be validated until the next :35 run,
+      by which time the :45 narrative run has already passed. Worst case: ~50-minute
+      window where a new interpretation may be used before validation.
+
+Layer V2 — Movement Validation (validate-movements, :42 hourly)
+  Input:   strategic_movements WHERE validation_status IS NULL AND generation_reason IN ('ai', NULL)
+  Check:   Does the movement_summary follow from supporting signal summaries?
+  Output:  strategic_movements.validation_status = 'valid' | 'weak' | 'hallucinated'
+  Action on hallucinated:
+    - Downgrade confidence_level: high → medium
+    - Sentry warning: movement_hallucinated
+  Note: movement validation does not gate movements from radar-feed (movements are
+  already displayed; gating would require a UI change). The confidence downgrade is
+  the mitigation — low-confidence movements contribute less to momentum_score.
+
+================================================
+28c. SELF-IMPROVING PIPELINE SYSTEMS (added v4.3)
+================================================
+
+1. Noise Pattern Learning (learn-noise-patterns, weekly Sun 07:00)
+   Input:  signal_feedback verdicts grouped by (section_type, competitor_id, signal_type)
+   Rule:   noise_rate >= 80% over >= 5 samples → create suppression rule
+   Output: noise_suppression_rules (checked by detect-signals before signal creation)
+   Effect: operator feedback compounds permanently — false positive patterns auto-suppress
+
+2. Confidence Calibration (calibrate-weights, weekly Sun 03:30)
+   Input:  signal_feedback verdicts grouped by section_type
+   Output: calibration_reports.section_stats (adjusted_weight per section_type)
+   Effect: detect-signals loads latest calibration; poorly-performing section types
+           get reduced base weight (min 0.60× multiplier, max 1.15×)
+   Also:   confidence_calibration table (feedback-driven multipliers, applied on top)
+
+3. Velocity Dampening (inline in detect-signals)
+   Input:  14-day signal history per competitor
+   Rule:   signals-in-this-run > 5× daily average → suppress excess (absolute cap: 15)
+   Effect: website redesigns don't flood the pipeline; dampener resets each run
+
+4. Cross-Pool Deduplication (inline in promote-*-signals)
+   Input:  recent signals for same competitor within 48h window
+   Rules:  Jaccard word similarity >= 0.55 OR same signal_type within 6h → skip
+   Effect: prevents same event from creating duplicate signals through different pools
+
+================================================
+28d. SECURITY POSTURE (v4.4 — hardened)
+================================================
+
+Authentication:
+  - Cron endpoints: CRON_SECRET Bearer token (timing-safe comparison)
+  - Fail-closed in production (v4.4): if CRON_SECRET is unset or empty string,
+    verifyCronSecret returns 503 when VERCEL_ENV=production or NODE_ENV=production.
+    Local development (non-production) still allows unauthenticated access.
+    Enforcement: lib/withCronAuth.ts:27-36
+
+SSRF:
+  - Shared guard: lib/url-safety.ts — isPrivateUrl() blocks localhost, 127.*, 10.*,
+    192.168.*, 172.16-31.*, 169.254.169.254, 0.0.0.0, ::1, [::1], .local,
+    non-http protocols, unparseable URLs.
+  - Runtime fetch-snapshots: isPrivateUrl(url) called before fetchWithClassification (v4.4)
+  - Runtime onboard-competitor: isPrivateUrl(baseUrl) called before discovery/validation (v4.4)
+  - Runtime url-validator: isPrivateUrl(url) called before fetch() (v4.4)
+  - UI onboard-competitor: existing inline SSRF check (unchanged)
+  RESIDUAL: DNS rebinding attacks not covered (hostname resolves to public at check time,
+    private at fetch time). Requires DNS-level pinning — out of scope at current stage.
+
+Rate Limiting:
+  - In-process token bucket (lib/rate-limit.ts) — 60 req/min per IP
+  - KNOWN LIMITATION: resets on cold start, not shared across instances.
+    Provides burst protection only. Vercel edge firewall is the real protection layer.
+
+RLS:
+  - interpretations: RLS enabled (migration 051)
+  - Security Definer views: SELECT revoked from anon/authenticated (migration 051)
+  - Runtime uses service-role client (bypasses RLS by design)
+
+Service-Role Client:
+  - Single shared instance in lib/supabase.ts
+  - Used by all runtime API handlers (not exposed to client)
+
+Stripe:
+  - Webhook signature verification via constructEvent with raw body
+
+Pool signal visibility (v4.4 — resolved):
+  - update-pressure-index and radar-feed now load pool signals (monitored_page_id IS NULL)
+    via separate competitor_id-based queries and merge into aggregation maps.
+  - Pool pending signals are also visible in the pending count.
+
+================================================
 29. POOL SYSTEM — ADDITIVE SIGNAL ARCHITECTURE
 ================================================
 
@@ -945,44 +1117,43 @@ Pool 1 — Newsroom (ACTIVE)
   Signal types: feed_press_release, feed_newsroom_post
   Status:     active and running
 
-Pool 2 — Careers (SCHEDULED — PENDING MIGRATION 056)
+Pool 2 — Careers (ACTIVE — migrations 056-060 applied 2026-03-19)
   Migration:  039_careers_pool.sql
   Ingest:     api/ingest-careers.ts — :11 hourly (vercel.json)
   Promote:    api/promote-careers-signals.ts — :13 hourly (vercel.json)
   Signal types: hiring_spike, new_function, new_region, role_cluster
   Feeds:      11/15 fintech competitors seeded (Greenhouse/Lever/Ashby ATS APIs)
-  Status:     scheduled + feeds configured; BLOCKED by migration 056 (section_diff_id NOT NULL)
-              Apply migrations/056_signals_section_diff_nullable.sql in Supabase SQL Editor to activate
+  Status:     active — signal production live
 
-Pool 3 — Investor (SCHEDULED — PENDING MIGRATION 056)
+Pool 3 — Investor (ACTIVE — migrations 056-060 applied 2026-03-19)
   Migration:  040_investor_pool.sql
   Ingest:     api/ingest-investor-feeds.ts — :14 hourly (vercel.json)
   Promote:    api/promote-investor-signals.ts — :16 hourly (vercel.json)
   Signal types: earnings_release, acquisition, divestiture, guidance_update, major_contract,
                 capital_raise, strategic_investment, partnership, investor_presentation
   Feeds:      3/15 fintech competitors seeded (Affirm, Marqeta, Robinhood — SEC EDGAR 8-K Atom)
-  Status:     scheduled + feeds configured; BLOCKED by migration 056
+  Status:     active — signal production live
 
-Pool 4 — Product (SCHEDULED — PENDING MIGRATION 056)
+Pool 4 — Product (ACTIVE — migrations 056-060 applied 2026-03-19)
   Migration:  041_product_pool.sql
   Ingest:     api/ingest-product-feeds.ts — :29 hourly (vercel.json)
   Promote:    api/promote-product-signals.ts — :31 hourly (vercel.json)
   Feeds:      4/15 fintech competitors seeded (Stripe, Plaid, Robinhood, Mercury — blog RSS)
-  Status:     scheduled + feeds configured; BLOCKED by migration 056
+  Status:     active — signal production live
 
-Pool 5 — Procurement (SCHEDULED — NO FEEDS)
+Pool 5 — Procurement (ACTIVE — NO FEEDS)
   Migration:  042_procurement_pool.sql
   Ingest:     api/ingest-procurement-feeds.ts — :32 hourly (vercel.json)
   Promote:    api/promote-procurement-signals.ts — :34 hourly (vercel.json)
   Feeds:      0/15 — fintech B2B sector has no procurement announcement feeds
-  Status:     scheduled; no feeds to ingest
+  Status:     active; no feeds to ingest (handler runs but finds 0 feeds)
 
-Pool 6 — Regulatory (SCHEDULED — PENDING MIGRATION 056)
+Pool 6 — Regulatory (ACTIVE — migrations 056-060 applied 2026-03-19)
   Migration:  043_regulatory_pool.sql
   Ingest:     api/ingest-regulatory-feeds.ts — :43 hourly (vercel.json)
   Promote:    api/promote-regulatory-signals.ts — :46 hourly (vercel.json)
   Feeds:      3/15 fintech competitors seeded (Affirm, Marqeta, Robinhood — SEC EDGAR 10-K Atom)
-  Status:     scheduled + feeds configured; BLOCKED by migration 056
+  Status:     active — signal production live
 
 Pool 7 — Media (SCHEMA COMPLETE, INGESTION NOT IMPLEMENTED)
   Migration:  044_media_pool.sql

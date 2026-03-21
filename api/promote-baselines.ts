@@ -49,6 +49,36 @@ async function handler(req: ApiReq, res: ApiRes) {
         level: "info",
         extra: { promoted, evaluated },
       });
+
+      // H11: Mark pages with recently promoted baselines as baseline_maturing.
+      // detect-signals will hold signals from these pages in pending_review
+      // to avoid flooding the radar with website-redesign noise.
+      try {
+        const recentCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const { data: promotedPages } = await supabase
+          .from("section_baselines")
+          .select("monitored_page_id")
+          .gt("version", 1)
+          .eq("is_active", true)
+          .gte("created_at", recentCutoff);
+
+        const maturingPageIds = [...new Set(
+          ((promotedPages ?? []) as { monitored_page_id: string }[]).map((r) => r.monitored_page_id)
+        )];
+
+        if (maturingPageIds.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { error: maturingError } = await (supabase as any)
+            .from("monitored_pages")
+            .update({ health_state: "baseline_maturing" })
+            .in("id", maturingPageIds)
+            .eq("health_state", "healthy"); // only downgrade from healthy
+          if (maturingError) Sentry.captureException(maturingError);
+        }
+      } catch (maturingErr) {
+        // Non-fatal — baseline_maturing state is a signal quality improvement, not a pipeline requirement
+        Sentry.captureException(maturingErr);
+      }
     }
 
     const runtimeDurationMs = Date.now() - startedAt;

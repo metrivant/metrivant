@@ -92,13 +92,15 @@ Brief generation (radar-ui/app/api/generate-brief/route.ts — Monday 10:00 UTC)
   Fallback: skips org if no artifacts exist (no LLM call).
   Surface: radar-ui only. Runtime api/generate-brief.ts = DISABLED STUB ({ok:true, disabled:true}).
 
-AI layers (6):
+AI layers (6 generation + 2 validation):
   1. Signal relevance classification  gpt-4o-mini → signals.relevance_level (high|medium|low); low skips interpretation
   2. Signal interpretation             gpt-4o-mini → interpretations (:28/:58 twice hourly, pending signals only)
   3. Movement synthesis                gpt-4o     → strategic_movements.movement_summary + strategic_implication (:30 hourly)
   4. Radar narrative generation        gpt-4o-mini → radar_narratives per competitor (:45 hourly)
-  5. Sector intelligence               gpt-4o     → sector_intelligence per org (Mon 07:00 UTC)
+  5. Sector intelligence               gpt-4o     → sector_intelligence per org (Mon/Wed/Fri 07:00 UTC)
   6. Weekly brief generation           gpt-4o     → weekly_briefs (radar-ui, Mon 10:00 UTC)
+  V1. Interpretation validation        gpt-4o-mini → interpretations.validation_status (:35 hourly, advisory only)
+  V2. Movement validation              gpt-4o-mini → strategic_movements.validation_status (:42 hourly, advisory only)
 
 Confidence model (v4.0):
   base             = SECTION_WEIGHTS[section_type]   (0.25–0.85)
@@ -135,6 +137,13 @@ Operational observability (v4.1 — Sentry warnings):
 - diff_stability_warning        (detect-diffs)     diff at MAX_OBSERVATION_COUNT=5, no signal yet
 - pipeline_backlog_warning      (health)           oldest unprocessed row exceeds SLA per stage
 - suppression_ratio_warning     (health)           noiseDiffRatioLast24h >= 0.90 with ≥10 diffs
+
+Hardening observability (v4.4 — added signals):
+- pipeline_event_insert_failed  (pipeline-metrics) telemetry insert failed — Sentry warning
+- snapshot_quarantined          (extract-sections)  snapshot failed extraction 3+ times — removed from queue
+- interpretation_hallucinated   (validate-interps)  GPT-4o-mini detected hallucination in interpretation
+- movement_hallucinated         (validate-movements) GPT-4o-mini detected hallucination in movement summary
+- suppressedByBaselineMaturing  (detect-signals)    signals held as pending_review due to baseline redesign
 
 Health endpoint fields (ok vs healthy):
 - ok      = endpoint responded and executed without throwing

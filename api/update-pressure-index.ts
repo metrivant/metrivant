@@ -175,6 +175,18 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     if (signalsError) throw signalsError;
 
+    // ── 3b. Load pool signals (monitored_page_id IS NULL) ────────────────────
+    // Pool signals have competitor_id set directly — no page lookup needed.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: poolSignals, error: poolSignalsError } = await (supabase as any)
+      .from("signals")
+      .select("competitor_id, severity, confidence_score, detected_at")
+      .is("monitored_page_id", null)
+      .in("competitor_id", competitorIds)
+      .gte("detected_at", signalSince);
+
+    if (poolSignalsError) throw poolSignalsError;
+
     // ── 4. Bulk load recent activity events ───────────────────────────────────
     const activitySince = new Date(
       Date.now() - ACTIVITY_WINDOW_HOURS * 60 * 60 * 1000
@@ -255,6 +267,17 @@ async function handler(req: ApiReq, res: ApiRes) {
         (Date.now() - new Date(signal.detected_at).getTime()) / (24 * 60 * 60 * 1000);
       const decay      = Math.exp(-ageDays * 0.2);
 
+      const prev = signalWeightByCompetitor.get(cid) ?? 0;
+      signalWeightByCompetitor.set(cid, prev + severityW * confidence * decay);
+    }
+
+    // Merge pool signals (monitored_page_id=null, competitor_id set directly)
+    for (const signal of (poolSignals ?? []) as { competitor_id: string; severity: string; confidence_score: number | null; detected_at: string }[]) {
+      const cid = signal.competitor_id;
+      const severityW  = SEVERITY_WEIGHTS[signal.severity] ?? 0.3;
+      const confidence = signal.confidence_score ?? 0.5;
+      const ageDays    = (Date.now() - new Date(signal.detected_at).getTime()) / (24 * 60 * 60 * 1000);
+      const decay      = Math.exp(-ageDays * 0.2);
       const prev = signalWeightByCompetitor.get(cid) ?? 0;
       signalWeightByCompetitor.set(cid, prev + severityW * confidence * decay);
     }

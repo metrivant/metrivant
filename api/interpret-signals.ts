@@ -14,7 +14,7 @@ const BATCH_SIZE          = 15;
 const CONCURRENCY         = 4;
 const WALL_CLOCK_GUARD_MS = 25_000;
 const STALE_MINUTES       = 240; // 4h — aligns with health.ts STUCK_SIGNAL_MINUTES; was 1440 (24h) which let stuck signals block the pipeline for a full day
-const MAX_RETRIES         = 5;
+const MAX_RETRIES         = 12; // 12 × 30min cadence = 6h survival window for transient outages
 const PROMPT_VERSION      = "v1";
 
 // ── Model routing ──────────────────────────────────────────────────────────────
@@ -482,6 +482,11 @@ async function handler(req: ApiReq, res: ApiRes) {
       // ── Per-signal interpretation loop ────────────────────────────────────
       const sem = createSemaphore(CONCURRENCY);
 
+      // Circuit breaker: stop processing after consecutive AI failures to avoid
+      // burning the entire batch on a dead OpenAI API.
+      let consecutiveAiFailures = 0;
+      const CIRCUIT_BREAK_THRESHOLD = 3;
+
       const signalResults = await Promise.allSettled(
         (claimedSignals as Array<{ id: string; signal_type?: string; retry_count?: number }>).map(
           (claimed) => sem(async () => {
@@ -503,6 +508,11 @@ async function handler(req: ApiReq, res: ApiRes) {
 
             if (Date.now() - startedAt > WALL_CLOCK_GUARD_MS) {
               throw new Error("wall_clock_guard: skipping to avoid Vercel timeout");
+            }
+
+            // Circuit breaker: if 3+ consecutive AI calls failed, skip remaining
+            if (consecutiveAiFailures >= CIRCUIT_BREAK_THRESHOLD) {
+              throw new Error("circuit_breaker: consecutive AI failures, releasing signal");
             }
 
             // Identical excerpts = noise that slipped through
@@ -613,6 +623,7 @@ async function handler(req: ApiReq, res: ApiRes) {
               }]
             ).catch(() => {});
 
+            consecutiveAiFailures = 0; // reset circuit breaker on success
             void recordEvent({ run_id: runId, stage: "interpret", status: "success", duration_ms: elapsed(), metadata: { model: modelUsed, prompt_tokens: promptTokens, completion_tokens: completionTokens, signals_interpreted: 1 } });
             return { succeeded: true };
           })
@@ -629,9 +640,18 @@ async function handler(req: ApiReq, res: ApiRes) {
         } else {
           rowsFailed += 1;
           const err              = result.reason;
-          const isWallClockGuard = err instanceof Error && err.message.startsWith("wall_clock_guard");
+          const isWallClockGuard  = err instanceof Error && err.message.startsWith("wall_clock_guard");
+          const isCircuitBreaker = err instanceof Error && err.message.startsWith("circuit_breaker");
 
-          if (!isWallClockGuard) {
+          if (isCircuitBreaker) {
+            // Release back to pending without incrementing retry_count — transient, not structural
+            await supabase
+              .from("signals")
+              .update({ status: "pending", last_error: "circuit_breaker_release" })
+              .eq("id", claimed.id)
+              .eq("status", "in_progress");
+          } else if (!isWallClockGuard) {
+            consecutiveAiFailures++;
             const signal = detailMap.get(claimed.id);
             const { error: retryError } = await supabase
               .from("signals")

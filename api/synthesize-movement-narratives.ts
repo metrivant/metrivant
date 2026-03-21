@@ -150,15 +150,17 @@ async function handler(req: ApiReq, res: ApiRes) {
           continue;
         }
 
-        // 5 — Batch-load interpretations for those signals
+        // 5 — Batch-load interpretations for those signals (exclude hallucinated)
         const signalIds = (signalRows as { id: string }[]).map((r) => r.id);
-        const { data: interpretations } = await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: interpretations } = await (supabase as any)
           .from("interpretations")
-          .select("signal_id, summary, strategic_implication")
+          .select("signal_id, summary, strategic_implication, validation_status")
           .in("signal_id", signalIds);
 
         const interpMap = new Map<string, { summary: string; strategic_implication: string }>();
-        for (const row of (interpretations ?? []) as { signal_id: string; summary: string; strategic_implication: string }[]) {
+        for (const row of (interpretations ?? []) as { signal_id: string; summary: string; strategic_implication: string; validation_status: string | null }[]) {
+          if (row.validation_status === "hallucinated") continue; // gate hallucinated evidence
           interpMap.set(row.signal_id, { summary: row.summary, strategic_implication: row.strategic_implication });
         }
 

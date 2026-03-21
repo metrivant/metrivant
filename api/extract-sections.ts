@@ -294,6 +294,32 @@ async function handler(req: ApiReq, res: ApiRes) {
         rowsFailed += 1;
         Sentry.captureException(result.reason);
         void recordEvent({ run_id: runId, stage: "extract", status: "failure", monitored_page_id: snap.monitored_page_id, snapshot_id: snap.id, metadata: { sections_found: 0, validation_state: "failed", rule_count: rulesByPage.get(snap.monitored_page_id)?.length ?? 0 } });
+
+        // ── Quarantine: snapshots that fail extraction 3+ times are removed from
+        // the queue to prevent infinite retry loops from poisoned HTML.
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { count: failCount } = await (supabase as any)
+            .from("pipeline_events")
+            .select("*", { count: "exact", head: true })
+            .eq("stage", "extract")
+            .eq("status", "failure")
+            .eq("snapshot_id", snap.id);
+
+          if ((failCount ?? 0) >= 3) {
+            await supabase
+              .from("snapshots")
+              .update({ sections_extracted: true, raw_html: null } as Record<string, unknown>)
+              .eq("id", snap.id);
+            Sentry.captureMessage("snapshot_quarantined", {
+              level: "warning",
+              extra: { snapshot_id: snap.id, monitored_page_id: snap.monitored_page_id, fail_count: failCount },
+            });
+          }
+        } catch (quarantineErr) {
+          // Non-fatal — quarantine failure must never block pipeline
+          Sentry.captureException(quarantineErr);
+        }
       } else {
         rowsSucceeded += 1;
         if (result.value.skippedNoRules) {

@@ -1,6 +1,8 @@
 // Validates a URL before committing it to active monitoring.
 // Uses HEAD first (cheap), falls back to GET on 405.
 
+import { isPrivateUrl } from "./url-safety";
+
 const TIMEOUT_MS           = 4000;
 const MIN_CONTENT_LENGTH   = 200; // skip near-empty 200 responses
 
@@ -11,6 +13,11 @@ export type ValidationResult = {
 };
 
 export async function validateUrl(url: string): Promise<ValidationResult> {
+  // SSRF guard: block private/internal URLs before making any HTTP request.
+  if (isPrivateUrl(url)) {
+    return { ok: false, status: 0, reason: "ssrf_blocked" };
+  }
+
   const headers = {
     "User-Agent": "Mozilla/5.0 (compatible; Metrivant/1.0; +https://metrivant.com)",
   };

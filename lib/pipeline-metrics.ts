@@ -37,6 +37,16 @@ export function recordEvent(event: PipelineEvent): void {
     })
     .then(
       () => { /* best-effort — success is silent */ },
-      (err: unknown) => { console.error("[pipeline-metrics] recordEvent failed:", err); }
+      (err: unknown) => {
+        console.error("[pipeline-metrics] recordEvent failed:", err);
+        try {
+          // Dynamic require avoids circular import (many files import both pipeline-metrics and sentry)
+          const { Sentry } = require("./sentry") as { Sentry: { captureMessage: (msg: string, opts: unknown) => void } };
+          Sentry.captureMessage("pipeline_event_insert_failed", {
+            level: "warning",
+            extra: { stage: event.stage, error: err instanceof Error ? err.message : String(err) },
+          });
+        } catch { /* Sentry itself failed — console.error above is the fallback */ }
+      }
     );
 }

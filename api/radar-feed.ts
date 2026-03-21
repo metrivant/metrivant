@@ -244,15 +244,51 @@ async function handler(req: ApiReq, res: ApiRes) {
         signalAggMap.set(cid, existing);
       }
 
-      // Normalise weighted_velocity_7d to a per-signal average
-      for (const [cid, agg] of signalAggMap) {
-        if (agg.signals_7d > 0) {
-          agg.weighted_velocity_7d = parseFloat(
-            (agg.weighted_velocity_7d / agg.signals_7d).toFixed(3)
-          );
+      // Normalisation deferred to after Step 3b (pool signal merge)
+    }
+
+    // ── Step 3b: Pool signals (monitored_page_id IS NULL) ────────────────────
+    // Pool signals (careers, investor, etc.) may have null monitored_page_id.
+    // They have competitor_id set directly — merge into signalAggMap.
+    if (competitorIds.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: poolSignalRows, error: poolSignalsError } = await (supabase as any)
+        .from("signals")
+        .select("competitor_id, severity, detected_at, signal_type")
+        .is("monitored_page_id", null)
+        .in("competitor_id", competitorIds)
+        .eq("interpreted", true)
+        .gte("detected_at", since7d)
+        .order("detected_at", { ascending: false });
+
+      if (poolSignalsError) throw poolSignalsError;
+
+      for (const sig of (poolSignalRows ?? []) as { competitor_id: string; severity: string; detected_at: string; signal_type: string }[]) {
+        const cid = sig.competitor_id;
+        const existing = signalAggMap.get(cid) ?? {
+          competitor_id: cid, signals_7d: 0, weighted_velocity_7d: 0,
+          last_signal_at: null, latest_signal_type: null,
+        };
+        const severityWeight = sig.severity === "high" ? 3 : sig.severity === "medium" ? 2 : 1;
+        existing.signals_7d += 1;
+        existing.weighted_velocity_7d += severityWeight;
+        if (!existing.last_signal_at || sig.detected_at > existing.last_signal_at) {
+          existing.last_signal_at = sig.detected_at;
+          existing.latest_signal_type = sig.signal_type;
         }
-        signalAggMap.set(cid, agg);
+        signalAggMap.set(cid, existing);
       }
+
+    }
+
+    // Normalise weighted_velocity_7d to per-signal average (after both page-diff and pool merge)
+    for (const [cid, agg] of signalAggMap) {
+      if (agg.signals_7d > 0) {
+        agg.weighted_velocity_7d = parseFloat(
+          (agg.weighted_velocity_7d / agg.signals_7d).toFixed(3)
+        );
+      }
+      signalAggMap.set(cid, agg);
     }
 
     // ── Step 4: Count pending + pending_review signals per competitor ─────────
@@ -275,6 +311,24 @@ async function handler(req: ApiReq, res: ApiRes) {
         const cid = pageToCompetitor.get(row.monitored_page_id);
         if (!cid) continue;
         pendingCountMap.set(cid, (pendingCountMap.get(cid) ?? 0) + 1);
+      }
+    }
+
+    // ── Step 4b: Pool pending signals (monitored_page_id IS NULL) ────────────
+    if (competitorIds.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: poolPendingRows, error: poolPendingError } = await (supabase as any)
+        .from("signals")
+        .select("competitor_id")
+        .is("monitored_page_id", null)
+        .in("competitor_id", competitorIds)
+        .in("status", ["pending", "pending_review"])
+        .eq("interpreted", false);
+
+      if (poolPendingError) throw poolPendingError;
+
+      for (const row of (poolPendingRows ?? []) as { competitor_id: string }[]) {
+        pendingCountMap.set(row.competitor_id, (pendingCountMap.get(row.competitor_id) ?? 0) + 1);
       }
     }
 

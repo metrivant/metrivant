@@ -418,6 +418,23 @@ async function handler(req: ApiReq, res: ApiRes) {
     const dampeningStates = await loadDampeningStates(noiseRuleCompIds);
     let suppressedByVelocity = 0;
 
+    // ── Pre-batch: load health_state for baseline redesign suppression (H11) ─
+    const healthStateMap = new Map<string, string>();
+    let suppressedByBaselineMaturing = 0;
+    {
+      const diffPageIds = [...new Set(eligibleDiffs.map((d) => d.monitored_page_id))];
+      if (diffPageIds.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: healthRows } = await (supabase as any)
+          .from("monitored_pages")
+          .select("id, health_state")
+          .in("id", diffPageIds);
+        for (const row of (healthRows ?? []) as { id: string; health_state: string }[]) {
+          healthStateMap.set(row.id, row.health_state);
+        }
+      }
+    }
+
     for (const diff of eligibleDiffs) {
       rowsProcessed += 1;
       const elapsed = startTimer();
@@ -562,9 +579,17 @@ async function handler(req: ApiReq, res: ApiRes) {
         // pending_review → CONFIDENCE_SUPPRESS ≤ confidence < CONFIDENCE_INTERPRET
         //                → skipped by AI; update-pressure-index may promote to 'pending'
         //                  if the competitor's pressure_index spikes
-        const signalStatus: string = confidenceScore >= CONFIDENCE_INTERPRET
-          ? "pending"
-          : "pending_review";
+        // baseline_maturing override (H11): pages with recently promoted baselines
+        // get signals held in pending_review to avoid website-redesign noise floods.
+        const pageHealth = healthStateMap.get(diff.monitored_page_id);
+        const signalStatus: string =
+          pageHealth === "baseline_maturing" ? "pending_review" :
+          confidenceScore >= CONFIDENCE_INTERPRET ? "pending" :
+          "pending_review";
+
+        if (pageHealth === "baseline_maturing") {
+          suppressedByBaselineMaturing++;
+        }
 
         // ── Velocity dampening check ────────────────────────────────────────
         const dampState = dampeningStates.get(competitorId);
@@ -688,6 +713,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       suppressedByNoiseRule,
       suppressedByVelocity,
       suppressedByLowConfidence,
+      suppressedByBaselineMaturing,
       signalsDeduplicated,
       signalsPendingReview,
       runtimeDurationMs,
@@ -725,6 +751,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       suppressedByNoiseRule,
       suppressedByVelocity,
       suppressedByLowConfidence,
+      suppressedByBaselineMaturing,
       signalsDeduplicated,
       signalsPendingReview,
       suppressionBreakdown,

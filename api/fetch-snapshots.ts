@@ -6,6 +6,7 @@ import { verifyCronSecret } from "../lib/withCronAuth";
 import crypto from "crypto";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "../lib/rate-limit";
 import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
+import { isPrivateUrl } from "../lib/url-safety";
 
 const FETCH_TIMEOUT_MS          = 6500;
 const GLOBAL_CONCURRENCY        = 8;
@@ -55,6 +56,8 @@ type FetchFailureClass =
   | "challenge_page"
   | "empty_body"
   | "soft_login_or_soft_404"
+  | "stale_content"
+  | "ssrf_blocked"
   | "unknown_fetch_failure";
 
 type FetchOutcome =
@@ -212,6 +215,25 @@ async function fetchWithClassification(url: string): Promise<FetchOutcome> {
       return { ok: false, httpStatus: 200, failureClass: "soft_login_or_soft_404" };
     }
 
+    // ── Stale-content heuristic ────────────────────────────────────────────
+    // CDN-cached or archived content can generate false diffs. When freshness
+    // headers indicate content is >7 days old, classify as stale.
+    const STALE_THRESHOLD_SEC = 7 * 24 * 60 * 60;
+    const ageHeader = response.headers.get("age");
+    if (ageHeader) {
+      const ageSec = parseInt(ageHeader, 10);
+      if (!isNaN(ageSec) && ageSec > STALE_THRESHOLD_SEC) {
+        return { ok: false, httpStatus: 200, failureClass: "stale_content" };
+      }
+    }
+    const lastModified = response.headers.get("last-modified");
+    if (lastModified) {
+      const lmTime = new Date(lastModified).getTime();
+      if (!isNaN(lmTime) && (Date.now() - lmTime) > STALE_THRESHOLD_SEC * 1000) {
+        return { ok: false, httpStatus: 200, failureClass: "stale_content" };
+      }
+    }
+
     return { ok: true, html, httpStatus: 200 };
 
   } catch (err) {
@@ -291,6 +313,14 @@ async function processUrl(
   }
 
   await sleep(randomInt(JITTER_MIN_MS, JITTER_MAX_MS));
+
+  // SSRF guard: block private/internal URLs before making any HTTP request.
+  if (isPrivateUrl(url)) {
+    for (const page of groupedPages) {
+      void recordEvent({ run_id: runId, stage: "snapshot", status: "failure", monitored_page_id: page.id, duration_ms: 0, metadata: { failure_class: "ssrf_blocked" } });
+    }
+    return { ...empty, failed: true, healthStateUpdates: groupedPages.map((p) => ({ pageId: p.id, healthState: "blocked" as PageHealthState })) };
+  }
 
   const elapsed = startTimer();
   let outcome = await fetchWithClassification(url);
