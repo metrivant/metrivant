@@ -121,38 +121,70 @@ Then continue with fast-path steps 2–5.
 
 ## METRIVANT PERFECT STATE — THE DESTINATION
 
-Metrivant in its perfect state is a **fully autonomous competitive intelligence system** — a closed-loop machine where the runtime pipeline generates intelligence, the frontend renders it as a precision instrument, and every layer self-improves without human intervention.
+The backend and frontend have fundamentally different definitions of "perfect." The backend is a machine — it succeeds when it runs autonomously, produces accurate intelligence, and never requires intervention. The frontend is a product — it succeeds when a human opens it, understands the truth about their competitive landscape in seconds, takes action, and comes back tomorrow.
 
-### RUNTIME (the engine)
+These are different problems. Engineering perfection is invisible to users. Product perfection is felt.
 
-**Input layer (zero-touch):** The system continuously discovers new competitors from media signals and auto-onboards them when confidence exceeds threshold. It monitors every relevant page across 7 pools (page-diff, newsroom, careers, investor, product, procurement, regulatory, media), self-repairs broken URLs via AI suggestion, auto-discovers replacement feed URLs, and expands page coverage into new page types without operator input. Every competitor that matters is tracked. Every feed that exists is ingested.
+---
 
-**Detection layer (zero-noise):** Every change detected is either a genuine competitive signal or is silently suppressed. Noise patterns are learned from operator feedback and auto-applied. Cross-pool deduplication ensures each real-world event produces exactly one signal. Velocity anomaly dampening prevents website redesigns from flooding the pipeline. Confidence scoring is self-calibrating — section weights adjust automatically based on historical accuracy rates. The signal-to-noise ratio improves every week without being touched.
+### RUNTIME PERFECT STATE (the machine)
 
-**Intelligence layer (zero-hallucination):** AI interpretations are validated against raw evidence by a second model before reaching the user. Movement narratives are validated against their supporting signals. Hallucinated outputs are flagged, confidence-downgraded, and prevented from polluting downstream artifacts. Sector narratives are grounded in multi-source media clusters. Weekly briefs are assembled from pre-validated artifacts — not raw data. The intelligence is trustworthy by construction.
+The runtime is perfect when it runs indefinitely without human intervention and the quality of its output improves every week.
 
-**Self-healing layer (zero-maintenance):** A daily/weekly chain of handlers runs autonomously:
-- Coverage: heal-coverage (heuristic) → resolve-coverage (AI) → deactivate
-- Feeds: check-feed-health → repair-feeds → deactivate after 3 weeks
-- Competitors: detect-stale-competitors → auto-diagnose pipeline stage → auto-repair
-- Selectors: suggest-selector-repairs → auto-accept high-confidence
-- Quality: learn-noise-patterns + calibrate-confidence (weekly)
-- Reliability: retry-failed-stages (hourly, auto-recovers transient failures)
-- Growth: suggest-competitors → auto-score → auto-onboard from media
+**Input layer (zero-touch):** The system continuously discovers new competitors from media signals and auto-onboards them when confidence exceeds threshold. It monitors every relevant page across 7 pools, self-repairs broken URLs via AI suggestion, auto-discovers replacement feed URLs, and expands page coverage into new page types. Every competitor that matters is tracked. Every feed that exists is ingested. No operator configures anything.
 
-Failed crons retry themselves. Broken pages find new URLs. Stale competitors get unblocked. The system gets better every week without being touched.
+**Detection layer (zero-noise):** Every change detected is either a genuine competitive signal or is silently suppressed. Noise patterns are learned from user feedback and auto-applied. Cross-pool deduplication ensures each real-world event produces exactly one signal. Velocity anomaly dampening prevents website redesigns from flooding the pipeline. Confidence scoring is self-calibrating. The signal-to-noise ratio improves every week.
 
-### FRONTEND (the instrument)
+**Intelligence layer (zero-hallucination):** AI interpretations are validated against raw evidence by a second model. Movement narratives are validated against their supporting signals. Hallucinated outputs are confidence-downgraded and prevented from polluting downstream artifacts. The user never sees intelligence the system doesn't trust. The system never shows its internal quality machinery — it simply delivers trustworthy output.
 
-**Radar (the primary surface):** The radar is not a dashboard — it is a precision instrument. Competitors are positioned by momentum on a live SVG field. Node size, pulse frequency, and echo rings encode real data. One glance shows who is accelerating. The selected state reveals the full intelligence chain: signals → interpretations → movements → evidence. ORBIT mode renders the same data as a physics simulation — momentum warps spacetime. The gravity field surface shows competitive density as topological deformation.
+**Self-healing layer (zero-maintenance):** Failed crons retry themselves. Broken pages find new URLs. Stale competitors get diagnosed and unblocked. Noise patterns are learned and suppressed. New competitors are discovered and onboarded. The system gets better every week without being touched.
 
-**Intelligence delivery (zero-latency):** Critical movements trigger real-time alerts with movement type and confidence. The intelligence drawer shows detected changes, AI assessments, and strategic advisories. The signal ticker streams live activity. Weekly briefs arrive pre-assembled. The strategy page surfaces cross-competitor patterns the moment they emerge. The operator opens the product, sees the truth, and acts.
+**Current status: SUBSTANTIALLY COMPLETE.** All five pillars are implemented. The remaining runtime work is operational — monitoring, tuning thresholds, expanding sector coverage. No architectural gaps remain.
 
-**Ambient awareness (zero-effort):** The telescope panel reflects live radar statistics. The knowledge panel cycles educational content. The daily brief overlay surfaces headlines on login. HUD panels render tactical data inside the radar SVG. Every ambient element is data-driven — nothing is decorative.
+---
 
-**Operator visibility (zero-guessing):** The ops dashboard shows 12 real-time sections: signal backlog, cron health, pipeline stages, signal quality, pool activity, errors, coverage health, selector repairs, feed health, stale competitors, cross-pool dedup stats, and competitor suggestions. Auto-refreshes every 30 seconds. The pipeline page shows the public engineering schematic. Every layer of the system is observable.
+### FRONTEND PERFECT STATE (the product)
 
-**Brand (zero-compromise):** Orbitron headings, Share Tech Mono body, Inter for long-form. Electric blue (#00B4FF) accent on near-black (#000002) canvas. Lightning background, neon glow escalation, tagline sheen. The product feels like a classified intelligence terminal, not a SaaS dashboard. The 45-second engagement feature demonstrates the full value loop in 8 seconds.
+The frontend is perfect when every interaction answers a question the user already has, every screen delivers value in under 3 seconds, and every feature earns its existence by driving retention or conversion.
+
+**First value (zero-wait):** A user signs up, selects their sector, and within minutes understands what the product does. Not hours — minutes. An onboarding progress indicator shows pipeline status: "Monitoring 7 pages... First snapshot captured... Baseline building..." The empty radar state communicates certainty: your intelligence is coming. The first signal arrives with a notification. The first brief arrives on Monday. The user never wonders "is this thing working?"
+
+**Core loop (zero-friction):** The user opens the radar → sees who is moving → clicks a competitor → reads the intelligence → understands the implication → acts. Every step in this loop takes under 2 seconds. No loading spinners. No dead clicks. No confusion about what to do next. The intelligence drawer answers: what changed, what it means, and what to do. The evidence chain is one click away. The user trusts the system because the system shows its work — but only when asked.
+
+**Signal feedback (zero-waste):** The user can mark any signal as "valid" or "noise" with one click. This isn't a feature for the user — it's the input that activates the entire backend learning loop. Noise patterns, confidence calibration, and interpretation quality all depend on this data. Without it, the backend's self-learning systems are inert. The UI must make feedback effortless — a thumb up/down on each signal card, not a form. The user helps the system by using the system.
+
+**Weekly brief (zero-effort intelligence):** The Monday email is the #1 retention mechanism. It arrives in the inbox, reads in 90 seconds, and tells the user three things: what moved, what it means for them, and what they should consider doing. If the brief is good, the user opens Metrivant. If the brief is slop, the user cancels. Brief quality is the product's heartbeat.
+
+**Feature discovery (zero-confusion):** ORBIT mode, gravity field, telescope, strategy panel, market map — these features exist but users may never find them. Navigation must be clear. Feature hints must be contextual, not intrusive. The knowledge panel educates. The About overlay demonstrates. Every feature the user discovers is a reason to stay.
+
+**Conversion (zero-hesitation):** The landing page demonstrates the value loop in 45 seconds. The pricing is anchored against $200-1000/mo enterprise alternatives. The free trial removes all risk. The upgrade path from Analyst to Pro is triggered by hitting the competitor limit — a natural moment of proven value. The billing flow is frictionless. Stripe handles everything.
+
+**Mobile (zero-exclusion):** The core intelligence — signals, movements, briefs, alerts — is accessible on mobile. The radar is desktop-first (SVG precision requires screen space), but the intelligence drawer, briefs, and alerts work on any device. A user checking their phone on Monday morning sees the brief. A critical alert reaches them wherever they are.
+
+**Emotional state (zero-anxiety):** The product feels calm, authoritative, and trustworthy. Not gamified. Not noisy. Not desperate for attention. The user opens it and feels like they're looking at the truth. The aesthetic — dark canvas, electric blue, precision typography — communicates: this is a serious instrument for serious operators. The 45-second engagement feature is the last resort for landing page visitors, not a pattern for the core product.
+
+**Current status: SIGNIFICANT GAPS REMAIN.** The backend is a machine that works. The frontend is a product that needs to earn its users. The gaps are:
+1. Signal feedback UI does not exist (backend learning loops are inert)
+2. First-value onboarding has no progress indicator (user waits in the dark)
+3. Brief quality is untested with real users
+4. Feature discovery relies on exploration, not guidance
+5. Mobile intelligence delivery is gated (desktop holding page)
+6. Upgrade prompts may not be triggering at the right moments
+
+---
+
+### THE DISTINCTION
+
+The backend asks: "Is the system correct?"
+The frontend asks: "Does the user care?"
+
+A technically perfect backend producing intelligence that nobody reads is a failure. A slightly imperfect backend producing intelligence that a user opens every Monday morning and acts on is a success.
+
+**The runtime is the engine. The frontend is the reason the engine exists.**
+
+Every remaining session should prioritize the frontend — because the backend is done and the product is not.
+
+---
 
 ### THE GAP
 
