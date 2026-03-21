@@ -12,7 +12,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-share-tech-mono);
+  --font-sans: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
 }
 
 
@@ -21,9 +21,48 @@ body {
   height: 100%;
   background-color: #000002;
   color: #ffffff;
-  font-family: var(--font-share-tech-mono), var(--font-inter), Inter, system-ui, -apple-system, sans-serif;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Typography tier utility classes (see aesthetics.md §3) ──────────── */
+/* Tier 1: Brand mark — applied inline via fontFamily: var(--font-orbitron) */
+/* Tier 2: Titles */
+.mv-title {
+  font-family: var(--font-orbitron);
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+}
+/* Tier 3: Mini titles / labels */
+.mv-label {
+  font-family: var(--font-orbitron);
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: rgba(0,180,255,0.55);
+}
+/* Tier 4: Body text (system mono for short, Inter for long-form) */
+.mv-body {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.625;
+  color: rgba(148,163,184,0.80);
+}
+.mv-body-long {
+  font-family: var(--font-inter);
+  font-size: 12px;
+  line-height: 1.7;
+  letter-spacing: 0.01em;
+  color: rgba(148,163,184,0.80);
+}
+/* Tier 5: Micro text */
+.mv-micro {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 10px;
+  color: rgba(100,116,139,0.80);
 }
 
 * {

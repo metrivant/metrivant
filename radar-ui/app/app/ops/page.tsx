@@ -687,7 +687,7 @@ export default async function OpsPage() {
             <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.80" />
             <circle cx="23" cy="23" r="2.5" fill="#00B4FF" />
           </svg>
-          <span className="text-[13px] font-bold tracking-[0.08em] text-white">METRIVANT</span>
+          <span className="text-[13px] font-bold tracking-[0.08em] text-white" style={{ fontFamily: "var(--font-orbitron)" }}>METRIVANT</span>
         </Link>
         <div className="flex items-center gap-5">
           <Link href="/app/strategy" className="text-[12px] text-slate-600 transition-colors hover:text-slate-400">Strategy</Link>

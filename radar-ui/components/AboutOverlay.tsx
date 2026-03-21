@@ -423,7 +423,7 @@ export default function AboutOverlay({
               <p className="text-[14px] font-medium leading-relaxed text-slate-300" style={{ fontFamily: "var(--font-orbitron)" }}>
                 Competitive intelligence radar.
               </p>
-              <p className="mt-2 text-[12px] leading-[1.7] text-slate-500" style={{ fontFamily: "var(--font-inter)", letterSpacing: "0.01em" }}>
+              <p className="mv-body mt-2">
                 Evidence-grounded. Confidence-gated. No speculation.
               </p>
             </div>

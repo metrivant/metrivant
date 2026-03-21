@@ -92,7 +92,7 @@ export default function LandingPage() {
 
         <div
           className="hero-fade-up mt-5 flex flex-col items-center gap-1.5 text-[13px]"
-          style={{ fontFamily: "var(--font-share-tech-mono)", animationDelay: "320ms" }}
+          style={{ animationDelay: "320ms" }}
         >
           <span className="hero-line hero-line-2">Changes become signals.</span>
           <span className="hero-line hero-line-3">Signals become movements.</span>
@@ -137,7 +137,7 @@ export default function LandingPage() {
               <div className="text-[11px] font-bold uppercase tracking-[0.22em]" style={{ fontFamily: "var(--font-orbitron)", ...LABEL_COLOR_STYLE }}>
                 {label}
               </div>
-              <p className="text-[12px] leading-relaxed text-slate-500" style={{ fontFamily: "var(--font-share-tech-mono)" }}>{body}</p>
+              <p className="mv-body">{body}</p>
             </div>
           ))}
         </div>

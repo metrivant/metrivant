@@ -81,22 +81,24 @@ Five distinct tiers. Each tier has a specific font, size, weight, tracking, and 
 
 | Property | Value |
 |---|---|
-| Font | `var(--font-share-tech-mono)` (default) or `var(--font-inter)` (long-form readability) |
+| Font | System monospace (default) or `var(--font-inter)` (long-form readability) |
+| CSS class | `.mv-body` (short) or `.mv-body-long` (3+ sentence paragraphs) |
+| Font stack | `ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace` |
 | Size | `12–13px` |
 | Weight | `400` (regular) |
-| Line height | `leading-relaxed` (1.625) or `leading-[1.7]` (for Inter long-form) |
-| Colour | `text-slate-500` (primary body) or `text-slate-400` (emphasis body) |
-| Tracking | `0.01em` (Inter) or default (Share Tech Mono) |
+| Line height | `1.625` (system mono) or `1.7` (Inter long-form) |
+| Colour | `rgba(148,163,184,0.80)` / `text-slate-500` (primary) or `text-slate-400` (emphasis) |
 
 **Usage:** Feature descriptions, plan descriptions, differentiation row body text, intelligence drawer content.
 
-**Rule:** Use Share Tech Mono for short descriptions (1–2 sentences). Use Inter for paragraphs longer than 3 sentences (About overlay feature descriptions, brief content).
+**Rule:** System monospace is the DEFAULT body font — it inherits from `<body>`. Use Inter (`.mv-body-long`) ONLY for paragraphs longer than 3 sentences (About overlay feature descriptions, brief content). Never use Share Tech Mono for body text.
 
 ### Tier 5: MICRO TEXT (metadata, timestamps, tertiary info)
 
 | Property | Value |
 |---|---|
-| Font | `var(--font-share-tech-mono)` |
+| Font | System monospace (inherited from body) |
+| CSS class | `.mv-micro` |
 | Size | `10–11px` |
 | Weight | `400` |
 | Colour | `text-slate-600` (secondary) or `text-slate-700` (tertiary) |

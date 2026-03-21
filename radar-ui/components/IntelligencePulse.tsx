@@ -275,7 +275,7 @@ export default function IntelligencePulse() {
                 {phase >= 3 && !hovering && isExpanded && (
                   <div
                     className="mt-2 text-[9px] uppercase tracking-[0.2em] text-slate-600"
-                    style={{ fontFamily: "var(--font-share-tech-mono)" }}
+                    style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}
                   >
                     Hover to enter
                   </div>
@@ -293,10 +293,10 @@ export default function IntelligencePulse() {
                   >
                     <div className="flex items-center gap-1.5">
                       <span className="h-1 w-1 rounded-full bg-[#f59e0b]" />
-                      <span className="text-[10px] text-white" style={{ fontFamily: "var(--font-share-tech-mono)" }}>
+                      <span className="text-[10px] text-white" style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>
                         Pricing structure changed
                       </span>
-                      <span className="text-[9px] font-semibold" style={{ color: ACCENT, fontFamily: "var(--font-share-tech-mono)" }}>
+                      <span className="text-[9px] font-semibold" style={{ color: ACCENT, fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>
                         0.82
                       </span>
                     </div>
@@ -319,7 +319,7 @@ export default function IntelligencePulse() {
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.3 }}
                   className="absolute bottom-[8%] text-[10px] text-slate-600"
-                  style={{ fontFamily: "var(--font-share-tech-mono)" }}
+                  style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}
                 >
                   24/7 for your competitors
                 </motion.p>

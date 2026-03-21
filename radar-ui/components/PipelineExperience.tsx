@@ -156,7 +156,7 @@ export default function PipelineExperience() {
       <div style={{ textAlign: "center", marginBottom: 48 }}>
         <div
           style={{
-            fontFamily: "monospace",
+            fontFamily: "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, monospace",
             fontSize: 9,
             letterSpacing: "0.28em",
             color: "rgba(0,180,255,0.40)",
@@ -269,7 +269,7 @@ export default function PipelineExperience() {
                 fontSize={9}
                 fontWeight={isActive ? 700 : 600}
                 letterSpacing="1.8"
-                fontFamily="monospace"
+                fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
                 fill={isActive ? ACCENT : isPast ? "rgba(0,180,255,0.40)" : "rgba(100,116,139,0.28)"}
                 style={{ transition: "fill 0.4s ease" }}
               >
@@ -321,7 +321,7 @@ export default function PipelineExperience() {
           >
             <div
               style={{
-                fontFamily: "monospace",
+                fontFamily: "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, monospace",
                 fontSize: 13,
                 letterSpacing: "0.20em",
                 color: radarActive ? ACCENT : "rgba(255,255,255,0.75)",
