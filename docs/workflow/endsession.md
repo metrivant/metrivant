@@ -121,19 +121,42 @@ Then continue with fast-path steps 2–5.
 
 ## METRIVANT PERFECT STATE — THE DESTINATION
 
-Metrivant in its perfect state is a **fully autonomous competitive intelligence system** that requires zero operator intervention to produce world-class strategic output. Specifically:
+Metrivant in its perfect state is a **fully autonomous competitive intelligence system** — a closed-loop machine where the runtime pipeline generates intelligence, the frontend renders it as a precision instrument, and every layer self-improves without human intervention.
 
-**Input layer (zero-touch):** The system continuously discovers new competitors from media signals, onboards them automatically, monitors every relevant page, ingests every available feed across all 7 pools, and self-repairs any broken URL, stale feed, or drifted selector without human awareness.
+### RUNTIME (the engine)
 
-**Detection layer (zero-noise):** Every change detected is either a genuine competitive signal or is silently suppressed by learned noise patterns. Cross-pool deduplication ensures each real-world event produces exactly one signal regardless of how many detection paths surface it. Confidence scoring is self-calibrating — the system learns from operator feedback and adjusts its own thresholds.
+**Input layer (zero-touch):** The system continuously discovers new competitors from media signals and auto-onboards them when confidence exceeds threshold. It monitors every relevant page across 7 pools (page-diff, newsroom, careers, investor, product, procurement, regulatory, media), self-repairs broken URLs via AI suggestion, auto-discovers replacement feed URLs, and expands page coverage into new page types without operator input. Every competitor that matters is tracked. Every feed that exists is ingested.
 
-**Intelligence layer (zero-hallucination):** AI interpretations are validated against evidence before reaching the user. Strategic movements are synthesized only from verified signals. Sector narratives are grounded in multi-source media clusters. Weekly briefs read like they were written by a senior analyst who spent 40 hours researching — but they took zero hours.
+**Detection layer (zero-noise):** Every change detected is either a genuine competitive signal or is silently suppressed. Noise patterns are learned from operator feedback and auto-applied. Cross-pool deduplication ensures each real-world event produces exactly one signal. Velocity anomaly dampening prevents website redesigns from flooding the pipeline. Confidence scoring is self-calibrating — section weights adjust automatically based on historical accuracy rates. The signal-to-noise ratio improves every week without being touched.
 
-**Output layer (zero-latency):** Critical movements surface in real-time via alerts. The radar renders competitive reality as it happens. Strategic patterns are detected the moment a second competitor exhibits the same behaviour. The operator opens the product, sees the truth, and acts.
+**Intelligence layer (zero-hallucination):** AI interpretations are validated against raw evidence by a second model before reaching the user. Movement narratives are validated against their supporting signals. Hallucinated outputs are flagged, confidence-downgraded, and prevented from polluting downstream artifacts. Sector narratives are grounded in multi-source media clusters. Weekly briefs are assembled from pre-validated artifacts — not raw data. The intelligence is trustworthy by construction.
 
-**Self-healing layer (zero-maintenance):** Coverage heals itself. Feeds repair themselves. Stale competitors are diagnosed and unblocked. Noise patterns are learned and suppressed. New competitors are discovered and onboarded. The system gets better every week without being touched.
+**Self-healing layer (zero-maintenance):** A daily/weekly chain of handlers runs autonomously:
+- Coverage: heal-coverage (heuristic) → resolve-coverage (AI) → deactivate
+- Feeds: check-feed-health → repair-feeds → deactivate after 3 weeks
+- Competitors: detect-stale-competitors → auto-diagnose pipeline stage → auto-repair
+- Selectors: suggest-selector-repairs → auto-accept high-confidence
+- Quality: learn-noise-patterns + calibrate-confidence (weekly)
+- Reliability: retry-failed-stages (hourly, auto-recovers transient failures)
+- Growth: suggest-competitors → auto-score → auto-onboard from media
 
-**The gap between current state and perfect state is the standing question below. Each session closes one gap.**
+Failed crons retry themselves. Broken pages find new URLs. Stale competitors get unblocked. The system gets better every week without being touched.
+
+### FRONTEND (the instrument)
+
+**Radar (the primary surface):** The radar is not a dashboard — it is a precision instrument. Competitors are positioned by momentum on a live SVG field. Node size, pulse frequency, and echo rings encode real data. One glance shows who is accelerating. The selected state reveals the full intelligence chain: signals → interpretations → movements → evidence. ORBIT mode renders the same data as a physics simulation — momentum warps spacetime. The gravity field surface shows competitive density as topological deformation.
+
+**Intelligence delivery (zero-latency):** Critical movements trigger real-time alerts with movement type and confidence. The intelligence drawer shows detected changes, AI assessments, and strategic advisories. The signal ticker streams live activity. Weekly briefs arrive pre-assembled. The strategy page surfaces cross-competitor patterns the moment they emerge. The operator opens the product, sees the truth, and acts.
+
+**Ambient awareness (zero-effort):** The telescope panel reflects live radar statistics. The knowledge panel cycles educational content. The daily brief overlay surfaces headlines on login. HUD panels render tactical data inside the radar SVG. Every ambient element is data-driven — nothing is decorative.
+
+**Operator visibility (zero-guessing):** The ops dashboard shows 12 real-time sections: signal backlog, cron health, pipeline stages, signal quality, pool activity, errors, coverage health, selector repairs, feed health, stale competitors, cross-pool dedup stats, and competitor suggestions. Auto-refreshes every 30 seconds. The pipeline page shows the public engineering schematic. Every layer of the system is observable.
+
+**Brand (zero-compromise):** Orbitron headings, Share Tech Mono body, Inter for long-form. Electric blue (#00B4FF) accent on near-black (#000002) canvas. Lightning background, neon glow escalation, tagline sheen. The product feels like a classified intelligence terminal, not a SaaS dashboard. The 45-second engagement feature demonstrates the full value loop in 8 seconds.
+
+### THE GAP
+
+The gap between current state and perfect state is the standing question below. Each session closes one gap. There is a finite number of gaps. We are heading toward the end.
 
 ---
 

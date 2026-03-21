@@ -50,6 +50,18 @@ const STALE_THRESHOLDS: Record<string, number> = {
   "promote-product-signals":    90,
   "promote-procurement-signals":90,
   "promote-regulatory-signals": 90,
+  "promote-media-signals":     90,
+  // validation handlers — hourly
+  "validate-interpretations":  90,
+  "validate-movements":        90,
+  // self-healing handlers — hourly/daily/weekly
+  "retry-failed-stages":       90,
+  "detect-stale-competitors":  1_500,
+  "resolve-coverage":          1_500,
+  "check-feed-health":         10_080,
+  "repair-feeds":              10_080,
+  "learn-noise-patterns":      10_080,
+  "suggest-competitors":       10_080,
 };
 
 const DEFAULT_THRESHOLD = 1_500; // 25 hours — daily/weekly jobs not explicitly listed
@@ -541,6 +553,68 @@ export default async function OpsPage() {
     for (const r of (dedupRows ?? []) as { metadata: Record<string, unknown> | null }[]) {
       const reason = r.metadata?.reason as string | undefined;
       if (reason && reason.startsWith("cross_pool_dedup")) dedupCount++;
+    }
+  } catch { /* non-fatal */ }
+
+  // ── Interpretation Validation Stats (24h) ─────────────────────────────────
+  let interpValid = 0, interpWeak = 0, interpHallucinated = 0;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: valRows } = await (service as any)
+      .from("interpretations")
+      .select("validation_status")
+      .not("validation_status", "is", null)
+      .gte("validated_at", ago24h);
+    for (const r of (valRows ?? []) as { validation_status: string }[]) {
+      if (r.validation_status === "valid") interpValid++;
+      else if (r.validation_status === "weak") interpWeak++;
+      else if (r.validation_status === "hallucinated") interpHallucinated++;
+    }
+  } catch { /* non-fatal */ }
+
+  // ── Movement Validation Stats (24h) ──────────────────────────────────────
+  let movValid = 0, movWeak = 0, movHallucinated = 0;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: movValRows } = await (service as any)
+      .from("strategic_movements")
+      .select("validation_status")
+      .not("validation_status", "is", null)
+      .gte("created_at", ago24h);
+    for (const r of (movValRows ?? []) as { validation_status: string }[]) {
+      if (r.validation_status === "valid") movValid++;
+      else if (r.validation_status === "weak") movWeak++;
+      else if (r.validation_status === "hallucinated") movHallucinated++;
+    }
+  } catch { /* non-fatal */ }
+
+  // ── Cron Retry Stats (24h) ───────────────────────────────────────────────
+  let cronRetriesAttempted = 0, cronRetriesSucceeded = 0;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: retryRows } = await (service as any)
+      .from("pipeline_events")
+      .select("status, metadata")
+      .eq("stage", "cron_retry")
+      .gte("created_at", ago24h);
+    for (const r of (retryRows ?? []) as { status: string }[]) {
+      cronRetriesAttempted++;
+      if (r.status === "success") cronRetriesSucceeded++;
+    }
+  } catch { /* non-fatal */ }
+
+  // ── Velocity Dampening Stats (24h) ───────────────────────────────────────
+  let velocityDampened = 0;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: velRows } = await (service as any)
+      .from("pipeline_events")
+      .select("metadata")
+      .gte("created_at", ago24h)
+      .eq("status", "skipped")
+      .limit(500);
+    for (const r of (velRows ?? []) as { metadata: Record<string, unknown> | null }[]) {
+      if ((r.metadata?.suppressed_by as string) === "velocity_anomaly") velocityDampened++;
     }
   } catch { /* non-fatal */ }
 
@@ -1128,30 +1202,7 @@ export default async function OpsPage() {
             )}
           </section>
 
-          {/* ═══════════════════════════════════════════════════════════════
-              SECTION 11 — Cross-Pool Dedup (24h)
-          ═══════════════════════════════════════════════════════════════ */}
-          <section>
-            <SectionHeader
-              index="11"
-              title="Cross-Pool Deduplication"
-              subtitle="Duplicate signals prevented across pool boundaries · last 24h"
-            />
-            <div className="rounded-[14px] border border-[#0e1e0e] bg-[#020208] px-4 py-4">
-              <div className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-700">
-                Duplicates Prevented
-              </div>
-              <div
-                className="font-mono text-[26px] font-bold tabular-nums leading-none"
-                style={{ color: dedupCount > 0 ? "#00B4FF" : "rgba(148,163,184,0.4)" }}
-              >
-                {dedupCount}
-              </div>
-              <div className="mt-1.5 text-[10px] text-slate-700">
-                {dedupCount > 0 ? "cross-pool duplicates caught and suppressed" : "no cross-pool duplicates detected in 24h window"}
-              </div>
-            </div>
-          </section>
+          {/* Section 11 merged into Section 14 (Self-Healing) */}
 
           {/* ═══════════════════════════════════════════════════════════════
               SECTION 12 — Competitor Suggestions (auto-discovered)
@@ -1227,6 +1278,89 @@ export default async function OpsPage() {
                 </div>
               </>
             )}
+          </section>
+
+          {/* ═══════════════════════════════════════════════════════════════
+              SECTION 13 — Intelligence Quality (24h)
+          ═══════════════════════════════════════════════════════════════ */}
+          <section>
+            <SectionHeader
+              index="13"
+              title="Intelligence Quality"
+              subtitle="Hallucination detection across interpretations and movements · last 24h"
+            />
+            <div className="grid gap-3 sm:grid-cols-2">
+              {/* Interpretation validation */}
+              <div className="rounded-[14px] border border-[#0e1e0e] bg-[#020208] p-4">
+                <div className="mb-3 font-mono text-[11px] font-bold text-slate-300">Interpretation Validation</div>
+                <div className="flex items-baseline gap-4">
+                  <div>
+                    <div className="font-mono text-[22px] font-bold tabular-nums leading-none text-[#00B4FF]">{interpValid}</div>
+                    <div className="mt-1 text-[10px] text-slate-700">valid</div>
+                  </div>
+                  <div>
+                    <div className="font-mono text-[22px] font-bold tabular-nums leading-none text-[#f59e0b]">{interpWeak}</div>
+                    <div className="mt-1 text-[10px] text-slate-700">weak</div>
+                  </div>
+                  <div>
+                    <div className="font-mono text-[22px] font-bold tabular-nums leading-none" style={{ color: interpHallucinated > 0 ? "#ef4444" : "rgba(148,163,184,0.4)" }}>{interpHallucinated}</div>
+                    <div className="mt-1 text-[10px] text-slate-700">hallucinated</div>
+                  </div>
+                </div>
+              </div>
+              {/* Movement validation */}
+              <div className="rounded-[14px] border border-[#0e1e0e] bg-[#020208] p-4">
+                <div className="mb-3 font-mono text-[11px] font-bold text-slate-300">Movement Validation</div>
+                <div className="flex items-baseline gap-4">
+                  <div>
+                    <div className="font-mono text-[22px] font-bold tabular-nums leading-none text-[#00B4FF]">{movValid}</div>
+                    <div className="mt-1 text-[10px] text-slate-700">valid</div>
+                  </div>
+                  <div>
+                    <div className="font-mono text-[22px] font-bold tabular-nums leading-none text-[#f59e0b]">{movWeak}</div>
+                    <div className="mt-1 text-[10px] text-slate-700">weak</div>
+                  </div>
+                  <div>
+                    <div className="font-mono text-[22px] font-bold tabular-nums leading-none" style={{ color: movHallucinated > 0 ? "#ef4444" : "rgba(148,163,184,0.4)" }}>{movHallucinated}</div>
+                    <div className="mt-1 text-[10px] text-slate-700">hallucinated</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* ═══════════════════════════════════════════════════════════════
+              SECTION 14 — Self-Healing (24h)
+          ═══════════════════════════════════════════════════════════════ */}
+          <section>
+            <SectionHeader
+              index="14"
+              title="Self-Healing"
+              subtitle="Automatic recovery actions · last 24h"
+            />
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-[14px] border border-[#0e1e0e] bg-[#020208] px-4 py-4">
+                <div className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-700">Cron Retries</div>
+                <div className="font-mono text-[26px] font-bold tabular-nums leading-none" style={{ color: cronRetriesAttempted > 0 ? "#f59e0b" : "rgba(148,163,184,0.4)" }}>
+                  {cronRetriesSucceeded}/{cronRetriesAttempted}
+                </div>
+                <div className="mt-1.5 text-[10px] text-slate-700">succeeded / attempted</div>
+              </div>
+              <div className="rounded-[14px] border border-[#0e1e0e] bg-[#020208] px-4 py-4">
+                <div className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-700">Velocity Dampened</div>
+                <div className="font-mono text-[26px] font-bold tabular-nums leading-none" style={{ color: velocityDampened > 0 ? "#f59e0b" : "rgba(148,163,184,0.4)" }}>
+                  {velocityDampened}
+                </div>
+                <div className="mt-1.5 text-[10px] text-slate-700">signals suppressed (redesign floods)</div>
+              </div>
+              <div className="rounded-[14px] border border-[#0e1e0e] bg-[#020208] px-4 py-4">
+                <div className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-700">Cross-Pool Dedup</div>
+                <div className="font-mono text-[26px] font-bold tabular-nums leading-none" style={{ color: dedupCount > 0 ? "#00B4FF" : "rgba(148,163,184,0.4)" }}>
+                  {dedupCount}
+                </div>
+                <div className="mt-1.5 text-[10px] text-slate-700">duplicates prevented</div>
+              </div>
+            </div>
           </section>
 
         </div>
