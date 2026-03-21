@@ -737,6 +737,25 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
   Matched signals get +0.05 confidence boost (corroboration). Duplicate pool_events marked as "duplicate".
   Pipeline_events record match reason + matched signal ID for observability. (2026-03-21)
 
+- [B] Self-healing system daily/weekly chain (all times UTC, ordered):
+  03:00 retention → 04:00 suggest-selector-repairs → 05:00 heal-coverage (heuristic) →
+  05:30 resolve-coverage (AI) → 06:00 check-feed-health (Sun) → 06:30 detect-stale-competitors (daily) +
+  repair-feeds (Sun) → 07:00 learn-noise-patterns (Sun).
+  Each handler has specific age gates to prevent interference with upstream handlers.
+  `detect-stale-competitors` now auto-diagnoses pipeline stage failures and attempts repair:
+  no_snapshots → reset last_fetched_at; not_extracted → re-queue snapshots;
+  no_diffs → clear baselines; all_suppressed → no repair (correct behavior). (2026-03-21)
+
+- [B] `repair-feeds` only repairs newsroom + product feeds (RSS-based). Careers use API endpoints
+  (Greenhouse/Lever/Ashby), investor/regulatory use SEC EDGAR URLs — these can't be auto-discovered
+  via RSS path patterns. Feed deactivation after 3 consecutive weekly failures (consecutive_failures >= 3).
+  Discovery methods: common RSS paths + HTML <link rel="alternate"> tag parsing. (2026-03-21)
+
+- [B] `noise_suppression_rules` table gates signal creation in `detect-signals.ts`. Rules are learned
+  weekly from `signal_feedback` verdicts. Active rules are batch-loaded per run (one query for all
+  competitor_ids in the batch). Lookup is O(1) Map check per diff — no per-diff DB query.
+  Rules auto-deactivate when noise_rate drops below 80% on next learning run. (2026-03-21)
+
 - `@sentry/nextjs` in radar-ui requires `instrumentation.ts` + `sentry.server.config.ts` +
   `sentry.edge.config.ts` for automatic server/edge error capture. Without these files, only
   manually-instrumented call sites (captureException, captureCheckIn) report to Sentry — unhandled
