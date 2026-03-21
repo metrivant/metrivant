@@ -160,6 +160,19 @@ type StaleCompetitorRow = {
   healthy_pages:  number;
 };
 
+type CompetitorSuggestionRow = {
+  id:              string;
+  company_name:    string;
+  domain:          string | null;
+  sector:          string;
+  article_count:   number;
+  source_count:    number;
+  relevance_score: number;
+  status:          string;
+  decision_reason: string | null;
+  last_seen_at:    string;
+};
+
 // ── Aggregation helpers ───────────────────────────────────────────────────────
 
 type StageStat = {
@@ -529,6 +542,18 @@ export default async function OpsPage() {
       const reason = r.metadata?.reason as string | undefined;
       if (reason && reason.startsWith("cross_pool_dedup")) dedupCount++;
     }
+  } catch { /* non-fatal */ }
+
+  // ── Competitor Suggestions ────────────────────────────────────────────────
+  let suggestionRows: CompetitorSuggestionRow[] = [];
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (service as any)
+      .from("competitor_suggestions")
+      .select("id, company_name, domain, sector, article_count, source_count, relevance_score, status, decision_reason, last_seen_at")
+      .order("relevance_score", { ascending: false })
+      .limit(30);
+    suggestionRows = (data ?? []) as CompetitorSuggestionRow[];
   } catch { /* non-fatal */ }
 
   // ── Aggregations ─────────────────────────────────────────────────────────────
@@ -1126,6 +1151,82 @@ export default async function OpsPage() {
                 {dedupCount > 0 ? "cross-pool duplicates caught and suppressed" : "no cross-pool duplicates detected in 24h window"}
               </div>
             </div>
+          </section>
+
+          {/* ═══════════════════════════════════════════════════════════════
+              SECTION 12 — Competitor Suggestions (auto-discovered)
+          ═══════════════════════════════════════════════════════════════ */}
+          <section>
+            <SectionHeader
+              index="12"
+              title="Competitor Suggestions"
+              subtitle={
+                suggestionRows.length === 0
+                  ? "No competitor suggestions — suggest-competitors cron has not run yet"
+                  : `${suggestionRows.filter((s) => s.status === "accepted").length} accepted · ${suggestionRows.filter((s) => s.status === "pending").length} pending · ${suggestionRows.filter((s) => s.status === "rejected").length} rejected`
+              }
+            />
+            {suggestionRows.length === 0 ? (
+              <EmptyState message="Competitor auto-discovery runs weekly Sunday 08:00 UTC from media observations." />
+            ) : (
+              <>
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {(["accepted", "pending", "rejected"] as const).map((status) => {
+                    const count = suggestionRows.filter((s) => s.status === status).length;
+                    const color = status === "accepted" ? "#00B4FF" : status === "pending" ? "#f59e0b" : "#64748b";
+                    return (
+                      <div
+                        key={status}
+                        className="rounded-full px-3 py-1.5 font-mono text-[11px]"
+                        style={{ color, backgroundColor: `${color}0e`, border: `1px solid ${color}30` }}
+                      >
+                        {status} <span className="opacity-60">{count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="overflow-hidden rounded-[14px] border border-[#0e1e0e]">
+                  <table className="w-full text-[12px]">
+                    <thead>
+                      <tr className="border-b border-[#0e1e0e] bg-[#020208]">
+                        <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Company</th>
+                        <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Sector</th>
+                        <th className="px-4 py-2.5 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Articles</th>
+                        <th className="px-4 py-2.5 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Sources</th>
+                        <th className="px-4 py-2.5 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Score</th>
+                        <th className="px-4 py-2.5 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {suggestionRows.map((row) => {
+                        const color = row.status === "accepted" ? "#00B4FF" : row.status === "pending" ? "#f59e0b" : "#64748b";
+                        return (
+                          <tr key={row.id} className="border-b border-[#0a0a1a] last:border-0 transition-colors hover:bg-[#040c04]">
+                            <td className="px-4 py-3">
+                              <div className="font-mono text-[11px] text-slate-300">{row.company_name}</div>
+                              {row.domain && (
+                                <div className="mt-0.5 truncate font-mono text-[10px] text-slate-700">{row.domain}</div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 font-mono text-[11px] text-slate-500">{row.sector}</td>
+                            <td className="px-4 py-3 text-right font-mono text-[11px] tabular-nums text-slate-500">{row.article_count}</td>
+                            <td className="px-4 py-3 text-right font-mono text-[11px] tabular-nums text-slate-500">{row.source_count}</td>
+                            <td className="px-4 py-3 text-right font-mono text-[11px] tabular-nums" style={{ color }}>
+                              {(row.relevance_score * 100).toFixed(0)}%
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <span className="font-mono text-[10px] font-bold uppercase" style={{ color }}>
+                                {row.status}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
           </section>
 
         </div>
