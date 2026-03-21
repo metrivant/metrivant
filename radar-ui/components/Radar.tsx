@@ -1888,8 +1888,8 @@ export default function Radar({
                   </button>
                 </div>
 
-                {/* HUD sub-toggle — visible only in ORBIT mode */}
-                {orbitMode && (
+                {/* HUD sub-toggle — visible in both Radar and ORBIT modes */}
+                {(
                   <button
                     onClick={() => setOrbitHudActive((v) => !v)}
                     className="rounded-[6px] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] transition-all duration-300"
