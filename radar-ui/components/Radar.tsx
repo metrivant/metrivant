@@ -911,7 +911,7 @@ const BlipNode = memo(function BlipNode({
           }
           fontSize={isMobile ? "15" : "13"}
           fontWeight={isSelected ? "600" : hovered ? "500" : isMobile ? "500" : "400"}
-          fontFamily="Inter, system-ui, sans-serif"
+          fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
           letterSpacing="0.02em"
           style={{
             filter: isSelected
@@ -938,7 +938,7 @@ const BlipNode = memo(function BlipNode({
           textAnchor="middle"
           fill="rgba(100,116,139,0.50)"
           fontSize="9"
-          fontFamily="Inter, system-ui, sans-serif"
+          fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
           letterSpacing="0.05em"
           style={{ pointerEvents: "none", filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.98))" }}
         >
@@ -954,7 +954,7 @@ const BlipNode = memo(function BlipNode({
           textAnchor="middle"
           fill="rgba(148,163,184,0.60)"
           fontSize="9"
-          fontFamily="Inter, system-ui, sans-serif"
+          fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
           letterSpacing="0.04em"
           style={{
             pointerEvents: "none",
@@ -973,7 +973,7 @@ const BlipNode = memo(function BlipNode({
           textAnchor="middle"
           fill="rgba(196,181,253,0.55)"
           fontSize="9"
-          fontFamily="Inter, system-ui, sans-serif"
+          fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
           letterSpacing="0.04em"
           style={{
             pointerEvents: "none",
@@ -1143,6 +1143,18 @@ export default function Radar({
       next.delete(competitorId);
       return next;
     });
+  }
+
+  // ── Signal feedback — writes to signal_feedback table via API ────────────
+  async function submitSignalFeedback(signalId: string, verdict: "valid" | "noise") {
+    try {
+      await fetch("/api/signal-feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signal_id: signalId, verdict }),
+      });
+      capture("signal_feedback_submitted", { signal_id: signalId, verdict });
+    } catch { /* non-fatal */ }
   }
 
   function handleAlertDismiss() {
@@ -1791,7 +1803,7 @@ export default function Radar({
           <div
             className="shrink-0 px-5 py-3"
             style={{
-              borderBottom: `1px solid ${orbitMode ? "#150f30" : "#0a1c0a"}`,
+              borderBottom: `1px solid ${orbitMode ? "#150f30" : "#0d1020"}`,
               opacity: entryPhase >= 1 ? 1 : 0,
               transition: "border-color 0.8s ease, opacity 0.5s ease",
             }}
@@ -1800,14 +1812,14 @@ export default function Radar({
               {/* Left: sector label + signal count */}
               <div className="flex items-center gap-4">
                 <div>
-                  <div className="text-[10px] uppercase tracking-[0.26em] text-slate-600">Sector</div>
+                  <div className="mv-label">Sector</div>
                   <div className="mt-0.5 text-[13px] font-semibold text-slate-200">
                     {getSectorLabel(sector)}
                   </div>
                 </div>
                 <div className="h-7 w-px bg-[#0e1022]" />
                 <div>
-                  <div className="text-[10px] uppercase tracking-[0.26em] text-slate-600">Signals</div>
+                  <div className="mv-label">Signals</div>
                   <div
                     className="mt-0.5 text-[13px] font-semibold tabular-nums"
                     style={{ color: sorted.reduce((s, c) => s + (c.signals_7d ?? 0), 0) > 0 ? "#00B4FF" : "#475569" }}
@@ -1819,7 +1831,7 @@ export default function Radar({
                   <>
                     <div className="h-7 w-px bg-[#0e1022]" />
                     <div>
-                      <div className="text-[10px] uppercase tracking-[0.26em] text-slate-600">Most Active</div>
+                      <div className="mv-label">Most Active</div>
                       <div className="mt-0.5 text-[13px] font-semibold text-slate-200">
                         {sorted[0].competitor_name}
                       </div>
@@ -1828,7 +1840,7 @@ export default function Radar({
                 )}
                 <div className="h-7 w-px bg-[#0e1022]" />
                 <div>
-                  <div className="text-[10px] uppercase tracking-[0.26em] text-slate-600">Pressure</div>
+                  <div className="mv-label">Pressure</div>
                   <div
                     className="mt-0.5 text-[13px] font-semibold"
                     style={{ color: pressureState.color }}
@@ -1843,7 +1855,7 @@ export default function Radar({
                 <div
                   className="flex items-center gap-0.5 rounded-[8px] p-0.5"
                   style={{
-                    background: orbitMode ? "#07051a" : "#020602",
+                    background: orbitMode ? "#07051a" : "#020208",
                     border: `1px solid ${orbitMode ? "#1e1545" : "#0e1022"}`,
                     transition: "background 0.8s ease, border-color 0.8s ease",
                   }}
@@ -1899,7 +1911,7 @@ export default function Radar({
                     : null;
                   return latestSignalAt ? (
                     <div className="hidden text-right md:block">
-                      <div className="text-[10px] uppercase tracking-[0.26em] text-slate-600">Latest Change</div>
+                      <div className="mv-label">Latest Change</div>
                       <div className="mt-0.5 text-[12px] text-slate-400">
                         {latestMover && (
                           <span className="text-slate-300">{latestMover.competitor_name} · </span>
@@ -1909,7 +1921,7 @@ export default function Radar({
                     </div>
                   ) : (
                     <div className="hidden text-right md:block">
-                      <div className="text-[10px] uppercase tracking-[0.26em] text-slate-600">Status</div>
+                      <div className="mv-label">Status</div>
                       <div className="mt-0.5 text-[12px] text-slate-500">Scanning…</div>
                     </div>
                   );
@@ -2078,7 +2090,7 @@ export default function Radar({
                 y="0"
                 width={SIZE}
                 height={SIZE}
-                fill={orbitMode ? G.bg : "#010201"}
+                fill={orbitMode ? G.bg : "#010208"}
                 style={{ transition: "fill 0.9s ease" }}
               />
 
@@ -2481,7 +2493,7 @@ export default function Radar({
                             <text x={mx + px * 0.5} y={my + py * 0.5 - 5}
                               textAnchor="middle"
                               fill={arcColor} fillOpacity={0.35 + proximity * 0.30}
-                              fontFamily="'Courier New', Monaco, monospace"
+                              fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
                               fontSize="5" letterSpacing="0.14em"
                             >
                               CONJUNCTION
@@ -2732,7 +2744,7 @@ export default function Radar({
                     dominantBaseline="middle"
                     fill="#1a3a1a"
                     fontSize="12"
-                    fontFamily="Inter, system-ui, sans-serif"
+                    fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
                     letterSpacing="0.06em"
                   >
                     {sector === "custom" ? "STANDBY" : "CALIBRATING"}
@@ -2742,9 +2754,9 @@ export default function Radar({
                     y={CENTER + 10}
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    fill="#0f2a0f"
+                    fill="#0d1020"
                     fontSize="10"
-                    fontFamily="Inter, system-ui, sans-serif"
+                    fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
                   >
                     {sector === "custom"
                       ? "Add rivals from Discover to begin monitoring"
@@ -2862,7 +2874,7 @@ export default function Radar({
                   fill={orbitMode ? "rgba(40,35,80,0.85)" : "rgba(30,41,59,0.7)"}
                   fontSize="11"
                   fontWeight="600"
-                  fontFamily="Inter, system-ui, sans-serif"
+                  fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
                   letterSpacing="0.06em"
                   style={{ transition: "fill 0.8s ease" }}
                 >
@@ -2934,7 +2946,7 @@ export default function Radar({
                       <text x={lx} y={ly - (valueText ? 5 : 0)}
                         textAnchor="middle" dominantBaseline="middle"
                         fill="#7dd3fc" fillOpacity={selected ? 0.50 : 0.22}
-                        fontFamily="'Courier New', Monaco, monospace"
+                        fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
                         fontSize="5" letterSpacing="0.22em">
                         {text}
                       </text>
@@ -2942,7 +2954,7 @@ export default function Radar({
                         <text x={lx} y={ly + 6}
                           textAnchor="middle" dominantBaseline="middle"
                           fill="#e2e8f0" fillOpacity={selected ? 0.80 : 0.20}
-                          fontFamily="'Courier New', Monaco, monospace"
+                          fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
                           fontSize="6" fontWeight="600" letterSpacing="0.10em">
                           {valueText}
                         </text>
@@ -3088,7 +3100,7 @@ export default function Radar({
                         x={CENTER} y={CENTER - HUD_R - 8}
                         textAnchor="middle" dominantBaseline="middle"
                         fill="#7dd3fc" fillOpacity="0.28"
-                        fontFamily="'Courier New', Monaco, monospace"
+                        fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
                         fontSize="5.5" letterSpacing="0.24em">
                         {`${sorted.length} NODES · DORMANT`}
                       </text>
@@ -3202,8 +3214,8 @@ export default function Radar({
                           {/* Label row */}
                           <div className="mb-1.5 flex flex-wrap items-center gap-2">
                             <span
-                              className="text-[10px] font-bold uppercase tracking-[0.28em]"
-                              style={{ color: alertColor }}
+                              className="mv-label"
+                              style={{ color: alertColor, fontSize: 10 }}
                             >
                               ⚡ Competitor Accelerating
                             </span>
@@ -3220,7 +3232,7 @@ export default function Radar({
                           </div>
 
                           {/* Competitor name */}
-                          <div className="text-[16px] font-bold leading-tight text-white">
+                          <div className="mv-title text-[16px] font-bold leading-tight">
                             {criticalAlert.competitor_name}
                           </div>
 
@@ -3471,7 +3483,7 @@ export default function Radar({
           <div
             className="shrink-0"
             style={{
-              borderTop: `1px solid ${orbitMode ? "#150f30" : "#0a1c0a"}`,
+              borderTop: `1px solid ${orbitMode ? "#150f30" : "#0d1020"}`,
               transition: "border-color 0.8s ease",
             }}
           >
@@ -3502,7 +3514,7 @@ export default function Radar({
             {/* Signal ticker — Gravity Field mode only */}
             {orbitMode && !isolated && tickerItems.length > 0 && (
               <div
-                className="relative h-7 overflow-hidden border-t border-[#0a1c0a]"
+                className="relative h-7 overflow-hidden border-t border-[#0d1020]"
                 style={{
                   maskImage:
                     "linear-gradient(to right, transparent, black 6%, black 94%, transparent)",
@@ -3592,7 +3604,7 @@ export default function Radar({
       >
         {/* ── Mobile swipe handle + sheet state indicator ── */}
         <div className="mb-4 flex flex-col items-center gap-2 lg:hidden">
-          <div className="h-[4px] w-10 rounded-full bg-[#1c3a1c]" />
+          <div className="h-[4px] w-10 rounded-full bg-[#1a2030]" />
           {selected && (
             <div className="flex items-center gap-1.5" role="group" aria-label="Sheet position">
               {(["peek", "half", "full"] as const).map((s) => (
@@ -3603,7 +3615,7 @@ export default function Radar({
                   style={{
                     width: sheetState === s ? "20px" : "6px",
                     height: "4px",
-                    background: sheetState === s ? "#00B4FF" : "#1c3a1c",
+                    background: sheetState === s ? "#00B4FF" : "#1a2030",
                   }}
                   aria-label={`${s} view`}
                   aria-pressed={sheetState === s}
@@ -3641,10 +3653,10 @@ export default function Radar({
                       {selected.competitor_name.charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.32em]" style={{ color: "rgba(0,180,255,0.5)" }}>
+                      <div className="mv-label" style={{ fontSize: 10, letterSpacing: "0.32em" }}>
                         Intelligence Report
                       </div>
-                      <h2 className="mt-0.5 text-[22px] font-bold leading-tight tracking-tight text-white">
+                      <h2 className="mv-title mt-0.5 text-[22px] font-bold leading-tight tracking-tight">
                         {selected.competitor_name}
                       </h2>
                     </div>
@@ -3742,7 +3754,7 @@ export default function Radar({
 
                 <button
                   onClick={() => setSelectedId(null)}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#1c3a1c] bg-[#071207] text-slate-400 transition-colors hover:border-[#2a4a2a] hover:bg-[#0c1e0c] hover:text-slate-200"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#1a2030] bg-[#070d18] text-slate-400 transition-colors hover:border-[#2a3548] hover:bg-[#0c1420] hover:text-slate-200"
                   aria-label="Close"
                 >
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
@@ -3775,7 +3787,7 @@ export default function Radar({
               )}
 
               {/* ── Assessment ──────────────────────────────────── */}
-              <div className="overflow-hidden rounded-[14px] border border-[#152415]" style={{ background: "#071507" }}>
+              <div className="overflow-hidden rounded-[14px] border border-[#0d1020]" style={{ background: "#03030c" }}>
                 {/* Movement-color accent line */}
                 <div
                   className="h-px w-full"
@@ -3794,7 +3806,7 @@ export default function Radar({
                       {selected.latest_interpretation_summary}
                     </p>
                   ) : (
-                    <div className="h-14 animate-pulse rounded-lg bg-[#0c1e0c]" />
+                    <div className="h-14 animate-pulse rounded-lg bg-[#0c1420]" />
                   )
                 ) : detailError ? (
                   // On detail error, fall back to pre-loaded interpretation summary
@@ -4112,7 +4124,7 @@ export default function Radar({
               {/* ── Evidence chain ──────────────────────────────── */}
               <div className="mt-5">
                 <div className="mb-3 flex items-center justify-between">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">
+                  <div className="mv-label" style={{ fontSize: 11 }}>
                     Evidence
                   </div>
                   <div className="text-[11px] uppercase tracking-[0.16em] text-slate-600">
@@ -4123,7 +4135,7 @@ export default function Radar({
                 {detailLoading ? (
                   <div className="space-y-2">
                     {[0, 1].map((i) => (
-                      <div key={i} className="h-16 animate-pulse rounded-[12px] bg-[#071507]" />
+                      <div key={i} className="h-16 animate-pulse rounded-[12px] bg-[#03030c]" />
                     ))}
                   </div>
                 ) : sortedSignals.length > 0 ? (
@@ -4136,7 +4148,7 @@ export default function Radar({
                           initial={{ opacity: 0, y: 6 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.28, ease: "easeOut", delay: si * 0.07 }}
-                          className="rounded-[12px] border border-[#152415] bg-[#060b06] p-3.5"
+                          className="rounded-[12px] border border-[#0d1020] bg-[#020208] p-3.5"
                         >
                           <div className="mb-2 flex items-center justify-between gap-2">
                             <div className="flex flex-wrap items-center gap-1.5">
@@ -4190,7 +4202,7 @@ export default function Radar({
 
                           {signal.previous_excerpt && signal.current_excerpt && (
                             <div className="space-y-1">
-                              <div className="rounded-[8px] bg-[#040a04] px-3 py-2">
+                              <div className="rounded-[8px] bg-[#020208] px-3 py-2">
                                 <span className="text-[10px] uppercase tracking-[0.12em] text-slate-600">
                                   Was
                                 </span>
@@ -4198,7 +4210,7 @@ export default function Radar({
                                   {signal.previous_excerpt}
                                 </p>
                               </div>
-                              <div className="rounded-[8px] bg-[#050e05] px-3 py-2">
+                              <div className="rounded-[8px] bg-[#03030c] px-3 py-2">
                                 <span className="text-[10px] uppercase tracking-[0.12em] text-slate-400">
                                   Now
                                 </span>
@@ -4208,12 +4220,31 @@ export default function Radar({
                               </div>
                             </div>
                           )}
+
+                          {/* Signal feedback — activates backend learning loops */}
+                          <div className="mt-2 flex items-center gap-1 border-t border-[#0d1020] pt-2">
+                            <span className="mv-micro text-slate-700 mr-1">Signal quality:</span>
+                            <button
+                              onClick={() => void submitSignalFeedback(signal.id, "valid")}
+                              className="rounded px-2 py-0.5 text-[10px] text-slate-600 transition-colors hover:bg-[rgba(0,180,255,0.08)] hover:text-[#00B4FF]"
+                              title="Mark as valid signal"
+                            >
+                              Valid
+                            </button>
+                            <button
+                              onClick={() => void submitSignalFeedback(signal.id, "noise")}
+                              className="rounded px-2 py-0.5 text-[10px] text-slate-600 transition-colors hover:bg-[rgba(239,68,68,0.08)] hover:text-red-400"
+                              title="Mark as noise"
+                            >
+                              Noise
+                            </button>
+                          </div>
                         </motion.div>
                       );
                     })}
                   </div>
                 ) : (
-                  <div className="rounded-[12px] border border-[#152415] bg-[#071507] px-4 py-3 text-center">
+                  <div className="rounded-[12px] border border-[#0d1020] bg-[#03030c] px-4 py-3 text-center">
                     <p className="text-sm text-slate-500">
                       {(selected.signals_pending ?? 0) > 0
                         ? `${selected.signals_pending} signal${selected.signals_pending === 1 ? "" : "s"} in analysis`
@@ -4287,7 +4318,7 @@ export default function Radar({
                     {detail.monitoredPages.map((p: MonitoredPage, i: number) => (
                       <span
                         key={i}
-                        className="rounded-full border border-[#152415] bg-[#071507] px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-slate-400"
+                        className="rounded-full border border-[#0d1020] bg-[#03030c] px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-slate-400"
                       >
                         {getPageTypeLabel(p.page_type)}
                       </span>
@@ -4411,7 +4442,7 @@ export default function Radar({
                     <div
                       key={competitor.competitor_id}
                       onClick={() => handleBlipClick(competitor.competitor_id)}
-                      className="group flex cursor-pointer items-center gap-3 rounded-[12px] border border-transparent px-3.5 py-3 transition-all hover:border-[#1c3a1c] hover:bg-[#06060d]"
+                      className="group flex cursor-pointer items-center gap-3 rounded-[12px] border border-transparent px-3.5 py-3 transition-all hover:border-[#1a2030] hover:bg-[#06060d]"
                       style={isActive ? {
                         borderLeftColor: `${color}45`,
                         borderLeftWidth: "2px",
