@@ -718,6 +718,25 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
   Without sticky: content scrolls away before the animation completes. Progress formula:
   `scrolled = vh - rect.top; raw = scrolled / sectionH`. Applied in `PipelineExperience.tsx`. (2026-03-20)
 
+- [B] Coverage health resolution is a 3-tier escalation chain:
+  Tier 1: `heal-coverage` (05:00 UTC) — heuristic URL repair (templates + link discovery). Handles blocked + unresolved.
+  Tier 2: `resolve-coverage` (05:30 UTC) — AI-powered URL suggestion (GPT-4o-mini, 3-5 candidates). Handles blocked/unresolved >48h, degraded >72h (baseline reset OR URL repair), challenge >7d (deactivate).
+  Tier 3: Deactivation — pages stuck >7d after AI attempt are deactivated with Sentry notification.
+  `degraded` pages: if sections ≥3 and avg content ≥100 chars → baseline reset (legitimate redesign). Otherwise → URL repair.
+  `challenge` pages excluded from heal-coverage (ScrapingBee handles at fetch time). resolve-coverage deactivates after 7d.
+  Do not add degraded/challenge to heal-coverage's BROKEN_STATES — resolve-coverage owns those states. (2026-03-21)
+
+- [B] `resolve-coverage` age gates prevent interference with `heal-coverage`:
+  blocked/unresolved: 48h (gives heal-coverage 2 daily runs to try heuristics first)
+  degraded: 72h (may self-resolve with next crawl cycle)
+  challenge: 7d (gives ScrapingBee a full week of retries)
+  These gates mean newly-broken pages are NOT immediately escalated to AI. (2026-03-21)
+
+- [B] Cross-pool signal deduplication (`lib/cross-pool-dedup.ts`) runs in all 6 promote handlers.
+  Match criteria: Jaccard word similarity ≥0.55 within 48h OR same signal_type within 6h.
+  Matched signals get +0.05 confidence boost (corroboration). Duplicate pool_events marked as "duplicate".
+  Pipeline_events record match reason + matched signal ID for observability. (2026-03-21)
+
 - `@sentry/nextjs` in radar-ui requires `instrumentation.ts` + `sentry.server.config.ts` +
   `sentry.edge.config.ts` for automatic server/edge error capture. Without these files, only
   manually-instrumented call sites (captureException, captureCheckIn) report to Sentry — unhandled
