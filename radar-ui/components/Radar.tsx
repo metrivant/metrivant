@@ -2923,7 +2923,7 @@ export default function Radar({
                                  : "rgba(100,116,139,0.88)";
 
                 // ── Ambient vs active opacity ───────────────────────────────
-                const ambientOp = selected ? 1.0 : 0.45;
+                const ambientOp = selected ? 1.0 : 0.85;
 
                 // ── Label text at each quadrant midpoint ────────────────────
                 const q1MidDeg = -45;
@@ -2947,7 +2947,7 @@ export default function Radar({
                     <g key={`hud-lbl-${deg}`}>
                       <text x={lx} y={ly - (valueText ? hudGap : 0)}
                         textAnchor="middle" dominantBaseline="middle"
-                        fill="#7dd3fc" fillOpacity={selected ? 0.55 : 0.25}
+                        fill="#7dd3fc" fillOpacity={selected ? 0.70 : 0.45}
                         fontFamily="var(--font-orbitron), ui-monospace, monospace"
                         fontSize={hudLabelSize} letterSpacing="0.22em">
                         {text}
@@ -2955,7 +2955,7 @@ export default function Radar({
                       {valueText && (
                         <text x={lx} y={ly + hudGap}
                           textAnchor="middle" dominantBaseline="middle"
-                          fill="#e2e8f0" fillOpacity={selected ? 0.85 : 0.25}
+                          fill="#e2e8f0" fillOpacity={selected ? 0.90 : 0.40}
                           fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
                           fontSize={hudValueSize} fontWeight="600" letterSpacing="0.10em">
                           {valueText}
@@ -2973,7 +2973,7 @@ export default function Radar({
 
                     {/* Base ring */}
                     <circle cx={CENTER} cy={CENTER} r={HUD_R}
-                      fill="none" stroke="rgba(100,180,255,0.10)" strokeWidth={Math.max(0.8, 1.2 / zoom)} />
+                      fill="none" stroke="rgba(100,180,255,0.25)" strokeWidth={Math.max(1.0, 1.8 / zoom)} />
 
                     {/* ── Q1: Signal quality — top-right (-85° to -5°) ─────── */}
                     {Array.from({ length: 8 }, (_, i) => {
@@ -2984,7 +2984,7 @@ export default function Radar({
                         <path key={`hud-q1-${i}`}
                           d={hudArcD(CENTER, CENTER, HUD_R, segStart, segEnd)}
                           fill="none"
-                          stroke={isActive ? "rgba(0,229,255,0.88)" : "rgba(255,255,255,0.07)"}
+                          stroke={isActive ? "rgba(0,229,255,0.88)" : "rgba(100,180,255,0.18)"}
                           strokeWidth={isActive ? 2.8 : 1.0}
                           strokeLinecap="round"
                         />
@@ -3001,7 +3001,7 @@ export default function Radar({
                         <path key={`hud-q2-${i}`}
                           d={hudArcD(CENTER, CENTER, HUD_R, segStart, segEnd)}
                           fill="none"
-                          stroke={isActive ? movColor : "rgba(255,255,255,0.07)"}
+                          stroke={isActive ? movColor : "rgba(100,180,255,0.18)"}
                           strokeWidth={isActive ? 2.8 : 1.0}
                           strokeLinecap="round"
                         />
@@ -3026,7 +3026,7 @@ export default function Radar({
                           y1={CENTER + innerR * Math.sin(tickRad)}
                           x2={CENTER + outerR * Math.cos(tickRad)}
                           y2={CENTER + outerR * Math.sin(tickRad)}
-                          stroke={isActive ? "rgba(245,158,11,0.88)" : "rgba(255,255,255,0.08)"}
+                          stroke={isActive ? "rgba(245,158,11,0.88)" : "rgba(100,180,255,0.18)"}
                           strokeWidth={isActive ? 2.0 : 0.8}
                           strokeLinecap="round"
                         />
@@ -3045,7 +3045,7 @@ export default function Radar({
                         <path key={`hud-q4-${i}`}
                           d={hudArcD(CENTER, CENTER, HUD_R, segStart, segEnd)}
                           fill="none"
-                          stroke={isActive ? freshColor : "rgba(255,255,255,0.07)"}
+                          stroke={isActive ? freshColor : "rgba(100,180,255,0.18)"}
                           strokeWidth={isActive ? 2.8 : 1.0}
                           strokeLinecap="round"
                         />
@@ -3101,7 +3101,7 @@ export default function Radar({
                       <text
                         x={CENTER} y={CENTER - HUD_R - Math.max(6, 12 / zoom)}
                         textAnchor="middle" dominantBaseline="middle"
-                        fill="#7dd3fc" fillOpacity="0.28"
+                        fill="#7dd3fc" fillOpacity="0.50"
                         fontFamily="var(--font-orbitron), ui-monospace, monospace"
                         fontSize={hudLabelSize} letterSpacing="0.24em">
                         {`${sorted.length} NODES · ACTIVE`}
@@ -3117,7 +3117,7 @@ export default function Radar({
                           y1={CENTER + (HUD_R - 4) * Math.sin(rad)}
                           x2={CENTER + (HUD_R + 4) * Math.cos(rad)}
                           y2={CENTER + (HUD_R + 4) * Math.sin(rad)}
-                          stroke="rgba(100,180,255,0.22)" strokeWidth="0.8"
+                          stroke="rgba(100,180,255,0.35)" strokeWidth={Math.max(0.8, 1.2 / zoom)}
                         />
                       );
                     })}
