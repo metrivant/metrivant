@@ -3099,12 +3099,12 @@ export default function Radar({
                     {/* ── Field-level node count in ambient state ─────────────── */}
                     {!selected && sorted.length > 0 && (
                       <text
-                        x={CENTER} y={CENTER - HUD_R - 8}
+                        x={CENTER} y={CENTER - HUD_R - Math.max(6, 12 / zoom)}
                         textAnchor="middle" dominantBaseline="middle"
                         fill="#7dd3fc" fillOpacity="0.28"
-                        fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
-                        fontSize="5.5" letterSpacing="0.24em">
-                        {`${sorted.length} NODES · DORMANT`}
+                        fontFamily="var(--font-orbitron), ui-monospace, monospace"
+                        fontSize={hudLabelSize} letterSpacing="0.24em">
+                        {`${sorted.length} NODES · ACTIVE`}
                       </text>
                     )}
 
