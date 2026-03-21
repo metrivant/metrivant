@@ -3777,10 +3777,10 @@ export default function Radar({
                   className="mb-3 rounded-[10px] border border-[#0f1c0f] px-3.5 py-2.5"
                   style={{ background: "#040904" }}
                 >
-                  <div className="mb-1 text-[9px] font-semibold uppercase tracking-[0.30em]" style={{ color: "rgba(100,116,139,0.55)" }}>
+                  <div className="mv-label mb-1" style={{ fontSize: 9, color: "rgba(100,116,139,0.55)" }}>
                     Detected Change
                   </div>
-                  <p className="text-[12px] leading-snug text-slate-300">
+                  <p className="mv-body-long text-[12px] text-slate-300">
                     {primarySignal.summary}
                   </p>
                 </div>
@@ -3796,31 +3796,29 @@ export default function Radar({
                   }}
                 />
                 <div className="px-4 py-3.5">
-                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: `${selectedColor}90` }}>
+                <div className="mv-label mb-2" style={{ fontSize: 11, color: `${selectedColor}90` }}>
                   Intelligence Assessment
                 </div>
                 {detailLoading ? (
-                  // While detail loads, show pre-loaded interpretation summary if available
                   selected.latest_interpretation_summary ? (
-                    <p className="text-sm leading-relaxed text-slate-400">
+                    <p className="mv-body-long text-[13px] text-slate-400">
                       {selected.latest_interpretation_summary}
                     </p>
                   ) : (
                     <div className="h-14 animate-pulse rounded-lg bg-[#0c1420]" />
                   )
                 ) : detailError ? (
-                  // On detail error, fall back to pre-loaded interpretation summary
                   selected.latest_interpretation_summary ? (
-                    <p className="text-sm leading-relaxed text-slate-400">
+                    <p className="mv-body-long text-[13px] text-slate-400">
                       {selected.latest_interpretation_summary}
                     </p>
                   ) : (
-                    <p className="text-sm leading-6 text-slate-500">
+                    <p className="mv-body text-[13px] text-slate-500">
                       Could not load intelligence. Try selecting again.
                     </p>
                   )
                 ) : primarySignal?.strategic_implication ? (
-                  <p className="text-sm leading-relaxed text-slate-300">
+                  <p className="mv-body-long text-[13px] text-slate-300">
                     {(() => {
                       const cl = confidenceLanguage(interpretationConf);
                       return cl.prefix ? <span style={{ color: cl.color }}>{cl.prefix}</span> : null;
@@ -3828,28 +3826,27 @@ export default function Radar({
                     {primarySignal.strategic_implication}
                   </p>
                 ) : primarySignal?.summary ? (
-                  <p className="text-sm leading-relaxed text-slate-400">
+                  <p className="mv-body-long text-[13px] text-slate-400">
                     {interpretationConf !== null && interpretationConf < 0.5 && (
                       <span className="text-slate-500">Early signal — </span>
                     )}
                     {primarySignal.summary}
                   </p>
                 ) : selected.radar_narrative ? (
-                  // Fallback: show radar narrative when no signal detail is available
-                  <p className="text-sm leading-relaxed text-slate-400">
+                  <p className="mv-body-long text-[13px] text-slate-400">
                     {selected.radar_narrative_generation_reason === "fallback" && (
                       <span className="text-slate-600">preliminary observation — </span>
                     )}
                     {selected.radar_narrative}
                   </p>
                 ) : detail?.signals && detail.signals.length === 0 ? (
-                  <p className="text-sm leading-6 text-slate-500">
+                  <p className="mv-body text-[13px] text-slate-500">
                     {(selected.signals_pending ?? 0) > 0
                       ? `${selected.signals_pending} signal${selected.signals_pending === 1 ? "" : "s"} in analysis — results arriving shortly.`
                       : "Monitoring active — no signals yet."}
                   </p>
                 ) : (
-                  <p className="text-sm leading-6 text-slate-500">
+                  <p className="mv-body text-[13px] text-slate-500">
                     Analyzing…
                   </p>
                 )}
@@ -3859,18 +3856,18 @@ export default function Radar({
               {/* ── Recommended action ──────────────────────────── */}
               {!detailLoading && primarySignal?.recommended_action && (
                 <div
-                  className="mt-3 rounded-[14px] border border-[#1a2d18] px-4 py-3.5"
+                  className="mt-3 rounded-[14px] border border-[#1a1830] px-4 py-3.5"
                   style={{
-                    background: "#070e07",
-                    borderLeftColor: `${selectedColor}55`,
+                    background: "#08061a",
+                    borderLeftColor: "rgba(139,92,246,0.35)",
                     borderLeftWidth: "2px",
                   }}
                 >
-                  <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: `${selectedColor}95` }}>
+                  <div className="mv-label mb-2 flex items-center gap-1.5" style={{ fontSize: 11, color: "rgba(139,92,246,0.75)" }}>
                     <span style={{ opacity: 0.7 }}>→</span>
                     <span>Strategic Advisory</span>
                   </div>
-                  <p className="text-sm leading-relaxed text-slate-200">
+                  <p className="mv-body-long text-[13px] text-slate-200">
                     {primarySignal.recommended_action}
                   </p>
                 </div>
@@ -3879,11 +3876,11 @@ export default function Radar({
               {/* ── Running Hypothesis ──────────────────────────── */}
               {!detailLoading && detail?.context?.hypothesis && (
                 <div
-                  className="mt-3 rounded-[14px] border border-[#1a2d18] px-4 py-3.5"
-                  style={{ background: "#070e07" }}
+                  className="mt-3 rounded-[14px] border border-[#18142a] px-4 py-3.5"
+                  style={{ background: "#06051a" }}
                 >
                   <div className="mb-2 flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: `${selectedColor}95` }}>
+                    <div className="mv-label flex items-center gap-1.5" style={{ fontSize: 11, color: "rgba(139,92,246,0.70)" }}>
                       <span style={{ opacity: 0.6 }}>◈</span>
                       <span>Running Hypothesis</span>
                     </div>

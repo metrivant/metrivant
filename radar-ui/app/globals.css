@@ -7,6 +7,9 @@
   --background: #000002;
   --foreground: #f0fdf4;
   --accent: #00B4FF;
+  --purple-dim: rgba(139,92,246,0.35);
+  --purple-ghost: rgba(139,92,246,0.08);
+  --purple-text: rgba(139,92,246,0.75);
 }
 
 @theme inline {

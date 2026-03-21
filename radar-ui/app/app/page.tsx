@@ -289,13 +289,13 @@ export default async function Page() {
             <div className="flex flex-col gap-y-[3px]">
               <div
                 className="text-[18px] font-bold leading-none text-white md:text-[20px]"
-                style={{ letterSpacing: "0.10em" }}
+                style={{ fontFamily: "var(--font-orbitron)", letterSpacing: "0.10em" }}
               >
                 METRIVANT
               </div>
               <div
-                className="hidden text-[9px] font-semibold uppercase md:block"
-                style={{ letterSpacing: "0.32em", color: "rgba(0,180,255,0.48)" }}
+                className="hidden text-[9px] font-semibold uppercase md:block tagline-sheen"
+                style={{ fontFamily: "var(--font-share-tech-mono)", letterSpacing: "0.32em", color: "rgba(0,180,255,0.48)" }}
               >
                 Competitive Intelligence
               </div>
