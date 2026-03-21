@@ -606,15 +606,14 @@ const BlipNode = memo(function BlipNode({
       onHoverStart={() => { setHovered(true); getAudioManager().playBlip(momentum); }}
       onHoverEnd={() => setHovered(false)}
     >
-      {/* Signal age atmospheric glow — larger + more diffuse in Gravity Mode (influence sphere) */}
-      {!isDimmed && !timeDimmed && signalAgeGlow > 0.18 && (
+      {/* Signal age atmospheric glow — subtle, reduced radius */}
+      {!isDimmed && !timeDimmed && signalAgeGlow > 0.30 && (
         <circle
           cx={x}
           cy={y}
-          r={orbitMode ? nodeSize + 34 : nodeSize + 16}
+          r={orbitMode ? nodeSize + 12 : nodeSize + 8}
           fill={color}
-          fillOpacity={orbitMode ? signalAgeGlow * 0.12 : signalAgeGlow * 0.08}
-          filter={orbitMode ? "url(#gravityGlow)" : "url(#blipGlow)"}
+          fillOpacity={orbitMode ? signalAgeGlow * 0.06 : signalAgeGlow * 0.04}
           style={{ pointerEvents: "none" }}
         />
       )}
@@ -1853,8 +1852,9 @@ export default function Radar({
               </div>
               {/* Right: mode toggle + latest change */}
               <div className="flex items-center gap-4">
-                {/* Radar mode toggle: Standard / ORBIT — Pro plan only */}
-                {plan === "pro" && <div
+                {/* Radar mode toggle + HUD — Pro plan only */}
+                {plan === "pro" && (<>
+                <div
                   className="flex items-center gap-0.5 rounded-[8px] p-0.5"
                   style={{
                     background: orbitMode ? "#07051a" : "#020208",
@@ -1886,7 +1886,28 @@ export default function Radar({
                   >
                     ORBIT
                   </button>
-                </div>}
+                </div>
+
+                {/* HUD sub-toggle — visible only in ORBIT mode */}
+                {orbitMode && (
+                  <button
+                    onClick={() => setOrbitHudActive((v) => !v)}
+                    className="rounded-[6px] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] transition-all duration-300"
+                    style={{
+                      background: orbitHudActive ? "rgba(203,213,225,0.10)" : "transparent",
+                      color: orbitHudActive ? "#e2e8f0" : "#3a4a5a",
+                      boxShadow: orbitHudActive
+                        ? "inset 0 0 0 1px rgba(203,213,225,0.28)"
+                        : "inset 0 0 0 1px rgba(30,30,40,0.6)",
+                      marginLeft: "4px",
+                    }}
+                    aria-label={orbitHudActive ? "Disable HUD overlay" : "Enable HUD overlay"}
+                    title="HUD — tactical intelligence overlay"
+                  >
+                    HUD
+                  </button>
+                )}
+                </>)}
 
                 {/* Latest change */}
                 {(() => {
@@ -2636,7 +2657,37 @@ export default function Radar({
                 transition: "opacity 0.4s ease, filter 0.8s ease",
                 filter: orbitMode && orbitHudActive ? "saturate(0) brightness(3.2)" : "none",
               }}>
-              {sorted.map((competitor, index) => (
+              {sorted.map((competitor, index) => {
+                // In ORBIT mode, skip rendering BlipNode for the central star —
+                // it renders as the sun circle instead (bigger, brighter, no offset)
+                const isCentralStar = orbitMode && competitor.competitor_id === centralStarId;
+                if (isCentralStar) {
+                  // Render a clickable invisible hit area + name label only
+                  const starPos = animatedOrbitPositions.get(competitor.competitor_id);
+                  if (starPos) {
+                    const starR = getNodeSize(Number(competitor.momentum_score ?? 0)) + 14;
+                    return (
+                      <g key={competitor.competitor_id} style={{ cursor: "pointer" }}
+                        onClick={() => handleBlipClick(competitor.competitor_id)}
+                      >
+                        <circle cx={starPos.x} cy={starPos.y} r={starR + 10}
+                          fill="transparent" />
+                        <text
+                          x={starPos.x} y={starPos.y + starR + 18}
+                          textAnchor="middle"
+                          fill="#ffffff" fillOpacity="0.85"
+                          fontSize="14" fontWeight="600"
+                          fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
+                          style={{ pointerEvents: "none", filter: "drop-shadow(0 0 8px rgba(0,180,255,0.6)) drop-shadow(0 1px 3px rgba(0,0,0,0.98))" }}
+                        >
+                          {competitor.competitor_name.length > 14 ? competitor.competitor_name.slice(0, 13) + "…" : competitor.competitor_name}
+                        </text>
+                      </g>
+                    );
+                  }
+                  return null;
+                }
+                return (
                 <BlipNode
                   key={competitor.competitor_id}
                   competitor={competitor}
@@ -2653,9 +2704,7 @@ export default function Radar({
                       ? (() => {
                           const pos = animatedOrbitPositions.get(competitor.competitor_id);
                           if (!pos) return undefined;
-                          const mass  = getNodeMass(competitor);
-                          const depth = Math.min(mass * 8, 70);
-                          return { x: pos.x, y: pos.y + depth };
+                          return { x: pos.x, y: pos.y };
                         })()
                       : standardPositions.get(competitor.competitor_id)
                   }
@@ -2678,7 +2727,8 @@ export default function Radar({
                   orbitShell={orbitMode ? (orbitDataMap.get(competitor.competitor_id)?.shell ?? null) : null}
                   onOrbitHover={orbitMode ? handleOrbitHover : undefined}
                 />
-              ))}
+              );
+              })}
               </g>
 
               {/* ── Empty state — no blips ──────────────────────────── */}
