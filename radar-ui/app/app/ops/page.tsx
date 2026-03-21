@@ -8,6 +8,7 @@ import { createClient } from "../../../lib/supabase/server";
 import { createServiceClient } from "../../../lib/supabase/service";
 import { RepairActionRow } from "./RepairActionRow";
 import PipelineTrigger from "../../../components/PipelineTrigger";
+import OpsAutoRefresh from "./OpsAutoRefresh";
 
 export const dynamic = "force-dynamic";
 
@@ -140,6 +141,23 @@ type RepairSuggestionRow = {
   confidence:        number;
   rationale:         string | null;
   created_at:        string;
+};
+
+type FeedHealthRow = {
+  id:                   string;
+  feed_url:             string;
+  pool_type:            string;
+  feed_health_state:    string | null;
+  last_health_check_at: string | null;
+  competitors:          { name: string } | null;
+};
+
+type StaleCompetitorRow = {
+  id:             string;
+  name:           string;
+  last_signal_at: string | null;
+  page_count:     number;
+  healthy_pages:  number;
 };
 
 // ── Aggregation helpers ───────────────────────────────────────────────────────
@@ -437,6 +455,82 @@ export default async function OpsPage() {
     repairRows = (data ?? []) as RepairSuggestionRow[];
   } catch { /* non-fatal */ }
 
+  // ── Feed Health ────────────────────────────────────────────────────────────
+  let feedHealthRows: FeedHealthRow[] = [];
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (service as any)
+      .from("competitor_feeds")
+      .select("id, feed_url, pool_type, feed_health_state, last_health_check_at, competitors(name)")
+      .not("feed_url", "is", null)
+      .not("feed_health_state", "is", null)
+      .order("feed_health_state");
+    feedHealthRows = (data ?? []) as FeedHealthRow[];
+  } catch { /* non-fatal */ }
+
+  // ── Stale Competitors ────────────────────────────────────────────────────
+  let staleCompetitors: StaleCompetitorRow[] = [];
+  try {
+    const staleCutoff14d = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
+    // Get all competitors
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: allComps } = await (service as any)
+      .from("competitors")
+      .select("id, name, last_signal_at");
+    // Get active page counts
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: pageData } = await (service as any)
+      .from("monitored_pages")
+      .select("competitor_id, health_state")
+      .eq("active", true);
+    // Get signal counts in 14d window
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: sigData } = await (service as any)
+      .from("signals")
+      .select("competitor_id")
+      .gte("detected_at", staleCutoff14d);
+
+    const sigCounts = new Map<string, number>();
+    for (const s of (sigData ?? []) as { competitor_id: string }[]) {
+      sigCounts.set(s.competitor_id, (sigCounts.get(s.competitor_id) ?? 0) + 1);
+    }
+    const pageCounts = new Map<string, { total: number; healthy: number }>();
+    for (const p of (pageData ?? []) as { competitor_id: string; health_state: string | null }[]) {
+      const stats = pageCounts.get(p.competitor_id) ?? { total: 0, healthy: 0 };
+      stats.total++;
+      if (!p.health_state || p.health_state === "healthy" || p.health_state === "baseline_maturing") stats.healthy++;
+      pageCounts.set(p.competitor_id, stats);
+    }
+    for (const c of (allComps ?? []) as { id: string; name: string; last_signal_at: string | null }[]) {
+      const pg = pageCounts.get(c.id);
+      if (!pg || pg.total === 0) continue;
+      if ((sigCounts.get(c.id) ?? 0) > 0) continue;
+      staleCompetitors.push({
+        id: c.id,
+        name: c.name,
+        last_signal_at: c.last_signal_at,
+        page_count: pg.total,
+        healthy_pages: pg.healthy,
+      });
+    }
+  } catch { /* non-fatal */ }
+
+  // ── Cross-Pool Dedup Stats (24h) ─────────────────────────────────────────
+  let dedupCount = 0;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: dedupRows } = await (service as any)
+      .from("pipeline_events")
+      .select("metadata")
+      .gte("created_at", ago24h)
+      .eq("status", "skipped")
+      .limit(500);
+    for (const r of (dedupRows ?? []) as { metadata: Record<string, unknown> | null }[]) {
+      const reason = r.metadata?.reason as string | undefined;
+      if (reason && reason.startsWith("cross_pool_dedup")) dedupCount++;
+    }
+  } catch { /* non-fatal */ }
+
   // ── Aggregations ─────────────────────────────────────────────────────────────
   const stageStats    = aggregateStages(pipelineEvts);
   const signalQuality = aggregateSignals(signalRows);
@@ -525,8 +619,8 @@ export default async function OpsPage() {
               Pipeline Observatory
             </h1>
             <p className="mt-1.5 max-w-lg text-[13px] leading-relaxed text-slate-500">
-              Real-time view of pipeline health, signal quality, and cron execution.
-              Data refreshes on each page load.
+              Real-time pipeline health, signal quality, feed health, and cron execution.
+              Auto-refreshes every 30 seconds.
             </p>
             <div className="mt-3">
               <PipelineTrigger />
@@ -891,8 +985,152 @@ export default async function OpsPage() {
             </section>
           )}
 
+          {/* ═══════════════════════════════════════════════════════════════
+              SECTION 09 — Feed Health
+          ═══════════════════════════════════════════════════════════════ */}
+          <section>
+            <SectionHeader
+              index="09"
+              title="Feed Health"
+              subtitle={
+                feedHealthRows.length === 0
+                  ? "No feed health data — run check-feed-health or apply migration 062"
+                  : `${feedHealthRows.length} feeds checked · ${feedHealthRows.filter((f) => f.feed_health_state !== "healthy").length} non-healthy`
+              }
+            />
+            {feedHealthRows.length === 0 ? (
+              <EmptyState message="Feed health check has not run yet. Weekly cron: Sunday 06:00 UTC." />
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {(["healthy", "stale", "blocked", "unreachable"] as const).map((state) => {
+                  const count = feedHealthRows.filter((f) => f.feed_health_state === state).length;
+                  const color = state === "healthy" ? "#00B4FF" : state === "stale" ? "#f59e0b" : "#ef4444";
+                  return (
+                    <div key={state} className="rounded-[14px] border border-[#0e1e0e] bg-[#020208] px-4 py-4">
+                      <div className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-700">{state}</div>
+                      <div className="font-mono text-[26px] font-bold tabular-nums leading-none" style={{ color }}>{count}</div>
+                      <div className="mt-1.5 text-[10px] text-slate-700">feeds</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {feedHealthRows.filter((f) => f.feed_health_state !== "healthy").length > 0 && (
+              <div className="mt-3 overflow-hidden rounded-[14px] border border-[#0e1e0e]">
+                <table className="w-full text-[12px]">
+                  <thead>
+                    <tr className="border-b border-[#0e1e0e] bg-[#020208]">
+                      <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Competitor</th>
+                      <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Pool</th>
+                      <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">URL</th>
+                      <th className="px-4 py-2.5 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">State</th>
+                      <th className="px-4 py-2.5 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Checked</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {feedHealthRows.filter((f) => f.feed_health_state !== "healthy").map((row) => {
+                      const color = row.feed_health_state === "stale" ? "#f59e0b" : "#ef4444";
+                      return (
+                        <tr key={row.id} className="border-b border-[#0a0a1a] last:border-0 transition-colors hover:bg-[#040c04]">
+                          <td className="px-4 py-3 font-mono text-[11px] text-slate-300">{row.competitors?.name ?? "—"}</td>
+                          <td className="px-4 py-3 font-mono text-[11px] text-slate-500">{row.pool_type}</td>
+                          <td className="max-w-[200px] truncate px-4 py-3 font-mono text-[11px] text-slate-700">{row.feed_url}</td>
+                          <td className="px-4 py-3 text-right">
+                            <span className="font-mono text-[10px] font-bold" style={{ color }}>{row.feed_health_state}</span>
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono text-[10px] text-slate-700">
+                            {row.last_health_check_at ? formatAge(row.last_health_check_at) : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          {/* ═══════════════════════════════════════════════════════════════
+              SECTION 10 — Stale Competitors
+          ═══════════════════════════════════════════════════════════════ */}
+          <section>
+            <SectionHeader
+              index="10"
+              title="Stale Competitors"
+              subtitle={
+                staleCompetitors.length === 0
+                  ? "All competitors producing signals within 14-day window"
+                  : `${staleCompetitors.length} competitor${staleCompetitors.length !== 1 ? "s" : ""} with zero signals in 14 days`
+              }
+            />
+            {staleCompetitors.length === 0 ? (
+              <EmptyState message="All monitored competitors have recent signal activity." />
+            ) : (
+              <div className="overflow-hidden rounded-[14px] border border-[#0e1e0e]">
+                <table className="w-full text-[12px]">
+                  <thead>
+                    <tr className="border-b border-[#0e1e0e] bg-[#020208]">
+                      <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Competitor</th>
+                      <th className="px-4 py-2.5 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Pages</th>
+                      <th className="px-4 py-2.5 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Healthy</th>
+                      <th className="px-4 py-2.5 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Last Signal</th>
+                      <th className="px-4 py-2.5 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {staleCompetitors.map((c) => {
+                      const isDead = c.healthy_pages === 0;
+                      const color = isDead ? "#ef4444" : "#f59e0b";
+                      return (
+                        <tr key={c.id} className="border-b border-[#0a0a1a] last:border-0 transition-colors hover:bg-[#040c04]">
+                          <td className="px-4 py-3 font-mono text-[11px] text-slate-300">{c.name}</td>
+                          <td className="px-4 py-3 text-right font-mono text-[11px] tabular-nums text-slate-500">{c.page_count}</td>
+                          <td className="px-4 py-3 text-right font-mono text-[11px] tabular-nums text-slate-500">{c.healthy_pages}</td>
+                          <td className="px-4 py-3 text-right font-mono text-[10px] text-slate-700">
+                            {c.last_signal_at ? formatAge(c.last_signal_at) : "never"}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <span className="font-mono text-[10px] font-bold" style={{ color }}>
+                              {isDead ? "DEAD" : "STALE"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          {/* ═══════════════════════════════════════════════════════════════
+              SECTION 11 — Cross-Pool Dedup (24h)
+          ═══════════════════════════════════════════════════════════════ */}
+          <section>
+            <SectionHeader
+              index="11"
+              title="Cross-Pool Deduplication"
+              subtitle="Duplicate signals prevented across pool boundaries · last 24h"
+            />
+            <div className="rounded-[14px] border border-[#0e1e0e] bg-[#020208] px-4 py-4">
+              <div className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-700">
+                Duplicates Prevented
+              </div>
+              <div
+                className="font-mono text-[26px] font-bold tabular-nums leading-none"
+                style={{ color: dedupCount > 0 ? "#00B4FF" : "rgba(148,163,184,0.4)" }}
+              >
+                {dedupCount}
+              </div>
+              <div className="mt-1.5 text-[10px] text-slate-700">
+                {dedupCount > 0 ? "cross-pool duplicates caught and suppressed" : "no cross-pool duplicates detected in 24h window"}
+              </div>
+            </div>
+          </section>
+
         </div>
       </div>
+      <OpsAutoRefresh />
     </div>
   );
 }
