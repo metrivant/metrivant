@@ -7,6 +7,8 @@ import { createHash } from "crypto";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "../lib/rate-limit";
 import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
 import { loadActiveNoiseRules, isNoiseSuppressed } from "../lib/noise-pattern-learner";
+import { loadDampeningStates, shouldDampen } from "../lib/velocity-dampener";
+import { loadCalibrationWeights } from "../lib/confidence-calibrator";
 
 // ── Signal weight constants ───────────────────────────────────────────────────
 // Base confidence contribution by section type.
@@ -327,6 +329,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     // SECTION_WEIGHTS for section_types with sufficient operator feedback.
     const effectiveWeights: Record<string, number> = { ...SECTION_WEIGHTS };
     {
+      // Layer 1: calibration_reports (existing weekly calibrate-weights output)
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
       const { data: calibRow } = await supabase
         .from("calibration_reports")
@@ -341,6 +344,15 @@ async function handler(req: ApiReq, res: ApiRes) {
           if (typeof stat.section_type === "string" && typeof stat.adjusted_weight === "number") {
             effectiveWeights[stat.section_type] = stat.adjusted_weight;
           }
+        }
+      }
+
+      // Layer 2: confidence_calibration (feedback-driven multipliers)
+      // Applied on top of Layer 1 weights — compounds both calibration sources.
+      const calibWeights = await loadCalibrationWeights();
+      for (const [sectionType, multiplier] of calibWeights) {
+        if (effectiveWeights[sectionType] != null) {
+          effectiveWeights[sectionType] = Math.round(effectiveWeights[sectionType] * multiplier * 1000) / 1000;
         }
       }
     }
@@ -401,6 +413,10 @@ async function handler(req: ApiReq, res: ApiRes) {
     )];
     const noiseRuleMap = await loadActiveNoiseRules(noiseRuleCompIds);
     let suppressedByNoiseRule = 0;
+
+    // ── Pre-batch: load velocity dampening states ────────────────────────
+    const dampeningStates = await loadDampeningStates(noiseRuleCompIds);
+    let suppressedByVelocity = 0;
 
     for (const diff of eligibleDiffs) {
       rowsProcessed += 1;
@@ -550,6 +566,20 @@ async function handler(req: ApiReq, res: ApiRes) {
           ? "pending"
           : "pending_review";
 
+        // ── Velocity dampening check ────────────────────────────────────────
+        const dampState = dampeningStates.get(competitorId);
+        if (dampState && shouldDampen(dampState)) {
+          await supabase
+            .from("section_diffs")
+            .update({ signal_detected: true, is_noise: true, noise_reason: "velocity_anomaly" })
+            .eq("id", diff.id);
+          suppressedByVelocity += 1;
+          signalsSuppressed += 1;
+          rowsSucceeded += 1;
+          void recordEvent({ run_id: runId, stage: "signal", status: "skipped", section_diff_id: diff.id, monitored_page_id: diff.monitored_page_id, duration_ms: elapsed(), metadata: { suppressed_by: "velocity_anomaly", cap: dampState.capForRun, created: dampState.signalsCreatedThisRun } });
+          continue;
+        }
+
         // ── Upsert signal ─────────────────────────────────────────────────────
         // Base payload — always safe to write (columns exist in all schema versions).
         const baseSignalPayload = {
@@ -656,6 +686,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       signalsSuppressed,
       suppressedByNoise,
       suppressedByNoiseRule,
+      suppressedByVelocity,
       suppressedByLowConfidence,
       signalsDeduplicated,
       signalsPendingReview,
@@ -692,6 +723,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       signalsSuppressed,
       suppressedByNoise,
       suppressedByNoiseRule,
+      suppressedByVelocity,
       suppressedByLowConfidence,
       signalsDeduplicated,
       signalsPendingReview,

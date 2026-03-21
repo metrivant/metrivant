@@ -4,6 +4,7 @@ import { Sentry } from "../lib/sentry";
 import { verifyCronSecret } from "../lib/withCronAuth";
 import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
 import { learnNoisePatterns } from "../lib/noise-pattern-learner";
+import { calibrateConfidence } from "../lib/confidence-calibrator";
 
 // Weekly cron: learns noise patterns from signal_feedback verdicts.
 // Runs Sunday 07:00 UTC (after feed health check at 06:00).
@@ -18,6 +19,9 @@ async function handler(req: ApiReq, res: ApiRes) {
   try {
     const result = await learnNoisePatterns();
 
+    // Also run confidence calibration (same weekly cadence, same data source)
+    const calibResult = await calibrateConfidence();
+
     void recordEvent({
       run_id: runId,
       stage: "noise_pattern_learn",
@@ -28,6 +32,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         rules_created: result.rulesCreated,
         rules_updated: result.rulesUpdated,
         rules_deactivated: result.rulesDeactivated,
+        calibration_sections: calibResult.sectionsCalibrated,
       },
     });
 
@@ -45,6 +50,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       ok: true,
       job: "learn-noise-patterns",
       ...result,
+      calibrationSections: calibResult.sectionsCalibrated,
       runtimeDurationMs: elapsed(),
     });
   } catch (error) {
