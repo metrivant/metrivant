@@ -131,20 +131,20 @@ export default function AboutPage() {
           </svg>
 
           <div
-            className="mb-3 text-[11px] font-medium uppercase tracking-[0.34em]"
-            style={{ color: "rgba(0,180,255,0.55)" }}
+            className="mv-label mb-3"
+            style={{ fontSize: 11, letterSpacing: "0.34em" }}
           >
-            Competitive Intelligence Radar
+            Competitive Intelligence
           </div>
 
-          <h1 className="text-[44px] font-bold leading-[1.08] tracking-tight text-white md:text-[58px]">
+          <h1 className="mv-title text-[44px] leading-[1.08] font-bold tracking-tight md:text-[58px]">
             Strategic movement,<br />made visible.
           </h1>
 
-          <p className="mx-auto mt-6 max-w-sm text-[15px] leading-relaxed text-slate-500">
-            Metrivant is a competitive intelligence radar. It continuously watches competitor movement and surfaces signals that matter.
+          <p className="mv-body mx-auto mt-6 max-w-sm text-[15px]">
+            Metrivant is a competitive intelligence system. It continuously watches competitor movement and surfaces signals that matter.
           </p>
-          <p className="mx-auto mt-3 max-w-sm text-[15px] leading-relaxed text-slate-500">
+          <p className="mv-body mx-auto mt-3 max-w-sm text-[15px]">
             See strategic shifts before they happen.
           </p>
 
@@ -178,13 +178,13 @@ export default function AboutPage() {
       <section className="border-t border-[#0e1022] px-6 py-28">
         <div className="mx-auto max-w-5xl">
           <div className="mb-14 text-center">
-            <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.28em] text-slate-600">
+            <div className="mv-label mb-3">
               Capabilities
             </div>
-            <h2 className="text-[26px] font-bold tracking-tight text-white md:text-[34px]">
+            <h2 className="mv-title text-[26px] font-bold tracking-tight md:text-[34px]">
               Four intelligence surfaces.
             </h2>
-            <p className="mt-3 text-[14px] text-slate-500">
+            <p className="mv-body mt-3 text-[14px]">
               Every type of competitor movement — monitored and surfaced.
             </p>
           </div>
@@ -201,7 +201,7 @@ export default function AboutPage() {
                 </svg>
               </div>
               <div className="mb-2 text-[13px] font-semibold text-white">Pricing Intelligence</div>
-              <p className="text-[12px] leading-relaxed text-slate-500">
+              <p className="mv-body">
                 Detect strategy shifts before they impact your pipeline.
               </p>
             </div>
@@ -222,7 +222,7 @@ export default function AboutPage() {
                 </svg>
               </div>
               <div className="mb-2 text-[13px] font-semibold text-white">Product Expansion</div>
-              <p className="text-[12px] leading-relaxed text-slate-500">
+              <p className="mv-body">
                 See new features as rivals build them — not when they announce them.
               </p>
             </div>
@@ -239,7 +239,7 @@ export default function AboutPage() {
                 </svg>
               </div>
               <div className="mb-2 text-[13px] font-semibold text-white">Market Repositioning</div>
-              <p className="text-[12px] leading-relaxed text-slate-500">
+              <p className="mv-body">
                 Track positioning shifts, messaging pivots, and audience targeting as they happen.
               </p>
             </div>
@@ -254,7 +254,7 @@ export default function AboutPage() {
                 </svg>
               </div>
               <div className="mb-2 text-[13px] font-semibold text-white">Momentum Tracking</div>
-              <p className="text-[12px] leading-relaxed text-slate-500">
+              <p className="mv-body">
                 Know which rivals are accelerating — and measure exactly how fast.
               </p>
             </div>
@@ -267,10 +267,10 @@ export default function AboutPage() {
       <section className="border-t border-[#0e1022] px-6 py-28">
         <div className="mx-auto max-w-5xl">
           <div className="mb-16 text-center">
-            <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.28em] text-slate-600">
+            <div className="mv-label mb-3">
               Pipeline
             </div>
-            <h2 className="text-[26px] font-bold tracking-tight text-white md:text-[34px]">
+            <h2 className="mv-title text-[26px] font-bold tracking-tight md:text-[34px]">
               From page change to strategic insight.
             </h2>
           </div>
@@ -316,7 +316,7 @@ export default function AboutPage() {
                   </span>
                 </div>
                 <div className="mb-2 text-[14px] font-bold text-white">{step.label}</div>
-                <p className="text-[12px] leading-relaxed text-slate-500">{step.desc}</p>
+                <p className="mv-body">{step.desc}</p>
               </div>
             ))}
           </div>
@@ -327,10 +327,10 @@ export default function AboutPage() {
       <section className="border-t border-[#0e1022] px-6 py-28">
         <div className="mx-auto max-w-5xl">
           <div className="mb-14 text-center">
-            <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.28em] text-slate-600">
+            <div className="mv-label mb-3">
               Strategic value
             </div>
-            <h2 className="text-[26px] font-bold tracking-tight text-white md:text-[34px]">
+            <h2 className="mv-title text-[26px] font-bold tracking-tight md:text-[34px]">
               Three questions. Always answered.
             </h2>
           </div>
@@ -368,10 +368,10 @@ export default function AboutPage() {
       <section className="border-t border-[#0e1022] px-6 py-28">
         <div className="mx-auto max-w-5xl">
           <div className="mb-14 text-center">
-            <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.28em] text-slate-600">
+            <div className="mv-label mb-3">
               Intelligence lenses
             </div>
-            <h2 className="text-[26px] font-bold tracking-tight text-white md:text-[34px]">
+            <h2 className="mv-title text-[26px] font-bold tracking-tight md:text-[34px]">
               Multiple ways to read the market.
             </h2>
           </div>
@@ -391,11 +391,11 @@ export default function AboutPage() {
                   <circle cx="105" cy="30" r="4" fill="#00B4FF" />
                 </svg>
               </div>
-              <div className="mb-3 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-[#00B4FF]">
+              <div className="mv-label mb-3">
                 Radar
               </div>
               <div className="mb-2 text-[14px] font-semibold text-white">The primary instrument.</div>
-              <p className="text-[12px] leading-relaxed text-slate-500">
+              <p className="mv-body">
                 Competitors plotted by momentum. See who is accelerating, who is quiet,
                 and who is repositioning — at a glance.
               </p>
@@ -413,11 +413,11 @@ export default function AboutPage() {
                   <circle cx="78" cy="72" r="3.5" fill="#00B4FF" fillOpacity="0.3" />
                 </svg>
               </div>
-              <div className="mb-3 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-[#00B4FF]">
+              <div className="mv-label mb-3">
                 Market Map
               </div>
               <div className="mb-2 text-[14px] font-semibold text-white">Positioning in two dimensions.</div>
-              <p className="text-[12px] leading-relaxed text-slate-500">
+              <p className="mv-body">
                 Where rivals sit on the specialist-to-platform and SMB-to-enterprise axes —
                 and how those positions are shifting.
               </p>
@@ -435,11 +435,11 @@ export default function AboutPage() {
                   <line x1="83" y1="55"  x2="103" y2="55" stroke="#00B4FF" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
               </div>
-              <div className="mb-3 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-[#00B4FF]">
+              <div className="mv-label mb-3">
                 Strategy
               </div>
               <div className="mb-2 text-[14px] font-semibold text-white">Cross-competitor patterns.</div>
-              <p className="text-[12px] leading-relaxed text-slate-500">
+              <p className="mv-body">
                 When multiple rivals move in the same direction simultaneously,
                 Metrivant names the pattern and recommends a response.
               </p>
@@ -452,7 +452,7 @@ export default function AboutPage() {
       {/* ── 6. TRUST ────────────────────────────────────────────────────────── */}
       <section className="border-t border-[#0e1022] px-6 py-24 text-center">
         <div className="mx-auto max-w-3xl">
-          <div className="mb-4 text-[10px] font-bold uppercase tracking-[0.28em] text-slate-600">
+          <div className="mv-label mb-4">
             Infrastructure
           </div>
           <h2 className="mb-10 text-[22px] font-bold text-white md:text-[28px]">
@@ -500,10 +500,10 @@ export default function AboutPage() {
       <section id="pricing" className="px-6 pb-28 pt-24">
         <div className="mx-auto max-w-5xl">
           <div className="mb-14 text-center">
-            <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.28em] text-slate-600">
+            <div className="mv-label mb-3">
               Pricing
             </div>
-            <h2 className="text-[26px] font-bold tracking-tight text-white md:text-[34px]">
+            <h2 className="mv-title text-[26px] font-bold tracking-tight md:text-[34px]">
               Simple plans.
             </h2>
             <p className="mt-3 text-[14px] text-slate-500">
