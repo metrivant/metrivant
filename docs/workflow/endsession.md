@@ -119,6 +119,24 @@ Then continue with fast-path steps 2–5.
 
 ---
 
+## METRIVANT PERFECT STATE — THE DESTINATION
+
+Metrivant in its perfect state is a **fully autonomous competitive intelligence system** that requires zero operator intervention to produce world-class strategic output. Specifically:
+
+**Input layer (zero-touch):** The system continuously discovers new competitors from media signals, onboards them automatically, monitors every relevant page, ingests every available feed across all 7 pools, and self-repairs any broken URL, stale feed, or drifted selector without human awareness.
+
+**Detection layer (zero-noise):** Every change detected is either a genuine competitive signal or is silently suppressed by learned noise patterns. Cross-pool deduplication ensures each real-world event produces exactly one signal regardless of how many detection paths surface it. Confidence scoring is self-calibrating — the system learns from operator feedback and adjusts its own thresholds.
+
+**Intelligence layer (zero-hallucination):** AI interpretations are validated against evidence before reaching the user. Strategic movements are synthesized only from verified signals. Sector narratives are grounded in multi-source media clusters. Weekly briefs read like they were written by a senior analyst who spent 40 hours researching — but they took zero hours.
+
+**Output layer (zero-latency):** Critical movements surface in real-time via alerts. The radar renders competitive reality as it happens. Strategic patterns are detected the moment a second competitor exhibits the same behaviour. The operator opens the product, sees the truth, and acts.
+
+**Self-healing layer (zero-maintenance):** Coverage heals itself. Feeds repair themselves. Stale competitors are diagnosed and unblocked. Noise patterns are learned and suppressed. New competitors are discovered and onboarded. The system gets better every week without being touched.
+
+**The gap between current state and perfect state is the standing question below. Each session closes one gap.**
+
+---
+
 ## STANDING QUESTION — ASK AT EVERY SESSION END
 
 > "From a birds-eye view of the current system state: what is the single highest-leverage objective that Claude Code is capable of achieving at maximum capacity — the task that would take a human engineer the most calendar time, has a clear implementation path, and compounds the most value over time?"
