@@ -1057,6 +1057,131 @@ const BlipNode = memo(function BlipNode({
             return null;
         }
       })()}
+
+      {/* ── Hover tooltip preview — HUD-style intel panel ── */}
+      {hovered && !isSelected && !isDormantNode && (
+        <g style={{ pointerEvents: "none" }}>
+          {(() => {
+            // Position tooltip offset from node (right side, avoid covering node)
+            const tooltipX = x + nodeSize + 35;
+            const tooltipY = y - 32;
+            const tooltipWidth = 140;
+            const tooltipHeight = 68;
+            const conf = competitor.latest_movement_confidence ?? 0;
+            const movementType = competitor.latest_movement_type;
+
+            return (
+              <>
+                {/* Tooltip panel background */}
+                <rect
+                  x={tooltipX}
+                  y={tooltipY}
+                  width={tooltipWidth}
+                  height={tooltipHeight}
+                  rx="6"
+                  fill="rgba(2,2,8,0.92)"
+                  stroke="rgba(0,180,255,0.25)"
+                  strokeWidth="1"
+                  filter="drop-shadow(0 2px 8px rgba(0,0,0,0.85))"
+                />
+
+                {/* Competitor name */}
+                <text
+                  x={tooltipX + 8}
+                  y={tooltipY + 14}
+                  fill="#ffffff"
+                  fontSize="10"
+                  fontWeight="600"
+                  fontFamily="var(--font-orbitron)"
+                  letterSpacing="0.02em"
+                >
+                  {competitor.competitor_name.length > 16
+                    ? competitor.competitor_name.slice(0, 15) + "…"
+                    : competitor.competitor_name}
+                </text>
+
+                {/* Momentum score */}
+                <text
+                  x={tooltipX + 8}
+                  y={tooltipY + 30}
+                  fill="rgba(0,180,255,0.65)"
+                  fontSize="8"
+                  fontWeight="700"
+                  fontFamily="var(--font-orbitron)"
+                  letterSpacing="0.12em"
+                  style={{ textTransform: "uppercase" }}
+                >
+                  MOMENTUM
+                </text>
+                <text
+                  x={tooltipX + 8}
+                  y={tooltipY + 42}
+                  fill={color}
+                  fontSize="13"
+                  fontWeight="600"
+                  fontFamily="var(--font-orbitron)"
+                >
+                  {momentum.toFixed(1)}
+                </text>
+
+                {/* Movement type badge (if exists) */}
+                {movementType && (
+                  <g>
+                    <rect
+                      x={tooltipX + 8}
+                      y={tooltipY + 50}
+                      width={tooltipWidth - 16}
+                      height="12"
+                      rx="6"
+                      fill={`${color}22`}
+                      stroke={`${color}55`}
+                      strokeWidth="0.5"
+                    />
+                    <text
+                      x={tooltipX + tooltipWidth / 2}
+                      y={tooltipY + 59}
+                      textAnchor="middle"
+                      fill={color}
+                      fontSize="7"
+                      fontWeight="600"
+                      fontFamily="var(--font-orbitron)"
+                      letterSpacing="0.08em"
+                      style={{ textTransform: "uppercase" }}
+                    >
+                      {movementType.replace(/_/g, " ").slice(0, 18)}
+                    </text>
+                  </g>
+                )}
+
+                {/* Confidence bar (bottom of tooltip) */}
+                {conf > 0 && (
+                  <g>
+                    {/* Track */}
+                    <rect
+                      x={tooltipX + 8}
+                      y={tooltipY + tooltipHeight - 8}
+                      width={tooltipWidth - 16}
+                      height="3"
+                      rx="1.5"
+                      fill="rgba(13,16,32,0.85)"
+                    />
+                    {/* Fill */}
+                    <rect
+                      x={tooltipX + 8}
+                      y={tooltipY + tooltipHeight - 8}
+                      width={(tooltipWidth - 16) * conf}
+                      height="3"
+                      rx="1.5"
+                      fill={color}
+                      opacity="0.75"
+                    />
+                  </g>
+                )}
+              </>
+            );
+          })()}
+        </g>
+      )}
     </motion.g>
   );
 });
