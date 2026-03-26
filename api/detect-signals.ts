@@ -9,7 +9,7 @@ import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics"
 import { loadActiveNoiseRules, isNoiseSuppressed } from "../lib/noise-pattern-learner";
 import { loadDampeningStates, shouldDampen } from "../lib/velocity-dampener";
 import { loadCalibrationWeights } from "../lib/confidence-calibrator";
-import { detectNoise } from "../lib/noise-detection";
+import { detectNoise, calibrateConfidence } from "../lib/noise-detection";
 
 // ── Signal weight constants ───────────────────────────────────────────────────
 // Base confidence contribution by section type.
@@ -540,13 +540,17 @@ async function handler(req: ApiReq, res: ApiRes) {
         }
 
         // ── Confidence gate ───────────────────────────────────────────────────
-        const confidenceScore = computeConfidence(
+        const baseConfidence = computeConfidence(
           diff.section_type,
           diff.observation_count ?? 1,
           diff.last_seen_at,
           diff.page_class,
           effectiveWeights
         );
+
+        // Apply noise baseline calibration (Phase 2: Statistical baselines)
+        const calibration = await calibrateConfidence(baseConfidence, competitorId);
+        const confidenceScore = calibration.adjustedConfidence;
 
         if (confidenceScore < CONFIDENCE_SUPPRESS) {
           // Below suppression floor — mark diff processed, create no signal.

@@ -322,3 +322,60 @@ export async function detectNoise(params: {
   // Not noise
   return { isNoise: false };
 }
+
+// ── Confidence calibration based on competitor noise baseline ─────────────────
+
+export interface ConfidenceAdjustment {
+  adjustedConfidence: number;
+  adjustment: number;
+  noiseRate: number | null;
+}
+
+/**
+ * Calibrates signal confidence based on competitor's 30-day noise baseline.
+ *
+ * - Low noise rate (< 0.10): boost confidence by 0.08 (high-quality source)
+ * - Normal noise rate (0.10-0.30): no adjustment
+ * - High noise rate (> 0.30): reduce confidence proportionally (noisy source)
+ *
+ * Returns adjusted confidence clamped to [0.0, 1.0].
+ */
+export async function calibrateConfidence(
+  baseConfidence: number,
+  competitorId: string
+): Promise<ConfidenceAdjustment> {
+  const { data: baseline } = await supabase
+    .from("competitor_noise_baselines")
+    .select("noise_rate, total_diffs")
+    .eq("competitor_id", competitorId)
+    .single();
+
+  // No baseline yet or insufficient data — no adjustment
+  if (!baseline || baseline.total_diffs < 5) {
+    return {
+      adjustedConfidence: baseConfidence,
+      adjustment: 0,
+      noiseRate: null,
+    };
+  }
+
+  const noiseRate = baseline.noise_rate;
+  let adjustment = 0;
+
+  if (noiseRate < 0.10) {
+    // High-quality source — boost confidence
+    adjustment = 0.08;
+  } else if (noiseRate > 0.30) {
+    // Noisy source — reduce confidence proportionally
+    // At 0.30 → -0.00, at 0.50 → -0.10, at 0.70 → -0.20, at 1.00 → -0.35
+    adjustment = -((noiseRate - 0.30) * 0.5);
+  }
+
+  const adjustedConfidence = Math.max(0.0, Math.min(1.0, baseConfidence + adjustment));
+
+  return {
+    adjustedConfidence,
+    adjustment,
+    noiseRate,
+  };
+}
