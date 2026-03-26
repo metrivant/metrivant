@@ -23,9 +23,9 @@ const NOISE_THRESHOLD = 0.80; // 80% noise rate required to create rule
 
 interface PatternStats {
   org_id: string;
-  section_type: string;
+  section_type: string | null; // null = wildcard (any section)
   signal_type: string;
-  competitor_id: string | null;
+  competitor_id: string | null; // null = wildcard (any competitor)
   total: number;
   noise: number;
   noise_rate: number;

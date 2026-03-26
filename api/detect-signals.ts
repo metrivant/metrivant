@@ -408,11 +408,26 @@ async function handler(req: ApiReq, res: ApiRes) {
       }
     }
 
-    // ── Pre-batch: load active noise suppression rules ─────────────────────
+    // ── Pre-batch: load active noise suppression rules (semantic) ────────────
     const noiseRuleCompIds = [...new Set(
       eligibleDiffs.map((d) => d.monitored_pages?.competitor_id).filter(Boolean) as string[]
     )];
-    const noiseRuleMap = await loadActiveNoiseRules(noiseRuleCompIds);
+
+    // Get org_id from tracked_competitors (semantic rules are org-scoped)
+    let orgIdForRules: string | null = null;
+    if (noiseRuleCompIds.length > 0) {
+      const { data: trackedRows } = await supabase
+        .from("tracked_competitors")
+        .select("org_id")
+        .in("competitor_id", noiseRuleCompIds)
+        .limit(1)
+        .maybeSingle();
+      orgIdForRules = trackedRows?.org_id || null;
+    }
+
+    const noiseRuleMap = orgIdForRules
+      ? await loadActiveNoiseRules(orgIdForRules, noiseRuleCompIds)
+      : new Map();
     let suppressedByNoiseRule = 0;
 
     // ── Pre-batch: load velocity dampening states ────────────────────────
