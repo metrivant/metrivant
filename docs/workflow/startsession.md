@@ -482,7 +482,7 @@ print(json.dumps(rows, indent=2))
 
 ## 8. KNOWN SYSTEM BEHAVIOUR (do not mistake for bugs)
 
-**Quick triage index:** `radarClip` | `zoom-transform` | `background-tsc` | `cascade/FK` | `pipeline-tables` | `feeds-dormant` | `bootstrap-deadlock` | `onboard-url` | `CSS-grid/flex` | `sentry-monitors` | `maxDuration` | `pool-events-types` | `realtime-cdc` | `AI-handlers-timeout` | `competitor-sector` | `scrapingbee-fallback` | `sentry-alerting` | `pool-zero-result`
+**Quick triage index:** `radarClip` | `zoom-transform` | `SVG-rendering` | `background-tsc` | `cascade/FK` | `pipeline-tables` | `feeds-dormant` | `bootstrap-deadlock` | `onboard-url` | `CSS-grid/flex` | `sentry-monitors` | `maxDuration` | `pool-events-types` | `realtime-cdc` | `AI-handlers-timeout` | `competitor-sector` | `scrapingbee-fallback` | `sentry-alerting` | `pool-zero-result`
 Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
 
 - [B] `competitors` table has NO `sector` column. Sector is stored on `organizations` and reached via
@@ -505,6 +505,12 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
 
 - `zoom: 0.9` was removed from globals.css (2026-03-18, reversed later). Do not re-add it — it caused
   all text to render at 90% of declared size and caused subpixel blur on CSS-animated elements. (2026-03-18)
+
+- [B] SVG rendering quality (radar-ui): If SVG elements appear blurry or low-definition, apply
+  `shapeRendering: "geometricPrecision"` and `textRendering: "geometricPrecision"` to the root <svg>.
+  Reduce feGaussianBlur stdDeviation in filters by 30-40% (e.g., 8→5, 18→11, 9→6) to maintain glow
+  without sacrificing edge crispness. SVG viewBox should match render dimensions for pixel-perfect
+  clarity. Pattern applied in Radar.tsx (2026-03-26).
 
 - [I] `extract-sections` intentionally skips `fetch_quality='shell'` and `fetch_quality='js_rendered'` snapshots.
   The health endpoint counts ALL `sections_extracted=false` as backlog — this causes a false-positive
