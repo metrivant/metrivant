@@ -259,27 +259,41 @@ export async function learnNoisePatterns(): Promise<LearnResult> {
  * to avoid N+1 queries in the detect-signals loop.
  */
 export async function loadActiveNoiseRules(
+  orgId: string,
   competitorIds: string[]
 ): Promise<Map<string, string>> {
-  if (competitorIds.length === 0) return new Map();
+  if (!orgId) return new Map();
+
+  // Load semantic noise rules for this org (layered on top of autonomous detection)
+  // Supports three pattern granularities:
+  // 1. org + section + signal + competitor (most specific)
+  // 2. org + section + signal (competitor-agnostic)
+  // 3. org + signal (section-agnostic)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: rules } = await (supabase as any)
     .from("noise_suppression_rules")
-    .select("id, section_type, competitor_id, signal_type")
-    .eq("active", true)
-    .in("competitor_id", competitorIds);
+    .select("id, section_type, competitor_id, signal_type, rule_type")
+    .eq("org_id", orgId)
+    .eq("is_active", true); // Changed from "active" to "is_active"
 
-  // Build a lookup map: "section_type::competitor_id::signal_type" → rule_id
+  // Build lookup map supporting wildcard patterns
   const ruleMap = new Map<string, string>();
-  for (const r of (rules ?? []) as { id: string; section_type: string; competitor_id: string; signal_type: string }[]) {
-    ruleMap.set(`${r.section_type}::${r.competitor_id}::${r.signal_type}`, r.id);
+  for (const r of (rules ?? []) as { id: string; section_type: string | null; competitor_id: string | null; signal_type: string; rule_type: string | null }[]) {
+    const section = r.section_type || "*";
+    const competitor = r.competitor_id || "*";
+    const key = `${section}::${competitor}::${r.signal_type}`;
+    ruleMap.set(key, r.id);
   }
   return ruleMap;
 }
 
 /**
- * Check if a specific signal pattern is suppressed.
+ * Check if a specific signal pattern is suppressed (semantic noise rules).
+ * Checks three pattern levels (most specific to least specific):
+ * 1. section + competitor + signal
+ * 2. section + signal (any competitor)
+ * 3. signal only (any section, any competitor)
  */
 export function isNoiseSuppressed(
   ruleMap: Map<string, string>,
@@ -287,7 +301,19 @@ export function isNoiseSuppressed(
   competitorId: string,
   signalType: string,
 ): string | null {
-  return ruleMap.get(`${sectionType}::${competitorId}::${signalType}`) ?? null;
+  // Check most specific first
+  const specificKey = `${sectionType}::${competitorId}::${signalType}`;
+  if (ruleMap.has(specificKey)) return ruleMap.get(specificKey)!;
+
+  // Check section + signal (competitor-agnostic)
+  const sectionKey = `${sectionType}::*::${signalType}`;
+  if (ruleMap.has(sectionKey)) return ruleMap.get(sectionKey)!;
+
+  // Check signal only (section-agnostic, competitor-agnostic)
+  const signalKey = `*::*::${signalType}`;
+  if (ruleMap.has(signalKey)) return ruleMap.get(signalKey)!;
+
+  return null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

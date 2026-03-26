@@ -1,93 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "api/fetch-snapshots.ts": {
-      "maxDuration": 30
-    },
-    "api/extract-sections.ts": {
-      "maxDuration": 30
-    },
-    "api/build-baselines.ts": {
-      "maxDuration": 30
-    },
-    "api/detect-diffs.ts": {
-      "maxDuration": 30
-    },
-    "api/detect-signals.ts": {
-      "maxDuration": 30
-    },
-    "api/detect-ambient-activity.ts": {
-      "maxDuration": 30
-    },
-    "api/update-pressure-index.ts": {
-      "maxDuration": 30
-    },
-    "api/update-signal-velocity.ts": {
-      "maxDuration": 30
-    },
-    "api/detect-movements.ts": {
-      "maxDuration": 30
-    },
-    "api/promote-baselines.ts": {
-      "maxDuration": 30
-    },
-    "api/watchdog.ts": {
-      "maxDuration": 30
-    },
-    "api/health.ts": {
-      "maxDuration": 30
-    },
-    "api/ingest-feeds.ts": {
-      "maxDuration": 60
-    },
-    "api/ingest-careers.ts": {
-      "maxDuration": 60
-    },
-    "api/ingest-investor-feeds.ts": {
-      "maxDuration": 60
-    },
-    "api/ingest-product-feeds.ts": {
-      "maxDuration": 60
-    },
-    "api/ingest-procurement-feeds.ts": {
-      "maxDuration": 60
-    },
-    "api/ingest-regulatory-feeds.ts": {
-      "maxDuration": 60
-    },
-    "api/ingest-media-feeds.ts": {
-      "maxDuration": 60
-    },
-    "api/promote-feed-signals.ts": {
-      "maxDuration": 60
-    },
-    "api/promote-careers-signals.ts": {
-      "maxDuration": 60
-    },
-    "api/promote-investor-signals.ts": {
-      "maxDuration": 60
-    },
-    "api/promote-product-signals.ts": {
-      "maxDuration": 60
-    },
-    "api/promote-procurement-signals.ts": {
-      "maxDuration": 60
-    },
-    "api/promote-regulatory-signals.ts": {
-      "maxDuration": 60
-    },
-    "api/retention.ts": {
-      "maxDuration": 60
-    },
-    "api/reconcile-pool-events.ts": {
-      "maxDuration": 60
-    },
-    "api/detect-pool-sequences.ts": {
-      "maxDuration": 60
-    },
-    "api/interpret-signals.ts": {
-      "maxDuration": 30
-    },
     "api/synthesize-movement-narratives.ts": {
       "maxDuration": 90
     },
@@ -97,62 +10,29 @@
     "api/generate-sector-intelligence.ts": {
       "maxDuration": 90
     },
-    "api/suggest-selector-repairs.ts": {
-      "maxDuration": 60
-    },
     "api/onboard-competitor.ts": {
       "maxDuration": 90
     },
     "api/expand-coverage.ts": {
       "maxDuration": 90
     },
-    "api/attribute-pool-contexts.ts": {
-      "maxDuration": 60
-    },
     "api/heal-coverage.ts": {
       "maxDuration": 90
-    },
-    "api/calibrate-weights.ts": {
-      "maxDuration": 30
     },
     "api/backfill-feeds.ts": {
       "maxDuration": 90
     },
-    "api/promote-media-signals.ts": {
-      "maxDuration": 60
-    },
     "api/check-feed-health.ts": {
       "maxDuration": 90
     },
-    "api/detect-stale-competitors.ts": {
-      "maxDuration": 30
-    },
     "api/resolve-coverage.ts": {
       "maxDuration": 90
-    },
-    "api/learn-noise-patterns.ts": {
-      "maxDuration": 30
     },
     "api/repair-feeds.ts": {
       "maxDuration": 90
     },
     "api/suggest-competitors.ts": {
       "maxDuration": 90
-    },
-    "api/validate-interpretations.ts": {
-      "maxDuration": 60
-    },
-    "api/validate-movements.ts": {
-      "maxDuration": 60
-    },
-    "api/retry-failed-stages.ts": {
-      "maxDuration": 30
-    },
-    "api/update-noise-baselines.ts": {
-      "maxDuration": 30
-    },
-    "api/retrograde-signals.ts": {
-      "maxDuration": 30
     }
   },
   "crons": [
