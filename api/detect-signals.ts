@@ -9,6 +9,7 @@ import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics"
 import { loadActiveNoiseRules, isNoiseSuppressed } from "../lib/noise-pattern-learner";
 import { loadDampeningStates, shouldDampen } from "../lib/velocity-dampener";
 import { loadCalibrationWeights } from "../lib/confidence-calibrator";
+import { detectNoise } from "../lib/noise-detection";
 
 // ── Signal weight constants ───────────────────────────────────────────────────
 // Base confidence contribution by section type.
@@ -460,36 +461,47 @@ async function handler(req: ApiReq, res: ApiRes) {
           throw new Error(`Diff ${diff.id} missing section rows`);
         }
 
-        // Whitespace-only change: no semantic content moved — mark as noise, skip signal.
-        // This catches formatting-only deploys (indentation, line breaks) that survive
-        // the hash check but carry zero competitive intelligence.
-        if (previous.section_text.replace(/\s+/g, "") === current.section_text.replace(/\s+/g, "")) {
-          await supabase
-            .from("section_diffs")
-            .update({ signal_detected: true, is_noise: true, noise_reason: "whitespace_only" })
-            .eq("id", diff.id);
-          cStats.suppressedByNoise += 1;
-          suppressedByNoise += 1;
-          signalsSuppressed += 1;
-          rowsSucceeded += 1;
-          void recordEvent({ run_id: runId, stage: "signal", status: "skipped", section_diff_id: diff.id, monitored_page_id: diff.monitored_page_id, duration_ms: elapsed(), metadata: { signal_count: 0, signal_types: [], suppressed_by: "whitespace_only" } });
-          continue;
-        }
+        // ── Autonomous noise detection (8 filters, zero user input) ─────────────
+        const noiseResult = await detectNoise({
+          previousText: previous.section_text,
+          currentText: current.section_text,
+          sectionId: diff.current_section_id,
+          pageId: diff.monitored_page_id,
+          competitorId,
+          contentHash: current.section_hash,
+          detectedAt: new Date(diff.last_seen_at || Date.now()),
+        });
 
-        // Dynamic-content-only change: timestamps and tracking params rotated but
-        // no editorial content changed — zero competitive intelligence.
-        const prevNorm = normalizeForComparison(previous.section_text);
-        const currNorm = normalizeForComparison(current.section_text);
-        if (prevNorm === currNorm) {
-          await supabase
+        if (noiseResult.isNoise && noiseResult.reason) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase as any)
             .from("section_diffs")
-            .update({ signal_detected: true, is_noise: true, noise_reason: "dynamic_content_only" })
+            .update({
+              signal_detected: true,
+              is_noise: true,
+              noise_reason: noiseResult.reason,
+              // Store detection metadata for ops visibility (migration 068)
+              noise_metadata: noiseResult.metadata || null,
+            })
             .eq("id", diff.id);
           cStats.suppressedByNoise += 1;
           suppressedByNoise += 1;
           signalsSuppressed += 1;
           rowsSucceeded += 1;
-          void recordEvent({ run_id: runId, stage: "signal", status: "skipped", section_diff_id: diff.id, monitored_page_id: diff.monitored_page_id, duration_ms: elapsed(), metadata: { signal_count: 0, signal_types: [], suppressed_by: "dynamic_content_only" } });
+          void recordEvent({
+            run_id: runId,
+            stage: "signal",
+            status: "skipped",
+            section_diff_id: diff.id,
+            monitored_page_id: diff.monitored_page_id,
+            duration_ms: elapsed(),
+            metadata: {
+              signal_count: 0,
+              signal_types: [],
+              suppressed_by: noiseResult.reason,
+              noise_metadata: noiseResult.metadata,
+            }
+          });
           continue;
         }
 
