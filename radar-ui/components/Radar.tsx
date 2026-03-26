@@ -2170,14 +2170,10 @@ export default function Radar({
                 style={{ opacity: 0 }}
               />
 
-              {/* ── Rotating grid layer — rings, crosshairs, ticks ─── */}
+              {/* ── Static grid layer — rings, crosshairs, ticks ─── */}
               {/* Hidden in ORBIT mode — the circular instrument dissolves. */}
               <g style={{ opacity: orbitMode ? 0 : 1, transition: "opacity 0.8s ease" }}>
-              <motion.g
-                animate={{ rotate: 360 }}
-                transition={{ duration: 120, repeat: Infinity, ease: "linear" }}
-                style={{ transformOrigin: `${CENTER}px ${CENTER}px` }}
-              >
+              <g>
 
                 {/* ── Range rings ──────────────────────────────────── */}
                 {RING_FACTORS.map((factor) => (
@@ -2229,7 +2225,7 @@ export default function Radar({
                   />
                 ))}
 
-              </motion.g>
+              </g>
               </g>
 
               {/* ── Zone labels (CRITICAL / ACTIVE / WATCH / DORMANT) — outside clip ── */}
