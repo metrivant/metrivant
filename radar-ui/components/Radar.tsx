@@ -882,6 +882,57 @@ const BlipNode = memo(function BlipNode({
         style={{ transformOrigin: `${x}px ${y}px` }}
       />
 
+      {/* Confidence border ring — visual encoding of signal confidence */}
+      {!isDormantNode && !isSelected && (() => {
+        const conf = competitor.latest_movement_confidence ?? 0;
+        // High conf (≥0.65): solid border 1.5px
+        // Medium conf (0.40-0.64): dashed border 1px
+        // Low conf (<0.40): dotted border 0.5px
+        if (conf >= 0.65) {
+          return (
+            <circle
+              cx={x}
+              cy={y}
+              r={nodeSize + 2.5}
+              fill="none"
+              stroke={color}
+              strokeWidth="1.5"
+              opacity={0.35 * signalAgeGlow}
+              style={{ pointerEvents: "none" }}
+            />
+          );
+        } else if (conf >= 0.40) {
+          return (
+            <circle
+              cx={x}
+              cy={y}
+              r={nodeSize + 2.5}
+              fill="none"
+              stroke={color}
+              strokeWidth="1.0"
+              strokeDasharray="3 2"
+              opacity={0.28 * signalAgeGlow}
+              style={{ pointerEvents: "none" }}
+            />
+          );
+        } else if (conf > 0) {
+          return (
+            <circle
+              cx={x}
+              cy={y}
+              r={nodeSize + 2.5}
+              fill="none"
+              stroke={color}
+              strokeWidth="0.5"
+              strokeDasharray="1 2"
+              opacity={0.20 * signalAgeGlow}
+              style={{ pointerEvents: "none" }}
+            />
+          );
+        }
+        return null;
+      })()}
+
       {/* Label — hidden for dormant nodes by default; shown on hover or selection */}
       {(!isDormantNode || isSelected || hovered) && (
         <text
@@ -2237,6 +2288,65 @@ export default function Radar({
                   />
                 </g>
               )}
+
+              {/* ── Angular sectors — semantic quadrants mapping movement types ── */}
+              {!orbitMode && (
+                <g style={{ opacity: 0.08, pointerEvents: "none" }}>
+                  {/* Radial dividers at 0°, 90°, 180°, 270° */}
+                  {[0, 90, 180, 270].map((deg) => {
+                    const radians = (deg * Math.PI) / 180;
+                    const x1 = CENTER + 60 * Math.cos(radians);
+                    const y1 = CENTER + 60 * Math.sin(radians);
+                    const x2 = CENTER + OUTER_RADIUS * Math.cos(radians);
+                    const y2 = CENTER + OUTER_RADIUS * Math.sin(radians);
+                    return (
+                      <line
+                        key={deg}
+                        x1={x1}
+                        y1={y1}
+                        x2={x2}
+                        y2={y2}
+                        stroke="rgba(0,180,255,0.75)"
+                        strokeWidth="1"
+                        strokeDasharray="2,6"
+                      />
+                    );
+                  })}
+                </g>
+              )}
+
+              {/* ── Sector labels — movement type semantic mapping ── */}
+              {!orbitMode && [
+                { label: "MARKET EXPANSION", angle: 0, radius: OUTER_RADIUS * 0.75 },
+                { label: "PRICING SHIFTS", angle: 90, radius: OUTER_RADIUS * 0.75 },
+                { label: "PRODUCT EVOLUTION", angle: 180, radius: OUTER_RADIUS * 0.75 },
+                { label: "ENTERPRISE PIVOT", angle: 270, radius: OUTER_RADIUS * 0.75 },
+              ].map(({ label, angle, radius }) => {
+                const radians = (angle * Math.PI) / 180;
+                const x = CENTER + radius * Math.cos(radians);
+                const y = CENTER + radius * Math.sin(radians);
+                return (
+                  <text
+                    key={label}
+                    x={x}
+                    y={y}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fill="rgba(0,180,255,0.35)"
+                    fontSize="8"
+                    fontWeight="700"
+                    fontFamily="var(--font-orbitron)"
+                    letterSpacing="0.24em"
+                    style={{
+                      textTransform: "uppercase",
+                      filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.98))",
+                      pointerEvents: "none",
+                    }}
+                  >
+                    {label}
+                  </text>
+                );
+              })}
 
               {/* Cardinal labels rendered outside clip (see below) */}
 
