@@ -903,15 +903,15 @@ const BlipNode = memo(function BlipNode({
           })()}
           fill={
             isSelected
-              ? "#f0fff4"
+              ? "#ffffff"
               : hovered
-              ? "#d0ead0"
-              : isMobile ? "#c8dfc8" : "#b8d0b8"
+              ? "rgba(255,255,255,0.90)"
+              : "rgba(255,255,255,0.75)"
           }
-          fontSize={isMobile ? "15" : "13"}
-          fontWeight={isSelected ? "600" : hovered ? "500" : isMobile ? "500" : "400"}
-          fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
-          letterSpacing="0.02em"
+          fontSize={isMobile ? "11" : "11"}
+          fontWeight="600"
+          fontFamily="var(--font-orbitron)"
+          letterSpacing="0.04em"
           style={{
             filter: isSelected
               ? "drop-shadow(0 0 6px rgba(0,180,255,0.70)) drop-shadow(0 1px 3px rgba(0,0,0,0.98))"
@@ -2181,6 +2181,63 @@ export default function Radar({
               </motion.g>
               </g>
 
+              {/* ── Zone labels (CRITICAL / ACTIVE / WATCH / DORMANT) — outside clip ── */}
+              {!orbitMode && [
+                { label: "CRITICAL", radius: OUTER_RADIUS * 1.0, angle: 42 },
+                { label: "ACTIVE", radius: OUTER_RADIUS * 0.857, angle: 42 },
+                { label: "WATCH", radius: OUTER_RADIUS * 0.571, angle: 42 },
+                { label: "DORMANT", radius: OUTER_RADIUS * 0.286, angle: 42 },
+              ].map(({ label, radius, angle }) => {
+                const radians = (angle * Math.PI) / 180;
+                const x = CENTER + radius * Math.cos(radians);
+                const y = CENTER + radius * Math.sin(radians);
+                return (
+                  <text
+                    key={label}
+                    x={x}
+                    y={y}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fill="rgba(0,180,255,0.45)"
+                    fontSize="9"
+                    fontWeight="700"
+                    fontFamily="var(--font-orbitron)"
+                    letterSpacing="0.22em"
+                    style={{
+                      textTransform: "uppercase",
+                      filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.95))",
+                      pointerEvents: "none",
+                    }}
+                  >
+                    {label}
+                  </text>
+                );
+              })}
+
+              {/* ── Center crosshair (H + V lines) — subtle structural cue ── */}
+              {!orbitMode && (
+                <g style={{ opacity: 0.12, pointerEvents: "none" }}>
+                  <line
+                    x1={CENTER - 80}
+                    y1={CENTER}
+                    x2={CENTER + 80}
+                    y2={CENTER}
+                    stroke="rgba(0,180,255,0.85)"
+                    strokeWidth="1"
+                    strokeDasharray="4,8"
+                  />
+                  <line
+                    x1={CENTER}
+                    y1={CENTER - 80}
+                    x2={CENTER}
+                    y2={CENTER + 80}
+                    stroke="rgba(0,180,255,0.85)"
+                    strokeWidth="1"
+                    strokeDasharray="4,8"
+                  />
+                </g>
+              )}
+
               {/* Cardinal labels rendered outside clip (see below) */}
 
               {/* ── Sonar pulse field — Standard Mode (fades out in Gravity) ── */}
@@ -2866,12 +2923,15 @@ export default function Radar({
                   y={y}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fill={orbitMode ? "rgba(40,35,80,0.85)" : "rgba(30,41,59,0.7)"}
-                  fontSize="11"
+                  fill={orbitMode ? "rgba(203,213,225,0.65)" : "rgba(0,180,255,0.65)"}
+                  fontSize="12"
                   fontWeight="600"
-                  fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
-                  letterSpacing="0.06em"
-                  style={{ transition: "fill 0.8s ease" }}
+                  fontFamily="var(--font-orbitron)"
+                  letterSpacing="0.08em"
+                  style={{
+                    transition: "fill 0.8s ease",
+                    filter: "drop-shadow(0 0 6px rgba(0,180,255,0.35))",
+                  }}
                 >
                   {label}
                 </text>
@@ -3128,6 +3188,166 @@ export default function Radar({
 
             </svg>
             </div>{/* end zoom canvas */}
+
+            {/* ── HUD Corner Readouts ─────────────────────────────────────────── */}
+            {/* Instrument-grade readouts at 4 corners for key metrics */}
+            <div className="pointer-events-none absolute inset-0 z-10">
+              {/* Top-left: Total + Active count */}
+              <div
+                className="absolute left-4 top-4 rounded-[8px] px-3 py-2"
+                style={{
+                  background: "rgba(2,2,8,0.75)",
+                  border: "1px solid rgba(0,180,255,0.18)",
+                  backdropFilter: "blur(8px)",
+                  WebkitBackdropFilter: "blur(8px)",
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: "var(--font-orbitron)",
+                    fontSize: "9px",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.18em",
+                    color: "rgba(0,180,255,0.55)",
+                    marginBottom: "4px",
+                  }}
+                >
+                  TARGETS
+                </div>
+                <div
+                  style={{
+                    fontFamily: "var(--font-orbitron)",
+                    fontSize: "16px",
+                    fontWeight: 600,
+                    color: "#ffffff",
+                  }}
+                >
+                  {sorted.length}
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      color: "rgba(148,163,184,0.65)",
+                      marginLeft: "6px",
+                    }}
+                  >
+                    {movingCount} active
+                  </span>
+                </div>
+              </div>
+
+              {/* Top-right: Latest signal timestamp (heartbeat) */}
+              {latestSignalAt && (
+                <div
+                  className="absolute right-4 top-4 rounded-[8px] px-3 py-2"
+                  style={{
+                    background: "rgba(2,2,8,0.75)",
+                    border: "1px solid rgba(0,180,255,0.18)",
+                    backdropFilter: "blur(8px)",
+                    WebkitBackdropFilter: "blur(8px)",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontFamily: "var(--font-orbitron)",
+                      fontSize: "9px",
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.18em",
+                      color: "rgba(0,180,255,0.55)",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    HEARTBEAT
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-orbitron)",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      color: (() => {
+                        const ageHours = (Date.now() - new Date(latestSignalAt).getTime()) / 3600000;
+                        if (ageHours < 6) return "rgba(46,230,166,0.85)";
+                        if (ageHours < 24) return "rgba(245,158,11,0.75)";
+                        return "rgba(100,116,139,0.65)";
+                      })(),
+                    }}
+                  >
+                    {formatRelative(latestSignalAt)}
+                  </div>
+                </div>
+              )}
+
+              {/* Bottom-left: Temporal filter */}
+              <div
+                className="absolute bottom-4 left-4 rounded-[8px] px-3 py-2"
+                style={{
+                  background: "rgba(2,2,8,0.75)",
+                  border: "1px solid rgba(0,180,255,0.18)",
+                  backdropFilter: "blur(8px)",
+                  WebkitBackdropFilter: "blur(8px)",
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: "var(--font-orbitron)",
+                    fontSize: "9px",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.18em",
+                    color: "rgba(0,180,255,0.55)",
+                    marginBottom: "4px",
+                  }}
+                >
+                  WINDOW
+                </div>
+                <div
+                  style={{
+                    fontFamily: "var(--font-orbitron)",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "#ffffff",
+                  }}
+                >
+                  {temporalFilter === "all" ? "ALL TIME" : temporalFilter === "24h" ? "24 HOURS" : "7 DAYS"}
+                </div>
+              </div>
+
+              {/* Bottom-right: Zoom level */}
+              <div
+                className="absolute bottom-4 right-4 rounded-[8px] px-3 py-2"
+                style={{
+                  background: "rgba(2,2,8,0.75)",
+                  border: "1px solid rgba(0,180,255,0.18)",
+                  backdropFilter: "blur(8px)",
+                  WebkitBackdropFilter: "blur(8px)",
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: "var(--font-orbitron)",
+                    fontSize: "9px",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.18em",
+                    color: "rgba(0,180,255,0.55)",
+                    marginBottom: "4px",
+                  }}
+                >
+                  ZOOM
+                </div>
+                <div
+                  style={{
+                    fontFamily: "var(--font-orbitron)",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "#ffffff",
+                  }}
+                >
+                  {(zoom * 100).toFixed(0)}%
+                </div>
+              </div>
+            </div>
 
             {/* HUD panels moved inside main SVG above — zoom-synced with radar */}
 
