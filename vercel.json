@@ -150,6 +150,9 @@
     },
     "api/update-noise-baselines.ts": {
       "maxDuration": 30
+    },
+    "api/retrograde-signals.ts": {
+      "maxDuration": 30
     }
   },
   "crons": [
@@ -352,6 +355,10 @@
     {
       "path": "/api/update-noise-baselines",
       "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/retrograde-signals",
+      "schedule": "37 * * * *"
     }
   ]
 }
