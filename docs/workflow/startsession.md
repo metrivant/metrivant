@@ -630,6 +630,7 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
   ingest-media-feeds does NOT follow this pattern (writes to sector_narratives directly, not pool_events). (2026-03-18)
 
 - [B] All pool ingest + promote crons (Pools 1–6) are ALREADY SCHEDULED in vercel.json as of
+- [B] Handler deprecation pattern: when removing functionality from a cron handler, stub it out (return success without action + {deprecated: true} flag) rather than deleting and updating vercel.json. Preserves cron schedule, avoids coordination failures, allows gradual removal. See api/learn-noise-patterns.ts, api/calibrate-weights.ts (both deprecated 2026-03-26 for autonomous noise detection). (2026-03-26)
   2026-03-19. CLAUDE.md reference to pools 2–6 as "dormant, activation-ready" is outdated.
   Active cron slots: ingest-careers (:11), promote-careers-signals (:13), ingest-investor-feeds (:14),
   promote-investor-signals (:16), ingest-product-feeds (:29), promote-product-signals (:31),
