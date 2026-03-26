@@ -198,19 +198,19 @@ export default async function Page() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data } = await (service as any)
           .from("signals")
-          .select("id, signal_type, summary, confidence_score, detected_at, competitor_id")
+          .select("id, signal_type, confidence_score, detected_at, competitor_id")
           .in("competitor_id", competitorIds)
           .in("status", ["pending", "pending_review", "interpreted"])
           .order("detected_at", { ascending: false })
           .limit(30);
         const nameMap = new Map(competitors.map((c) => [c.competitor_id, c.competitor_name]));
         telescopeSignals = ((data ?? []) as Array<{
-          id: string; signal_type: string; summary: string | null;
+          id: string; signal_type: string;
           confidence_score: number | null; detected_at: string; competitor_id: string;
         }>).map((s) => ({
           id: s.id,
           signal_type: s.signal_type,
-          summary: s.summary,
+          summary: null, // Column doesn't exist in signals table; TelescopePanel handles null
           confidence_score: s.confidence_score,
           detected_at: s.detected_at,
           competitor_name: nameMap.get(s.competitor_id) ?? "Unknown",
