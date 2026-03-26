@@ -2182,6 +2182,10 @@ export default function Radar({
               role="img"
               aria-label="Competitor radar"
               onTouchEnd={handleSvgTouchEnd}
+              style={{
+                shapeRendering: "geometricPrecision",
+                textRendering: "geometricPrecision",
+              }}
             >
               <defs>
                 {/* Central atmospheric glow */}
@@ -2199,7 +2203,7 @@ export default function Radar({
                   <stop offset="100%" stopColor="#000000" stopOpacity="0.96" />
                 </radialGradient>
 
-                {/* Blip soft glow */}
+                {/* Blip soft glow — reduced blur for crisp definition */}
                 <filter
                   id="blipGlow"
                   x="-200%"
@@ -2207,14 +2211,14 @@ export default function Radar({
                   width="500%"
                   height="500%"
                 >
-                  <feGaussianBlur stdDeviation="8" result="blur" />
+                  <feGaussianBlur stdDeviation="5" result="blur" />
                   <feMerge>
                     <feMergeNode in="blur" />
                     <feMergeNode in="SourceGraphic" />
                   </feMerge>
                 </filter>
 
-                {/* Blip strong glow — selected state */}
+                {/* Blip strong glow — selected state, tighter blur */}
                 <filter
                   id="blipGlowStrong"
                   x="-200%"
@@ -2222,14 +2226,14 @@ export default function Radar({
                   width="500%"
                   height="500%"
                 >
-                  <feGaussianBlur stdDeviation="18" result="blur" />
+                  <feGaussianBlur stdDeviation="11" result="blur" />
                   <feMerge>
                     <feMergeNode in="blur" />
                     <feMergeNode in="SourceGraphic" />
                   </feMerge>
                 </filter>
 
-                {/* Sonar ring glow — thick luminous pulse rings */}
+                {/* Sonar ring glow — tighter for precision */}
                 <filter
                   id="sonarGlow"
                   x="-60%"
@@ -2237,7 +2241,7 @@ export default function Radar({
                   width="220%"
                   height="220%"
                 >
-                  <feGaussianBlur stdDeviation="9" result="blur" />
+                  <feGaussianBlur stdDeviation="6" result="blur" />
                   <feMerge>
                     <feMergeNode in="blur" />
                     <feMergeNode in="SourceGraphic" />
