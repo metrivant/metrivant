@@ -188,6 +188,9 @@ export default async function Page() {
     confidence_score: number | null;
     detected_at: string;
     competitor_name: string;
+    is_noise?: boolean;
+    noise_reason?: string | null;
+    retrograded_at?: string | null;
   };
   let telescopeSignals: TelescopeSignal[] = [];
   if (orgId) {
@@ -198,23 +201,48 @@ export default async function Page() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data } = await (service as any)
           .from("signals")
-          .select("id, signal_type, confidence_score, detected_at, competitor_id")
+          .select("id, signal_type, confidence_score, detected_at, competitor_id, retrograded_at, section_diff_id")
           .in("competitor_id", competitorIds)
           .in("status", ["pending", "pending_review", "interpreted"])
           .order("detected_at", { ascending: false })
           .limit(30);
+
+        // Fetch noise metadata for these signals via their section_diff_id
+        const diffIds = ((data ?? []) as Array<{ section_diff_id: string | null }>)
+          .map((s) => s.section_diff_id)
+          .filter((id): id is string => id != null);
+
+        const noiseMeta = new Map<string, { is_noise: boolean; noise_reason: string | null }>();
+        if (diffIds.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data: diffs } = await (service as any)
+            .from("section_diffs")
+            .select("id, is_noise, noise_reason")
+            .in("id", diffIds);
+          for (const d of diffs ?? []) {
+            noiseMeta.set(d.id, { is_noise: d.is_noise, noise_reason: d.noise_reason });
+          }
+        }
+
         const nameMap = new Map(competitors.map((c) => [c.competitor_id, c.competitor_name]));
         telescopeSignals = ((data ?? []) as Array<{
           id: string; signal_type: string;
           confidence_score: number | null; detected_at: string; competitor_id: string;
-        }>).map((s) => ({
-          id: s.id,
-          signal_type: s.signal_type,
-          summary: null, // Column doesn't exist in signals table; TelescopePanel handles null
-          confidence_score: s.confidence_score,
-          detected_at: s.detected_at,
-          competitor_name: nameMap.get(s.competitor_id) ?? "Unknown",
-        }));
+          retrograded_at: string | null; section_diff_id: string | null;
+        }>).map((s) => {
+          const meta = s.section_diff_id ? noiseMeta.get(s.section_diff_id) : undefined;
+          return {
+            id: s.id,
+            signal_type: s.signal_type,
+            summary: null, // Column doesn't exist in signals table; TelescopePanel handles null
+            confidence_score: s.confidence_score,
+            detected_at: s.detected_at,
+            competitor_name: nameMap.get(s.competitor_id) ?? "Unknown",
+            is_noise: meta?.is_noise,
+            noise_reason: meta?.noise_reason,
+            retrograded_at: s.retrograded_at,
+          };
+        });
       }
     } catch { /* non-fatal */ }
   }
