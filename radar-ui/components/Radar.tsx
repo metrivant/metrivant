@@ -285,7 +285,12 @@ function idHash(id: string): number {
 
 // Semantic angle mapping: movement_type → sector position (0° = East, 90° = South, etc.)
 // Maps strategic movement types to their corresponding radar sectors for spatial intelligence.
-function getSemanticAngle(movementType: string | null, competitorId: string): number {
+function getSemanticAngle(
+  movementType: string | null,
+  competitorId: string,
+  zoneIndex: number,
+  zoneTotal: number
+): number {
   let baseAngle: number;
 
   switch (movementType) {
@@ -307,14 +312,20 @@ function getSemanticAngle(movementType: string | null, competitorId: string): nu
       return idHash(competitorId) * 360;
   }
 
-  // Add deterministic jitter (±30°) within sector to prevent exact overlaps
-  // Use ID hash for stable jitter per competitor
-  const jitter = (idHash(competitorId) - 0.5) * 60; // ±30° range
-  return (baseAngle + jitter) % 360;
+  // Spread nodes across wider sector using zone index
+  // Each node gets a slice of the 90° sector based on its position in the zone
+  const sectorWidth = 90; // Each cardinal direction gets 90° (360/4)
+  const zoneSpread = zoneTotal > 1 ? (zoneIndex / (zoneTotal - 1)) - 0.5 : 0; // -0.5 to 0.5
+  const zoneOffset = zoneSpread * sectorWidth * 0.85; // Use 85% of sector width for distribution
+
+  // Add smaller ID-based jitter for final positioning stability
+  const jitter = (idHash(competitorId) - 0.5) * 10; // ±5° micro-jitter
+
+  return (baseAngle + zoneOffset + jitter + 360) % 360;
 }
 
 // Zone-aware, semantically-positioned placement.
-// movementType → sector angle; momentum → zone radius; zoneIndex → radial distribution.
+// movementType → sector angle; momentum → zone radius; zoneIndex → angular + radial distribution.
 function getZoneNodePosition(
   competitorId: string,
   movementType: string | null,
@@ -323,7 +334,7 @@ function getZoneNodePosition(
   zoneTotal: number,
 ): Point {
   const band = ZONE_RADII[getRadialZone(momentum)];
-  const angleDegrees = getSemanticAngle(movementType, competitorId);
+  const angleDegrees = getSemanticAngle(movementType, competitorId, zoneIndex, zoneTotal);
   const angle = (angleDegrees * Math.PI) / 180;
   const t = zoneTotal > 1 ? zoneIndex / (zoneTotal - 1) : 0.5;
   const r = band.min + t * (band.max - band.min);
