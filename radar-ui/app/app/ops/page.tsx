@@ -7,6 +7,7 @@ import Link from "next/link";
 import { createClient } from "../../../lib/supabase/server";
 import { createServiceClient } from "../../../lib/supabase/service";
 import { RepairActionRow } from "./RepairActionRow";
+import { UnquarantineButton } from "./UnquarantineButton";
 import PipelineTrigger from "../../../components/PipelineTrigger";
 import OpsAutoRefresh from "./OpsAutoRefresh";
 import SystemTests from "./SystemTests";
@@ -14,6 +15,11 @@ import SystemTests from "./SystemTests";
 export const dynamic = "force-dynamic";
 
 // ── Staleness thresholds (minutes) ──────────────────────────────────────────
+// Note: Handlers with wall-clock timeout protection (added 2026-03-26):
+// - validate-interpretations (WALL_CLOCK_GUARD_MS = 55s)
+// - validate-movements (WALL_CLOCK_GUARD_MS = 55s)
+// - promote-media-signals (WALL_CLOCK_GUARD_MS = 55s)
+// - generate-sector-intelligence (WALL_CLOCK_GUARD_MS = 85s)
 const STALE_THRESHOLDS: Record<string, number> = {
   // ── radar-ui crons ──────────────────────────────────────────────────────────
   "/api/check-signals":        90,
@@ -166,6 +172,17 @@ type RepairSuggestionRow = {
   confidence:        number;
   rationale:         string | null;
   created_at:        string;
+};
+
+type QuarantinedPageRow = {
+  id:                  string;
+  monitored_page_id:   string;
+  url:                 string;
+  page_type:           string;
+  reason:              string;
+  consecutive_failures: number | null;
+  quarantined_at:      string;
+  competitors:         { name: string } | null;
 };
 
 type FeedHealthRow = {
@@ -405,6 +422,7 @@ export default async function OpsPage() {
   let activityRows: ActivityEventRow[]  = [];
   let errorRows:    ErrorEventRow[]     = [];
   let coverageRows: CoverageHealthRow[] = [];
+  let quarantinedRows: QuarantinedPageRow[] = [];
   let repairRows:   RepairSuggestionRow[] = [];
   let pendingCount = 0, pendingReviewCount = 0, failedCount = 0;
   let stalePageFetchCount = 0;
@@ -503,6 +521,16 @@ export default async function OpsPage() {
       .order("health_state")
       .limit(50);
     coverageRows = (data ?? []) as CoverageHealthRow[];
+  } catch { /* non-fatal */ }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (service as any)
+      .from("quarantined_pages")
+      .select("id, monitored_page_id, url, page_type, reason, consecutive_failures, quarantined_at, competitors(name)")
+      .order("quarantined_at", { ascending: false })
+      .limit(50);
+    quarantinedRows = (data ?? []) as QuarantinedPageRow[];
   } catch { /* non-fatal */ }
 
   try {
@@ -1147,12 +1175,72 @@ export default async function OpsPage() {
           </section>
 
           {/* ═══════════════════════════════════════════════════════════════
-              SECTION 08 — Selector Repair Queue
+              SECTION 08 — Quarantined Pages
+          ═══════════════════════════════════════════════════════════════ */}
+          <section>
+            <SectionHeader
+              index="08"
+              title="Quarantined Pages"
+              subtitle={
+                quarantinedRows.length === 0
+                  ? "No quarantined pages"
+                  : `${quarantinedRows.length} page${quarantinedRows.length !== 1 ? "s" : ""} auto-quarantined after 10+ consecutive fetch failures`
+              }
+            />
+            {quarantinedRows.length === 0 ? (
+              <EmptyState message="No pages have been auto-quarantined. Fetch failures are within normal thresholds." />
+            ) : (
+              <div className="overflow-hidden rounded-[14px] border border-[#0d1020]">
+                <table className="w-full text-[12px]">
+                  <thead>
+                    <tr className="border-b border-[#0d1020] bg-[#020208]">
+                      <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Competitor</th>
+                      <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Page</th>
+                      <th className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">URL</th>
+                      <th className="px-4 py-2.5 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Failures</th>
+                      <th className="px-4 py-2.5 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Quarantined</th>
+                      <th className="px-4 py-2.5 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-slate-700">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {quarantinedRows.map((row) => (
+                      <tr
+                        key={row.id}
+                        className="border-b border-[#0d1020] last:border-0 transition-colors hover:bg-[#03030c]"
+                      >
+                        <td className="px-4 py-3 font-mono text-[11px] text-slate-300">
+                          {row.competitors?.name ?? "—"}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-[11px] text-slate-500">
+                          {row.page_type}
+                        </td>
+                        <td className="max-w-[240px] truncate px-4 py-3 font-mono text-[11px] text-slate-700">
+                          {row.url}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono text-[11px] text-amber-500">
+                          {row.consecutive_failures ?? "—"}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono text-[11px] text-slate-600">
+                          {formatAge(row.quarantined_at)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <UnquarantineButton pageId={row.monitored_page_id} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          {/* ═══════════════════════════════════════════════════════════════
+              SECTION 09 — Selector Repair Queue
           ═══════════════════════════════════════════════════════════════ */}
           {repairRows.length > 0 && (
             <section>
               <SectionHeader
-                index="08"
+                index="09"
                 title="Selector Repair Queue"
                 subtitle={`${repairRows.length} pending proposal${repairRows.length !== 1 ? "s" : ""} — AI-generated, awaiting operator review`}
               />
@@ -1174,11 +1262,11 @@ export default async function OpsPage() {
           )}
 
           {/* ═══════════════════════════════════════════════════════════════
-              SECTION 09 — Feed Health
+              SECTION 10 — Feed Health
           ═══════════════════════════════════════════════════════════════ */}
           <section>
             <SectionHeader
-              index="09"
+              index="10"
               title="Feed Health"
               subtitle={
                 feedHealthRows.length === 0

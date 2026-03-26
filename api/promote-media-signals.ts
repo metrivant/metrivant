@@ -14,6 +14,9 @@ const BATCH_SIZE = 10;
 // Prevents stale summaries when a cluster accumulates more articles.
 const STALE_NARRATIVE_HOURS = 72;
 
+// Wall-clock guard: maxDuration is 60s, leave 5s safety margin for final flush + response.
+const WALL_CLOCK_GUARD_MS = 55_000;
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 async function handler(req: ApiReq, res: ApiRes) {
@@ -23,6 +26,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   const runId = (req.headers as Record<string, string | undefined>)?.["x-vercel-id"] ?? generateRunId();
 
   const checkInId = Sentry.captureCheckIn({ monitorSlug: "promote-media-signals", status: "in_progress" });
+  const startedAt = Date.now();
 
   try {
     // ── Load clusters that need narrative enrichment ────────────────────────
@@ -51,6 +55,7 @@ async function handler(req: ApiReq, res: ApiRes) {
         clustersProcessed: 0,
         clustersEnriched: 0,
         clustersFailed: 0,
+        skippedByGuard: 0,
         runtimeDurationMs: elapsed(),
       });
     }
@@ -58,8 +63,16 @@ async function handler(req: ApiReq, res: ApiRes) {
     // ── Process each cluster ───────────────────────────────────────────────
     let clustersEnriched = 0;
     let clustersFailed = 0;
+    let skippedByGuard = 0;
 
     for (const cluster of clusters) {
+      // Wall-clock guard: stop processing if we're approaching the timeout.
+      if (Date.now() - startedAt > WALL_CLOCK_GUARD_MS) {
+        skippedByGuard = clusters.length - (clustersEnriched + clustersFailed);
+        console.log(`wall_clock_guard: skipping ${skippedByGuard} remaining clusters`);
+        break;
+      }
+
       const clusterTimer = startTimer();
 
       try {
@@ -163,6 +176,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       clustersProcessed: clusters.length,
       clustersEnriched,
       clustersFailed,
+      skippedByGuard,
       runtimeDurationMs,
     });
   } catch (error) {

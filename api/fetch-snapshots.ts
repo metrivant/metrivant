@@ -65,7 +65,7 @@ type FetchOutcome =
   | { ok: false; httpStatus: number; failureClass: FetchFailureClass };
 
 // Task 1: Page health state set by the fetch stage
-type PageHealthState = "healthy" | "blocked" | "challenge" | "unresolved";
+type PageHealthState = "healthy" | "blocked" | "challenge" | "unresolved" | "quarantined";
 
 // ── Challenge / soft-failure detection ────────────────────────────────────────
 // Scan response body for known WAF and bot-challenge signatures.
@@ -108,12 +108,16 @@ interface MonitoredPage {
   id: string;
   url: string;
   health_state?: string;
+  consecutive_failures: number;
+  created_at: string;
 }
 
 interface MonitoredPageRow {
   id: string;
   url: string;
   health_state?: string;
+  consecutive_failures: number;
+  created_at: string;
 }
 
 interface UrlResult {
@@ -127,6 +131,8 @@ interface UrlResult {
   nonFullPageIds: string[];
   healthStateUpdates: Array<{ pageId: string; healthState: PageHealthState }>;
   lastFetchedPageIds: string[];
+  succeededPageIds: string[];
+  failedPageIds: string[];
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -286,6 +292,7 @@ async function processUrl(
     succeeded: false, failed: false, inserted: 0, skippedDuplicates: 0,
     skippedBudget: false, skippedCooldown: false, triggeredCooldown: false,
     nonFullPageIds: [], healthStateUpdates: [], lastFetchedPageIds: [],
+    succeededPageIds: [], failedPageIds: [],
   };
 
   if (Date.now() - invocationStart > INVOCATION_BUDGET_MS) {
@@ -355,6 +362,7 @@ async function processUrl(
       "unresolved";
 
     const healthStateUpdates = groupedPages.map((page) => ({ pageId: page.id, healthState }));
+    const failedPageIds = groupedPages.map((page) => page.id);
 
     for (const page of groupedPages) {
       void recordEvent({
@@ -374,7 +382,7 @@ async function processUrl(
       });
     }
 
-    return { ...empty, failed: true, triggeredCooldown: triggersCooldown, healthStateUpdates };
+    return { ...empty, failed: true, triggeredCooldown: triggersCooldown, healthStateUpdates, failedPageIds };
   }
 
   // ── Success path ───────────────────────────────────────────────────────────
@@ -416,6 +424,7 @@ async function processUrl(
   const nonFullPageIds: string[] = [];
   const healthStateUpdates: Array<{ pageId: string; healthState: PageHealthState }> = [];
   const lastFetchedPageIds: string[] = [];
+  const succeededPageIds: string[] = [];
 
   for (const page of groupedPages) {
     const isDuplicate = latestHashMap.get(page.id) === contentHash;
@@ -423,6 +432,7 @@ async function processUrl(
     if (isDuplicate) {
       skippedDuplicates += 1;
       lastFetchedPageIds.push(page.id);
+      succeededPageIds.push(page.id); // Successful fetch (even if duplicate)
       // Don't update health_state for unchanged pages — preserve their current state.
       // Exception: if the page is stuck in "unresolved" (e.g. a prior health update was
       // lost), a successful fetch proves it's reachable — heal it now.
@@ -459,13 +469,14 @@ async function processUrl(
 
     inserted += 1;
     lastFetchedPageIds.push(page.id);
+    succeededPageIds.push(page.id);
     if (fetchQuality !== "full") nonFullPageIds.push(page.id);
     // Task 1: fetch succeeded → optimistically mark healthy (extraction may downgrade later)
     healthStateUpdates.push({ pageId: page.id, healthState: "healthy" });
     void recordEvent({ run_id: runId, stage: "snapshot", status: "success", monitored_page_id: page.id, duration_ms: elapsed(), metadata: { http_status: 200, content_length: rawHtml.length, fetch_quality: fetchQuality } });
   }
 
-  return { ...empty, succeeded: true, inserted, skippedDuplicates, nonFullPageIds, healthStateUpdates, lastFetchedPageIds };
+  return { ...empty, succeeded: true, inserted, skippedDuplicates, nonFullPageIds, healthStateUpdates, lastFetchedPageIds, succeededPageIds };
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -493,8 +504,9 @@ async function handler(req: ApiReq, res: ApiRes) {
   try {
     let pageQuery = supabase
       .from("monitored_pages")
-      .select("id, url, health_state")
-      .eq("active", true);
+      .select("id, url, health_state, consecutive_failures, created_at")
+      .eq("active", true)
+      .neq("health_state", "quarantined"); // Skip quarantined pages
 
     if (pageClass) {
       pageQuery = pageQuery.eq("page_class", pageClass);
@@ -507,6 +519,8 @@ async function handler(req: ApiReq, res: ApiRes) {
       id: r.id,
       url: r.url,
       health_state: r.health_state,
+      consecutive_failures: r.consecutive_failures,
+      created_at: r.created_at,
     }));
 
     const pagesByUrl = new Map<string, MonitoredPage[]>();
@@ -587,6 +601,8 @@ async function handler(req: ApiReq, res: ApiRes) {
     const allNonFullPageIds: string[] = [];
     const allHealthUpdates: Array<{ pageId: string; healthState: PageHealthState }> = [];
     const allLastFetchedPageIds: string[] = [];
+    const allSucceededPageIds: string[] = [];
+    const allFailedPageIds: string[] = [];
 
     for (const result of settled) {
       if (result.status === "rejected") {
@@ -605,6 +621,8 @@ async function handler(req: ApiReq, res: ApiRes) {
       allNonFullPageIds.push(...r.nonFullPageIds);
       allHealthUpdates.push(...r.healthStateUpdates);
       allLastFetchedPageIds.push(...r.lastFetchedPageIds);
+      allSucceededPageIds.push(...r.succeededPageIds);
+      allFailedPageIds.push(...r.failedPageIds);
       if (r.succeeded) rowsSucceeded += 1;
       if (r.failed)    rowsFailed    += 1;
     }
@@ -653,6 +671,119 @@ async function handler(req: ApiReq, res: ApiRes) {
       } catch (lfError) {
         Sentry.captureException(lfError);
       }
+    }
+
+    // ── Auto-quarantine: Track consecutive failures ────────────────────────────
+    // Reset consecutive_failures to 0 for succeeded pages, increment for failed pages.
+    // When a page hits 10+ consecutive failures over 7+ days, quarantine it.
+    let pagesQuarantined = 0;
+    const QUARANTINE_FAILURE_THRESHOLD = 10;
+    const QUARANTINE_AGE_DAYS = 7;
+
+    try {
+      // Reset consecutive_failures for succeeded pages
+      if (allSucceededPageIds.length > 0) {
+        const uniqueSucceededIds = [...new Set(allSucceededPageIds)];
+        const { error: resetError } = await supabase
+          .from("monitored_pages")
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .update({ consecutive_failures: 0 } as any)
+          .in("id", uniqueSucceededIds);
+        if (resetError) Sentry.captureException(resetError);
+      }
+
+      // Increment consecutive_failures for failed pages
+      if (allFailedPageIds.length > 0) {
+        const uniqueFailedIds = [...new Set(allFailedPageIds)];
+
+        // Fetch current consecutive_failures + created_at for failed pages
+        const { data: failedPagesData } = await supabase
+          .from("monitored_pages")
+          .select("id, consecutive_failures, created_at, url, page_type, competitor_id")
+          .in("id", uniqueFailedIds);
+
+        if (failedPagesData && failedPagesData.length > 0) {
+          const now = Date.now();
+          const quarantineAgeMs = QUARANTINE_AGE_DAYS * 24 * 60 * 60 * 1000;
+          const pagesToQuarantine: Array<{ id: string; url: string; page_type: string; competitor_id: string; consecutive_failures: number }> = [];
+
+          for (const page of failedPagesData as unknown as Array<{ id: string; consecutive_failures: number; created_at: string; url: string; page_type: string; competitor_id: string }>) {
+            const newFailureCount = page.consecutive_failures + 1;
+            const pageAge = now - new Date(page.created_at).getTime();
+
+            // Increment failure count
+            const { error: incrError } = await supabase
+              .from("monitored_pages")
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              .update({ consecutive_failures: newFailureCount } as any)
+              .eq("id", page.id);
+            if (incrError) Sentry.captureException(incrError);
+
+            // Check quarantine threshold
+            if (newFailureCount >= QUARANTINE_FAILURE_THRESHOLD && pageAge >= quarantineAgeMs) {
+              pagesToQuarantine.push({
+                id: page.id,
+                url: page.url,
+                page_type: page.page_type,
+                competitor_id: page.competitor_id,
+                consecutive_failures: newFailureCount,
+              });
+            }
+          }
+
+          // Quarantine eligible pages
+          for (const page of pagesToQuarantine) {
+            const quarantinedAt = new Date().toISOString();
+
+            // Set active=false, health_state='quarantined', quarantined_at
+            const { error: quarantineError } = await supabase
+              .from("monitored_pages")
+              .update({
+                active: false,
+                health_state: "quarantined",
+                quarantined_at: quarantinedAt,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              } as any)
+              .eq("id", page.id);
+
+            if (quarantineError) {
+              Sentry.captureException(quarantineError);
+              continue;
+            }
+
+            // Insert audit record
+            const { error: auditError } = await supabase
+              .from("quarantined_pages")
+              .insert({
+                monitored_page_id: page.id,
+                competitor_id: page.competitor_id,
+                url: page.url,
+                page_type: page.page_type,
+                reason: "consecutive_failures",
+                consecutive_failures: page.consecutive_failures,
+                quarantined_at: quarantinedAt,
+              });
+
+            if (auditError) {
+              Sentry.captureException(auditError);
+              continue;
+            }
+
+            pagesQuarantined += 1;
+            Sentry.captureMessage("page_auto_quarantined", {
+              level: "warning",
+              extra: {
+                monitored_page_id: page.id,
+                url: page.url,
+                consecutive_failures: page.consecutive_failures,
+                page_type: page.page_type,
+              },
+            });
+          }
+        }
+      }
+    } catch (quarantineError) {
+      Sentry.captureException(quarantineError);
     }
 
     // ── Budget exhaustion warning ──────────────────────────────────────────────
@@ -741,6 +872,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsSkippedCooldown,
       pagesAutoDeactivated,
       pagesHealthUpdated,
+      pagesQuarantined,
       runtimeDurationMs,
     });
 
@@ -761,6 +893,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       rowsSkippedCooldown,
       pagesAutoDeactivated,
       pagesHealthUpdated,
+      pagesQuarantined,
       runtimeDurationMs,
     });
 

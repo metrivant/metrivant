@@ -25,6 +25,9 @@ const BATCH_SIZE = 15;  // interpretations per run (each = 1 GPT call)
 const HALLUCINATION_PENALTY = 0.15;
 const MIN_CONFIDENCE_AFTER_PENALTY = 0.20;
 
+// Wall-clock guard: maxDuration is 60s, leave 5s safety margin for final flush + response.
+const WALL_CLOCK_GUARD_MS = 55_000;
+
 interface InterpRow {
   id:                    string;
   signal_id:             string;
@@ -42,6 +45,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   const elapsed = startTimer();
   const runId = (req.headers as Record<string, string | undefined>)?.["x-vercel-id"] ?? generateRunId();
   const checkInId = Sentry.captureCheckIn({ monitorSlug: "validate-interpretations", status: "in_progress" });
+  const startedAt = Date.now();
 
   try {
     // ── Load unvalidated interpretations ───────────────────────────────────
@@ -60,15 +64,24 @@ async function handler(req: ApiReq, res: ApiRes) {
     if (interps.length === 0) {
       Sentry.captureCheckIn({ monitorSlug: "validate-interpretations", status: "ok", checkInId });
       await Sentry.flush(2000);
-      return res.status(200).json({ ok: true, job: "validate-interpretations", processed: 0 });
+      return res.status(200).json({ ok: true, job: "validate-interpretations", processed: 0, skippedByGuard: 0 });
     }
 
     // ── Validate each interpretation ──────────────────────────────────────
     let validCount = 0;
     let weakCount = 0;
     let hallucinatedCount = 0;
+    let processedCount = 0;
+    let skippedByGuard = 0;
 
     for (const interp of interps) {
+      // Wall-clock guard: stop processing if we're approaching the timeout.
+      if (Date.now() - startedAt > WALL_CLOCK_GUARD_MS) {
+        skippedByGuard = interps.length - processedCount;
+        console.log(`wall_clock_guard: skipping ${skippedByGuard} remaining interpretations`);
+        break;
+      }
+
       const timer = startTimer();
 
       const result = await validateInterpretation({
@@ -135,6 +148,8 @@ async function handler(req: ApiReq, res: ApiRes) {
           reason: result.reason,
         },
       });
+
+      processedCount++;
     }
 
     void recordEvent({
@@ -143,10 +158,11 @@ async function handler(req: ApiReq, res: ApiRes) {
       status: "success",
       duration_ms: elapsed(),
       metadata: {
-        processed: interps.length,
+        processed: processedCount,
         valid: validCount,
         weak: weakCount,
         hallucinated: hallucinatedCount,
+        skippedByGuard,
       },
     });
 
@@ -156,10 +172,11 @@ async function handler(req: ApiReq, res: ApiRes) {
     res.status(200).json({
       ok: true,
       job: "validate-interpretations",
-      processed: interps.length,
+      processed: processedCount,
       valid: validCount,
       weak: weakCount,
       hallucinated: hallucinatedCount,
+      skippedByGuard,
       runtimeDurationMs: elapsed(),
     });
   } catch (error) {

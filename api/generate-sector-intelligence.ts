@@ -22,6 +22,9 @@ import { recordEvent, startTimer } from "../lib/pipeline-metrics";
 const DEFAULT_WINDOW_DAYS = 30;
 const MIN_COMPETITORS     = 2;  // pattern detection requires at least 2
 
+// Wall-clock guard: maxDuration is 90s, leave 5s safety margin for final flush + response.
+const WALL_CLOCK_GUARD_MS = 85_000;
+
 async function handler(req: ApiReq, res: ApiRes) {
   if (!verifyCronSecret(req, res)) return;
 
@@ -35,9 +38,10 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   const checkInId = Sentry.captureCheckIn({ monitorSlug: "generate-sector-intelligence", status: "in_progress" });
 
-  let orgsProcessed   = 0;
-  let analysesCreated = 0;
-  let orgsSkipped     = 0;
+  let orgsProcessed      = 0;
+  let analysesCreated    = 0;
+  let orgsSkipped        = 0;
+  let orgsSkippedByGuard = 0;
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -53,10 +57,17 @@ async function handler(req: ApiReq, res: ApiRes) {
     if (orgsError) throw orgsError;
     if (!orgs || orgs.length === 0) {
       await done("ok");
-      return respond(res, startedAt, 0, 0, 0);
+      return respond(res, startedAt, 0, 0, 0, 0);
     }
 
     for (const org of orgs as { id: string; sector: string }[]) {
+      // Wall-clock guard: stop processing if we're approaching the timeout.
+      if (Date.now() - startedAt > WALL_CLOCK_GUARD_MS) {
+        orgsSkippedByGuard = orgs.length - orgsProcessed;
+        console.log(`wall_clock_guard: skipping ${orgsSkippedByGuard} remaining orgs`);
+        break;
+      }
+
       orgsProcessed++;
 
       try {
@@ -251,7 +262,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     }
 
     await done("ok");
-    return respond(res, startedAt, orgsProcessed, analysesCreated, orgsSkipped);
+    return respond(res, startedAt, orgsProcessed, analysesCreated, orgsSkipped, orgsSkippedByGuard);
   } catch (error) {
     Sentry.captureException(error);
     await done("error");
@@ -260,12 +271,13 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   async function done(status: "ok" | "error") {
     Sentry.setContext("run_metrics", {
-      stage_name:       "generate-sector-intelligence",
-      orgs_processed:   orgsProcessed,
-      analyses_created: analysesCreated,
-      orgs_skipped:     orgsSkipped,
-      window_days:      windowDays,
-      runtimeDurationMs: Date.now() - startedAt,
+      stage_name:          "generate-sector-intelligence",
+      orgs_processed:      orgsProcessed,
+      analyses_created:    analysesCreated,
+      orgs_skipped:        orgsSkipped,
+      orgs_skipped_guard:  orgsSkippedByGuard,
+      window_days:         windowDays,
+      runtimeDurationMs:   Date.now() - startedAt,
     });
     Sentry.captureCheckIn({ checkInId, monitorSlug: "generate-sector-intelligence", status });
     await Sentry.flush(2000);
@@ -273,16 +285,17 @@ async function handler(req: ApiReq, res: ApiRes) {
 
   function respond(
     res: ApiRes, startedAt: number,
-    processed: number, created: number, skipped: number
+    processed: number, created: number, skipped: number, skippedByGuard: number
   ) {
     res.status(200).json({
-      ok:               true,
-      job:              "generate-sector-intelligence",
-      orgs_processed:   processed,
-      analyses_created: created,
-      orgs_skipped:     skipped,
-      window_days:      windowDays,
-      runtimeDurationMs: Date.now() - startedAt,
+      ok:                  true,
+      job:                 "generate-sector-intelligence",
+      orgs_processed:      processed,
+      analyses_created:    created,
+      orgs_skipped:        skipped,
+      orgs_skipped_guard:  skippedByGuard,
+      window_days:         windowDays,
+      runtimeDurationMs:   Date.now() - startedAt,
     });
   }
 }

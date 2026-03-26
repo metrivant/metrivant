@@ -17,6 +17,9 @@ import { openai } from "../lib/openai";
 const BATCH_SIZE = 10;
 const CONFIDENCE_PENALTY = 0.10;
 
+// Wall-clock guard: maxDuration is 60s, leave 5s safety margin for final flush + response.
+const WALL_CLOCK_GUARD_MS = 55_000;
+
 const SYSTEM_PROMPT = `You are a quality assurance analyst reviewing AI-generated strategic movement summaries.
 
 Given a list of supporting signal summaries and an AI-generated movement narrative, determine whether the narrative is grounded in the signals.
@@ -45,6 +48,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   const elapsed = startTimer();
   const runId = (req.headers as Record<string, string | undefined>)?.["x-vercel-id"] ?? generateRunId();
   const checkInId = Sentry.captureCheckIn({ monitorSlug: "validate-movements", status: "in_progress" });
+  const startedAt = Date.now();
 
   try {
     // Load movements with AI-generated summaries that haven't been validated
@@ -65,12 +69,19 @@ async function handler(req: ApiReq, res: ApiRes) {
     if (movements.length === 0) {
       Sentry.captureCheckIn({ monitorSlug: "validate-movements", status: "ok", checkInId });
       await Sentry.flush(2000);
-      return res.status(200).json({ ok: true, job: "validate-movements", processed: 0 });
+      return res.status(200).json({ ok: true, job: "validate-movements", processed: 0, skippedByGuard: 0 });
     }
 
-    let validCount = 0, weakCount = 0, hallucinatedCount = 0;
+    let validCount = 0, weakCount = 0, hallucinatedCount = 0, processedCount = 0, skippedByGuard = 0;
 
     for (const mov of movements) {
+      // Wall-clock guard: stop processing if we're approaching the timeout.
+      if (Date.now() - startedAt > WALL_CLOCK_GUARD_MS) {
+        skippedByGuard = movements.length - processedCount;
+        console.log(`wall_clock_guard: skipping ${skippedByGuard} remaining movements`);
+        break;
+      }
+
       const timer = startTimer();
 
       // Load supporting interpretations for this movement's competitor
@@ -175,6 +186,8 @@ async function handler(req: ApiReq, res: ApiRes) {
       }
 
       void recordEvent({ run_id: runId, stage: "movement_validation", status: "success", duration_ms: timer(), metadata: { movement_id: mov.id } });
+
+      processedCount++;
     }
 
     void recordEvent({
@@ -182,13 +195,13 @@ async function handler(req: ApiReq, res: ApiRes) {
       stage: "movement_validation",
       status: "success",
       duration_ms: elapsed(),
-      metadata: { processed: movements.length, valid: validCount, weak: weakCount, hallucinated: hallucinatedCount },
+      metadata: { processed: processedCount, valid: validCount, weak: weakCount, hallucinated: hallucinatedCount, skippedByGuard },
     });
 
     Sentry.captureCheckIn({ monitorSlug: "validate-movements", status: "ok", checkInId });
     await Sentry.flush(2000);
 
-    res.status(200).json({ ok: true, job: "validate-movements", processed: movements.length, valid: validCount, weak: weakCount, hallucinated: hallucinatedCount, runtimeDurationMs: elapsed() });
+    res.status(200).json({ ok: true, job: "validate-movements", processed: processedCount, valid: validCount, weak: weakCount, hallucinated: hallucinatedCount, skippedByGuard, runtimeDurationMs: elapsed() });
   } catch (error) {
     Sentry.captureException(error);
     Sentry.captureCheckIn({ monitorSlug: "validate-movements", status: "error", checkInId });
