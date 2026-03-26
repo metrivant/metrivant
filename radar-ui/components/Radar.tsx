@@ -283,16 +283,48 @@ function idHash(id: string): number {
   return h / 0xFFFFFFFF;
 }
 
-// Zone-aware, ID-anchored placement.
-// competitorId → deterministic angle; momentum → zone; zoneIndex/zoneTotal → radius within band.
+// Semantic angle mapping: movement_type → sector position (0° = East, 90° = South, etc.)
+// Maps strategic movement types to their corresponding radar sectors for spatial intelligence.
+function getSemanticAngle(movementType: string | null, competitorId: string): number {
+  let baseAngle: number;
+
+  switch (movementType) {
+    case "market_reposition":
+    case "ecosystem_expansion":
+      baseAngle = 0;    // East: MARKET EXPANSION
+      break;
+    case "pricing_strategy_shift":
+      baseAngle = 90;   // South: PRICING SHIFTS
+      break;
+    case "product_expansion":
+      baseAngle = 180;  // West: PRODUCT EVOLUTION
+      break;
+    case "enterprise_push":
+      baseAngle = 270;  // North: ENTERPRISE PIVOT
+      break;
+    default:
+      // Dormant/unknown: use ID hash for stable random placement
+      return idHash(competitorId) * 360;
+  }
+
+  // Add deterministic jitter (±30°) within sector to prevent exact overlaps
+  // Use ID hash for stable jitter per competitor
+  const jitter = (idHash(competitorId) - 0.5) * 60; // ±30° range
+  return (baseAngle + jitter) % 360;
+}
+
+// Zone-aware, semantically-positioned placement.
+// movementType → sector angle; momentum → zone radius; zoneIndex → radial distribution.
 function getZoneNodePosition(
   competitorId: string,
+  movementType: string | null,
   momentum: number,
   zoneIndex: number,
   zoneTotal: number,
 ): Point {
   const band = ZONE_RADII[getRadialZone(momentum)];
-  const angle = idHash(competitorId) * 2 * Math.PI;
+  const angleDegrees = getSemanticAngle(movementType, competitorId);
+  const angle = (angleDegrees * Math.PI) / 180;
   const t = zoneTotal > 1 ? zoneIndex / (zoneTotal - 1) : 0.5;
   const r = band.min + t * (band.max - band.min);
   return {
@@ -1538,7 +1570,13 @@ export default function Radar({
       members.forEach((c, zi) => {
         map.set(
           c.competitor_id,
-          getZoneNodePosition(c.competitor_id, Number(c.momentum_score ?? 0), zi, members.length),
+          getZoneNodePosition(
+            c.competitor_id,
+            c.latest_movement_type,
+            Number(c.momentum_score ?? 0),
+            zi,
+            members.length
+          ),
         );
       });
     }
@@ -2355,10 +2393,10 @@ export default function Radar({
 
               {/* ── Zone labels (CRITICAL / ACTIVE / WATCH / DORMANT) — outside clip ── */}
               {!orbitMode && [
-                { label: "CRITICAL", radius: OUTER_RADIUS * 1.0, angle: 42 },
-                { label: "ACTIVE", radius: OUTER_RADIUS * 0.857, angle: 42 },
-                { label: "WATCH", radius: OUTER_RADIUS * 0.571, angle: 42 },
-                { label: "DORMANT", radius: OUTER_RADIUS * 0.286, angle: 42 },
+                { label: "CRITICAL", radius: OUTER_RADIUS * 1.0, angle: 48 },
+                { label: "ACTIVE", radius: OUTER_RADIUS * 0.857, angle: 48 },
+                { label: "WATCH", radius: OUTER_RADIUS * 0.571, angle: 48 },
+                { label: "DORMANT", radius: OUTER_RADIUS * 0.286, angle: 48 },
               ].map(({ label, radius, angle }) => {
                 const radians = (angle * Math.PI) / 180;
                 const x = CENTER + radius * Math.cos(radians);
@@ -2370,14 +2408,14 @@ export default function Radar({
                     y={y}
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    fill="rgba(0,180,255,0.45)"
+                    fill="rgba(0,180,255,0.40)"
                     fontSize="9"
                     fontWeight="700"
                     fontFamily="var(--font-orbitron)"
                     letterSpacing="0.22em"
                     style={{
                       textTransform: "uppercase",
-                      filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.95))",
+                      filter: "drop-shadow(0 0 4px rgba(0,180,255,0.30)) drop-shadow(0 1px 3px rgba(0,0,0,0.95))",
                       pointerEvents: "none",
                     }}
                   >
@@ -2388,7 +2426,7 @@ export default function Radar({
 
               {/* ── Center crosshair (H + V lines) — subtle structural cue ── */}
               {!orbitMode && (
-                <g style={{ opacity: 0.12, pointerEvents: "none" }}>
+                <g style={{ opacity: 0.18, pointerEvents: "none" }}>
                   <line
                     x1={CENTER - 80}
                     y1={CENTER}
@@ -2412,7 +2450,7 @@ export default function Radar({
 
               {/* ── Angular sectors — semantic quadrants mapping movement types ── */}
               {!orbitMode && (
-                <g style={{ opacity: 0.08, pointerEvents: "none" }}>
+                <g style={{ opacity: 0.14, pointerEvents: "none" }}>
                   {/* Radial dividers at 0°, 90°, 180°, 270° */}
                   {[0, 90, 180, 270].map((deg) => {
                     const radians = (deg * Math.PI) / 180;
@@ -2453,7 +2491,7 @@ export default function Radar({
                     y={y}
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    fill="rgba(0,180,255,0.35)"
+                    fill="rgba(0,180,255,0.40)"
                     fontSize="8"
                     fontWeight="700"
                     fontFamily="var(--font-orbitron)"
@@ -3578,6 +3616,64 @@ export default function Radar({
                   {(zoom * 100).toFixed(0)}%
                 </div>
               </div>
+
+              {/* Desktop mode toggle — Pro feature, hidden on mobile */}
+              {plan === "pro" && (
+                <button
+                  onClick={() => {
+                    setOrbitMode((prev) => !prev);
+                    getAudioManager().play("swoosh");
+                  }}
+                  className="pointer-events-auto absolute bottom-20 right-4 hidden rounded-[8px] px-3 py-2 transition-all hover:scale-[1.02] active:scale-[0.98] md:block"
+                  style={{
+                    background: "rgba(2,2,8,0.75)",
+                    border: `1px solid ${orbitMode ? "rgba(129,140,248,0.35)" : "rgba(0,180,255,0.18)"}`,
+                    backdropFilter: "blur(8px)",
+                    WebkitBackdropFilter: "blur(8px)",
+                  }}
+                  aria-label={orbitMode ? "Switch to Standard mode" : "Switch to ORBIT mode"}
+                >
+                  <div
+                    style={{
+                      fontFamily: "var(--font-orbitron)",
+                      fontSize: "9px",
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.18em",
+                      color: "rgba(0,180,255,0.55)",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    MODE
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div
+                      style={{
+                        fontFamily: "var(--font-orbitron)",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: orbitMode ? "rgba(129,140,248,0.85)" : "#ffffff",
+                      }}
+                    >
+                      {orbitMode ? "ORBIT" : "STANDARD"}
+                    </div>
+                    {/* Mode icon */}
+                    {orbitMode ? (
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                        <circle cx="7" cy="7" r="2.5" fill="rgba(129,140,248,0.75)" />
+                        <circle cx="7" cy="7" r="5.5" stroke="rgba(129,140,248,0.45)" strokeWidth="0.8" />
+                        <circle cx="7" cy="7" r="4" stroke="rgba(129,140,248,0.25)" strokeWidth="0.6" />
+                      </svg>
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                        <circle cx="7" cy="7" r="5.5" stroke="rgba(0,180,255,0.55)" strokeWidth="0.8" />
+                        <circle cx="7" cy="7" r="3.5" stroke="rgba(0,180,255,0.30)" strokeWidth="0.6" />
+                        <circle cx="7" cy="7" r="1.2" fill="rgba(0,180,255,0.65)" />
+                      </svg>
+                    )}
+                  </div>
+                </button>
+              )}
             </div>
 
             {/* HUD panels moved inside main SVG above — zoom-synced with radar */}
