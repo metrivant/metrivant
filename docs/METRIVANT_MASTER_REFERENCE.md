@@ -117,6 +117,7 @@ Interpretation + movements + AI synthesis (every 60 min):
 
 AI quality validation (every 60 min):
   :35      validate-interpretations   (GPT-4o-mini hallucination check — advisory only, does NOT gate output)
+  :37      retrograde-signals         (autonomous feedback — reduces confidence when interpretations hallucinate)
   :42      validate-movements         (GPT-4o-mini movement grounding check — advisory only)
 
 Self-healing + self-improving (various cadences):
@@ -126,18 +127,19 @@ Self-healing + self-improving (various cadences):
 
 Weekly (Mon/Wed/Fri or Sunday):
   Mon,Wed,Fri 07:00  generate-sector-intelligence
-  Sun 03:30  calibrate-weights
+  Sun 03:30  calibrate-weights (DEPRECATED stub — returns {deprecated: true})
   Sun 06:00  expand-coverage
   Sun 06:00  check-feed-health
   Sun 06:30  repair-feeds
   Sun 07:00  backfill-feeds
-  Sun 07:00  learn-noise-patterns
+  Sun 07:00  learn-noise-patterns (DEPRECATED stub — returns {deprecated: true})
   Sun 08:00  suggest-competitors
 
 Daily:
   02:00  promote-baselines
   03:00  retention
   04:00  suggest-selector-repairs
+  04:30  update-noise-baselines (autonomous noise detection — per-competitor 30d baselines)
   05:00  heal-coverage
   05:30  resolve-coverage
   06:30  detect-stale-competitors
@@ -892,7 +894,10 @@ safe to run (all steps are DROP IF EXISTS / ADD IF NOT EXISTS).
 
 -- Migrations 026–028 (observability, feedback, retention) --
 pipeline_events                    observability log for all pipeline stages; 90d retention (lib/pipeline-metrics.ts)
-signal_feedback                    operator quality labels per signal (verdict, noise_category); unique per signal_id
+signal_feedback                    DEPRECATED — was operator quality labels; replaced by autonomous noise detection (2026-03-26)
+competitor_noise_baselines         per-competitor 30-day noise rates for confidence calibration (migration 069)
+section_diffs.noise_metadata       autonomous noise detection metadata (JSONB — similarity scores, correlation counts) (migration 068)
+signals.retrograded_at             validation feedback timestamp (hallucinated interpretations penalize signals) (migration 070)
 retention functions                4 idempotent Postgres RPC functions: retention_null_raw_html,
                                    retention_delete_sections, retention_delete_diffs, retention_delete_pipeline_events
 
@@ -1028,28 +1033,41 @@ Layer V2 — Movement Validation (validate-movements, :42 hourly)
   the mitigation — low-confidence movements contribute less to momentum_score.
 
 ================================================
-28c. SELF-IMPROVING PIPELINE SYSTEMS (added v4.3)
+28c. SELF-IMPROVING PIPELINE SYSTEMS (v4.5 — fully autonomous)
 ================================================
 
-1. Noise Pattern Learning (learn-noise-patterns, weekly Sun 07:00)
-   Input:  signal_feedback verdicts grouped by (section_type, competitor_id, signal_type)
-   Rule:   noise_rate >= 80% over >= 5 samples → create suppression rule
-   Output: noise_suppression_rules (checked by detect-signals before signal creation)
-   Effect: operator feedback compounds permanently — false positive patterns auto-suppress
+AUTONOMOUS NOISE DETECTION (2026-03-26 — migrations 068-070)
+Zero user feedback required. Three-phase recursive improvement system:
 
-2. Confidence Calibration (calibrate-weights, weekly Sun 03:30)
-   Input:  signal_feedback verdicts grouped by section_type
-   Output: calibration_reports.section_stats (adjusted_weight per section_type)
-   Effect: detect-signals loads latest calibration; poorly-performing section types
-           get reduced base weight (min 0.60× multiplier, max 1.15×)
-   Also:   confidence_calibration table (feedback-driven multipliers, applied on top)
+Phase 1: 8 Deterministic Filters (lib/noise-detection.ts)
+   Filters: whitespace_only, dynamic_content_only, structural, semantic_similarity,
+            churn, reversion, oscillation, infrastructure
+   Integration: detect-signals calls detectNoise() before signal creation
+   Storage: section_diffs.noise_metadata (JSONB) — similarity scores, correlation counts
+   Effect: 60-80% noise suppression (vs 40% with old 2-filter system)
 
-3. Velocity Dampening (inline in detect-signals)
+Phase 2: Statistical Baselines (per-competitor calibration)
+   Table: competitor_noise_baselines (30-day rolling window)
+   Calibration: low noise (<0.10) → +0.08 boost; high noise (>0.30) → proportional penalty
+   Cron: update-noise-baselines (daily 04:30 UTC)
+   Effect: high-quality competitors get more signals promoted; noisy competitors penalized
+
+Phase 3: Validation Feedback Loop
+   Flow: validate-interpretations (:35) → hallucinated flag → retrograde-signals (:37)
+         → confidence penalty (-0.20) → status downgrade → skip re-interpretation
+   Storage: signals.retrograded_at timestamp
+   RPC: claim_pending_signals excludes retrograded signals
+   Effect: system learns which signals produce bad interpretations autonomously
+
+Deprecated (stubbed): learn-noise-patterns, calibrate-weights (both return {deprecated: true})
+                      signal_feedback table no longer used
+
+1. Velocity Dampening (inline in detect-signals)
    Input:  14-day signal history per competitor
    Rule:   signals-in-this-run > 5× daily average → suppress excess (absolute cap: 15)
    Effect: website redesigns don't flood the pipeline; dampener resets each run
 
-4. Cross-Pool Deduplication (inline in promote-*-signals)
+2. Cross-Pool Deduplication (inline in promote-*-signals)
    Input:  recent signals for same competitor within 48h window
    Rules:  Jaccard word similarity >= 0.55 OR same signal_type within 6h → skip
    Effect: prevents same event from creating duplicate signals through different pools
