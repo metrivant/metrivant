@@ -8,6 +8,7 @@ import LandingCTAButtons from "../components/LandingCTAButtons";
 import PipelineSection from "../components/PipelineSection";
 import ElectricityBackground, { type ElectricityBackgroundRef } from "../components/ElectricityBackground";
 import CoreConceptSection from "../components/CoreConceptSection";
+import EquationPanel from "../components/EquationPanel";
 
 const LABEL_COLOR_STYLE = { color: "rgba(0,180,255,0.55)" } as const;
 
@@ -120,6 +121,9 @@ export default function LandingPage() {
 
       {/* ── Core Concept ─────────────────────────────────────────────── */}
       <CoreConceptSection />
+
+      {/* ── Equation Panel ───────────────────────────────────────────── */}
+      <EquationPanel />
 
       {/* ── Sectors ──────────────────────────────────────────────────── */}
       <section className="relative border-t border-[#0d1020] px-6 py-12">
