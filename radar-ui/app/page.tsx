@@ -198,9 +198,40 @@ export default function LandingPage() {
               </ul>
               <Link
                 href="/signup?plan=pro"
-                className="mt-4 block rounded-full bg-[#00B4FF] py-2 text-center text-[12px] font-semibold text-black transition-opacity hover:opacity-90"
+                className="group relative mt-4 block overflow-hidden rounded-full py-2 text-center text-[12px] font-semibold"
               >
-                Start free trial
+                {/* Animated background with breathing effect */}
+                <div
+                  className="absolute inset-0 bg-[#00B4FF]"
+                  style={{
+                    animation: "pricing-breathe 3s ease-in-out infinite",
+                  }}
+                />
+
+                {/* Sheen overlay that sweeps across */}
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background:
+                      "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%)",
+                    backgroundSize: "200% 100%",
+                    animation: "pricing-sheen 3s linear infinite",
+                  }}
+                />
+
+                {/* Pulse ring on hover */}
+                <div
+                  className="absolute inset-0 rounded-full opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                  style={{
+                    boxShadow: "0 0 25px rgba(0,180,255,0.8), inset 0 0 20px rgba(255,255,255,0.15)",
+                    animation: "pricing-pulse 2s ease-in-out infinite",
+                  }}
+                />
+
+                {/* Text */}
+                <span className="relative z-10 text-black transition-all duration-300 group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.6)]">
+                  Start free trial
+                </span>
               </Link>
             </div>
           </div>

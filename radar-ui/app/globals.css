@@ -201,3 +201,19 @@ body {
   -webkit-background-clip: text;
   animation: tagline-sheen 6s ease-in-out infinite;
 }
+
+/* ── Pricing CTA animations ──────────────────────────────────────────────── */
+@keyframes pricing-breathe {
+  0%, 100% { opacity: 0.95; transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.01); }
+}
+
+@keyframes pricing-sheen {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes pricing-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50%      { transform: scale(1.05); opacity: 0.8; }
+}
