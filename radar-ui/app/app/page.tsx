@@ -191,6 +191,9 @@ export default async function Page() {
     is_noise?: boolean;
     noise_reason?: string | null;
     retrograded_at?: string | null;
+    strategic_implication?: string | null;
+    previous_excerpt?: string | null;
+    current_excerpt?: string | null;
   };
   let telescopeSignals: TelescopeSignal[] = [];
   if (orgId) {
@@ -201,9 +204,9 @@ export default async function Page() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data } = await (service as any)
           .from("signals")
-          .select("id, signal_type, confidence_score, detected_at, competitor_id, retrograded_at, section_diff_id")
+          .select("id, signal_type, confidence_score, detected_at, competitor_id, retrograded_at, section_diff_id, strategic_implication, previous_excerpt, current_excerpt")
           .in("competitor_id", competitorIds)
-          .in("status", ["pending", "pending_review", "interpreted"])
+          .eq("status", "interpreted")
           .order("detected_at", { ascending: false })
           .limit(30);
 
@@ -229,6 +232,9 @@ export default async function Page() {
           id: string; signal_type: string;
           confidence_score: number | null; detected_at: string; competitor_id: string;
           retrograded_at: string | null; section_diff_id: string | null;
+          strategic_implication: string | null;
+          previous_excerpt: string | null;
+          current_excerpt: string | null;
         }>).map((s) => {
           const meta = s.section_diff_id ? noiseMeta.get(s.section_diff_id) : undefined;
           return {
@@ -241,6 +247,9 @@ export default async function Page() {
             is_noise: meta?.is_noise,
             noise_reason: meta?.noise_reason,
             retrograded_at: s.retrograded_at,
+            strategic_implication: s.strategic_implication,
+            previous_excerpt: s.previous_excerpt,
+            current_excerpt: s.current_excerpt,
           };
         });
       }
