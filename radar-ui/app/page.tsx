@@ -5,6 +5,7 @@ import LandingCTAButtons from "../components/LandingCTAButtons";
 import PipelineSection from "../components/PipelineSection";
 import IntelligencePulse from "../components/IntelligencePulse";
 import ElectricityBackground from "../components/ElectricityBackground";
+import CoreConceptSection from "../components/CoreConceptSection";
 
 const LABEL_COLOR_STYLE = { color: "rgba(0,180,255,0.55)" } as const;
 
@@ -115,24 +116,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Core Concept ─────────────────────────────────────────────── */}
-      <section className="relative border-t border-[#0d1020] px-6 py-16">
-        <div className="mx-auto max-w-3xl">
-          <div className="flex flex-col gap-6 text-center text-[15px] font-light leading-relaxed text-white" style={{ letterSpacing: "0.02em" }}>
-            <p>
-              Metrivant monitors competitors across market sectors, detecting{" "}
-              <span className="font-medium" style={{ color: "rgba(0,180,255,0.85)" }}>high-confidence signals of strategic change</span>.
-            </p>
-            <p>
-              These signals—validated, evidence-grounded, and delivered with precision—inform{" "}
-              <span className="font-medium" style={{ color: "rgba(0,180,255,0.85)" }}>critical business decisions</span>.
-            </p>
-            <p>
-              Enabling organizations to anticipate competitor moves and respond with{" "}
-              <span className="font-medium" style={{ color: "rgba(0,180,255,0.85)" }}>deliberate advantage</span>.
-            </p>
-          </div>
-        </div>
-      </section>
+      <CoreConceptSection />
 
       {/* ── Sectors ──────────────────────────────────────────────────── */}
       <section className="relative border-t border-[#0d1020] px-6 py-12">
