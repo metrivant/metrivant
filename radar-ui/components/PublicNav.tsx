@@ -35,6 +35,14 @@ export default function PublicNav() {
             About
           </button>
           <Link
+            href="/pipeline"
+            className={`text-[13px] font-medium transition-colors ${
+              pathname === "/pipeline" ? "text-[#00B4FF]" : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            How it works
+          </Link>
+          <Link
             href="/pricing"
             className={`text-[13px] font-medium transition-colors ${
               pathname === "/pricing" ? "text-[#00B4FF]" : "text-slate-400 hover:text-slate-200"
@@ -103,6 +111,15 @@ export default function PublicNav() {
             >
               About
             </button>
+            <Link
+              href="/pipeline"
+              onClick={() => setMenuOpen(false)}
+              className={`rounded-lg px-3 py-3 text-[14px] font-medium transition-colors ${
+                pathname === "/pipeline" ? "text-[#00B4FF]" : "text-slate-300"
+              }`}
+            >
+              How it works
+            </Link>
             <Link
               href="/pricing"
               onClick={() => setMenuOpen(false)}

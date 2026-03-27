@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export const metadata = {
   title: "How Metrivant Works — Pipeline",
   description:
-    "The Metrivant detection pipeline: 8 stages from page capture to radar intelligence. Live operational status.",
+    "The Metrivant detection pipeline: 8 deterministic stages that transform competitor page changes into high-confidence strategic signals. Live operational status.",
 };
 
 // ── Server-side status fetch — mirrors /api/pipeline-status logic ─────────────
@@ -176,9 +176,10 @@ export default async function PipelinePage() {
             The Detection Pipeline
           </h1>
           <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-slate-500">
-            Metrivant operates a deterministic 8-stage pipeline that runs continuously.
-            Every radar signal you see is produced by this engine — no speculation,
-            no inference. Click any stage to see exactly how it works.
+            Metrivant monitors competitors across markets using a deterministic 8-stage pipeline.
+            Every signal is validated, evidence-grounded, and delivered with precision — transforming
+            competitor page changes into high-confidence intelligence that informs critical business decisions.
+            Click any stage to see exactly how it works.
           </p>
 
           {/* Design callout */}
