@@ -155,33 +155,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Differentiation row ──────────────────────────────────────── */}
-      <section className="relative border-t border-[#0d1020] px-6 py-10">
-        <div className="mx-auto grid max-w-2xl gap-8 sm:grid-cols-3 text-center">
-          {[
-            {
-              label: "Evidence-grounded",
-              body:  "Every signal traces to a real change. No inference without observation.",
-            },
-            {
-              label: "Confidence-gated",
-              body:  "Four-factor scoring separates strategic moves from cosmetic noise.",
-            },
-            {
-              label: "Early detection",
-              body:  "Detects operational shifts before they reach press releases or filings.",
-            },
-          ].map(({ label, body }) => (
-            <div key={label} className="flex flex-col items-center gap-2">
-              <div className="text-[11px] font-bold uppercase tracking-[0.22em]" style={{ fontFamily: "var(--font-orbitron)", ...LABEL_COLOR_STYLE }}>
-                {label}
-              </div>
-              <p className="mv-body">{body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* ── Pipeline Experience — scroll-triggered SVG narrative ──── */}
       <section className="relative border-t border-[#0d1020]">
         <PipelineSection />
