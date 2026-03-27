@@ -1105,11 +1105,32 @@ const BlipNode = memo(function BlipNode({
       {hovered && !isSelected && !isDormantNode && (
         <g style={{ pointerEvents: "none" }}>
           {(() => {
-            // Position tooltip offset from node (right side, avoid covering node)
-            const tooltipX = x + nodeSize + 35;
-            const tooltipY = y - 32;
+            // Smart positioning to avoid viewport clipping
             const tooltipWidth = 140;
             const tooltipHeight = 68;
+            const padding = 8; // Edge padding to prevent clipping
+
+            // Horizontal positioning (prefer right, flip to left if overflow)
+            let tooltipX = x + nodeSize + 35;
+            if (tooltipX + tooltipWidth > SIZE - padding) {
+              // Would overflow right edge — position to left of node
+              tooltipX = x - nodeSize - 35 - tooltipWidth;
+              // If still overflows left edge, clamp to padding
+              if (tooltipX < padding) {
+                tooltipX = padding;
+              }
+            }
+
+            // Vertical positioning (prefer above node, adjust if overflow)
+            let tooltipY = y - 32;
+            if (tooltipY < padding) {
+              // Would overflow top edge — position below anchor
+              tooltipY = padding;
+            } else if (tooltipY + tooltipHeight > SIZE - padding) {
+              // Would overflow bottom edge — align to bottom with padding
+              tooltipY = SIZE - padding - tooltipHeight;
+            }
+
             const conf = competitor.latest_movement_confidence ?? 0;
             const movementType = competitor.latest_movement_type;
 
