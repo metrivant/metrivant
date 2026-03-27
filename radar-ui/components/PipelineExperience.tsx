@@ -82,6 +82,176 @@ function MiniRadar({ active }: { active: boolean }) {
   );
 }
 
+// ── Stage visualization — 3D data-driven animations ──────────────────────────
+
+function StageVisualization({ stage, active }: { stage: number; active: boolean }) {
+  const baseStyle: React.CSSProperties = {
+    width: "120px",
+    height: "80px",
+    position: "relative",
+    margin: "0 auto",
+    opacity: active ? 1 : 0.3,
+    transition: "opacity 0.5s ease",
+  };
+
+  // TRACK — Target crosshair focusing
+  if (stage === 0) {
+    return (
+      <div style={baseStyle}>
+        <svg width="120" height="80" viewBox="0 0 120 80">
+          <circle cx="60" cy="40" r="25" fill="none" stroke={ACCENT} strokeWidth="1" opacity="0.2" />
+          <circle cx="60" cy="40" r="15" fill="none" stroke={ACCENT} strokeWidth="1.5" opacity="0.4">
+            {active && <animate attributeName="r" values="15;18;15" dur="2s" repeatCount="indefinite" />}
+          </circle>
+          <line x1="35" y1="40" x2="45" y2="40" stroke={ACCENT} strokeWidth="1.5" opacity="0.6" />
+          <line x1="75" y1="40" x2="85" y2="40" stroke={ACCENT} strokeWidth="1.5" opacity="0.6" />
+          <line x1="60" y1="15" x2="60" y2="25" stroke={ACCENT} strokeWidth="1.5" opacity="0.6" />
+          <line x1="60" y1="55" x2="60" y2="65" stroke={ACCENT} strokeWidth="1.5" opacity="0.6" />
+          <circle cx="60" cy="40" r="2" fill={ACCENT}>
+            {active && <animate attributeName="opacity" values="0.5;1;0.5" dur="1.5s" repeatCount="indefinite" />}
+          </circle>
+        </svg>
+      </div>
+    );
+  }
+
+  // MONITOR — Scanning lines
+  if (stage === 1) {
+    return (
+      <div style={baseStyle}>
+        <svg width="120" height="80" viewBox="0 0 120 80">
+          <rect x="25" y="15" width="70" height="50" fill="none" stroke={ACCENT} strokeWidth="1" opacity="0.25" rx="2" />
+          {[0, 1, 2].map((i) => (
+            <line key={i} x1="30" y1={25 + i * 15} x2="90" y2={25 + i * 15} stroke={ACCENT} strokeWidth="1" opacity="0.15" />
+          ))}
+          <line x1="30" y1="30" x2="90" y2="30" stroke={ACCENT} strokeWidth="2" opacity="0.6">
+            {active && <animate attributeName="y1" values="25;55;25" dur="3s" repeatCount="indefinite" />}
+            {active && <animate attributeName="y2" values="25;55;25" dur="3s" repeatCount="indefinite" />}
+          </line>
+        </svg>
+      </div>
+    );
+  }
+
+  // CAPTURE — Camera shutter
+  if (stage === 2) {
+    return (
+      <div style={baseStyle}>
+        <svg width="120" height="80" viewBox="0 0 120 80">
+          <rect x="30" y="20" width="60" height="40" fill="none" stroke={ACCENT} strokeWidth="1.5" opacity="0.3" rx="3" />
+          <circle cx="60" cy="40" r="12" fill="none" stroke={ACCENT} strokeWidth="1.5" opacity="0.4" />
+          {active && (
+            <>
+              <line x1="40" y1="40" x2="80" y2="40" stroke={ACCENT} strokeWidth="2" opacity="0.6">
+                <animate attributeName="x1" values="40;60;40" dur="2s" repeatCount="indefinite" />
+                <animate attributeName="x2" values="80;60;80" dur="2s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0;0.8;0" dur="2s" repeatCount="indefinite" />
+              </line>
+              <line x1="60" y1="28" x2="60" y2="52" stroke={ACCENT} strokeWidth="2" opacity="0.6">
+                <animate attributeName="y1" values="28;40;28" dur="2s" repeatCount="indefinite" />
+                <animate attributeName="y2" values="52;40;52" dur="2s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0;0.8;0" dur="2s" repeatCount="indefinite" />
+              </line>
+            </>
+          )}
+        </svg>
+      </div>
+    );
+  }
+
+  // DETECT — Diff/change indicator
+  if (stage === 3) {
+    return (
+      <div style={baseStyle}>
+        <svg width="120" height="80" viewBox="0 0 120 80">
+          <rect x="20" y="25" width="35" height="30" fill="rgba(0,180,255,0.05)" stroke={ACCENT} strokeWidth="1" opacity="0.2" />
+          <rect x="65" y="25" width="35" height="30" fill="rgba(0,180,255,0.10)" stroke={ACCENT} strokeWidth="1" opacity="0.4" />
+          {active && (
+            <>
+              <line x1="37" y1="30" x2="37" y2="50" stroke="#ef4444" strokeWidth="2" opacity="0.6">
+                <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite" />
+              </line>
+              <line x1="82" y1="30" x2="82" y2="50" stroke={ACCENT} strokeWidth="2" opacity="0.6">
+                <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite" begin="0.5s" />
+              </line>
+            </>
+          )}
+        </svg>
+      </div>
+    );
+  }
+
+  // CLASSIFY — Filter/score bars
+  if (stage === 4) {
+    return (
+      <div style={baseStyle}>
+        <svg width="120" height="80" viewBox="0 0 120 80">
+          {[0, 1, 2, 3].map((i) => {
+            const heights = [35, 25, 45, 15];
+            const h = heights[i];
+            return (
+              <rect
+                key={i}
+                x={25 + i * 18}
+                y={60 - h}
+                width="12"
+                height={h}
+                fill={i >= 2 ? ACCENT : "rgba(100,116,139,0.3)"}
+                opacity={active && i >= 2 ? 0.6 : 0.2}
+                rx="1"
+              >
+                {active && i >= 2 && (
+                  <animate attributeName="opacity" values="0.3;0.7;0.3" dur="2s" repeatCount="indefinite" begin={`${i * 0.2}s`} />
+                )}
+              </rect>
+            );
+          })}
+        </svg>
+      </div>
+    );
+  }
+
+  // SYNTHESISE — Clustering circles
+  if (stage === 5) {
+    return (
+      <div style={baseStyle}>
+        <svg width="120" height="80" viewBox="0 0 120 80">
+          <circle cx="45" cy="35" r="8" fill="none" stroke={ACCENT} strokeWidth="1" opacity="0.3" />
+          <circle cx="60" cy="28" r="8" fill="none" stroke={ACCENT} strokeWidth="1" opacity="0.3" />
+          <circle cx="75" cy="35" r="8" fill="none" stroke={ACCENT} strokeWidth="1" opacity="0.3" />
+          <circle cx="60" cy="45" r="25" fill="none" stroke={ACCENT} strokeWidth="1.5" opacity={active ? 0.5 : 0.2}>
+            {active && <animate attributeName="r" values="22;26;22" dur="3s" repeatCount="indefinite" />}
+          </circle>
+          {active && (
+            <line x1="45" y1="35" x2="60" y2="40" stroke={ACCENT} strokeWidth="1" opacity="0.4">
+              <animate attributeName="opacity" values="0;0.6;0" dur="2s" repeatCount="indefinite" />
+            </line>
+          )}
+        </svg>
+      </div>
+    );
+  }
+
+  // RADAR — Sweep visual (mini version of main radar)
+  if (stage === 6) {
+    return (
+      <div style={baseStyle}>
+        <svg width="120" height="80" viewBox="0 0 120 80">
+          <circle cx="60" cy="40" r="28" fill="none" stroke={ACCENT} strokeWidth="1" opacity="0.15" />
+          <circle cx="60" cy="40" r="18" fill="none" stroke={ACCENT} strokeWidth="1" opacity="0.25" />
+          <circle cx="60" cy="40" r="8" fill="none" stroke={ACCENT} strokeWidth="1" opacity="0.35" />
+          <circle cx="60" cy="40" r="2" fill={ACCENT} opacity="0.8" />
+          <line x1="60" y1="40" x2="60" y2="15" stroke={ACCENT} strokeWidth="1.5" opacity="0.6" style={{ transformOrigin: "60px 40px" }}>
+            {active && <animateTransform attributeName="transform" type="rotate" from="0 60 40" to="360 60 40" dur="4s" repeatCount="indefinite" />}
+          </line>
+        </svg>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function PipelineExperience() {
@@ -94,15 +264,23 @@ export default function PipelineExperience() {
     const rect = el.getBoundingClientRect();
     const vh = window.innerHeight;
     const sectionH = el.offsetHeight;
-    // scrolled: 0 when section top enters viewport bottom, sectionH when section bottom exits viewport top
-    const scrolled = vh - rect.top;
-    // Map 0..sectionH → 0..1, representing how far through the section the user has scrolled
-    const raw = scrolled / sectionH;
+
+    // Only start animation when the full section is visible on screen
+    // Section is fully visible when: top >= 0 AND bottom <= vh
+    const sectionBottom = rect.top + vh; // Use vh as proxy for visible section height
+    const fullyVisible = rect.top <= 0 && sectionBottom >= vh;
+
+    if (!fullyVisible) {
+      setProgress(0);
+      return;
+    }
+
+    // Once fully visible, scroll through remaining height
+    const scrolled = -rect.top; // How far top has scrolled past viewport top
+    const scrollable = sectionH - vh; // Total scrollable distance
+    const raw = scrolled / scrollable;
     const clamped = Math.max(0, Math.min(1, raw));
-    // Delay start: wait until 30% scrolled, then map linearly across the remaining 70%
-    const THRESHOLD = 0.30;
-    const remapped = clamped <= THRESHOLD ? 0 : (clamped - THRESHOLD) / (1 - THRESHOLD);
-    setProgress(Math.min(1, remapped));
+    setProgress(clamped);
   }, []);
 
   useEffect(() => {
@@ -252,16 +430,6 @@ export default function PipelineExperience() {
                   style={{ transition: "all 0.4s ease" }}
                 />
               )}
-              {/* Icon below node */}
-              <text
-                x={cx} y={PIPE_Y + NODE_R + 18}
-                textAnchor="middle"
-                fontSize={isActive ? 14 : 11}
-                fill={isActive ? ACCENT : isPast ? "rgba(0,180,255,0.30)" : "rgba(100,116,139,0.15)"}
-                style={{ transition: "fill 0.4s ease, font-size 0.4s ease" }}
-              >
-                {STAGES[i].icon}
-              </text>
               {/* Label above node */}
               <text
                 x={cx} y={PIPE_Y - NODE_R - 16}
@@ -301,47 +469,59 @@ export default function PipelineExperience() {
         )}
       </svg>
 
-      {/* Active stage description — single line below SVG, well-spaced */}
+      {/* Active stage description + 3D visualization */}
       <div
         style={{
           textAlign: "center",
           marginTop: 40,
-          minHeight: 56,
+          minHeight: 180,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          gap: 8,
+          gap: 16,
         }}
       >
         {progress > 0.02 && (
           <div
             key={activeStage}
-            style={{ animation: "content-reveal 0.3s ease-out both" }}
+            style={{
+              animation: "content-reveal 0.3s ease-out both",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 20,
+            }}
           >
-            <div
-              style={{
-                fontFamily: "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, monospace",
-                fontSize: 13,
-                letterSpacing: "0.20em",
-                color: radarActive ? ACCENT : "rgba(255,255,255,0.75)",
-                textTransform: "uppercase",
-                fontWeight: 700,
-                marginBottom: 6,
-              }}
-            >
-              {radarActive ? "Intelligence, live" : `Step ${activeStage + 1} — ${STAGES[activeStage].label}`}
+            <div>
+              <div
+                style={{
+                  fontFamily: "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, monospace",
+                  fontSize: 13,
+                  letterSpacing: "0.20em",
+                  color: radarActive ? ACCENT : "rgba(255,255,255,0.75)",
+                  textTransform: "uppercase",
+                  fontWeight: 700,
+                  marginBottom: 6,
+                }}
+              >
+                {radarActive ? "Intelligence, live" : `Step ${activeStage + 1} — ${STAGES[activeStage].label}`}
+              </div>
+              <div
+                style={{
+                  fontSize: 14,
+                  color: "rgba(255,255,255,0.40)",
+                  letterSpacing: "0.01em",
+                  maxWidth: 400,
+                  marginBottom: 16,
+                }}
+              >
+                {STAGES[activeStage].desc}
+              </div>
             </div>
-            <div
-              style={{
-                fontSize: 14,
-                color: "rgba(255,255,255,0.40)",
-                letterSpacing: "0.01em",
-                maxWidth: 400,
-              }}
-            >
-              {STAGES[activeStage].desc}
-            </div>
+
+            {/* Stage-specific 3D visualization */}
+            <StageVisualization stage={activeStage} active={true} />
           </div>
         )}
       </div>
