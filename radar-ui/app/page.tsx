@@ -19,7 +19,7 @@ const jsonLd = [
     url: "https://www.metrivant.com",
     logo: "https://www.metrivant.com/icon-512.png",
     description:
-      "Competitive intelligence radar detecting pricing, product, and strategy signals across competitors.",
+      "Monitors competitors across market sectors, detecting high-confidence signals of strategic change to inform critical business decisions.",
     offers: { "@type": "Offer", price: "9", priceCurrency: "USD" },
   },
   {
@@ -28,7 +28,7 @@ const jsonLd = [
     name: "Metrivant",
     url: "https://www.metrivant.com",
     logo: "https://www.metrivant.com/icon-512.png",
-    description: "Competitive intelligence radar for B2B SaaS, Defense, Energy, and other sectors.",
+    description: "Detects high-confidence signals of competitor change across B2B SaaS, Defense, Energy, and other market sectors.",
     contactPoint: { "@type": "ContactPoint", email: "hello@metrivant.com", contactType: "customer support" },
   },
   {
@@ -36,7 +36,7 @@ const jsonLd = [
     "@type": "WebSite",
     name: "Metrivant",
     url: "https://www.metrivant.com",
-    description: "Detect competitor moves before they matter. Real-time radar intelligence for competitive strategy.",
+    description: "Monitor competitors across markets. Detect high-confidence signals of change. Inform strategic decisions with evidence-grounded intelligence.",
   },
 ];
 
@@ -113,6 +113,20 @@ export default function LandingPage() {
           <Link href="/pricing" className="text-slate-500 transition-colors hover:text-white">
             Plans →
           </Link>
+        </div>
+      </section>
+
+      {/* ── Core Concept ─────────────────────────────────────────────── */}
+      <section className="relative border-t border-[#0d1020] px-6 py-16">
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="text-[16px] font-light leading-relaxed text-white" style={{ letterSpacing: "0.02em", lineHeight: 1.8 }}>
+            Metrivant monitors competitors across market sectors, detecting{" "}
+            <span className="font-medium" style={{ color: "rgba(0,180,255,0.85)" }}>high-confidence signals of strategic change</span>.
+            These signals—validated, evidence-grounded, and delivered with precision—inform{" "}
+            <span className="font-medium" style={{ color: "rgba(0,180,255,0.85)" }}>critical business decisions</span>,
+            enabling organizations to anticipate competitor moves and respond with{" "}
+            <span className="font-medium" style={{ color: "rgba(0,180,255,0.85)" }}>deliberate advantage</span>.
+          </p>
         </div>
       </section>
 

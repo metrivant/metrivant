@@ -8,7 +8,7 @@ If the system evolves, this file must be updated before the next session.
 
 # 1. SYSTEM IDENTITY
 
-Metrivant is a sector-agnostic competitive intelligence radar.
+Metrivant monitors competitors across market sectors, detecting high-confidence signals of strategic change. These signals—validated, evidence-grounded, and delivered with precision—inform critical business decisions, enabling organizations to anticipate competitor moves and respond with deliberate advantage.
 
 The system continuously monitors competitor websites, detects changes, classifies those changes as signals, and aggregates signals into strategic movements. It renders that intelligence as a real-time radar instrument.
 

@@ -34,19 +34,19 @@ export const metadata: Metadata = {
     template: "%s — Metrivant",
   },
   description:
-    "Track competitor pricing, product launches, hiring signals, and strategic movements before they affect your market.",
+    "Monitor competitors across market sectors, detecting high-confidence signals of strategic change to inform critical business decisions and maintain competitive advantage.",
   openGraph: {
     type:        "website",
     siteName:    "Metrivant",
     title:       "Metrivant — Competitive Intelligence",
-    description: "Track competitor pricing, product launches, hiring signals, and strategic movements before they affect your market.",
+    description: "Monitor competitors across market sectors, detecting high-confidence signals of strategic change to inform critical business decisions and maintain competitive advantage.",
     url:         "https://metrivant.com",
     images: [{ url: "/opengraph-image.png", width: 1200, height: 630, alt: "Metrivant — Competitive Intelligence" }],
   },
   twitter: {
     card:        "summary_large_image",
     title:       "Metrivant — Competitive Intelligence",
-    description: "Track competitor pricing, product launches, hiring signals, and strategic movements before they affect your market.",
+    description: "Monitor competitors across market sectors, detecting high-confidence signals of strategic change to inform critical business decisions and maintain competitive advantage.",
     images:      ["/opengraph-image.png"],
   },
   icons: {
@@ -65,7 +65,7 @@ const jsonLd = {
   name: "Metrivant",
   url: "https://metrivant.com",
   description:
-    "Track competitor pricing, product launches, hiring signals, and strategic movements before they affect your market.",
+    "Monitor competitors across market sectors, detecting high-confidence signals of strategic change to inform critical business decisions and maintain competitive advantage.",
   logo: "https://metrivant.com/opengraph-image.png",
   sameAs: [],
 };
