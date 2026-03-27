@@ -1,11 +1,12 @@
 "use client";
 
 /**
- * Telescope — Autonomous Signal Observatory
+ * Telescope — High-Confidence Signal Observatory
  *
- * Read-only view of the autonomous detection system.
- * Displays signals with automated quality classification.
- * No manual intervention — fully automated noise suppression.
+ * Redesigned to serve Metrivant's core concept:
+ * - Prioritizes high-confidence signals (validated, evidence-grounded)
+ * - Shows strategic context to inform critical business decisions
+ * - Delivers precision-filtered intelligence
  */
 
 import { useState } from "react";
@@ -23,7 +24,12 @@ export type TelescopeSignal = {
   is_noise?: boolean;
   noise_reason?: string | null;
   retrograded_at?: string | null;
+  strategic_implication?: string | null;
+  previous_excerpt?: string | null;
+  current_excerpt?: string | null;
 };
+
+type ConfidenceFilter = "all" | "high" | "medium";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -34,237 +40,326 @@ function formatSignalType(t: string): string {
 function timeAgo(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(ms / 60000);
-  if (mins < 60) return `${mins}m`;
+  if (mins < 60) return `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h`;
+  if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
-  return `${days}d`;
-}
-
-function confColor(conf: number | null): string {
-  if (conf == null) return "rgba(100,116,139,0.60)";
-  if (conf >= 0.65) return "rgba(0,180,255,0.80)";
-  if (conf >= 0.40) return "rgba(245,158,11,0.70)";
-  return "rgba(100,116,139,0.60)";
+  return `${days}d ago`;
 }
 
 function confLabel(conf: number | null): string {
   if (conf == null) return "—";
-  return (conf * 100).toFixed(0) + "%";
+  if (conf >= 0.80) return "Very High";
+  if (conf >= 0.65) return "High";
+  if (conf >= 0.50) return "Medium";
+  return "Low";
 }
 
-function noiseReasonLabel(reason: string): string {
-  return reason.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+function confValue(conf: number | null): string {
+  if (conf == null) return "—";
+  return Math.round(conf * 100) + "%";
 }
 
-function noiseReasonColor(reason: string): string {
-  const colors: Record<string, string> = {
-    whitespace_only: "rgba(100,116,139,0.55)",
-    dynamic_content_only: "rgba(245,158,11,0.55)",
-    oscillation: "rgba(168,85,247,0.55)",
-    infrastructure: "rgba(59,130,246,0.55)",
-    structural: "rgba(100,116,139,0.55)",
-    churn: "rgba(239,68,68,0.55)",
-    reversion: "rgba(168,85,247,0.55)",
-    semantic_similarity: "rgba(245,158,11,0.55)",
-  };
-  return colors[reason] || "rgba(100,116,139,0.55)";
+function truncateExcerpt(text: string | null, maxLen = 80): string {
+  if (!text) return "—";
+  if (text.length <= maxLen) return text;
+  return text.slice(0, maxLen) + "…";
 }
 
 // ── Signal card ───────────────────────────────────────────────────────────────
 
 function SignalCard({
   signal,
-  isLast,
   index,
 }: {
   signal: TelescopeSignal;
-  isLast: boolean;
   index: number;
 }) {
-  const [hovered, setHovered] = useState(false);
-  const isNoise = signal.is_noise === true;
-  const isRetrograded = signal.retrograded_at != null;
+  const [expanded, setExpanded] = useState(false);
+  const conf = signal.confidence_score ?? 0;
 
-  // Recent signal indicator (< 1 hour)
+  // Recent signal indicator (< 2 hours)
   const ms = Date.now() - new Date(signal.detected_at).getTime();
-  const isRecent = ms < 3600000;
+  const isRecent = ms < 7200000;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.04, duration: 0.22, ease: "easeOut" }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      whileHover={{ x: 2 }}
+      transition={{ delay: index * 0.02, duration: 0.2, ease: "easeOut" }}
       style={{
-        padding: "10px 12px 9px",
-        borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.04)",
-        opacity: isNoise ? 0.45 : 1,
-        background: hovered ? "rgba(0,180,255,0.03)" : isRecent ? "rgba(124,58,237,0.03)" : "transparent",
-        borderLeft: isRecent ? "2px solid rgba(124,58,237,0.35)" : "2px solid transparent",
-        transition: "all 0.2s ease-out",
-        position: "relative",
+        borderBottom: "1px solid rgba(255,255,255,0.04)",
+        background: "rgba(0,0,0,0.30)",
       }}
     >
-      {/* Row 1: competitor + time */}
-      <div
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full text-left"
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 6,
-          marginBottom: 4,
+          padding: "12px 14px",
+          background: expanded ? "rgba(0,180,255,0.04)" : "transparent",
+          borderLeft: isRecent ? "2px solid rgba(0,180,255,0.50)" : "2px solid transparent",
+          transition: "all 0.15s ease-out",
+          cursor: "pointer",
         }}
       >
-        <span
-          style={{
-            fontFamily: "ui-monospace, monospace",
-            fontSize: 11,
-            fontWeight: 600,
-            color: "rgba(255,255,255,0.72)",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            flex: 1,
-          }}
-        >
-          {signal.competitor_name}
-        </span>
-        <span
-          style={{
-            fontFamily: "ui-monospace, monospace",
-            fontSize: 9,
-            color: "rgba(255,255,255,0.22)",
-            flexShrink: 0,
-          }}
-        >
-          {timeAgo(signal.detected_at)}
-        </span>
-      </div>
+        {/* Header row: Confidence + Competitor + Time */}
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <div className="flex items-center gap-2.5">
+            {/* Confidence badge */}
+            <div
+              className="flex flex-col items-center justify-center px-2 py-1"
+              style={{
+                background: conf >= 0.65 ? "rgba(0,180,255,0.12)" : "rgba(245,158,11,0.12)",
+                border: conf >= 0.65 ? "1px solid rgba(0,180,255,0.30)" : "1px solid rgba(245,158,11,0.30)",
+                borderRadius: "4px",
+                minWidth: "48px",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "var(--font-orbitron)",
+                  fontSize: "8px",
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  color: conf >= 0.65 ? "rgba(0,180,255,0.70)" : "rgba(245,158,11,0.70)",
+                  textTransform: "uppercase",
+                  lineHeight: 1,
+                }}
+              >
+                {confLabel(signal.confidence_score)}
+              </span>
+              <span
+                style={{
+                  fontFamily: "ui-monospace, monospace",
+                  fontSize: "10px",
+                  fontWeight: 600,
+                  color: conf >= 0.65 ? "rgba(0,180,255,0.85)" : "rgba(245,158,11,0.85)",
+                  marginTop: "2px",
+                }}
+              >
+                {confValue(signal.confidence_score)}
+              </span>
+            </div>
 
-      {/* Row 2: signal type badge + confidence */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          marginBottom: signal.summary ? 5 : 0,
-        }}
-      >
-        <span
+            {/* Competitor name */}
+            <span
+              style={{
+                fontSize: "12px",
+                fontWeight: 600,
+                color: "rgba(255,255,255,0.85)",
+                letterSpacing: "0.01em",
+              }}
+            >
+              {signal.competitor_name}
+            </span>
+          </div>
+
+          {/* Time + expand indicator */}
+          <div className="flex items-center gap-2">
+            {isRecent && (
+              <motion.div
+                animate={{ opacity: [0.4, 1, 0.4] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                style={{
+                  width: "6px",
+                  height: "6px",
+                  borderRadius: "50%",
+                  background: "rgba(0,180,255,0.80)",
+                  boxShadow: "0 0 8px rgba(0,180,255,0.60)",
+                }}
+              />
+            )}
+            <span
+              style={{
+                fontFamily: "ui-monospace, monospace",
+                fontSize: "9px",
+                color: "rgba(255,255,255,0.25)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {timeAgo(signal.detected_at)}
+            </span>
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 12 12"
+              fill="none"
+              style={{
+                transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+                transition: "transform 0.2s ease-out",
+                opacity: 0.35,
+              }}
+            >
+              <path
+                d="M3 4.5L6 7.5L9 4.5"
+                stroke="rgba(0,180,255,0.70)"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        </div>
+
+        {/* Signal type */}
+        <div
           style={{
             fontFamily: "var(--font-orbitron)",
-            fontSize: 9,
+            fontSize: "9px",
             fontWeight: 600,
             letterSpacing: "0.12em",
-            color: isNoise ? "rgba(100,116,139,0.45)" : "rgba(0,180,255,0.65)",
+            color: "rgba(0,180,255,0.60)",
             textTransform: "uppercase",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            flex: 1,
+            marginBottom: expanded ? "8px" : 0,
           }}
         >
           {formatSignalType(signal.signal_type)}
-        </span>
-        <span
-          style={{
-            fontFamily: "ui-monospace, monospace",
-            fontSize: 9,
-            fontWeight: 600,
-            color: confColor(signal.confidence_score),
-            flexShrink: 0,
-          }}
-        >
-          {confLabel(signal.confidence_score)}
-        </span>
-      </div>
-
-      {/* Row 3: summary */}
-      {signal.summary && (
-        <div
-          style={{
-            fontFamily: "ui-monospace, monospace",
-            fontSize: 11,
-            lineHeight: "1.5",
-            color: "rgba(255,255,255,0.35)",
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-            marginBottom: 6,
-          }}
-        >
-          {signal.summary}
         </div>
-      )}
+      </button>
 
-      {/* Row 4: autonomous classification badges */}
-      {(isNoise || isRetrograded) && (
-        <motion.div
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          style={{ display: "flex", flexWrap: "wrap", gap: 5 }}
-        >
-          {isNoise && signal.noise_reason && (
-            <span
-              style={{
-                fontFamily: "var(--font-orbitron)",
-                fontSize: 8,
-                fontWeight: 600,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: noiseReasonColor(signal.noise_reason),
-                background: `${noiseReasonColor(signal.noise_reason)}18`,
-                padding: "2px 7px",
-                borderRadius: "9999px",
-                border: `1px solid ${noiseReasonColor(signal.noise_reason)}30`,
-              }}
-            >
-              {noiseReasonLabel(signal.noise_reason)}
-            </span>
-          )}
-          {isRetrograded && (
-            <span
-              style={{
-                fontFamily: "var(--font-orbitron)",
-                fontSize: 8,
-                fontWeight: 600,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "rgba(168,85,247,0.55)",
-                background: "rgba(168,85,247,0.08)",
-                padding: "2px 7px",
-                borderRadius: "9999px",
-                border: "1px solid rgba(168,85,247,0.20)",
-              }}
-            >
-              Retrograded
-            </span>
-          )}
-        </motion.div>
-      )}
+      {/* Expanded content: Strategic implication + Evidence */}
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            style={{
+              overflow: "hidden",
+              background: "rgba(0,180,255,0.02)",
+              borderTop: "1px solid rgba(0,180,255,0.08)",
+            }}
+          >
+            <div style={{ padding: "12px 14px" }}>
+              {/* Strategic implication */}
+              {signal.strategic_implication && (
+                <div className="mb-4">
+                  <div
+                    style={{
+                      fontFamily: "var(--font-orbitron)",
+                      fontSize: "8px",
+                      fontWeight: 700,
+                      letterSpacing: "0.18em",
+                      color: "rgba(0,180,255,0.50)",
+                      textTransform: "uppercase",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    Strategic Context
+                  </div>
+                  <p
+                    style={{
+                      fontSize: "12px",
+                      lineHeight: "1.6",
+                      color: "rgba(255,255,255,0.70)",
+                      letterSpacing: "0.01em",
+                    }}
+                  >
+                    {signal.strategic_implication}
+                  </p>
+                </div>
+              )}
 
-      {/* Recent signal pulse indicator */}
-      {isRecent && !isNoise && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: [0.5, 0.8, 0.5], scale: 1 }}
-          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-          style={{
-            position: "absolute",
-            left: 0,
-            top: "50%",
-            transform: "translateY(-50%)",
-            width: 2,
-            height: "60%",
-            background: "linear-gradient(180deg, rgba(124,58,237,0) 0%, rgba(124,58,237,0.8) 50%, rgba(124,58,237,0) 100%)",
-          }}
-        />
-      )}
+              {/* Summary fallback */}
+              {!signal.strategic_implication && signal.summary && (
+                <div className="mb-4">
+                  <p
+                    style={{
+                      fontSize: "12px",
+                      lineHeight: "1.6",
+                      color: "rgba(255,255,255,0.55)",
+                      letterSpacing: "0.01em",
+                    }}
+                  >
+                    {signal.summary}
+                  </p>
+                </div>
+              )}
+
+              {/* Evidence: Before → After */}
+              {(signal.previous_excerpt || signal.current_excerpt) && (
+                <div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-orbitron)",
+                      fontSize: "8px",
+                      fontWeight: 700,
+                      letterSpacing: "0.18em",
+                      color: "rgba(0,180,255,0.50)",
+                      textTransform: "uppercase",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    Evidence
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {signal.previous_excerpt && (
+                      <div>
+                        <div
+                          style={{
+                            fontSize: "9px",
+                            fontWeight: 600,
+                            color: "rgba(255,255,255,0.35)",
+                            marginBottom: "3px",
+                            letterSpacing: "0.06em",
+                          }}
+                        >
+                          Before
+                        </div>
+                        <div
+                          style={{
+                            fontFamily: "ui-monospace, monospace",
+                            fontSize: "10px",
+                            lineHeight: "1.5",
+                            color: "rgba(239,68,68,0.65)",
+                            background: "rgba(239,68,68,0.05)",
+                            border: "1px solid rgba(239,68,68,0.15)",
+                            borderRadius: "4px",
+                            padding: "6px 8px",
+                          }}
+                        >
+                          {truncateExcerpt(signal.previous_excerpt, 120)}
+                        </div>
+                      </div>
+                    )}
+                    {signal.current_excerpt && (
+                      <div>
+                        <div
+                          style={{
+                            fontSize: "9px",
+                            fontWeight: 600,
+                            color: "rgba(255,255,255,0.35)",
+                            marginBottom: "3px",
+                            letterSpacing: "0.06em",
+                          }}
+                        >
+                          After
+                        </div>
+                        <div
+                          style={{
+                            fontFamily: "ui-monospace, monospace",
+                            fontSize: "10px",
+                            lineHeight: "1.5",
+                            color: "rgba(46,230,166,0.75)",
+                            background: "rgba(46,230,166,0.05)",
+                            border: "1px solid rgba(46,230,166,0.15)",
+                            borderRadius: "4px",
+                            padding: "6px 8px",
+                          }}
+                        >
+                          {truncateExcerpt(signal.current_excerpt, 120)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
@@ -272,16 +367,30 @@ function SignalCard({
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function TelescopePanel({ signals }: { signals: TelescopeSignal[] }) {
-  const count = signals.length;
+  const [filter, setFilter] = useState<ConfidenceFilter>("high");
 
-  // Autonomous metrics (no user feedback)
-  const autonomousNoise = signals.filter((s) => s.is_noise === true).length;
-  const retrogradedCount = signals.filter((s) => s.retrograded_at != null).length;
-  const activeSignals = count - autonomousNoise;
-  const recentSignals = signals.filter((s) => {
-    const ms = Date.now() - new Date(s.detected_at).getTime();
-    return ms < 3600000 && !s.is_noise;
-  }).length;
+  // Filter signals by confidence
+  const filtered = signals.filter((s) => {
+    // Always exclude noise
+    if (s.is_noise === true) return false;
+    if (s.retrograded_at != null) return false;
+
+    const conf = s.confidence_score ?? 0;
+    if (filter === "high") return conf >= 0.65;
+    if (filter === "medium") return conf >= 0.50 && conf < 0.65;
+    return true; // "all"
+  });
+
+  // Sort by confidence desc, then recency
+  const sorted = [...filtered].sort((a, b) => {
+    const confA = a.confidence_score ?? 0;
+    const confB = b.confidence_score ?? 0;
+    if (confB !== confA) return confB - confA;
+    return new Date(b.detected_at).getTime() - new Date(a.detected_at).getTime();
+  });
+
+  const highCount = signals.filter((s) => !s.is_noise && !s.retrograded_at && (s.confidence_score ?? 0) >= 0.65).length;
+  const mediumCount = signals.filter((s) => !s.is_noise && !s.retrograded_at && (s.confidence_score ?? 0) >= 0.50 && (s.confidence_score ?? 0) < 0.65).length;
 
   return (
     <motion.div
@@ -292,11 +401,11 @@ export default function TelescopePanel({ signals }: { signals: TelescopeSignal[]
         display: "flex",
         flexDirection: "column",
         height: "100%",
-        borderRadius: 14,
+        borderRadius: "12px",
         overflow: "hidden",
-        border: "1px solid rgba(124,58,237,0.12)",
-        background: "linear-gradient(180deg, #020208 0%, #08051a 100%)",
-        boxShadow: "0 4px 24px rgba(124,58,237,0.08)",
+        border: "1px solid rgba(0,180,255,0.18)",
+        background: "linear-gradient(180deg, #020208 0%, #050810 100%)",
+        boxShadow: "0 4px 24px rgba(0,180,255,0.06)",
       }}
     >
       {/* ── Header ── */}
@@ -305,9 +414,9 @@ export default function TelescopePanel({ signals }: { signals: TelescopeSignal[]
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "9px 12px 8px",
-          borderBottom: "1px solid rgba(124,58,237,0.12)",
-          background: "rgba(124,58,237,0.03)",
+          padding: "10px 14px",
+          borderBottom: "1px solid rgba(0,180,255,0.12)",
+          background: "rgba(0,180,255,0.03)",
           flexShrink: 0,
         }}
       >
@@ -315,66 +424,67 @@ export default function TelescopePanel({ signals }: { signals: TelescopeSignal[]
           <span
             style={{
               fontFamily: "var(--font-orbitron)",
-              fontSize: 10,
+              fontSize: "10px",
               fontWeight: 700,
               letterSpacing: "0.22em",
-              color: "rgba(124,58,237,0.70)",
+              color: "rgba(0,180,255,0.75)",
               textTransform: "uppercase",
             }}
           >
             Telescope
           </span>
-          {recentSignals > 0 && (
-            <motion.div
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: "rgba(124,58,237,0.8)",
-                boxShadow: "0 0 8px rgba(124,58,237,0.6)",
-              }}
-            />
-          )}
         </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          {activeSignals > 0 && (
-            <span
-              style={{
-                fontFamily: "ui-monospace, monospace",
-                fontSize: 8,
-                color: "rgba(0,180,255,0.50)",
-                letterSpacing: "0.04em",
-              }}
-            >
-              {activeSignals} active
-            </span>
-          )}
-          {autonomousNoise > 0 && (
-            <span
-              style={{
-                fontFamily: "ui-monospace, monospace",
-                fontSize: 8,
-                color: "rgba(100,116,139,0.45)",
-                letterSpacing: "0.04em",
-              }}
-            >
-              {autonomousNoise} auto
-            </span>
-          )}
-          <span
+        <span
+          style={{
+            fontFamily: "ui-monospace, monospace",
+            fontSize: "10px",
+            fontWeight: 600,
+            letterSpacing: "0.04em",
+            color: "rgba(255,255,255,0.35)",
+          }}
+        >
+          {sorted.length} signal{sorted.length !== 1 ? "s" : ""}
+        </span>
+      </div>
+
+      {/* ── Confidence filter tabs ── */}
+      <div
+        style={{
+          display: "flex",
+          gap: "1px",
+          padding: "8px 14px",
+          background: "rgba(0,0,0,0.40)",
+          borderBottom: "1px solid rgba(255,255,255,0.04)",
+          flexShrink: 0,
+        }}
+      >
+        {[
+          { id: "high" as const, label: "High Confidence", count: highCount },
+          { id: "medium" as const, label: "Medium", count: mediumCount },
+          { id: "all" as const, label: "All", count: signals.filter((s) => !s.is_noise && !s.retrograded_at).length },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setFilter(tab.id)}
             style={{
-              fontFamily: "ui-monospace, monospace",
-              fontSize: 10,
+              flex: 1,
+              padding: "6px 8px",
+              fontSize: "9px",
               fontWeight: 600,
-              letterSpacing: "0.06em",
-              color: "rgba(255,255,255,0.35)",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: filter === tab.id ? "rgba(0,180,255,0.85)" : "rgba(255,255,255,0.30)",
+              background: filter === tab.id ? "rgba(0,180,255,0.12)" : "transparent",
+              border: filter === tab.id ? "1px solid rgba(0,180,255,0.30)" : "1px solid transparent",
+              borderRadius: "4px",
+              cursor: "pointer",
+              transition: "all 0.15s ease-out",
             }}
           >
-            {count}
-          </span>
-        </div>
+            {tab.label}
+            <span style={{ marginLeft: "4px", opacity: 0.6 }}>({tab.count})</span>
+          </button>
+        ))}
       </div>
 
       {/* ── Signal feed ── */}
@@ -386,7 +496,7 @@ export default function TelescopePanel({ signals }: { signals: TelescopeSignal[]
           overflowX: "hidden",
         }}
       >
-        {count === 0 ? (
+        {sorted.length === 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -399,82 +509,65 @@ export default function TelescopePanel({ signals }: { signals: TelescopeSignal[]
               height: "100%",
               padding: "0 20px",
               textAlign: "center",
-              gap: 8,
+              gap: 10,
             }}
           >
-            <motion.div
-              animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.5, 0.3] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            <div
               style={{
-                width: 32,
-                height: 32,
+                width: "40px",
+                height: "40px",
                 borderRadius: "50%",
-                border: "2px solid rgba(124,58,237,0.25)",
-                position: "relative",
+                border: "2px solid rgba(0,180,255,0.20)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "rgba(0,180,255,0.04)",
               }}
             >
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 4,
-                  borderRadius: "50%",
-                  background: "radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 70%)",
-                }}
-              />
-            </motion.div>
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <circle cx="9" cy="9" r="7" stroke="rgba(0,180,255,0.40)" strokeWidth="1.5" />
+                <circle cx="9" cy="9" r="2.5" fill="rgba(0,180,255,0.60)" />
+              </svg>
+            </div>
             <div
               style={{
                 fontFamily: "var(--font-orbitron)",
-                fontSize: 9,
-                letterSpacing: "0.18em",
-                color: "rgba(124,58,237,0.40)",
+                fontSize: "9px",
+                letterSpacing: "0.16em",
+                color: "rgba(0,180,255,0.45)",
                 textTransform: "uppercase",
               }}
             >
-              Autonomous Detection Active
+              {filter === "high" && highCount === 0
+                ? "No High-Confidence Signals"
+                : filter === "medium" && mediumCount === 0
+                ? "No Medium-Confidence Signals"
+                : "Detection Active"}
             </div>
+            {filter !== "all" && (
+              <button
+                onClick={() => setFilter("all")}
+                style={{
+                  fontSize: "10px",
+                  color: "rgba(0,180,255,0.60)",
+                  textDecoration: "underline",
+                  cursor: "pointer",
+                  background: "none",
+                  border: "none",
+                }}
+              >
+                View all signals
+              </button>
+            )}
           </motion.div>
         ) : (
           <AnimatePresence mode="sync">
-            {signals.map((s, i) => (
-              <SignalCard
-                key={s.id}
-                signal={s}
-                isLast={i === count - 1}
-                index={i}
-              />
+            {sorted.map((s, i) => (
+              <SignalCard key={s.id} signal={s} index={i} />
             ))}
           </AnimatePresence>
         )}
       </div>
-
-      {/* ── Autonomous stats footer ── */}
-      {retrogradedCount > 0 && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          transition={{ duration: 0.2 }}
-          style={{
-            padding: "7px 12px",
-            borderTop: "1px solid rgba(124,58,237,0.08)",
-            background: "rgba(124,58,237,0.02)",
-            display: "flex",
-            gap: 10,
-            flexShrink: 0,
-          }}
-        >
-          <span
-            style={{
-              fontFamily: "ui-monospace, monospace",
-              fontSize: 8,
-              color: "rgba(168,85,247,0.50)",
-              letterSpacing: "0.04em",
-            }}
-          >
-            {retrogradedCount} retrograded
-          </span>
-        </motion.div>
-      )}
     </motion.div>
   );
 }
