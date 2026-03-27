@@ -31,7 +31,7 @@ function SignupForm() {
     setLoading(true);
 
     const supabase = createClient();
-    const { error: authError } = await supabase.auth.signUp({
+    const { data, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -53,6 +53,13 @@ function SignupForm() {
       body: JSON.stringify({ email, plan }),
     });
 
+    // If email confirmation is disabled, user is auto-logged in → redirect to app
+    if (data.session) {
+      router.push("/app");
+      return;
+    }
+
+    // Otherwise, show email confirmation message
     setDone(true);
     setLoading(false);
   }
@@ -209,7 +216,7 @@ export default function SignupPage() {
             </svg>
             <span className="text-[17px] font-bold tracking-[0.08em] text-white" style={{ fontFamily: "var(--font-orbitron)" }}>METRIVANT</span>
           </Link>
-          <p className="mt-3 text-[13px] text-slate-500">
+          <p className="mt-4 text-center text-[14px] font-light text-slate-400" style={{ letterSpacing: "0.02em", lineHeight: "1.5" }}>
             Your radar is ready. Create an account to activate it.
           </p>
         </div>
