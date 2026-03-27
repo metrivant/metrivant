@@ -3030,7 +3030,7 @@ export default function Radar({
                   if (starPos) {
                     const starR = getNodeSize(Number(competitor.momentum_score ?? 0)) + 14;
                     const momentum = Number(competitor.momentum_score ?? 0);
-                    const color = getMomentumColor(momentum);
+                    const color = getMomentumConfig(momentum).color;
                     const conf = competitor.latest_movement_confidence ?? 0;
                     const movementType = competitor.latest_movement_type;
 

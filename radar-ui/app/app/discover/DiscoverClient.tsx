@@ -119,6 +119,9 @@ export default function DiscoverClient({
   const [showRising, setShowRising] = useState(false);
   const [loadingEmergingDomain, setLoadingEmergingDomain] = useState<string | null>(null);
 
+  // Global operation in progress check — enforces one-at-a-time tracking
+  const anyOperationInProgress = loadingDomain !== null || loadingEmergingDomain !== null || removingDomain !== null;
+
   const CATALOG_SECTORS = new Set(["saas", "defense", "energy"]);
   const defaultBrowse = CATALOG_SECTORS.has(initialSector) ? initialSector : "saas";
   const [browseSector, setBrowseSector] = useState(defaultBrowse);
@@ -547,14 +550,23 @@ export default function DiscoverClient({
                   ) : (
                     <button
                       onClick={() => trackEmerging(entry)}
-                      disabled={isLoading || atLimit}
-                      title={atLimit ? "Competitor limit reached" : undefined}
+                      disabled={anyOperationInProgress || atLimit}
+                      title={atLimit ? "Competitor limit reached" : anyOperationInProgress && !isLoading ? "Please wait..." : undefined}
                       className="mt-auto w-full py-2 text-[11px] font-medium uppercase transition-all disabled:cursor-not-allowed disabled:opacity-40"
                       style={{ borderRadius: "4px", border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "rgba(255,255,255,0.35)", letterSpacing: "0.10em" }}
-                      onMouseEnter={(e) => { if (!isLoading && !atLimit) { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.22)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.75)"; } }}
+                      onMouseEnter={(e) => { if (!anyOperationInProgress && !atLimit) { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.22)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.75)"; } }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.10)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.35)"; }}
                     >
-                      {isLoading ? "Adding…" : "Track"}
+                      {isLoading ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="inline-flex gap-0.5">
+                            <span className="inline-block h-1 w-1 rounded-full bg-current opacity-40 animate-pulse" style={{ animationDelay: "0ms", animationDuration: "1s" }} />
+                            <span className="inline-block h-1 w-1 rounded-full bg-current opacity-40 animate-pulse" style={{ animationDelay: "150ms", animationDuration: "1s" }} />
+                            <span className="inline-block h-1 w-1 rounded-full bg-current opacity-40 animate-pulse" style={{ animationDelay: "300ms", animationDuration: "1s" }} />
+                          </span>
+                          Adding
+                        </span>
+                      ) : "Track"}
                     </button>
                   )}
                 </div>
@@ -901,8 +913,8 @@ export default function DiscoverClient({
                 ) : (
                   <button
                     onClick={() => trackCompetitor(entry)}
-                    disabled={isLoading || atLimit}
-                    title={atLimit ? "Competitor limit reached" : undefined}
+                    disabled={anyOperationInProgress || atLimit}
+                    title={atLimit ? "Competitor limit reached" : anyOperationInProgress && !isLoading ? "Please wait..." : undefined}
                     className="mt-auto w-full py-2 text-[11px] font-medium uppercase transition-all disabled:cursor-not-allowed disabled:opacity-40"
                     style={{
                       borderRadius:  "4px",
@@ -912,7 +924,7 @@ export default function DiscoverClient({
                       letterSpacing: "0.10em",
                     }}
                     onMouseEnter={(e) => {
-                      if (!isLoading && !atLimit) {
+                      if (!anyOperationInProgress && !atLimit) {
                         (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.22)";
                         (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.75)";
                       }
@@ -922,7 +934,16 @@ export default function DiscoverClient({
                       (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.35)";
                     }}
                   >
-                    {isLoading ? "Adding…" : "Track"}
+                    {isLoading ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="inline-flex gap-0.5">
+                          <span className="inline-block h-1 w-1 rounded-full bg-current opacity-40 animate-pulse" style={{ animationDelay: "0ms", animationDuration: "1s" }} />
+                          <span className="inline-block h-1 w-1 rounded-full bg-current opacity-40 animate-pulse" style={{ animationDelay: "150ms", animationDuration: "1s" }} />
+                          <span className="inline-block h-1 w-1 rounded-full bg-current opacity-40 animate-pulse" style={{ animationDelay: "300ms", animationDuration: "1s" }} />
+                        </span>
+                        Adding
+                      </span>
+                    ) : "Track"}
                   </button>
                 )}
               </div>
