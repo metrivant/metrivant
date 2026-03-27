@@ -30,7 +30,28 @@ export default function FlowSection() {
     {
       label: "Track",
       title: "Add Competitor",
-      description: "Monitor any competitor in your market sector — SaaS, Fintech, Cybersecurity, Defense, or Energy.",
+      description: (
+        <div className="flex flex-col items-center gap-1.5">
+          <span className="text-[11px] font-light" style={{ color: "rgba(148,163,184,0.55)" }}>
+            Monitor competitors across
+          </span>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {["SaaS", "Fintech", "Cybersecurity", "Defense", "Energy"].map((sector, i) => (
+              <motion.span
+                key={sector}
+                className="text-[9px] font-medium uppercase tracking-[0.12em]"
+                style={{ color: "rgba(0,180,255,0.50)" }}
+                initial={{ opacity: 0, y: 3 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.3, delay: 0.1 + i * 0.04 }}
+              >
+                {sector}
+              </motion.span>
+            ))}
+          </div>
+        </div>
+      ),
       example: "(company)",
       icon: (
         <svg width="80" height="80" viewBox="0 0 80 80" fill="none">

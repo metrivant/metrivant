@@ -64,25 +64,31 @@ function StageIcon({ stage }: { stage: number }) {
     );
   }
 
-  // CAPTURE - Camera snapshot
+  // CAPTURE - Sonar pulse
   if (stage === 2) {
     return (
       <svg {...iconProps}>
-        <rect x="10" y="14" width="28" height="20" rx="3" stroke="#00B4FF" strokeWidth="1.2" opacity="0.40" />
-        <circle cx="24" cy="24" r="6" stroke="#00B4FF" strokeWidth="1.5" opacity="0.55" />
+        <circle cx="24" cy="24" r="2" fill="#00B4FF" opacity="0.90" />
         <motion.circle
-          cx="24" cy="24" r="3"
-          fill="#00B4FF"
-          animate={{ opacity: [0.5, 1, 0.5] }}
-          transition={{ duration: 1.8, repeat: Infinity }}
-        />
-        <rect x="28" y="16" width="6" height="3" rx="1" fill="#00B4FF" opacity="0.30" />
-        <motion.rect
-          x="10" y="14" width="28" height="20" rx="3"
-          stroke="#00B4FF" strokeWidth="2"
+          cx="24" cy="24" r="8"
+          stroke="#00B4FF" strokeWidth="1.5"
           fill="none"
-          animate={{ opacity: [0, 0.8, 0] }}
+          animate={{ r: [8, 18, 8], opacity: [0.6, 0, 0.6] }}
           transition={{ duration: 2.5, repeat: Infinity }}
+        />
+        <motion.circle
+          cx="24" cy="24" r="8"
+          stroke="#00B4FF" strokeWidth="1.5"
+          fill="none"
+          animate={{ r: [8, 18, 8], opacity: [0.6, 0, 0.6] }}
+          transition={{ duration: 2.5, repeat: Infinity, delay: 0.8 }}
+        />
+        <motion.circle
+          cx="24" cy="24" r="8"
+          stroke="#00B4FF" strokeWidth="1.5"
+          fill="none"
+          animate={{ r: [8, 18, 8], opacity: [0.6, 0, 0.6] }}
+          transition={{ duration: 2.5, repeat: Infinity, delay: 1.6 }}
         />
       </svg>
     );
@@ -218,20 +224,27 @@ function StageIcon({ stage }: { stage: number }) {
     );
   }
 
-  // RADAR - Live dashboard
+  // RADAR - Sonar pulse with nodes
   if (stage === 7) {
     return (
       <svg {...iconProps}>
         <circle cx="24" cy="24" r="16" stroke="#00B4FF" strokeWidth="1" opacity="0.25" />
         <circle cx="24" cy="24" r="10" stroke="#00B4FF" strokeWidth="1" opacity="0.30" />
         <circle cx="24" cy="24" r="4" stroke="#00B4FF" strokeWidth="1" opacity="0.40" />
-        <motion.g
-          style={{ transformOrigin: "24px 24px" }}
-          animate={{ rotate: 360 }}
-          transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-        >
-          <line x1="24" y1="24" x2="24" y2="8" stroke="#00B4FF" strokeWidth="1.5" opacity="0.70" />
-        </motion.g>
+        <motion.circle
+          cx="24" cy="24" r="8"
+          stroke="#00B4FF" strokeWidth="1.5"
+          fill="none"
+          animate={{ r: [8, 16, 8], opacity: [0.5, 0, 0.5] }}
+          transition={{ duration: 3, repeat: Infinity }}
+        />
+        <motion.circle
+          cx="24" cy="24" r="8"
+          stroke="#00B4FF" strokeWidth="1.5"
+          fill="none"
+          animate={{ r: [8, 16, 8], opacity: [0.5, 0, 0.5] }}
+          transition={{ duration: 3, repeat: Infinity, delay: 1.5 }}
+        />
         <circle cx="24" cy="24" r="2" fill="#00B4FF" opacity="0.90" />
         <motion.circle
           cx="30" cy="18" r="2"
