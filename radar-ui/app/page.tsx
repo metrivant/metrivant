@@ -1,7 +1,6 @@
 import Link from "next/link";
 import PublicNav from "../components/PublicNav";
 import LandingLogo from "../components/LandingLogo";
-import LandingFeaturePrompt from "../components/LandingFeaturePrompt";
 import LandingCTAButtons from "../components/LandingCTAButtons";
 import PipelineSection from "../components/PipelineSection";
 import IntelligencePulse from "../components/IntelligencePulse";
@@ -48,7 +47,6 @@ export default function LandingPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <PublicNav />
-      <LandingFeaturePrompt />
       <IntelligencePulse />
       <ElectricityBackground />
 
@@ -118,15 +116,21 @@ export default function LandingPage() {
 
       {/* ── Core Concept ─────────────────────────────────────────────── */}
       <section className="relative border-t border-[#0d1020] px-6 py-16">
-        <div className="mx-auto max-w-2xl text-center">
-          <p className="text-[16px] font-light leading-relaxed text-white" style={{ letterSpacing: "0.02em", lineHeight: 1.8 }}>
-            Metrivant monitors competitors across market sectors, detecting{" "}
-            <span className="font-medium" style={{ color: "rgba(0,180,255,0.85)" }}>high-confidence signals of strategic change</span>.
-            These signals—validated, evidence-grounded, and delivered with precision—inform{" "}
-            <span className="font-medium" style={{ color: "rgba(0,180,255,0.85)" }}>critical business decisions</span>,
-            enabling organizations to anticipate competitor moves and respond with{" "}
-            <span className="font-medium" style={{ color: "rgba(0,180,255,0.85)" }}>deliberate advantage</span>.
-          </p>
+        <div className="mx-auto max-w-3xl">
+          <div className="flex flex-col gap-6 text-center text-[15px] font-light leading-relaxed text-white" style={{ letterSpacing: "0.02em" }}>
+            <p>
+              Metrivant monitors competitors across market sectors, detecting{" "}
+              <span className="font-medium" style={{ color: "rgba(0,180,255,0.85)" }}>high-confidence signals of strategic change</span>.
+            </p>
+            <p>
+              These signals—validated, evidence-grounded, and delivered with precision—inform{" "}
+              <span className="font-medium" style={{ color: "rgba(0,180,255,0.85)" }}>critical business decisions</span>.
+            </p>
+            <p>
+              Enabling organizations to anticipate competitor moves and respond with{" "}
+              <span className="font-medium" style={{ color: "rgba(0,180,255,0.85)" }}>deliberate advantage</span>.
+            </p>
+          </div>
         </div>
       </section>
 
