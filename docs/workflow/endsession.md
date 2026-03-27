@@ -160,8 +160,6 @@ The frontend is perfect when every interaction answers a question the user alrea
 
 **Core loop (zero-friction):** The user opens the radar → sees who is moving → clicks a competitor → reads the intelligence → understands the implication → acts. Every step in this loop takes under 2 seconds. No loading spinners. No dead clicks. No confusion about what to do next. The intelligence drawer answers: what changed, what it means, and what to do. The evidence chain is one click away. The user trusts the system because the system shows its work — but only when asked.
 
-**Signal feedback (zero-waste — the critical recursive bridge):** The user can mark any signal as "valid" or "noise" with one click. This isn't a feature for the user — it's the input that activates the entire backend learning loop. Noise patterns, confidence calibration, and interpretation quality all depend on this data. Without it, the backend's self-learning systems are inert. The UI must make feedback effortless — a thumb up/down on each signal card, not a form. **Recursive loop:** user feedback → noise_suppression_rules (weekly learn-noise-patterns) → cleaner signals → less noise shown → happier user → more feedback. User feedback → confidence_calibration (weekly calibrate-weights) → more accurate scoring → better signal quality → more trust → more engagement.
-
 **Weekly brief (zero-effort intelligence):** The Monday email is the #1 retention mechanism. It arrives in the inbox, reads in 90 seconds, and tells the user three things: what moved, what it means for them, and what they should consider doing. If the brief is good, the user opens Metrivant. If the brief is slop, the user cancels. Brief quality is the product's heartbeat.
 
 **Feature discovery (zero-confusion):** ORBIT mode, gravity field, telescope, strategy panel, market map — these features exist but users may never find them. Navigation must be clear. Feature hints must be contextual, not intrusive. The knowledge panel educates. The About overlay demonstrates. Every feature the user discovers is a reason to stay.
@@ -174,32 +172,21 @@ The frontend is perfect when every interaction answers a question the user alrea
 
 **Ops observability (zero-blind-spots):** The ops page surfaces every system state in one view: pipeline stages, cron health, signal quality, pool activity, coverage health, feed health, stale competitors, competitor suggestions, intelligence validation, self-healing metrics, and comprehensive system tests. The operator runs one button and knows if every recursive loop is active. **Recursive loop:** ops visibility → faster diagnosis → targeted fixes → improved system → fewer issues to diagnose.
 
-**Current status: SIGNIFICANT GAPS REMAIN.** The backend's recursive loops are all implemented. The frontend needs to close the bridge:
-1. Signal feedback UI does not exist (backend learning loops are inert without user input)
-2. First-value onboarding has no progress indicator (user waits in the dark)
-3. Brief quality is untested with real users
-4. Feature discovery relies on exploration, not guidance
-5. Mobile intelligence delivery is gated (desktop holding page)
-6. Upgrade prompts may not be triggering at the right moments
+**Current status: SIGNIFICANT GAPS REMAIN.** The backend's recursive loops are all implemented. The frontend needs refinement:
+1. First-value onboarding has no progress indicator (user waits in the dark)
+2. Brief quality is untested with real users
+3. Feature discovery relies on exploration, not guidance
+4. Mobile intelligence delivery is gated (desktop holding page)
+5. Upgrade prompts may not be triggering at the right moments
 
 ---
 
 ### THE DISTINCTION
 
 The backend asks: "Is every recursive improvement loop active?"
-The frontend asks: "Does the user's behaviour feed those loops?"
+The frontend asks: "Does the user get value in seconds?"
 
-A system with all recursive loops implemented but no user input is a machine talking to itself. A system where users interact naturally and those interactions make the machine smarter is a flywheel. Perfect state is when the flywheel is turning.
-
-**The runtime is the engine. The frontend is the fuel. User behaviour is the spark.**
-
-Every remaining session should prioritize closing the feedback bridge — because the backend's self-improvement loops are built but waiting for user input to activate.
-
----
-
-### THE GAP
-
-The gap between current state and perfect state is measured by: **how many recursive improvement loops are fully active end-to-end (backend + frontend + user)?** Each session closes one gap in this chain. The system converges toward a state where every loop turns autonomously.
+The runtime is the engine. The frontend is the delivery vehicle. Perfect state is when the machine produces accurate intelligence autonomously and the UI delivers it instantly.
 
 ---
 
@@ -230,11 +217,3 @@ Must specify: surface (runtime|frontend|both), mode (build|fix|refactor), blast 
 ```
 
 ---
-
-## CURRENT ANSWER (2026-03-19)
-
-**COMPLETED** — page discovery layer built (`lib/page-discovery.ts` + second pass in `api/expand-coverage.ts`). 4 beyond-catalog types (solutions, integrations, developer, about), GPT-4o-mini classification, confidence >= 0.65 gate, seedSmartRules integration, pipeline_events recording. Batch size 15, weekly cadence.
-
-## CURRENT ANSWER (2026-03-19, updated)
-
-**COMPLETED** — `api/backfill-feeds.ts` built and deployed with weekly cron. All 6 pools (newsroom, careers, investor, product, procurement, regulatory), chunked concurrency=5, sequential EDGAR for SEC rate limits, wall-clock guard, Sentry monitoring, per-pool stats response.
