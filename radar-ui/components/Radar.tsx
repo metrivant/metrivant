@@ -3542,8 +3542,8 @@ export default function Radar({
             </div>{/* end zoom canvas */}
 
             {/* ── HUD Corner Readouts ─────────────────────────────────────────── */}
-            {/* Instrument-grade readouts at 4 corners — gated by HUD toggle + observatory mode */}
-            {orbitHudActive && !isolated && (
+            {/* Instrument-grade readouts at 4 corners — gated by HUD toggle */}
+            {orbitHudActive && (
               <div className="pointer-events-none absolute inset-0 z-10">
                 {/* Top-left: Total + Active count */}
                 <div
@@ -4076,9 +4076,9 @@ export default function Radar({
               </button>
             </div>
 
-            {/* ── Observatory mode overlays ────────────────────────── */}
+            {/* ── Observatory mode overlays (hidden when HUD active) ────────────────────────── */}
             <AnimatePresence>
-              {isolated && (
+              {isolated && !orbitHudActive && (
                 <motion.div
                   key="isolation-overlay"
                   initial={{ opacity: 0 }}
@@ -4262,7 +4262,7 @@ export default function Radar({
       {/* Observatory (isolated): floating right panel over the fullscreen radar. */}
       <aside
         className={isolated && selected
-          ? "fixed right-4 top-4 z-[60] h-[min(88vh,740px)] w-[320px] xl:w-[360px] overflow-y-auto rounded-[16px] border p-5"
+          ? "fixed right-4 top-4 bottom-4 z-[60] w-[400px] xl:w-[440px] overflow-y-auto rounded-[16px] border p-5"
           : `border bg-[#000000] p-6 lg:static lg:block lg:inset-auto lg:z-auto lg:min-h-0 lg:max-h-none lg:overflow-y-auto lg:rounded-[20px]${
             selected
               ? sheetState === "full"
