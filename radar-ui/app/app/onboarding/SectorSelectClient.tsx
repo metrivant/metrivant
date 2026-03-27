@@ -304,10 +304,68 @@ export default function SectorSelectClient() {
             {getProgressMessage()}
           </button>
 
-          {/* Loading sub-label */}
-          {loading && (
+          {/* Progress indicator */}
+          {loading && status && (
+            <div className="flex flex-col gap-3">
+              {/* Step indicator */}
+              <div className="flex items-center justify-center gap-2">
+                {[
+                  { id: "seeding", label: "Seeding" },
+                  { id: "onboarding", label: "Onboarding" },
+                  { id: "monitoring", label: "Monitoring" },
+                  { id: "ready", label: "Ready" },
+                ].map((step, index, arr) => {
+                  const currentStageIndex = arr.findIndex((s) => s.id === status.stage);
+                  const stepIndex = index;
+                  const isActive = stepIndex === currentStageIndex;
+                  const isComplete = stepIndex < currentStageIndex;
+
+                  return (
+                    <div key={step.id} className="flex items-center gap-2">
+                      {/* Step dot */}
+                      <div className="flex flex-col items-center gap-1">
+                        <div
+                          className="flex h-2 w-2 items-center justify-center rounded-full transition-all duration-300"
+                          style={{
+                            background: isComplete || isActive ? "#00B4FF" : "rgba(255,255,255,0.12)",
+                            boxShadow: isActive ? "0 0 8px rgba(0,180,255,0.40)" : "none",
+                          }}
+                        />
+                        <span
+                          className="text-[9px] font-medium uppercase tracking-wider transition-colors duration-300"
+                          style={{
+                            color: isComplete || isActive ? "rgba(0,180,255,0.70)" : "rgba(255,255,255,0.25)",
+                            letterSpacing: "0.08em",
+                          }}
+                        >
+                          {step.label}
+                        </span>
+                      </div>
+                      {/* Connector line */}
+                      {index < arr.length - 1 && (
+                        <div
+                          className="h-[1px] w-8 transition-all duration-300"
+                          style={{
+                            background: isComplete ? "rgba(0,180,255,0.40)" : "rgba(255,255,255,0.08)",
+                          }}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Sub-label */}
+              <p className="text-center text-[11px] text-slate-600">
+                This takes 15–30 seconds — setting up monitoring across all rivals.
+              </p>
+            </div>
+          )}
+
+          {/* Loading sub-label (fallback when no status yet) */}
+          {loading && !status && (
             <p className="text-center text-[11px] text-slate-600">
-              This takes 15–30 seconds — setting up monitoring across all rivals.
+              Initializing…
             </p>
           )}
 
