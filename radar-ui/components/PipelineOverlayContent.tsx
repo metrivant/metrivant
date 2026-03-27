@@ -5,51 +5,51 @@ import { motion } from "framer-motion";
 const STAGES = [
   {
     label: "TRACK",
-    title: "Competitor Registration",
-    description: "Register any competitor for continuous monitoring across your market sector.",
-    technical: "competitors table → monitored_pages initialization",
+    title: "Add Competitors",
+    description: "Choose any competitor in your market. Add them to your watchlist in seconds.",
+    detail: "Instant setup · No configuration required",
   },
   {
     label: "MONITOR",
-    title: "Page Surveillance",
-    description: "Automated fetching of key pages — pricing, features, changelog, newsroom, careers.",
-    technical: "Cron-based snapshot creation per page_class (ambient/standard/high_value)",
+    title: "Continuous Monitoring",
+    description: "Metrivant watches their pricing pages, features, blog posts, and announcements 24/7.",
+    detail: "Automated surveillance · Always current",
   },
   {
     label: "CAPTURE",
-    title: "Content Extraction",
-    description: "Page content is segmented into logical sections for granular comparison.",
-    technical: "snapshots → page_sections (CSS selector-based extraction)",
+    title: "Record Changes",
+    description: "Every page is captured and organized into sections for precise comparison over time.",
+    detail: "Timestamped snapshots · Version history",
   },
   {
     label: "BASELINE",
-    title: "Reference Anchoring",
-    description: "Establish stable baseline state for each section to reduce noise from transient changes.",
-    technical: "section_baselines (insert-only anchor, never overwritten)",
+    title: "Establish Normal",
+    description: "The system learns what's normal for each competitor to filter out noise and focus on real changes.",
+    detail: "Smart filtering · Reduces false alerts",
   },
   {
     label: "DETECT",
-    title: "Change Detection",
-    description: "Compute differences between current content and baseline to surface actual shifts.",
-    technical: "section_diffs (batch-loaded, no N+1 queries)",
+    title: "Spot Differences",
+    description: "Changes are detected automatically — pricing shifts, new features, messaging updates.",
+    detail: "Real-time detection · Evidence-backed",
   },
   {
     label: "CLASSIFY",
-    title: "Signal Classification",
-    description: "Assign signal type, confidence score (0-1), urgency (1-5). Filter noise from signal.",
-    technical: "signals (confidence-gated, signal_hash deduped, relevance pre-classification)",
+    title: "Score Importance",
+    description: "Each change gets a confidence score and urgency rating so you focus on what matters.",
+    detail: "Confidence scoring · Noise filtering",
   },
   {
     label: "INTERPRET",
-    title: "Intelligence Analysis",
-    description: "GPT-4o validates and interprets signals, providing strategic context and implications.",
-    technical: "interpretations + strategic_movements (AI-grounded narrative synthesis)",
+    title: "Understand Why",
+    description: "Analysis explains what changed, why it's significant, and what you should consider doing.",
+    detail: "Strategic context · Recommended actions",
   },
   {
     label: "RADAR",
-    title: "Live Intelligence Feed",
-    description: "Aggregated view of all competitor movements, momentum scores, and strategic patterns.",
-    technical: "radar_feed view → UI (top 50 by momentum, real-time subscription)",
+    title: "See Everything",
+    description: "All competitor activity in one live radar view. Sorted by momentum. Updated in real-time.",
+    detail: "Live dashboard · Instant visibility",
   },
 ];
 
@@ -68,14 +68,14 @@ export default function PipelineOverlayContent() {
             className="mb-4 text-[18px] font-bold uppercase tracking-[0.12em] text-white md:text-[20px]"
             style={{ fontFamily: "var(--font-orbitron)" }}
           >
-            Deterministic Pipeline Architecture
+            How Metrivant Works
           </h3>
           <p
             className="mx-auto max-w-2xl text-[14px] font-light leading-relaxed md:text-[15px]"
             style={{ color: "rgba(255,255,255,0.60)", letterSpacing: "0.01em" }}
           >
-            Eight sequential stages transform competitor page changes into strategic intelligence.
-            Every output is evidence-grounded. No inference without observation.
+            From the moment you add a competitor to seeing strategic intelligence on your radar.
+            Eight stages working automatically in the background.
           </p>
         </motion.div>
 
@@ -178,23 +178,15 @@ export default function PipelineOverlayContent() {
                     {stage.description}
                   </p>
 
-                  {/* Technical detail */}
+                  {/* Detail */}
                   <div
-                    className="inline-block rounded border px-3 py-1.5"
+                    className="text-[12px] font-medium md:text-[13px]"
                     style={{
-                      borderColor: "rgba(0,180,255,0.15)",
-                      background: "rgba(0,180,255,0.03)",
+                      color: "rgba(0,180,255,0.50)",
+                      letterSpacing: "0.01em",
                     }}
                   >
-                    <code
-                      className="text-[11px] md:text-[12px]"
-                      style={{
-                        color: "rgba(0,180,255,0.55)",
-                        fontFamily: "var(--font-geist-mono)",
-                      }}
-                    >
-                      {stage.technical}
-                    </code>
+                    {stage.detail}
                   </div>
                 </div>
               </motion.div>
@@ -213,9 +205,9 @@ export default function PipelineOverlayContent() {
             className="text-[12px] font-light leading-relaxed"
             style={{ color: "rgba(148,163,184,0.50)", letterSpacing: "0.01em" }}
           >
-            Supabase is the state machine. Vercel runtime stages are stateless execution layers.
+            Every signal traces back to a real change on a competitor's website.
             <br />
-            Every stage has defined inputs, transformation, and outputs. No speculation without evidence.
+            Nothing is inferred. Everything is evidence-backed.
           </p>
         </motion.div>
       </div>
