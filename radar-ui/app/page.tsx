@@ -119,14 +119,14 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── Flow Section — user journey visualization ──────────────── */}
+      <FlowSection />
+
       {/* ── Core Concept ─────────────────────────────────────────────── */}
       <CoreConceptSection />
 
       {/* ── Equation Panel ───────────────────────────────────────────── */}
       <EquationPanel />
-
-      {/* ── Flow Section — user journey visualization ──────────────── */}
-      <FlowSection />
 
       {/* ── Pricing snapshot ─────────────────────────────────────────── */}
       <section className="relative border-t border-[#0d1020] px-6 pb-16">

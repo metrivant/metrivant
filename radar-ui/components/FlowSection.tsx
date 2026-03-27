@@ -30,8 +30,8 @@ export default function FlowSection() {
     {
       label: "Track",
       title: "Add Competitor",
-      description: "Monitor any competitor in your market sector.",
-      example: "Acme Corp",
+      description: "Monitor any competitor in your market sector — SaaS, Fintech, Cybersecurity, Defense, or Energy.",
+      example: "(company)",
       icon: (
         <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
           <circle cx="24" cy="24" r="18" stroke="#00B4FF" strokeWidth="1.2" strokeOpacity="0.30" />
