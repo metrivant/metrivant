@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { createClient } from "../lib/supabase/client";
 import {
@@ -329,6 +330,24 @@ function BriefsOverlay({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
             )}
+
+            {/* View all briefs link */}
+            {latest && (
+              <div className="mt-5 border-t border-[#0d1020] pt-4">
+                <Link
+                  href="/app/briefs"
+                  className="flex items-center justify-between rounded-[10px] border border-[#0d1020] bg-[#020208] px-3.5 py-2.5 transition-colors hover:border-[#1a2838] hover:bg-[#030410]"
+                  onClick={onClose}
+                >
+                  <span className="text-[11px] font-medium text-slate-300">
+                    View all briefs
+                  </span>
+                  <svg width="9" height="9" viewBox="0 0 10 10" fill="none" aria-hidden="true" className="text-slate-600">
+                    <path d="M3 2l4 3-4 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </Link>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -502,6 +521,24 @@ function StrategyOverlay({ onClose }: { onClose: () => void }) {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* View full strategy link */}
+        {insights && insights.length > 0 && (
+          <div className="mt-5 border-t border-[#0d1020] pt-4">
+            <Link
+              href="/app/strategy"
+              className="flex items-center justify-between rounded-[10px] border border-[#0d1020] bg-[#020208] px-3.5 py-2.5 transition-colors hover:border-[#1a2838] hover:bg-[#030410]"
+              onClick={onClose}
+            >
+              <span className="text-[11px] font-medium text-slate-300">
+                Open strategy workspace
+              </span>
+              <svg width="9" height="9" viewBox="0 0 10 10" fill="none" aria-hidden="true" className="text-slate-600">
+                <path d="M3 2l4 3-4 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Link>
           </div>
         )}
       </div>

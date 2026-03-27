@@ -2,6 +2,7 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion, AnimatePresence, useAnimationFrame } from "framer-motion";
 import { scaleLinear } from "d3-scale";
 import type { RadarCompetitor, CompetitorDetail, MonitoredPage } from "../lib/api";
@@ -5161,6 +5162,39 @@ export default function Radar({
                       </span>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* ── Strategy workspace link ──────────────────────── */}
+              {!detailLoading && selected && (
+                <div className="mt-5">
+                  <Link
+                    href={`/app/strategy?cid=${selected.competitor_id}&cname=${encodeURIComponent(selected.competitor_name)}`}
+                    className="flex items-center justify-between rounded-[12px] border border-[#0d1020] bg-[#020208] px-4 py-3 transition-colors hover:border-[#1a2838] hover:bg-[#030410]"
+                    onClick={() => {
+                      capture("strategy_opened_from_intel", {
+                        competitor_id: selected.competitor_id,
+                        source: "intelligence_panel",
+                      });
+                    }}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <svg width="13" height="13" viewBox="0 0 11 11" fill="none" aria-hidden="true">
+                        <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.3" strokeOpacity="0.5" />
+                        <circle cx="5.5" cy="5.5" r="1.8" stroke="currentColor" strokeWidth="1.2" strokeOpacity="0.7" />
+                        <line x1="5.5" y1="1.5" x2="5.5" y2="3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeOpacity="0.6" />
+                        <line x1="5.5" y1="8" x2="5.5" y2="9.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeOpacity="0.6" />
+                        <line x1="1.5" y1="5.5" x2="3" y2="5.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeOpacity="0.6" />
+                        <line x1="8" y1="5.5" x2="9.5" y2="5.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeOpacity="0.6" />
+                      </svg>
+                      <span className="text-[12px] font-medium text-slate-300">
+                        Open strategy workspace
+                      </span>
+                    </div>
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true" className="text-slate-600">
+                      <path d="M3 2l4 3-4 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </Link>
                 </div>
               )}
 
