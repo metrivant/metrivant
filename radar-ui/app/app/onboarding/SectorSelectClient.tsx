@@ -18,17 +18,6 @@ const SECTOR_OPTIONS = [
     ),
   },
   {
-    value: "cybersecurity",
-    label: "Cybersecurity",
-    desc: "Security platforms and threat intelligence",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-        <path d="M9 2L15 4.5V9C15 12.5 12 15.5 9 16.5C6 15.5 3 12.5 3 9V4.5L9 2Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-        <path d="M6.5 9l2 2 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-  {
     value: "fintech",
     label: "Fintech",
     desc: "Payments, banking, financial services",
@@ -40,12 +29,13 @@ const SECTOR_OPTIONS = [
     ),
   },
   {
-    value: "energy",
-    label: "Energy & Resources",
-    desc: "Oil, gas, renewables, energy services",
+    value: "cybersecurity",
+    label: "Cybersecurity",
+    desc: "Security platforms and threat intelligence",
     icon: (
       <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-        <path d="M10.5 2L6 10h5l-3.5 6L14 7H9l1.5-5Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+        <path d="M9 2L15 4.5V9C15 12.5 12 15.5 9 16.5C6 15.5 3 12.5 3 9V4.5L9 2Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+        <path d="M6.5 9l2 2 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
   },
@@ -61,6 +51,16 @@ const SECTOR_OPTIONS = [
         <line x1="2" y1="9"  x2="4.5" y2="9"  stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
         <line x1="13.5" y1="9" x2="16" y2="9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
         <circle cx="9" cy="9" r="2.2" stroke="currentColor" strokeWidth="1.1" />
+      </svg>
+    ),
+  },
+  {
+    value: "energy",
+    label: "Energy & Resources",
+    desc: "Oil, gas, renewables, energy services",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <path d="M10.5 2L6 10h5l-3.5 6L14 7H9l1.5-5Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
       </svg>
     ),
   },

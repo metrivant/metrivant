@@ -144,14 +144,11 @@ export default function LandingPage() {
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             {[
-              "SaaS & Software",
+              "Software & AI",
+              "Fintech",
+              "Cybersecurity",
               "Defense & Aerospace",
               "Energy & Resources",
-              "Cybersecurity",
-              "Fintech",
-              "AI Infrastructure",
-              "DevTools",
-              "Healthcare",
             ].map((sector) => (
               <div
                 key={sector}

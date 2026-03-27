@@ -8,10 +8,10 @@ import { captureException, captureMessage } from "../../../lib/sentry";
 // language and catalog curation purposes only.
 const VALID_SECTORS = [
   "saas",
-  "cybersecurity",
-  "energy",
-  "defense",
   "fintech",
+  "cybersecurity",
+  "defense",
+  "energy",
   "custom",
 ] as const;
 

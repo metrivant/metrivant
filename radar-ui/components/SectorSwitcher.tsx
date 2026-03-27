@@ -5,15 +5,12 @@ import { useRouter } from "next/navigation";
 import { getSectorLabel } from "../lib/sectors";
 
 const SECTOR_OPTIONS = [
-  { value: "saas",               label: "SaaS & Software" },
-  { value: "defense",            label: "Defense & Aerospace" },
-  { value: "energy",             label: "Energy & Resources" },
-  { value: "cybersecurity",      label: "Cybersecurity" },
-  { value: "fintech",            label: "Fintech" },
-  { value: "ai-infrastructure",  label: "AI Infrastructure" },
-  { value: "devtools",           label: "DevTools" },
-  { value: "healthcare",         label: "Healthcare" },
-  { value: "custom",             label: "Custom" },
+  { value: "saas",          label: "Software & AI" },
+  { value: "fintech",       label: "Fintech" },
+  { value: "cybersecurity", label: "Cybersecurity" },
+  { value: "defense",       label: "Defense & Aerospace" },
+  { value: "energy",        label: "Energy & Resources" },
+  { value: "custom",        label: "Custom" },
 ] as const;
 
 type ToastState =

@@ -318,11 +318,19 @@ Each full-config sector defines:
 | `enterprise_push` | Enterprise Push | Federal Push | Upstream Push |
 | `ecosystem_expansion` | Ecosystem Expansion | Partnership Expansion | Regional Expansion |
 
-### Additional recognized sectors (display + catalog only, lib/sector-catalog.ts)
+### Supported sectors
 
-`cybersecurity`, `fintech`, `ai-infrastructure`, `devtools`, `healthcare`, `consumer-tech`, `custom`
+**Core 5 sectors:**
+- `saas` — Software & AI
+- `fintech` — Fintech
+- `cybersecurity` — Cybersecurity
+- `defense` — Defense & Aerospace
+- `energy` — Energy & Resources
 
-These 7 sectors have default competitor catalogs (10 per sector) and display labels but do not yet have full SectorConfig with terminology translation. They fall back to the SaaS config for terminology.
+**Special sector:**
+- `custom` — User starts with empty slate, manually adds competitors
+
+Three sectors (saas, defense, energy) have full SectorConfig with terminology translation. The other two (fintech, cybersecurity) fall back to SaaS config for terminology but have dedicated competitor catalogs.
 
 ### Sector stored per org
 
