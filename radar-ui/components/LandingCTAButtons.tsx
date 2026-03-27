@@ -90,7 +90,7 @@ export default function LandingCTAButtons() {
         onClick={playSigninChime}
         className="cta-pulse rounded-full bg-[#00B4FF] px-8 py-2.5 text-[14px] font-semibold text-black transition-opacity hover:opacity-90"
       >
-        Start free trial
+        Track Your First Competitor
       </Link>
       <Link
         href="/login"

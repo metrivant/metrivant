@@ -9,6 +9,7 @@ import FlowSection from "../components/FlowSection";
 import ElectricityBackground, { type ElectricityBackgroundRef } from "../components/ElectricityBackground";
 import CoreConceptSection from "../components/CoreConceptSection";
 import EquationPanel from "../components/EquationPanel";
+import SocialProof from "../components/SocialProof";
 
 const LABEL_COLOR_STYLE = { color: "rgba(0,180,255,0.55)" } as const;
 
@@ -121,6 +122,9 @@ export default function LandingPage() {
 
       {/* ── Flow Section — user journey visualization ──────────────── */}
       <FlowSection />
+
+      {/* ── Social Proof ─────────────────────────────────────────────── */}
+      <SocialProof />
 
       {/* ── Core Concept ─────────────────────────────────────────────── */}
       <CoreConceptSection />
