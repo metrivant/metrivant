@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import PipelineExperience from "./PipelineExperience";
+import PipelineOverlayContent from "./PipelineOverlayContent";
 
 export default function PipelineOverlay({
   open,
@@ -84,9 +84,9 @@ export default function PipelineOverlay({
               </button>
             </div>
 
-            {/* Content — Pipeline visualization */}
+            {/* Content — Pipeline stages */}
             <div className="flex-1">
-              <PipelineExperience />
+              <PipelineOverlayContent />
             </div>
           </motion.div>
         </>
