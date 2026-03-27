@@ -1,17 +1,14 @@
 "use client";
 
 /**
- * Observatory Panel — Layered Signal Quality System
+ * Telescope — Autonomous Signal Observatory
  *
- * Autonomous detection (8 filters + baselines + validation) handles syntactic noise.
- * User feedback handles semantic noise (org-specific strategic irrelevance).
- *
- * Verdict: useful (valid signal) | noise (strategically irrelevant)
- * Writes to signal_feedback → learn-noise-patterns creates semantic suppression rules.
+ * Read-only view of the autonomous detection system.
+ * Displays signals with automated quality classification.
+ * No manual intervention — fully automated noise suppression.
  */
 
-import { useState, useEffect, useCallback } from "react";
-import { createClient } from "../lib/supabase/client";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -27,9 +24,6 @@ export type TelescopeSignal = {
   noise_reason?: string | null;
   retrograded_at?: string | null;
 };
-
-type Verdict = "valid" | "noise";
-type FeedbackMap = Record<string, Verdict>;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -77,93 +71,41 @@ function noiseReasonColor(reason: string): string {
   return colors[reason] || "rgba(100,116,139,0.55)";
 }
 
-// ── Verdict button ────────────────────────────────────────────────────────────
-
-function VerdictBtn({
-  active,
-  type,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  type: "valid" | "noise";
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  const [hovered, setHovered] = useState(false);
-
-  const colors = {
-    valid: {
-      base: "rgba(0,180,255,0.35)",
-      active: "rgba(0,180,255,0.85)",
-      bg: "rgba(0,180,255,0.08)",
-      activeBg: "rgba(0,180,255,0.15)",
-    },
-    noise: {
-      base: "rgba(239,68,68,0.35)",
-      active: "rgba(239,68,68,0.80)",
-      bg: "rgba(239,68,68,0.06)",
-      activeBg: "rgba(239,68,68,0.12)",
-    },
-  };
-
-  const c = colors[type];
-
-  return (
-    <motion.button
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      style={{
-        fontFamily: "var(--font-orbitron)",
-        fontSize: 9,
-        fontWeight: 700,
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        color: active ? c.active : hovered ? c.active : c.base,
-        background: active ? c.activeBg : hovered ? c.bg : "transparent",
-        border: `1px solid ${active ? c.active : hovered ? c.active : c.base}40`,
-        borderRadius: "9999px",
-        padding: "3px 10px",
-        cursor: "pointer",
-        transition: "all 0.18s ease-out",
-      }}
-    >
-      {children}
-    </motion.button>
-  );
-}
-
 // ── Signal card ───────────────────────────────────────────────────────────────
 
 function SignalCard({
   signal,
-  feedback,
-  onVerdict,
   isLast,
   index,
 }: {
   signal: TelescopeSignal;
-  feedback: Verdict | undefined;
-  onVerdict: (signalId: string, verdict: Verdict) => void;
   isLast: boolean;
   index: number;
 }) {
+  const [hovered, setHovered] = useState(false);
   const isNoise = signal.is_noise === true;
   const isRetrograded = signal.retrograded_at != null;
-  const hasSemanticFeedback = feedback != null;
+
+  // Recent signal indicator (< 1 hour)
+  const ms = Date.now() - new Date(signal.detected_at).getTime();
+  const isRecent = ms < 3600000;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.04, duration: 0.22, ease: "easeOut" }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      whileHover={{ x: 2 }}
       style={{
         padding: "10px 12px 9px",
         borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.04)",
         opacity: isNoise ? 0.45 : 1,
+        background: hovered ? "rgba(0,180,255,0.03)" : isRecent ? "rgba(124,58,237,0.03)" : "transparent",
+        borderLeft: isRecent ? "2px solid rgba(124,58,237,0.35)" : "2px solid transparent",
+        transition: "all 0.2s ease-out",
+        position: "relative",
       }}
     >
       {/* Row 1: competitor + time */}
@@ -259,9 +201,14 @@ function SignalCard({
         </div>
       )}
 
-      {/* Row 4: autonomous status badges */}
+      {/* Row 4: autonomous classification badges */}
       {(isNoise || isRetrograded) && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 6 }}>
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          style={{ display: "flex", flexWrap: "wrap", gap: 5 }}
+        >
           {isNoise && signal.noise_reason && (
             <span
               style={{
@@ -298,42 +245,25 @@ function SignalCard({
               Retrograded
             </span>
           )}
-        </div>
+        </motion.div>
       )}
 
-      {/* Row 5: semantic verdict controls (only for non-noise signals) */}
-      {!isNoise && (
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <VerdictBtn
-            active={feedback === "valid"}
-            type="valid"
-            onClick={() => onVerdict(signal.id, "valid")}
-          >
-            Valid
-          </VerdictBtn>
-          <VerdictBtn
-            active={feedback === "noise"}
-            type="noise"
-            onClick={() => onVerdict(signal.id, "noise")}
-          >
-            Noise
-          </VerdictBtn>
-          {hasSemanticFeedback && (
-            <span
-              style={{
-                fontFamily: "ui-monospace, monospace",
-                fontSize: 8,
-                color: feedback === "valid"
-                  ? "rgba(0,180,255,0.40)"
-                  : "rgba(239,68,68,0.40)",
-                marginLeft: 2,
-                letterSpacing: "0.04em",
-              }}
-            >
-              {feedback === "valid" ? "Confirmed" : "Flagged"}
-            </span>
-          )}
-        </div>
+      {/* Recent signal pulse indicator */}
+      {isRecent && !isNoise && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: [0.5, 0.8, 0.5], scale: 1 }}
+          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+          style={{
+            position: "absolute",
+            left: 0,
+            top: "50%",
+            transform: "translateY(-50%)",
+            width: 2,
+            height: "60%",
+            background: "linear-gradient(180deg, rgba(124,58,237,0) 0%, rgba(124,58,237,0.8) 50%, rgba(124,58,237,0) 100%)",
+          }}
+        />
       )}
     </motion.div>
   );
@@ -343,76 +273,30 @@ function SignalCard({
 
 export default function TelescopePanel({ signals }: { signals: TelescopeSignal[] }) {
   const count = signals.length;
-  const [feedbackMap, setFeedbackMap] = useState<FeedbackMap>({});
 
-  // Load existing feedback for displayed signals
-  useEffect(() => {
-    if (signals.length === 0) return;
-    const supabase = createClient();
-    const ids = signals.map((s) => s.id);
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any)
-      .from("signal_feedback")
-      .select("signal_id, verdict")
-      .in("signal_id", ids)
-      .then(({ data }: { data: Array<{ signal_id: string; verdict: Verdict }> | null }) => {
-        if (!data) return;
-        const map: FeedbackMap = {};
-        for (const row of data) {
-          map[row.signal_id] = row.verdict;
-        }
-        setFeedbackMap(map);
-      })
-      .catch(() => { /* silent */ });
-  }, [signals]);
-
-  const handleVerdict = useCallback(async (signalId: string, verdict: Verdict) => {
-    // Optimistic update
-    setFeedbackMap((prev) => ({
-      ...prev,
-      [signalId]: verdict,
-    }));
-
-    const supabase = createClient();
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase as any)
-        .from("signal_feedback")
-        .upsert(
-          {
-            signal_id: signalId,
-            verdict,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "signal_id" }
-        );
-    } catch {
-      /* silent — revert on failure */
-      setFeedbackMap((prev) => {
-        const next = { ...prev };
-        delete next[signalId];
-        return next;
-      });
-    }
-  }, []);
-
-  // Metrics
+  // Autonomous metrics (no user feedback)
   const autonomousNoise = signals.filter((s) => s.is_noise === true).length;
-  const semanticNoise = Object.values(feedbackMap).filter((v) => v === "noise").length;
-  const validSignals = Object.values(feedbackMap).filter((v) => v === "valid").length;
   const retrogradedCount = signals.filter((s) => s.retrograded_at != null).length;
+  const activeSignals = count - autonomousNoise;
+  const recentSignals = signals.filter((s) => {
+    const ms = Date.now() - new Date(s.detected_at).getTime();
+    return ms < 3600000 && !s.is_noise;
+  }).length;
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
       style={{
         display: "flex",
         flexDirection: "column",
         height: "100%",
         borderRadius: 14,
         overflow: "hidden",
-        border: "1px solid rgba(255,255,255,0.06)",
-        background: "#020208",
+        border: "1px solid rgba(124,58,237,0.12)",
+        background: "linear-gradient(180deg, #020208 0%, #08051a 100%)",
+        boxShadow: "0 4px 24px rgba(124,58,237,0.08)",
       }}
     >
       {/* ── Header ── */}
@@ -422,23 +306,51 @@ export default function TelescopePanel({ signals }: { signals: TelescopeSignal[]
           alignItems: "center",
           justifyContent: "space-between",
           padding: "9px 12px 8px",
-          borderBottom: "1px solid rgba(255,255,255,0.05)",
+          borderBottom: "1px solid rgba(124,58,237,0.12)",
+          background: "rgba(124,58,237,0.03)",
           flexShrink: 0,
         }}
       >
-        <span
-          style={{
-            fontFamily: "var(--font-orbitron)",
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: "0.22em",
-            color: "rgba(0,180,255,0.55)",
-            textTransform: "uppercase",
-          }}
-        >
-          Observatory
-        </span>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span
+            style={{
+              fontFamily: "var(--font-orbitron)",
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.22em",
+              color: "rgba(124,58,237,0.70)",
+              textTransform: "uppercase",
+            }}
+          >
+            Telescope
+          </span>
+          {recentSignals > 0 && (
+            <motion.div
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: "rgba(124,58,237,0.8)",
+                boxShadow: "0 0 8px rgba(124,58,237,0.6)",
+              }}
+            />
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          {activeSignals > 0 && (
+            <span
+              style={{
+                fontFamily: "ui-monospace, monospace",
+                fontSize: 8,
+                color: "rgba(0,180,255,0.50)",
+                letterSpacing: "0.04em",
+              }}
+            >
+              {activeSignals} active
+            </span>
+          )}
           {autonomousNoise > 0 && (
             <span
               style={{
@@ -455,8 +367,9 @@ export default function TelescopePanel({ signals }: { signals: TelescopeSignal[]
             style={{
               fontFamily: "ui-monospace, monospace",
               fontSize: 10,
+              fontWeight: 600,
               letterSpacing: "0.06em",
-              color: "rgba(255,255,255,0.28)",
+              color: "rgba(255,255,255,0.35)",
             }}
           >
             {count}
@@ -474,31 +387,59 @@ export default function TelescopePanel({ signals }: { signals: TelescopeSignal[]
         }}
       >
         {count === 0 ? (
-          <div
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
             style={{
               display: "flex",
+              flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
               height: "100%",
-              fontFamily: "var(--font-orbitron)",
-              fontSize: 9,
-              letterSpacing: "0.18em",
-              color: "rgba(255,255,255,0.14)",
-              textTransform: "uppercase",
-              padding: "0 16px",
+              padding: "0 20px",
               textAlign: "center",
+              gap: 8,
             }}
           >
-            Detection Active
-          </div>
+            <motion.div
+              animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.5, 0.3] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                border: "2px solid rgba(124,58,237,0.25)",
+                position: "relative",
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 4,
+                  borderRadius: "50%",
+                  background: "radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 70%)",
+                }}
+              />
+            </motion.div>
+            <div
+              style={{
+                fontFamily: "var(--font-orbitron)",
+                fontSize: 9,
+                letterSpacing: "0.18em",
+                color: "rgba(124,58,237,0.40)",
+                textTransform: "uppercase",
+              }}
+            >
+              Autonomous Detection Active
+            </div>
+          </motion.div>
         ) : (
           <AnimatePresence mode="sync">
             {signals.map((s, i) => (
               <SignalCard
                 key={s.id}
                 signal={s}
-                feedback={feedbackMap[s.id]}
-                onVerdict={handleVerdict}
                 isLast={i === count - 1}
                 index={i}
               />
@@ -507,57 +448,33 @@ export default function TelescopePanel({ signals }: { signals: TelescopeSignal[]
         )}
       </div>
 
-      {/* ── Stats footer ── */}
-      {(semanticNoise > 0 || validSignals > 0 || retrogradedCount > 0) && (
+      {/* ── Autonomous stats footer ── */}
+      {retrogradedCount > 0 && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
+          transition={{ duration: 0.2 }}
           style={{
             padding: "7px 12px",
-            borderTop: "1px solid rgba(255,255,255,0.04)",
+            borderTop: "1px solid rgba(124,58,237,0.08)",
+            background: "rgba(124,58,237,0.02)",
             display: "flex",
             gap: 10,
             flexShrink: 0,
           }}
         >
-          {validSignals > 0 && (
-            <span
-              style={{
-                fontFamily: "ui-monospace, monospace",
-                fontSize: 8,
-                color: "rgba(0,180,255,0.50)",
-                letterSpacing: "0.04em",
-              }}
-            >
-              {validSignals} valid
-            </span>
-          )}
-          {semanticNoise > 0 && (
-            <span
-              style={{
-                fontFamily: "ui-monospace, monospace",
-                fontSize: 8,
-                color: "rgba(239,68,68,0.50)",
-                letterSpacing: "0.04em",
-              }}
-            >
-              {semanticNoise} noise
-            </span>
-          )}
-          {retrogradedCount > 0 && (
-            <span
-              style={{
-                fontFamily: "ui-monospace, monospace",
-                fontSize: 8,
-                color: "rgba(168,85,247,0.50)",
-                letterSpacing: "0.04em",
-              }}
-            >
-              {retrogradedCount} retrograded
-            </span>
-          )}
+          <span
+            style={{
+              fontFamily: "ui-monospace, monospace",
+              fontSize: 8,
+              color: "rgba(168,85,247,0.50)",
+              letterSpacing: "0.04em",
+            }}
+          >
+            {retrogradedCount} retrograded
+          </span>
         </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }
