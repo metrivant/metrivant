@@ -241,13 +241,15 @@ async function runGeneration(): Promise<NextResponse> {
     return NextResponse.json({ ok: true, briefs_generated: 0, emails_sent: 0, message: "No organizations" });
   }
 
-  // 2 — Load all auth users once (for email lookup per org owner)
+  // 2 — Load all auth users once (for email lookup + subscription check per org owner)
   let userEmailById: Map<string, string> = new Map();
+  let userMetadataById: Map<string, { plan?: string; [key: string]: unknown }> = new Map();
   try {
     const { data: { users } } = await supabase.auth.admin.listUsers({ perPage: 500 });
-    userEmailById = new Map(
-      users.filter((u) => u.email).map((u) => [u.id, u.email!])
-    );
+    for (const u of users) {
+      if (u.email) userEmailById.set(u.id, u.email);
+      if (u.user_metadata) userMetadataById.set(u.id, u.user_metadata);
+    }
   } catch (err) {
     captureException(err instanceof Error ? err : new Error(String(err)), {
       route: "generate-brief", step: "fetch_users",
@@ -447,17 +449,52 @@ async function runGeneration(): Promise<NextResponse> {
         void briefRow;
       }
 
-      // ── Send email to org owner ───────────────────────────────────────────
+      // ── Send email to org owner (subscription gated) ──────────────────────
       const ownerEmail = userEmailById.get(org.owner_id);
       if (ownerEmail) {
-        const emailHtml = buildBriefEmailHtml(briefContent, week, siteUrl, now);
-        const result = await sendEmail({
-          to:      ownerEmail,
-          subject: `Your weekly competitor intelligence brief — ${week}`,
-          html:    emailHtml,
-          from:    FROM_BRIEFS,
-        });
-        if (result.ok) emailsSent++;
+        // Check subscription status before sending email
+        // Pattern from radar-ui/app/app/page.tsx lines 84-106
+        let hasActiveSub = false;
+
+        // 1. Check user_metadata.plan first (most reliable, set by Stripe webhook)
+        const userMeta = userMetadataById.get(org.owner_id);
+        const metaPlan = userMeta?.plan as string | undefined;
+        if (metaPlan === "analyst" || metaPlan === "pro") {
+          hasActiveSub = true;
+        } else {
+          // 2. Fallback: check subscriptions table
+          try {
+            const { data: subRows } = await sb
+              .from("subscriptions")
+              .select("status")
+              .eq("org_id", org.id)
+              .order("created_at", { ascending: false })
+              .limit(1);
+
+            const subStatus = subRows?.[0]?.status as string | undefined;
+            if (
+              subStatus === "active" ||
+              subStatus === "canceled_active" ||
+              subStatus === "past_due" // grace period active
+            ) {
+              hasActiveSub = true;
+            }
+          } catch {
+            // Non-fatal — no subscription found, hasActiveSub remains false
+          }
+        }
+
+        // Only send email if user has active subscription
+        if (hasActiveSub) {
+          const emailHtml = buildBriefEmailHtml(briefContent, week, siteUrl, now);
+          const result = await sendEmail({
+            to:      ownerEmail,
+            subject: `Your weekly competitor intelligence brief — ${week}`,
+            html:    emailHtml,
+            from:    FROM_BRIEFS,
+          });
+          if (result.ok) emailsSent++;
+        }
       }
     } catch (orgErr) {
       captureException(orgErr instanceof Error ? orgErr : new Error(String(orgErr)), {
