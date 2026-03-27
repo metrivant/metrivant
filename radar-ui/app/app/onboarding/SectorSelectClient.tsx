@@ -80,30 +80,61 @@ const SECTOR_OPTIONS = [
 
 type SectorValue = typeof SECTOR_OPTIONS[number]["value"];
 
-const LOADING_PHASES = [
-  "Adding rivals to your radar…",
-  "Setting up monitoring pages…",
-  "Finalizing your radar…",
-];
+type OnboardingStatus = {
+  stage: "seeding" | "onboarding" | "monitoring" | "ready";
+  tracked: number;
+  onboarded: number;
+  pages_created: number;
+  snapshots_captured: number;
+};
 
 export default function SectorSelectClient() {
   const router = useRouter();
-  const [sector, setSector]             = useState<SectorValue | "">("");
-  const [loading, setLoading]           = useState(false);
-  const [loadingPhase, setLoadingPhase] = useState(0);
-  const [error, setError]               = useState<string | null>(null);
+  const [sector, setSector]     = useState<SectorValue | "">("");
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState<string | null>(null);
+  const [status, setStatus]     = useState<OnboardingStatus | null>(null);
 
-  // Cycle loading message every 5s to signal real progress
+  // Poll onboarding status every 2s when loading
   useEffect(() => {
     if (!loading) {
-      setLoadingPhase(0);
+      setStatus(null);
       return;
     }
+
+    let mounted = true;
+    const pollInterval = 2000; // 2 seconds
+
+    async function poll() {
+      try {
+        const res = await fetch("/api/onboarding-status");
+        if (!res.ok) return;
+        const data = await res.json() as OnboardingStatus;
+        if (mounted) {
+          setStatus(data);
+          // Auto-redirect when ready
+          if (data.stage === "ready" && data.snapshots_captured > 0) {
+            router.push("/app");
+          }
+        }
+      } catch {
+        // Silently continue polling on error
+      }
+    }
+
+    // Initial poll
+    void poll();
+
+    // Set up interval
     const timer = setInterval(() => {
-      setLoadingPhase((p) => (p < LOADING_PHASES.length - 1 ? p + 1 : p));
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [loading]);
+      void poll();
+    }, pollInterval);
+
+    return () => {
+      mounted = false;
+      clearInterval(timer);
+    };
+  }, [loading, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -139,10 +170,32 @@ export default function SectorSelectClient() {
       }));
     } catch { /* sessionStorage unavailable */ }
 
-    router.push("/app");
+    // Don't redirect immediately — let polling detect "ready" stage and auto-redirect
+    // Polling starts automatically because loading=true
   }
 
   const isCustom = sector === "custom";
+
+  function getProgressMessage(): string {
+    if (!loading) return "Start monitoring";
+    if (!status) return "Initializing…";
+
+    const { stage, tracked, onboarded, pages_created } = status;
+
+    if (stage === "seeding") {
+      return tracked > 0 ? `Adding rivals… ${tracked}` : "Adding rivals to your radar…";
+    }
+    if (stage === "onboarding") {
+      return `Setting up monitoring… ${onboarded}/${tracked}`;
+    }
+    if (stage === "monitoring") {
+      return pages_created > 0 ? `Capturing first snapshots… ${pages_created} pages` : "Setting up monitoring pages…";
+    }
+    if (stage === "ready") {
+      return "Launching radar…";
+    }
+    return "Processing…";
+  }
 
   return (
     <div className="flex h-screen w-full flex-col items-center justify-center bg-[#000000] px-4 text-white">
@@ -248,7 +301,7 @@ export default function SectorSelectClient() {
             disabled={!sector || loading}
             className="rounded-full bg-[#00B4FF] py-3 text-[14px] font-semibold text-black transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30"
           >
-            {loading ? LOADING_PHASES[loadingPhase] : "Start monitoring"}
+            {getProgressMessage()}
           </button>
 
           {/* Loading sub-label */}
