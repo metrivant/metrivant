@@ -25,7 +25,7 @@ export default function CoreConceptSection() {
   const concepts = [
     {
       statement: "Metrivant detects competitor changes across your market.",
-      emphasis: "High-Confidence Signals",
+      emphasis: "Real Signals",
       detail: "Every signal traces to real evidence. No speculation.",
     },
     {
@@ -43,10 +43,10 @@ export default function CoreConceptSection() {
   return (
     <section
       id="core-concept"
-      className="relative border-t border-[#0d1020] px-6 py-20"
+      className="relative border-t border-[#0d1020] px-6 py-12"
     >
       <div className="mx-auto max-w-3xl">
-        <div className="flex flex-col gap-12">
+        <div className="flex flex-col gap-8">
           {concepts.map((concept, index) => (
             <motion.div
               key={index}
@@ -68,10 +68,10 @@ export default function CoreConceptSection() {
               </p>
 
               {/* Animated arrow + line */}
-              <div className="relative my-6 flex flex-col items-center">
+              <div className="relative my-4 flex flex-col items-center">
                 {/* Vertical connection line with pulse */}
                 <motion.div
-                  className="h-8 w-px"
+                  className="h-6 w-px"
                   style={{
                     background:
                       "linear-gradient(180deg, transparent 0%, rgba(0,180,255,0.4) 50%, transparent 100%)",
@@ -176,7 +176,7 @@ export default function CoreConceptSection() {
 
               {/* Detail text */}
               <motion.p
-                className="mt-4 text-center text-[13px] font-light leading-relaxed text-slate-400 md:text-[14px]"
+                className="mt-3 text-center text-[13px] font-light leading-relaxed text-slate-400 md:text-[14px]"
                 style={{ letterSpacing: "0.02em" }}
                 initial={{ opacity: 0 }}
                 animate={isVisible ? { opacity: 1 } : {}}
@@ -191,7 +191,7 @@ export default function CoreConceptSection() {
               {/* Divider line (not on last item) */}
               {index < concepts.length - 1 && (
                 <motion.div
-                  className="mx-auto mt-12 h-px w-24"
+                  className="mx-auto mt-8 h-px w-24"
                   style={{
                     background:
                       "linear-gradient(90deg, transparent 0%, rgba(0,180,255,0.20) 50%, transparent 100%)",
@@ -210,7 +210,7 @@ export default function CoreConceptSection() {
 
         {/* Bottom accent — subtle shimmer line */}
         <motion.div
-          className="relative mx-auto mt-16 h-px w-48 overflow-hidden"
+          className="relative mx-auto mt-10 h-px w-48 overflow-hidden"
           style={{
             background:
               "linear-gradient(90deg, transparent 0%, rgba(0,180,255,0.15) 50%, transparent 100%)",
