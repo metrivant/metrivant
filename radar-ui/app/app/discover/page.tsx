@@ -137,20 +137,28 @@ export default async function DiscoverPage() {
       {/* ── Hero ───────────────────────────────────────────────────────── */}
       <div className="relative mx-auto max-w-6xl px-6 pb-2 pt-12">
         <div
-          className="mb-3 text-[9px] font-medium uppercase"
-          style={{ letterSpacing: "0.28em", color: "rgba(255,255,255,0.20)" }}
+          className="mb-3 text-[9px] font-bold uppercase"
+          style={{
+            letterSpacing: "0.28em",
+            color: "rgba(0,180,255,0.50)",
+            fontFamily: "var(--font-orbitron)"
+          }}
         >
           Catalog
         </div>
         <h1
-          className="text-[28px] font-light text-white"
-          style={{ letterSpacing: "0.02em", lineHeight: 1.15 }}
+          className="text-[28px] font-bold text-white"
+          style={{
+            letterSpacing: "0.08em",
+            lineHeight: 1.15,
+            fontFamily: "var(--font-orbitron)"
+          }}
         >
-          Select your targets.
+          SELECT YOUR TARGETS
         </h1>
         <p
           className="mt-2 text-[13px] font-light"
-          style={{ color: "rgba(255,255,255,0.30)", letterSpacing: "0.03em" }}
+          style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "0.03em" }}
         >
           Add a competitor. Metrivant watches immediately.
         </p>

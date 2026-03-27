@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   COMPETITOR_CATALOG,
   CATEGORY_LABELS,
@@ -479,16 +480,21 @@ export default function DiscoverClient({
           <div className="grid gap-px sm:grid-cols-2 lg:grid-cols-3"
             style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "8px", overflow: "hidden" }}
           >
-            {emergingList.map((entry) => {
+            {emergingList.map((entry, index) => {
               const isTracked  = tracked.has(entry.domain);
               const isLoading  = loadingEmergingDomain === entry.domain;
               const isRemoving = removingDomain === entry.domain;
               return (
-                <div key={entry.domain}
-                  className="flex flex-col p-5 transition-colors"
-                  style={{ background: isTracked ? "rgba(0,180,255,0.025)" : "#070707" }}
-                  onMouseEnter={(e) => { if (!isTracked) (e.currentTarget as HTMLDivElement).style.background = "#0c0c0c"; }}
-                  onMouseLeave={(e) => { if (!isTracked) (e.currentTarget as HTMLDivElement).style.background = "#070707"; }}
+                <motion.div key={entry.domain}
+                  className="flex flex-col p-5 transition-all"
+                  style={{ background: isTracked ? "rgba(0,180,255,0.035)" : "#070707" }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.02 }}
+                  whileHover={{
+                    background: isTracked ? "rgba(0,180,255,0.045)" : "#0c0c0c",
+                    transition: { duration: 0.2 }
+                  }}
                 >
                   {/* Logo + name */}
                   <div className="mb-3 flex flex-col items-center gap-2.5">
@@ -556,22 +562,26 @@ export default function DiscoverClient({
                       title={atLimit ? "Competitor limit reached" : anyOperationInProgress && !isLoading ? "Please wait..." : undefined}
                       className="mt-auto w-full py-2 text-[11px] font-medium uppercase transition-all disabled:cursor-not-allowed disabled:opacity-40"
                       style={{ borderRadius: "4px", border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "rgba(255,255,255,0.35)", letterSpacing: "0.10em" }}
-                      onMouseEnter={(e) => { if (!anyOperationInProgress && !atLimit) { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.22)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.75)"; } }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.10)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.35)"; }}
+                      onMouseEnter={(e) => { if (!anyOperationInProgress && !atLimit) { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(0,180,255,0.35)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(0,180,255,0.85)"; (e.currentTarget as HTMLButtonElement).style.background = "rgba(0,180,255,0.04)"; } }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.10)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.35)"; (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
                     >
                       {isLoading ? (
-                        <span className="inline-flex items-center gap-1.5">
-                          <span className="inline-flex gap-0.5">
-                            <span className="inline-block h-1 w-1 rounded-full bg-current opacity-40 animate-pulse" style={{ animationDelay: "0ms", animationDuration: "1s" }} />
-                            <span className="inline-block h-1 w-1 rounded-full bg-current opacity-40 animate-pulse" style={{ animationDelay: "150ms", animationDuration: "1s" }} />
-                            <span className="inline-block h-1 w-1 rounded-full bg-current opacity-40 animate-pulse" style={{ animationDelay: "300ms", animationDuration: "1s" }} />
-                          </span>
-                          Adding
+                        <span className="inline-flex flex-col items-center gap-1.5 w-full">
+                          <span className="text-[10px]" style={{ color: "rgba(0,180,255,0.70)" }}>Adding</span>
+                          <div className="h-0.5 w-full overflow-hidden rounded-full" style={{ background: "rgba(0,180,255,0.15)" }}>
+                            <motion.div
+                              className="h-full"
+                              style={{ background: "#00B4FF" }}
+                              initial={{ width: "0%" }}
+                              animate={{ width: "100%" }}
+                              transition={{ duration: 1.5, ease: "easeInOut" }}
+                            />
+                          </div>
                         </span>
                       ) : "Track"}
                     </button>
                   )}
-                </div>
+                </motion.div>
               );
             })}
           </div>
@@ -598,9 +608,16 @@ export default function DiscoverClient({
             border:       "1px solid rgba(255,255,255,0.08)",
             borderRadius: "4px",
             letterSpacing: "0.03em",
+            transition: "all 0.2s ease",
           }}
-          onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.20)"; }}
-          onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
+          onFocus={(e) => {
+            e.currentTarget.style.borderColor = "rgba(0,180,255,0.35)";
+            e.currentTarget.style.boxShadow = "0 0 20px rgba(0,180,255,0.08)";
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+            e.currentTarget.style.boxShadow = "none";
+          }}
         />
         {query && (
           <button
@@ -805,23 +822,25 @@ export default function DiscoverClient({
             overflow: "hidden",
           }}
         >
-          {visible.map((entry) => {
+          {visible.map((entry, index) => {
             const isTracked  = tracked.has(entry.domain);
             const isLoading  = loadingDomain === entry.domain;
             const isRemoving = removingDomain === entry.domain;
 
             return (
-              <div
+              <motion.div
                 key={entry.id}
-                className="flex flex-col p-5 transition-colors"
+                className="flex flex-col p-5 transition-all"
                 style={{
-                  background: isTracked ? "rgba(0,180,255,0.025)" : "#070707",
+                  background: isTracked ? "rgba(0,180,255,0.035)" : "#070707",
+                  borderRight: isTracked ? "1px solid rgba(0,180,255,0.08)" : "none",
                 }}
-                onMouseEnter={(e) => {
-                  if (!isTracked) (e.currentTarget as HTMLDivElement).style.background = "#0c0c0c";
-                }}
-                onMouseLeave={(e) => {
-                  if (!isTracked) (e.currentTarget as HTMLDivElement).style.background = "#070707";
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.02 }}
+                whileHover={{
+                  background: isTracked ? "rgba(0,180,255,0.045)" : "#0c0c0c",
+                  transition: { duration: 0.2 }
                 }}
               >
                 {/* Logo + name */}
@@ -927,28 +946,34 @@ export default function DiscoverClient({
                     }}
                     onMouseEnter={(e) => {
                       if (!anyOperationInProgress && !atLimit) {
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.22)";
-                        (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.75)";
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(0,180,255,0.35)";
+                        (e.currentTarget as HTMLButtonElement).style.color = "rgba(0,180,255,0.85)";
+                        (e.currentTarget as HTMLButtonElement).style.background = "rgba(0,180,255,0.04)";
                       }
                     }}
                     onMouseLeave={(e) => {
                       (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.10)";
                       (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.35)";
+                      (e.currentTarget as HTMLButtonElement).style.background = "transparent";
                     }}
                   >
                     {isLoading ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className="inline-flex gap-0.5">
-                          <span className="inline-block h-1 w-1 rounded-full bg-current opacity-40 animate-pulse" style={{ animationDelay: "0ms", animationDuration: "1s" }} />
-                          <span className="inline-block h-1 w-1 rounded-full bg-current opacity-40 animate-pulse" style={{ animationDelay: "150ms", animationDuration: "1s" }} />
-                          <span className="inline-block h-1 w-1 rounded-full bg-current opacity-40 animate-pulse" style={{ animationDelay: "300ms", animationDuration: "1s" }} />
-                        </span>
-                        Adding
+                      <span className="inline-flex flex-col items-center gap-1.5 w-full">
+                        <span className="text-[10px]" style={{ color: "rgba(0,180,255,0.70)" }}>Adding</span>
+                        <div className="h-0.5 w-full overflow-hidden rounded-full" style={{ background: "rgba(0,180,255,0.15)" }}>
+                          <motion.div
+                            className="h-full"
+                            style={{ background: "#00B4FF" }}
+                            initial={{ width: "0%" }}
+                            animate={{ width: "100%" }}
+                            transition={{ duration: 1.5, ease: "easeInOut" }}
+                          />
+                        </div>
                       </span>
                     ) : "Track"}
                   </button>
                 )}
-              </div>
+              </motion.div>
             );
           })}
         </div>
