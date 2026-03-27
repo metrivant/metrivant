@@ -192,16 +192,21 @@ The runtime is the engine. The frontend is the delivery vehicle. Perfect state i
 
 ## STANDING QUESTION — ASK AT EVERY SESSION END
 
-> "From a birds-eye view of the current system state: what is the single highest-leverage objective that Claude Code is capable of achieving at maximum capacity — the task that would activate the most recursive improvement loops, take a human engineer the most calendar time, has a clear implementation path, and compounds the most value over time?"
+> "From a birds-eye view of the current system state: what is the single highest-leverage objective that Claude Code is capable of achieving at maximum capacity — the task that best enables Metrivant to detect high-confidence signals of strategic change, validate and ground them in evidence, and deliver them with precision to inform critical business decisions?"
 
 Answer in one paragraph. Do not implement unless explicitly approved.
 
-Evaluation criteria (rank by):
-1. **Recursive activation** — does this activate or strengthen a self-improvement loop?
-2. **Calendar-time multiplier** — how many human-days does this save?
-3. **Compound value** — does this produce more signal density / coverage / accuracy over time?
-4. **Implementation clarity** — is the path unambiguous with existing patterns?
-5. **Risk** — low blast radius strongly preferred; schema changes or new deps reduce ranking
+**Core concept basis:**
+Metrivant monitors competitors across market sectors, detecting high-confidence signals of strategic change. These signals—validated, evidence-grounded, and delivered with precision—inform critical business decisions, enabling organizations to anticipate competitor moves and respond with deliberate advantage.
+
+Evaluation criteria (rank by alignment with core concept):
+1. **Signal quality improvement** — does this increase confidence, reduce noise, or strengthen evidence grounding?
+2. **Detection coverage** — does this expand monitoring breadth across competitors or markets?
+3. **Delivery precision** — does this improve how quickly/clearly intelligence reaches decision-makers?
+4. **Recursive activation** — does this activate or strengthen a self-improvement loop?
+5. **Calendar-time multiplier** — how many human-days does this save?
+6. **Implementation clarity** — is the path unambiguous with existing patterns?
+7. **Risk** — low blast radius strongly preferred; schema changes or new deps reduce ranking
 
 Then immediately output the following block, filled in with the answer above as a ready-to-paste Claude Code session-start prompt:
 
