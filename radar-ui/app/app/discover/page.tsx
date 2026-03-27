@@ -1,16 +1,9 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Space_Grotesk } from "next/font/google";
 import { createClient } from "../../../lib/supabase/server";
 import DiscoverClient from "./DiscoverClient";
 
 export const dynamic = "force-dynamic";
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600"],
-  display: "swap",
-});
 
 export default async function DiscoverPage() {
   const supabase = await createClient();
@@ -57,17 +50,22 @@ export default async function DiscoverPage() {
   }
 
   return (
-    <div
-      className={`min-h-screen bg-black text-white ${spaceGrotesk.className}`}
-      style={{ letterSpacing: "0.01em" }}
-    >
+    <div className="min-h-screen bg-[#000002] text-white">
       {/* ── Dot grid ───────────────────────────────────────────────────── */}
       <div
         className="pointer-events-none fixed inset-0"
         style={{
-          backgroundImage: "radial-gradient(rgba(255,255,255,0.9) 0.5px, transparent 0.5px)",
+          backgroundImage: "radial-gradient(rgba(255,255,255,0.85) 0.5px, transparent 0.5px)",
           backgroundSize: "6px 6px",
-          opacity: 0.016,
+          opacity: 0.018,
+        }}
+      />
+
+      {/* ── Atmospheric glow ───────────────────────────────────────────── */}
+      <div
+        className="pointer-events-none fixed inset-0"
+        style={{
+          background: "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,180,255,0.09) 0%, transparent 70%)",
         }}
       />
 
