@@ -6,16 +6,21 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/onboarding-status
  *
- * Returns real-time pipeline progress during sector initialization.
- * Used by SectorSelectClient to show live status as competitors are onboarded.
+ * Returns real-time pipeline progress during sector initialization and radar calibration.
+ * Used by:
+ * - SectorSelectClient: show live status as competitors are onboarded
+ * - OnboardingProgress: show pipeline progress on empty radar state
  *
  * Response shape:
  * {
  *   stage: "seeding" | "onboarding" | "monitoring" | "ready",
- *   tracked: number,          // tracked_competitors rows
- *   onboarded: number,        // competitors with competitor_id backfilled
- *   pages_created: number,    // monitored_pages count
- *   snapshots_captured: number // snapshots count for org's pages
+ *   tracked: number,               // tracked_competitors rows
+ *   onboarded: number,             // competitors with competitor_id backfilled
+ *   pages_created: number,         // monitored_pages count
+ *   snapshots_captured: number,    // snapshots count for org's pages
+ *   baselines_built: number,       // section_baselines count
+ *   signals_detected: number,      // signals count (non-suppressed)
+ *   oldest_competitor_age_minutes: number | null // time since first competitor onboarded
  * }
  */
 export async function GET(request: Request) {
@@ -76,8 +81,11 @@ export async function GET(request: Request) {
     pagesCount = count ?? 0;
   }
 
-  // Count snapshots for this org's monitored_pages
+  // Count snapshots, baselines, and signals for this org's competitors
   let snapshotsCount = 0;
+  let baselinesCount = 0;
+  let signalsCount = 0;
+
   if (compIds.length > 0) {
     // Get page IDs first
     const { data: pageRows } = await supabase
@@ -91,8 +99,40 @@ export async function GET(request: Request) {
       const { count } = await supabase
         .from("snapshots")
         .select("*", { count: "exact", head: true })
-        .in("page_id", pageIds);
+        .in("monitored_page_id", pageIds);
       snapshotsCount = count ?? 0;
+
+      const { count: baselineCount } = await supabase
+        .from("section_baselines")
+        .select("*", { count: "exact", head: true })
+        .in("monitored_page_id", pageIds);
+      baselinesCount = baselineCount ?? 0;
+    }
+
+    // Count signals for these competitors (non-suppressed)
+    const { count: signalCount } = await supabase
+      .from("signals")
+      .select("*", { count: "exact", head: true })
+      .in("competitor_id", compIds)
+      .neq("status", "suppressed");
+    signalsCount = signalCount ?? 0;
+  }
+
+  // Calculate oldest competitor age (from competitors table, not tracked_competitors)
+  let oldestAgeMinutes: number | null = null;
+  if (compIds.length > 0) {
+    const { data: oldestCompetitor } = await supabase
+      .from("competitors")
+      .select("created_at")
+      .in("id", compIds)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .single();
+
+    if (oldestCompetitor?.created_at) {
+      oldestAgeMinutes = Math.floor(
+        (Date.now() - new Date(oldestCompetitor.created_at).getTime()) / (1000 * 60)
+      );
     }
   }
 
@@ -121,5 +161,8 @@ export async function GET(request: Request) {
     onboarded,
     pages_created: pagesCount,
     snapshots_captured: snapshotsCount,
+    baselines_built: baselinesCount,
+    signals_detected: signalsCount,
+    oldest_competitor_age_minutes: oldestAgeMinutes,
   });
 }

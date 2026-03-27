@@ -23,6 +23,7 @@ import { confidenceLanguage, signalAgeColor } from "../lib/confidence";
 import { computeTensionLinks, getTensionDescription, type TensionLink } from "../lib/tension";
 import { computePressureIndex } from "../lib/pressure";
 import ActivityTimeline from "./ActivityTimeline";
+import OnboardingProgress from "./OnboardingProgress";
 
 // ─── Radar geometry ──────────────────────────────────────────────────────────
 const SIZE = 1000;
@@ -5253,9 +5254,9 @@ export default function Radar({
 
               {/* ── Empty state ───────────────────────────────── */}
               {sorted.length === 0 && (
-                <div className="flex flex-col items-center py-12 text-center">
+                <>
                   {sector === "custom" ? (
-                    <>
+                    <div className="flex flex-col items-center py-12 text-center">
                       <div className="text-[11px] uppercase tracking-[0.22em] text-slate-600">
                         Custom sector
                       </div>
@@ -5269,18 +5270,11 @@ export default function Radar({
                       >
                         Open Discover →
                       </a>
-                    </>
+                    </div>
                   ) : (
-                    <>
-                      <div className="text-[11px] uppercase tracking-[0.22em] text-slate-600">
-                        Calibrating
-                      </div>
-                      <p className="mt-2 text-[12px] leading-relaxed text-slate-600">
-                        Pipeline running · establishing baselines · first signals within the hour
-                      </p>
-                    </>
+                    <OnboardingProgress />
                   )}
-                </div>
+                </>
               )}
 
               {/* ── All clear banner ──────────────────────────── */}
