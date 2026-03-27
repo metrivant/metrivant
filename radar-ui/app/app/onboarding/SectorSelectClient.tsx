@@ -156,7 +156,7 @@ export default function SectorSelectClient() {
           opacity: 0.018,
         }}
       />
-      {/* Green atmospheric glow */}
+      {/* Atmospheric glow */}
       <div
         className="pointer-events-none fixed inset-0"
         style={{
@@ -207,22 +207,22 @@ export default function SectorSelectClient() {
                   disabled={loading}
                   className="flex flex-col items-start rounded-[12px] border px-3 py-2.5 text-left transition-all duration-150 disabled:pointer-events-none disabled:opacity-40"
                   style={{
-                    borderColor: selected ? "rgba(0,180,255,0.40)" : "rgba(26,42,26,0.9)",
-                    background:  selected ? "rgba(3,12,3,0.95)" : "rgba(5,10,5,0.80)",
+                    borderColor: selected ? "rgba(0,180,255,0.40)" : "rgba(255,255,255,0.08)",
+                    background:  selected ? "rgba(0,0,0,0.80)" : "rgba(0,0,0,0.50)",
                     boxShadow:   selected ? "0 0 0 1px rgba(0,180,255,0.08), inset 0 1px 0 rgba(0,180,255,0.05)" : "none",
                     color:       selected ? "#00B4FF" : "rgba(100,116,139,0.80)",
                   }}
                 >
-                  <div className="mb-1.5" style={{ color: selected ? "#00B4FF" : "rgba(71,85,105,0.80)" }}>
+                  <div className="mb-1.5" style={{ color: selected ? "#00B4FF" : "rgba(100,116,139,0.60)" }}>
                     {s.icon}
                   </div>
                   <div
                     className="text-[12px] font-semibold leading-snug"
-                    style={{ color: selected ? "rgba(255,255,255,0.92)" : "rgba(148,163,184,0.80)" }}
+                    style={{ color: selected ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.65)" }}
                   >
                     {s.label}
                   </div>
-                  <div className="mt-0.5 text-[10px] leading-relaxed" style={{ color: selected ? "rgba(0,180,255,0.50)" : "rgba(71,85,105,0.70)" }}>
+                  <div className="mt-0.5 text-[10px] leading-relaxed" style={{ color: selected ? "rgba(0,180,255,0.50)" : "rgba(100,116,139,0.55)" }}>
                     {s.desc}
                   </div>
                 </button>
