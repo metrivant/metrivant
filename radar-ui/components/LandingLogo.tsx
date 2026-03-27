@@ -3,72 +3,15 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-function playFuturisticDing() {
-  try {
-    const ctx = new AudioContext();
-    const t   = ctx.currentTime;
-
-    // ── Primary tone: bright crystalline ding (1046 Hz = C6) ──
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.type = "sine";
-    osc1.frequency.setValueAtTime(1046, t);
-    osc1.frequency.exponentialRampToValueAtTime(988, t + 0.4); // subtle drop
-    gain1.gain.setValueAtTime(0, t);
-    gain1.gain.linearRampToValueAtTime(0.14, t + 0.008); // ultra-fast attack
-    gain1.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
-    osc1.connect(gain1);
-    gain1.connect(ctx.destination);
-
-    // ── Shimmer harmonic: octave + fifth above (3138 Hz) ──
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = "sine";
-    osc2.frequency.setValueAtTime(3138, t);
-    osc2.frequency.exponentialRampToValueAtTime(2960, t + 0.25);
-    gain2.gain.setValueAtTime(0, t);
-    gain2.gain.linearRampToValueAtTime(0.035, t + 0.01);
-    gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
-    osc2.connect(gain2);
-    gain2.connect(ctx.destination);
-
-    // ── Sub-harmonic warmth (523 Hz = C5) ──
-    const osc3 = ctx.createOscillator();
-    const gain3 = ctx.createGain();
-    osc3.type = "triangle";
-    osc3.frequency.setValueAtTime(523, t);
-    gain3.gain.setValueAtTime(0, t);
-    gain3.gain.linearRampToValueAtTime(0.06, t + 0.012);
-    gain3.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
-    osc3.connect(gain3);
-    gain3.connect(ctx.destination);
-
-    // ── Short metallic delay (futuristic echo) ──
-    const delay = ctx.createDelay(0.2);
-    delay.delayTime.value = 0.08;
-    const echoGain = ctx.createGain();
-    echoGain.gain.value = 0.15;
-    gain1.connect(delay);
-    delay.connect(echoGain);
-    echoGain.connect(ctx.destination);
-
-    osc1.start(t); osc1.stop(t + 0.5);
-    osc2.start(t); osc2.stop(t + 0.3);
-    osc3.start(t); osc3.stop(t + 0.4);
-
-    setTimeout(() => { void ctx.close(); }, 600);
-  } catch { /* AudioContext unavailable — silent fail */ }
-}
-
 // Animated radar logo for the landing page hero.
 // Sweep arm rotates continuously; rings pulse at staggered intervals.
-// Click triggers a sonar ping sound + expanding pulse ring.
-export default function LandingLogo() {
+// Click triggers expanding pulse ring + electrical background flash.
+export default function LandingLogo({ onLogoClick }: { onLogoClick?: () => void }) {
   const [pulseKey, setPulseKey] = useState(0);
   const [pulsing,  setPulsing]  = useState(false);
 
   function handleClick() {
-    playFuturisticDing();
+    onLogoClick?.();
     setPulseKey((k) => k + 1);
     setPulsing(true);
     setTimeout(() => setPulsing(false), 900);

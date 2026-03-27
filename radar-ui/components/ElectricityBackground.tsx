@@ -12,7 +12,11 @@
  * Fixed position, pointer-events: none, z-index: 1.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
+
+export interface ElectricityBackgroundRef {
+  triggerFlash: () => void;
+}
 
 interface Bolt {
   id: number;
@@ -37,7 +41,7 @@ function generateBoltPath(height: number): string {
   return parts.join(" ");
 }
 
-export default function ElectricityBackground() {
+const ElectricityBackground = forwardRef<ElectricityBackgroundRef>(function ElectricityBackground(_props, ref) {
   const [bolts, setBolts] = useState<Bolt[]>([]);
   const [counter, setCounter] = useState(0);
 
@@ -70,6 +74,11 @@ export default function ElectricityBackground() {
     const duration = 80 + Math.random() * 70;
     setTimeout(() => setBolts([]), duration);
   }, [counter]);
+
+  // Expose flash trigger via ref
+  useImperativeHandle(ref, () => ({
+    triggerFlash: flash,
+  }), [flash]);
 
   useEffect(() => {
     let active = true;
@@ -142,4 +151,6 @@ export default function ElectricityBackground() {
       ))}
     </div>
   );
-}
+});
+
+export default ElectricityBackground;

@@ -1,9 +1,12 @@
+"use client";
+
 import Link from "next/link";
+import { useRef } from "react";
 import PublicNav from "../components/PublicNav";
 import LandingLogo from "../components/LandingLogo";
 import LandingCTAButtons from "../components/LandingCTAButtons";
 import PipelineSection from "../components/PipelineSection";
-import ElectricityBackground from "../components/ElectricityBackground";
+import ElectricityBackground, { type ElectricityBackgroundRef } from "../components/ElectricityBackground";
 import CoreConceptSection from "../components/CoreConceptSection";
 
 const LABEL_COLOR_STYLE = { color: "rgba(0,180,255,0.55)" } as const;
@@ -40,6 +43,8 @@ const jsonLd = [
 ];
 
 export default function LandingPage() {
+  const electricityRef = useRef<ElectricityBackgroundRef>(null);
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-[#000002] text-white">
       <script
@@ -47,7 +52,7 @@ export default function LandingPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <PublicNav />
-      <ElectricityBackground />
+      <ElectricityBackground ref={electricityRef} />
 
       {/* Dot grid */}
       <div
@@ -71,7 +76,7 @@ export default function LandingPage() {
       <section className="relative flex flex-1 flex-col items-center justify-center px-6 pb-16 pt-28 text-center">
         {/* Animated radar logo */}
         <div className="hero-fade-up" style={{ animationDelay: "0ms" }}>
-          <LandingLogo />
+          <LandingLogo onLogoClick={() => electricityRef.current?.triggerFlash()} />
         </div>
 
         <h1
