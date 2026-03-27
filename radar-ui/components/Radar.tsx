@@ -3287,8 +3287,25 @@ export default function Radar({
                   const rad = deg * Math.PI / 180;
                   const lx  = CENTER + LABEL_R * Math.cos(rad);
                   const ly  = CENTER + LABEL_R * Math.sin(rad);
+                  const bgPadding = 8;
+                  const bgHeight = valueText ? hudLabelSize + hudValueSize + hudGap * 2 : hudLabelSize + 4;
+                  const bgWidth = valueText ? Math.max(40, hudValueSize * 4) : hudLabelSize * 3;
+
                   return (
                     <g key={`hud-lbl-${deg}`}>
+                      {/* Subtle background panel */}
+                      {selected && (
+                        <rect
+                          x={lx - bgWidth / 2}
+                          y={ly - bgHeight / 2}
+                          width={bgWidth}
+                          height={bgHeight}
+                          rx={3}
+                          fill="rgba(0,0,0,0.45)"
+                          stroke="rgba(100,180,255,0.15)"
+                          strokeWidth={0.5}
+                        />
+                      )}
                       <text x={lx} y={ly - (valueText ? hudGap : 0)}
                         textAnchor="middle" dominantBaseline="middle"
                         fill="#7dd3fc" fillOpacity={selected ? 0.70 : 0.45}
@@ -3314,10 +3331,52 @@ export default function Radar({
 
                 return (
                   <g style={{ pointerEvents: "none", opacity: ambientOp, transition: "opacity 0.4s ease" }}>
+                    {/* SVG defs for HUD enhancements */}
+                    <defs>
+                      {/* Gradient for base ring */}
+                      <linearGradient id="hudRingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="rgba(100,180,255,0.35)" />
+                        <stop offset="50%" stopColor="rgba(0,180,255,0.25)" />
+                        <stop offset="100%" stopColor="rgba(100,180,255,0.35)" />
+                      </linearGradient>
+                      {/* Glow filter for active arcs */}
+                      <filter id="hudArcGlow">
+                        <feGaussianBlur stdDeviation="1.5" result="blur" />
+                        <feMerge>
+                          <feMergeNode in="blur" />
+                          <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                      </filter>
+                    </defs>
 
-                    {/* Base ring */}
-                    <circle cx={CENTER} cy={CENTER} r={HUD_R}
-                      fill="none" stroke="rgba(100,180,255,0.25)" strokeWidth={Math.max(1.0, 1.8 / zoom)} />
+                    {/* Base ring with breathing animation */}
+                    <motion.circle
+                      cx={CENTER} cy={CENTER} r={HUD_R}
+                      fill="none"
+                      stroke="url(#hudRingGradient)"
+                      strokeWidth={Math.max(1.0, 1.8 / zoom)}
+                      animate={{ opacity: [0.6, 0.85, 0.6] }}
+                      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                    />
+
+                    {/* Quadrant separators at cardinal points */}
+                    {[0, 90, 180, 270].map((deg) => {
+                      const rad = deg * Math.PI / 180;
+                      const innerR = HUD_R - 6;
+                      const outerR = HUD_R + 6;
+                      return (
+                        <line
+                          key={`sep-${deg}`}
+                          x1={CENTER + innerR * Math.cos(rad)}
+                          y1={CENTER + innerR * Math.sin(rad)}
+                          x2={CENTER + outerR * Math.cos(rad)}
+                          y2={CENTER + outerR * Math.sin(rad)}
+                          stroke="rgba(100,180,255,0.35)"
+                          strokeWidth={Math.max(0.8, 1.2 / zoom)}
+                          strokeLinecap="round"
+                        />
+                      );
+                    })}
 
                     {/* ── Q1: Signal quality — top-right (-85° to -5°) ─────── */}
                     {Array.from({ length: 8 }, (_, i) => {
@@ -3331,6 +3390,7 @@ export default function Radar({
                           stroke={isActive ? "rgba(0,229,255,0.88)" : "rgba(100,180,255,0.18)"}
                           strokeWidth={isActive ? 2.8 : 1.0}
                           strokeLinecap="round"
+                          filter={isActive ? "url(#hudArcGlow)" : undefined}
                         />
                       );
                     })}
@@ -3348,6 +3408,7 @@ export default function Radar({
                           stroke={isActive ? movColor : "rgba(100,180,255,0.18)"}
                           strokeWidth={isActive ? 2.8 : 1.0}
                           strokeLinecap="round"
+                          filter={isActive ? "url(#hudArcGlow)" : undefined}
                         />
                       );
                     })}
@@ -3373,6 +3434,7 @@ export default function Radar({
                           stroke={isActive ? "rgba(245,158,11,0.88)" : "rgba(100,180,255,0.18)"}
                           strokeWidth={isActive ? 2.0 : 0.8}
                           strokeLinecap="round"
+                          filter={isActive ? "url(#hudArcGlow)" : undefined}
                         />
                       );
                     })}
@@ -3392,6 +3454,7 @@ export default function Radar({
                           stroke={isActive ? freshColor : "rgba(100,180,255,0.18)"}
                           strokeWidth={isActive ? 2.8 : 1.0}
                           strokeLinecap="round"
+                          filter={isActive ? "url(#hudArcGlow)" : undefined}
                         />
                       );
                     })}
@@ -3408,7 +3471,10 @@ export default function Radar({
                       if (!nodePos) return null;
                       const angle = Math.atan2(nodePos.y - CENTER, nodePos.x - CENTER);
                       return (
-                        <g>
+                        <motion.g
+                          animate={{ opacity: [0.75, 1.0, 0.75] }}
+                          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                        >
                           {/* Center tick — aligned radially */}
                           <line
                             x1={CENTER + (HUD_R - 11) * Math.cos(angle)}
@@ -3416,6 +3482,7 @@ export default function Radar({
                             x2={CENTER + (HUD_R + 11) * Math.cos(angle)}
                             y2={CENTER + (HUD_R + 11) * Math.sin(angle)}
                             stroke={movColor} strokeWidth="2.2" strokeOpacity="0.92"
+                            filter="url(#hudArcGlow)"
                           />
                           {/* Flanking ticks at ±8° */}
                           {([-8, 8] as const).map(offset => {
@@ -3427,6 +3494,7 @@ export default function Radar({
                                 x2={CENTER + (HUD_R + 5) * Math.cos(a2)}
                                 y2={CENTER + (HUD_R + 5) * Math.sin(a2)}
                                 stroke={movColor} strokeWidth="1.2" strokeOpacity="0.55"
+                                filter="url(#hudArcGlow)"
                               />
                             );
                           })}
@@ -3436,7 +3504,7 @@ export default function Radar({
                             cy={CENTER + HUD_R * Math.sin(angle)}
                             r="2.2" fill={movColor} fillOpacity="0.92"
                           />
-                        </g>
+                        </motion.g>
                       );
                     })()}
 
@@ -3474,56 +3542,12 @@ export default function Radar({
             </div>{/* end zoom canvas */}
 
             {/* ── HUD Corner Readouts ─────────────────────────────────────────── */}
-            {/* Instrument-grade readouts at 4 corners for key metrics */}
-            <div className="pointer-events-none absolute inset-0 z-10">
-              {/* Top-left: Total + Active count */}
-              <div
-                className="absolute left-4 top-4 rounded-[8px] px-3 py-2"
-                style={{
-                  background: "rgba(2,2,8,0.75)",
-                  border: "1px solid rgba(0,180,255,0.18)",
-                  backdropFilter: "blur(8px)",
-                  WebkitBackdropFilter: "blur(8px)",
-                }}
-              >
+            {/* Instrument-grade readouts at 4 corners — gated by HUD toggle + observatory mode */}
+            {orbitHudActive && !isolated && (
+              <div className="pointer-events-none absolute inset-0 z-10">
+                {/* Top-left: Total + Active count */}
                 <div
-                  style={{
-                    fontFamily: "var(--font-orbitron)",
-                    fontSize: "9px",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.18em",
-                    color: "rgba(0,180,255,0.55)",
-                    marginBottom: "4px",
-                  }}
-                >
-                  TARGETS
-                </div>
-                <div
-                  style={{
-                    fontFamily: "var(--font-orbitron)",
-                    fontSize: "16px",
-                    fontWeight: 600,
-                    color: "#ffffff",
-                  }}
-                >
-                  {sorted.length}
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      color: "rgba(148,163,184,0.65)",
-                      marginLeft: "6px",
-                    }}
-                  >
-                    {movingCount} active
-                  </span>
-                </div>
-              </div>
-
-              {/* Top-right: Latest signal timestamp (heartbeat) */}
-              {latestSignalAt && (
-                <div
-                  className="absolute right-4 top-4 rounded-[8px] px-3 py-2"
+                  className="absolute left-4 top-4 rounded-[8px] px-3 py-2"
                   style={{
                     background: "rgba(2,2,8,0.75)",
                     border: "1px solid rgba(0,180,255,0.18)",
@@ -3542,98 +3566,146 @@ export default function Radar({
                       marginBottom: "4px",
                     }}
                   >
-                    HEARTBEAT
+                    TARGETS
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-orbitron)",
+                      fontSize: "16px",
+                      fontWeight: 600,
+                      color: "#ffffff",
+                    }}
+                  >
+                    {sorted.length}
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        color: "rgba(148,163,184,0.65)",
+                        marginLeft: "6px",
+                      }}
+                    >
+                      {movingCount} active
+                    </span>
+                  </div>
+                </div>
+
+                {/* Top-right: Latest signal timestamp (heartbeat) — shifted left to avoid controls */}
+                {latestSignalAt && (
+                  <div
+                    className="absolute right-20 top-4 rounded-[8px] px-3 py-2"
+                    style={{
+                      background: "rgba(2,2,8,0.75)",
+                      border: "1px solid rgba(0,180,255,0.18)",
+                      backdropFilter: "blur(8px)",
+                      WebkitBackdropFilter: "blur(8px)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontFamily: "var(--font-orbitron)",
+                        fontSize: "9px",
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.18em",
+                        color: "rgba(0,180,255,0.55)",
+                        marginBottom: "4px",
+                      }}
+                    >
+                      HEARTBEAT
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "var(--font-orbitron)",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: (() => {
+                          const ageHours = (Date.now() - new Date(latestSignalAt).getTime()) / 3600000;
+                          if (ageHours < 6) return "rgba(46,230,166,0.85)";
+                          if (ageHours < 24) return "rgba(245,158,11,0.75)";
+                          return "rgba(100,116,139,0.65)";
+                        })(),
+                      }}
+                    >
+                      {formatRelative(latestSignalAt)}
+                    </div>
+                  </div>
+                )}
+
+                {/* Bottom-left: Temporal filter */}
+                <div
+                  className="absolute bottom-4 left-4 rounded-[8px] px-3 py-2"
+                  style={{
+                    background: "rgba(2,2,8,0.75)",
+                    border: "1px solid rgba(0,180,255,0.18)",
+                    backdropFilter: "blur(8px)",
+                    WebkitBackdropFilter: "blur(8px)",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontFamily: "var(--font-orbitron)",
+                      fontSize: "9px",
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.18em",
+                      color: "rgba(0,180,255,0.55)",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    WINDOW
                   </div>
                   <div
                     style={{
                       fontFamily: "var(--font-orbitron)",
                       fontSize: "11px",
                       fontWeight: 600,
-                      color: (() => {
-                        const ageHours = (Date.now() - new Date(latestSignalAt).getTime()) / 3600000;
-                        if (ageHours < 6) return "rgba(46,230,166,0.85)";
-                        if (ageHours < 24) return "rgba(245,158,11,0.75)";
-                        return "rgba(100,116,139,0.65)";
-                      })(),
+                      color: "#ffffff",
                     }}
                   >
-                    {formatRelative(latestSignalAt)}
+                    {temporalFilter === "all" ? "ALL TIME" : temporalFilter === "24h" ? "24 HOURS" : "7 DAYS"}
                   </div>
                 </div>
-              )}
 
-              {/* Bottom-left: Temporal filter */}
-              <div
-                className="absolute bottom-4 left-4 rounded-[8px] px-3 py-2"
-                style={{
-                  background: "rgba(2,2,8,0.75)",
-                  border: "1px solid rgba(0,180,255,0.18)",
-                  backdropFilter: "blur(8px)",
-                  WebkitBackdropFilter: "blur(8px)",
-                }}
-              >
+                {/* Bottom-right: Zoom level */}
                 <div
+                  className="absolute bottom-4 right-4 rounded-[8px] px-3 py-2"
                   style={{
-                    fontFamily: "var(--font-orbitron)",
-                    fontSize: "9px",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.18em",
-                    color: "rgba(0,180,255,0.55)",
-                    marginBottom: "4px",
+                    background: "rgba(2,2,8,0.75)",
+                    border: "1px solid rgba(0,180,255,0.18)",
+                    backdropFilter: "blur(8px)",
+                    WebkitBackdropFilter: "blur(8px)",
                   }}
                 >
-                  WINDOW
-                </div>
-                <div
-                  style={{
-                    fontFamily: "var(--font-orbitron)",
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    color: "#ffffff",
-                  }}
-                >
-                  {temporalFilter === "all" ? "ALL TIME" : temporalFilter === "24h" ? "24 HOURS" : "7 DAYS"}
+                  <div
+                    style={{
+                      fontFamily: "var(--font-orbitron)",
+                      fontSize: "9px",
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.18em",
+                      color: "rgba(0,180,255,0.55)",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    ZOOM
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-orbitron)",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      color: "#ffffff",
+                    }}
+                  >
+                    {(zoom * 100).toFixed(0)}%
+                  </div>
                 </div>
               </div>
+            )}
 
-              {/* Bottom-right: Zoom level */}
-              <div
-                className="absolute bottom-4 right-4 rounded-[8px] px-3 py-2"
-                style={{
-                  background: "rgba(2,2,8,0.75)",
-                  border: "1px solid rgba(0,180,255,0.18)",
-                  backdropFilter: "blur(8px)",
-                  WebkitBackdropFilter: "blur(8px)",
-                }}
-              >
-                <div
-                  style={{
-                    fontFamily: "var(--font-orbitron)",
-                    fontSize: "9px",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.18em",
-                    color: "rgba(0,180,255,0.55)",
-                    marginBottom: "4px",
-                  }}
-                >
-                  ZOOM
-                </div>
-                <div
-                  style={{
-                    fontFamily: "var(--font-orbitron)",
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    color: "#ffffff",
-                  }}
-                >
-                  {(zoom * 100).toFixed(0)}%
-                </div>
-              </div>
-
-              {/* Desktop mode toggle — Pro feature, hidden on mobile */}
-              {plan === "pro" && (
+            {/* Desktop mode toggle — Pro feature, hidden on mobile, always visible */}
+            {plan === "pro" && !isolated && (
+              <div className="pointer-events-none absolute inset-0 z-10">
                 <button
                   onClick={() => {
                     setOrbitMode((prev) => !prev);
@@ -3688,8 +3760,8 @@ export default function Radar({
                     )}
                   </div>
                 </button>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* HUD panels moved inside main SVG above — zoom-synced with radar */}
 
