@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
 const SECTOR_OPTIONS = [
   {
@@ -104,6 +105,8 @@ export default function SectorSelectClient() {
 
     let mounted = true;
     const pollInterval = 2000; // 2 seconds
+    const maxWaitTime = 45000; // 45 seconds timeout
+    const startTime = Date.now();
 
     async function poll() {
       try {
@@ -114,6 +117,11 @@ export default function SectorSelectClient() {
           setStatus(data);
           // Auto-redirect when ready
           if (data.stage === "ready" && data.snapshots_captured > 0) {
+            router.push("/app");
+          }
+          // Timeout fallback: if stuck for too long, redirect to radar
+          // User can check status there or use Discover to add competitors manually
+          if (Date.now() - startTime > maxWaitTime) {
             router.push("/app");
           }
         }
@@ -227,10 +235,22 @@ export default function SectorSelectClient() {
           <line x1="23" y1="23" x2="38.2" y2="9.8" stroke="#00B4FF" strokeWidth="1.5" strokeOpacity="0.80" />
           <circle cx="23" cy="23" r="2.5" fill="#00B4FF" />
         </svg>
-        <div className="text-[10px] font-medium uppercase tracking-[0.34em]" style={{ color: "rgba(0,180,255,0.55)" }}>
-          Competitive Intelligence Radar
+        <div
+          className="text-[11px] font-medium uppercase tracking-[0.34em] tagline-sheen"
+          style={{
+            color: "rgba(0,180,255,0.55)",
+            fontFamily: "var(--font-share-tech-mono)"
+          }}
+        >
+          Competitive Intelligence
         </div>
-        <div className="text-[28px] font-bold leading-none text-white" style={{ letterSpacing: "0.09em" }}>
+        <div
+          className="text-[34px] font-bold leading-none text-white"
+          style={{
+            letterSpacing: "0.09em",
+            fontFamily: "var(--font-orbitron)"
+          }}
+        >
           METRIVANT
         </div>
       </div>
@@ -299,14 +319,48 @@ export default function SectorSelectClient() {
           <button
             type="submit"
             disabled={!sector || loading}
-            className="rounded-full bg-[#00B4FF] py-3 text-[14px] font-semibold text-black transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30"
+            className="relative overflow-hidden rounded-full bg-[#00B4FF] py-3 text-[14px] font-semibold text-black transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30"
           >
-            {getProgressMessage()}
+            {/* Animated progress bar background when loading */}
+            {loading && status?.stage === "monitoring" && (
+              <motion.div
+                className="absolute inset-0"
+                style={{
+                  background: "linear-gradient(90deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.08) 100%)",
+                  backgroundSize: "200% 100%",
+                }}
+                animate={{
+                  backgroundPosition: ["0% 50%", "200% 50%"],
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "linear",
+                }}
+              />
+            )}
+            <span className="relative z-10">{getProgressMessage()}</span>
           </button>
 
           {/* Progress indicator */}
           {loading && status && (
             <div className="flex flex-col gap-3">
+              {/* Animated progress bar for monitoring stage */}
+              {status.stage === "monitoring" && (
+                <div className="h-1 w-full overflow-hidden rounded-full" style={{ background: "rgba(0,180,255,0.12)" }}>
+                  <motion.div
+                    className="h-full"
+                    style={{ background: "#00B4FF" }}
+                    initial={{ width: "0%" }}
+                    animate={{ width: "85%" }}
+                    transition={{
+                      duration: 20,
+                      ease: "easeOut",
+                    }}
+                  />
+                </div>
+              )}
+
               {/* Step indicator */}
               <div className="flex items-center justify-center gap-2">
                 {[
