@@ -3741,8 +3741,8 @@ export default function Radar({
               </div>
             )}
 
-            {/* Desktop mode toggle — Pro feature, hidden on mobile, visible in all modes */}
-            {plan === "pro" && (
+            {/* Desktop mode toggle — Pro feature, hidden on mobile, observatory-only */}
+            {plan === "pro" && isolated && (
               <div className="pointer-events-none absolute inset-0 z-10">
                 <button
                   onClick={() => {
