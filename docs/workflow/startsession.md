@@ -564,6 +564,15 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
   for competitors not in tracked_competitors (ghost competitors the pipeline still processes).
   Pattern in `api/expand-coverage.ts` → `buildSectorMap()`. (2026-03-18)
 
+- [B] Telescope shows signals, radar shows none (data mismatch): Telescope queries signals table directly
+  with status filter. Radar shows competitors from radar_feed (aggregated movement data). Only "interpreted"
+  status signals appear on radar via movements. If Telescope shows N signals but radar shows 0, those signals
+  are in "pending_review" status awaiting interpretation (runs :28/:58 hourly). User is seeing raw detections
+  before they've been processed into strategic movements. Triage: check signal status — if all are
+  pending_review, explain pipeline timing; if interpreted and still missing from radar, check radar_feed
+  query and movement aggregation. Fix applied 2026-03-27: Telescope now filters `.eq("status", "interpreted")`
+  to match radar visibility. (2026-03-27)
+
 - [B] `strategic_insights` is populated by `/api/strategic-analysis` cron (daily 08:00 UTC). It will be empty
   on a fresh deployment until the cron fires. The Strategy page now has a fallback layer:
   `strategic_movements` (14-day window) provides live data without GPT. Use `strategic_movements` as the
