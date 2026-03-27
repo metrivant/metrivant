@@ -104,9 +104,11 @@ function CategoryBadge({ category }: { category: CatalogCategory }) {
 export default function DiscoverClient({
   initialTracked,
   initialSector = "saas",
+  plan = "analyst",
 }: {
   initialTracked: string[];
   initialSector?: string;
+  plan?: string;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -198,7 +200,7 @@ export default function DiscoverClient({
   const visible  = filtered.slice(0, page * PAGE_SIZE);
   const hasMore  = filtered.length > page * PAGE_SIZE;
 
-  const COMPETITOR_LIMIT = 25;
+  const COMPETITOR_LIMIT = plan === "pro" ? 25 : 10;
   const atLimit = tracked.size >= COMPETITOR_LIMIT;
 
   async function trackCompetitor(entry: CatalogEntry) {

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "../../../lib/supabase/server";
+import { getSubscriptionState } from "../../../lib/subscription";
 import DiscoverClient from "./DiscoverClient";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ export default async function DiscoverPage() {
 
   let trackedDomains: string[] = [];
   let orgSector = "saas";
+  let plan = "analyst";
   try {
     const { data: orgRows } = await supabase
       .from("organizations")
@@ -26,6 +28,15 @@ export default async function DiscoverPage() {
 
     if (org) {
       orgSector = org.sector ?? "saas";
+
+      // Fetch plan — check user_metadata first, then subscriptions table
+      const metaPlan = user.user_metadata?.plan as string | undefined;
+      if (metaPlan === "analyst" || metaPlan === "pro") {
+        plan = metaPlan;
+      } else {
+        const subState = await getSubscriptionState(supabase, org.id as string, user.created_at);
+        plan = subState.plan;
+      }
 
       const { data: competitors } = await supabase
         .from("tracked_competitors")
@@ -146,7 +157,7 @@ export default async function DiscoverPage() {
       </div>
 
       {/* ── Discovery UI ───────────────────────────────────────────────── */}
-      <DiscoverClient initialTracked={trackedDomains} initialSector={orgSector} />
+      <DiscoverClient initialTracked={trackedDomains} initialSector={orgSector} plan={plan} />
     </div>
   );
 }
