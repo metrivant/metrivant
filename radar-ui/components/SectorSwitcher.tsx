@@ -5,15 +5,14 @@ import { useRouter } from "next/navigation";
 import { getSectorLabel } from "../lib/sectors";
 
 const SECTOR_OPTIONS = [
-  { value: "ai-infrastructure",  label: "AI Infrastructure" },
-  { value: "consumer-tech",      label: "Consumer Tech" },
+  { value: "saas",               label: "SaaS & Software" },
+  { value: "defense",            label: "Defense & Aerospace" },
+  { value: "energy",             label: "Energy & Resources" },
   { value: "cybersecurity",      label: "Cybersecurity" },
-  { value: "defense",            label: "Defense" },
-  { value: "devtools",           label: "DevTools" },
-  { value: "energy",             label: "Energy" },
   { value: "fintech",            label: "Fintech" },
+  { value: "ai-infrastructure",  label: "AI Infrastructure" },
+  { value: "devtools",           label: "DevTools" },
   { value: "healthcare",         label: "Healthcare" },
-  { value: "saas",               label: "Software" },
   { value: "custom",             label: "Custom" },
 ] as const;
 
