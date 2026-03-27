@@ -167,12 +167,12 @@ export default function FlowSection() {
   ];
 
   return (
-    <section ref={sectionRef} className="relative border-t border-[#0d1020] px-6 py-12 md:py-16">
-      <div className="mx-auto max-w-5xl">
+    <section className="relative border-t border-[#0d1020] px-6 py-8 md:py-10">
+      <div className="mx-auto max-w-6xl">
         {/* Header */}
-        <div className="mb-12 text-center md:mb-16">
+        <div className="mb-6 text-center">
           <div
-            className="mb-2 text-[10px] font-bold uppercase tracking-[0.24em]"
+            className="mb-1 text-[9px] font-bold uppercase tracking-[0.22em]"
             style={{
               color: "rgba(0,180,255,0.50)",
               fontFamily: "var(--font-orbitron)",
@@ -181,115 +181,101 @@ export default function FlowSection() {
             How it works
           </div>
           <h2
-            className="text-[18px] font-bold uppercase tracking-[0.12em] text-white md:text-[20px]"
+            className="text-[16px] font-bold uppercase tracking-[0.10em] text-white md:text-[18px]"
             style={{ fontFamily: "var(--font-orbitron)" }}
           >
             From Tracking to Intelligence
           </h2>
         </div>
 
-        {/* Steps */}
-        <div className="space-y-16 md:space-y-20">
+        {/* Storyboard panels */}
+        <div className="grid gap-3 md:grid-cols-4">
           {steps.map((step, index) => (
-            <div
+            <motion.div
               key={index}
-              data-step={index}
-              className="relative"
+              className="relative overflow-hidden rounded-lg border p-4"
+              style={{
+                borderColor: "rgba(0,180,255,0.20)",
+                background: "rgba(0,180,255,0.02)",
+              }}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: index * 0.1 }}
+              whileHover={{ scale: 1.02, borderColor: "rgba(0,180,255,0.35)" }}
             >
-              <div className="grid items-center gap-8 md:grid-cols-2 md:gap-12">
-                {/* Icon side */}
-                <motion.div
-                  className="flex justify-center md:justify-end"
-                  initial={{ opacity: 0, x: -20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true, amount: 0.6 }}
-                  transition={{ duration: 0.6, delay: 0.1 }}
+              {/* Panel number */}
+              <div
+                className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full"
+                style={{
+                  background: "rgba(0,180,255,0.15)",
+                }}
+              >
+                <span
+                  className="text-[10px] font-bold"
+                  style={{ color: "rgba(0,180,255,0.80)" }}
                 >
-                  <div className="relative">
-                    {/* Glow backdrop */}
-                    <div
-                      className="absolute inset-0"
-                      style={{
-                        background:
-                          "radial-gradient(circle, rgba(0,180,255,0.15) 0%, transparent 70%)",
-                        filter: "blur(30px)",
-                        transform: "scale(1.5)",
-                      }}
-                    />
-                    {/* Icon */}
-                    <div className="relative">{step.icon}</div>
-                  </div>
-                </motion.div>
-
-                {/* Content side */}
-                <motion.div
-                  className="text-center md:text-left"
-                  initial={{ opacity: 0, x: 20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true, amount: 0.6 }}
-                  transition={{ duration: 0.6, delay: 0.2 }}
-                >
-                  {/* Step label */}
-                  <div
-                    className="mb-2 text-[11px] font-bold uppercase tracking-[0.20em]"
-                    style={{
-                      color: activeStep === index ? "rgba(0,180,255,0.80)" : "rgba(148,163,184,0.50)",
-                      fontFamily: "var(--font-orbitron)",
-                      transition: "color 0.3s",
-                    }}
-                  >
-                    {index + 1}. {step.label}
-                  </div>
-
-                  {/* Title */}
-                  <h3
-                    className="mb-3 text-[18px] font-bold text-white md:text-[20px]"
-                    style={{ fontFamily: "var(--font-orbitron)", letterSpacing: "0.04em" }}
-                  >
-                    {step.title}
-                  </h3>
-
-                  {/* Description */}
-                  <p
-                    className="mb-3 text-[14px] font-light leading-relaxed md:text-[15px]"
-                    style={{ color: "rgba(255,255,255,0.65)", letterSpacing: "0.01em" }}
-                  >
-                    {step.description}
-                  </p>
-
-                  {/* Example */}
-                  <div
-                    className="inline-block rounded-lg border px-4 py-2"
-                    style={{
-                      borderColor: "rgba(0,180,255,0.20)",
-                      background: "rgba(0,180,255,0.04)",
-                    }}
-                  >
-                    <div
-                      className="text-[12px] font-medium"
-                      style={{ color: "rgba(0,180,255,0.70)", fontFamily: "var(--font-geist-mono)" }}
-                    >
-                      {step.example}
-                    </div>
-                  </div>
-                </motion.div>
+                  {index + 1}
+                </span>
               </div>
 
-              {/* Connection line to next step */}
+              {/* Icon */}
+              <div className="mb-3 flex justify-center">
+                <div className="relative h-16 w-16 md:h-20 md:w-20">
+                  {step.icon}
+                </div>
+              </div>
+
+              {/* Label */}
+              <div
+                className="mb-1 text-center text-[10px] font-bold uppercase tracking-[0.16em]"
+                style={{
+                  color: "rgba(0,180,255,0.70)",
+                  fontFamily: "var(--font-orbitron)",
+                }}
+              >
+                {step.label}
+              </div>
+
+              {/* Title */}
+              <h3
+                className="mb-2 text-center text-[13px] font-bold leading-tight text-white md:text-[14px]"
+                style={{ letterSpacing: "0.02em" }}
+              >
+                {step.title}
+              </h3>
+
+              {/* Description */}
+              <p
+                className="text-center text-[11px] font-light leading-snug md:text-[12px]"
+                style={{ color: "rgba(255,255,255,0.55)" }}
+              >
+                {step.description}
+              </p>
+
+              {/* Arrow to next panel (desktop only) */}
               {index < steps.length - 1 && (
-                <motion.div
-                  className="mx-auto mt-10 h-12 w-px md:mt-12"
-                  style={{
-                    background:
-                      "linear-gradient(180deg, rgba(0,180,255,0.30) 0%, rgba(0,180,255,0.05) 100%)",
-                  }}
-                  initial={{ scaleY: 0 }}
-                  whileInView={{ scaleY: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.8, delay: 0.4 }}
-                />
+                <div className="absolute -right-4 top-1/2 hidden -translate-y-1/2 md:block">
+                  <motion.svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    animate={{ x: [0, 3, 0] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  >
+                    <path
+                      d="M6 3 L11 8 L6 13"
+                      stroke="#00B4FF"
+                      strokeWidth="1.5"
+                      strokeOpacity="0.40"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </motion.svg>
+                </div>
               )}
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>
