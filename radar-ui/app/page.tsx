@@ -3,7 +3,6 @@ import PublicNav from "../components/PublicNav";
 import LandingLogo from "../components/LandingLogo";
 import LandingCTAButtons from "../components/LandingCTAButtons";
 import PipelineSection from "../components/PipelineSection";
-import IntelligencePulse from "../components/IntelligencePulse";
 import ElectricityBackground from "../components/ElectricityBackground";
 import CoreConceptSection from "../components/CoreConceptSection";
 
@@ -48,7 +47,6 @@ export default function LandingPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <PublicNav />
-      <IntelligencePulse />
       <ElectricityBackground />
 
       {/* Dot grid */}
