@@ -59,21 +59,58 @@ export default function CoreConceptSection() {
               }}
               className="relative"
             >
-              {/* Emphasis label — minimal */}
-              <div
-                className="mb-3 text-center text-[10px] font-bold uppercase tracking-[0.24em]"
-                style={{
-                  color: "rgba(0,180,255,0.45)",
-                  fontFamily: "var(--font-orbitron)",
-                }}
-              >
-                {concept.emphasis}
+              {/* Emphasis label — electric sheen */}
+              <div className="relative mb-4 overflow-hidden text-center">
+                <motion.div
+                  className="text-[16px] font-bold uppercase tracking-[0.24em] md:text-[18px]"
+                  style={{
+                    fontFamily: "var(--font-orbitron)",
+                    background:
+                      "linear-gradient(90deg, rgba(0,180,255,0.50) 0%, rgba(0,180,255,0.95) 50%, rgba(0,180,255,0.50) 100%)",
+                    backgroundSize: "200% 100%",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
+                  }}
+                  animate={{
+                    backgroundPosition: ["0% 50%", "200% 50%"],
+                  }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "linear",
+                    delay: index * 0.5,
+                  }}
+                >
+                  {concept.emphasis}
+                </motion.div>
+
+                {/* Flash overlay effect */}
+                <motion.div
+                  className="absolute inset-0"
+                  style={{
+                    background:
+                      "linear-gradient(90deg, transparent 0%, rgba(0,180,255,0.4) 50%, transparent 100%)",
+                    pointerEvents: "none",
+                  }}
+                  animate={{
+                    x: ["-100%", "200%"],
+                    opacity: [0, 1, 0],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: index * 0.7 + 1,
+                    repeatDelay: 3,
+                  }}
+                />
               </div>
 
               {/* Statement */}
               <p
-                className="text-center text-[15px] font-light leading-relaxed text-white md:text-[16px]"
-                style={{ letterSpacing: "0.01em" }}
+                className="mx-auto max-w-2xl text-center text-[15px] font-light text-white md:text-[16px]"
+                style={{ letterSpacing: "0.01em", lineHeight: "1.4" }}
               >
                 {concept.statement}
               </p>
