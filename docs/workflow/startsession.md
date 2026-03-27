@@ -241,6 +241,79 @@ Default posture: ONE task at a time. Sequential execution. No parallel agents.
 - Only then start next objective
 - Never interleave objectives
 
+### Cost-Conscious Deployment Workflow (Vercel build cost reduction)
+
+Every push to `main` triggers automatic builds on both Vercel projects (metrivant-runtime, metrivant-ui). Each build consumes compute resources and incurs cost. The goal: reduce build frequency without compromising output quality or performance.
+
+**Batching principle:** Group related changes into cohesive commits rather than pushing after every small edit.
+
+**Verification-first workflow:**
+1. Make changes locally (edits, new files, deletions)
+2. Verify with `npx tsc --noEmit` (catches type errors, import issues, syntax problems)
+3. Only push when verification passes AND a logical unit of work is complete
+4. Never push broken code that will trigger a failed build (wasted compute)
+
+**What constitutes a logical unit:**
+- Feature complete (all related files changed together)
+- Bug fix complete (problem resolved, verified locally)
+- Refactor complete (all affected files updated, types passing)
+- Documentation batch (multiple related doc updates grouped)
+
+**Commit discipline for cost reduction:**
+- Implement full feature → verify → commit → push (ONE build)
+- NOT: edit file 1 → push → edit file 2 → push → edit file 3 → push (THREE builds)
+- If a task involves 5 file changes: make all 5, verify together, push once
+- Exception: if task is large and risky, break into safe increments (2-3 pushes max, not 10)
+
+**Documentation-only changes:**
+- Batch multiple doc edits into one commit when possible
+- If updating 3 markdown files in `/docs`: edit all 3, then push once
+- Exception: critical session-end updates (endsession.md, CLAUDE.md) → push immediately for durability
+
+**When to push immediately (exceptions to batching):**
+- After completing a full objective (per "One objective at a time" rule above)
+- Before starting a new high-risk change (preserve working state)
+- Session-end gates (commit log must be durable before ending session)
+- Critical fixes that unblock production
+
+**Local verification commands (use these before pushing):**
+```bash
+# TypeScript verification (lightweight, fast, catches most issues)
+npx tsc --noEmit
+
+# Surface-specific verification (if touching radar-ui specifically)
+cd radar-ui && npx tsc --noEmit && cd ..
+
+# NEVER run full build locally (next build) — wastes RAM, Vercel does real build
+```
+
+**Cost-conscious workflow example:**
+
+❌ **High-cost pattern (avoid):**
+```
+1. Edit component A → push
+2. Fix typo in component A → push
+3. Update type file → push
+4. Fix import in component A → push
+5. Update docs → push
+→ 5 builds triggered
+```
+
+✅ **Low-cost pattern (preferred):**
+```
+1. Edit component A
+2. Update type file
+3. Fix all imports
+4. Run: npx tsc --noEmit (verify locally)
+5. Update related docs
+6. Commit all changes → push once
+→ 1 build triggered
+```
+
+**Measurement:** Track builds per session. Aim for ≤3 pushes per session for typical tasks. Large multi-objective sessions may require more, but each push should represent a complete unit of work, not an incremental micro-change.
+
+**This is not about reducing code quality.** Full verification still happens — just locally first (via tsc) before triggering remote builds. Output and performance are unchanged. Only build frequency is optimized.
+
 ### Context Window Discipline (capacity rule)
 
 - Do not re-read files already in the current context window. Reference from memory.
