@@ -55,7 +55,8 @@ function SignupForm() {
 
     // If email confirmation is disabled, user is auto-logged in → redirect to app
     if (data.session) {
-      router.push("/app");
+      // Session exists - user is logged in, redirect immediately
+      window.location.href = "/app";
       return;
     }
 
