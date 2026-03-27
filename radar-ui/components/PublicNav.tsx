@@ -35,7 +35,7 @@ export default function PublicNav() {
         <div className="hidden items-center gap-8 md:flex">
           <button
             onClick={() => setAboutOpen(true)}
-            className="text-[12px] font-semibold uppercase tracking-[0.12em] text-slate-400 transition-all duration-200 hover:text-white"
+            className="cursor-pointer text-[12px] font-semibold uppercase tracking-[0.12em] text-slate-400 transition-all duration-200 hover:text-white"
             style={{ fontFamily: "var(--font-orbitron)" }}
           >
             About
@@ -168,7 +168,7 @@ export default function PublicNav() {
           <div className="flex flex-col gap-2">
             <button
               onClick={() => { setMenuOpen(false); setAboutOpen(true); }}
-              className="rounded-lg px-4 py-3 text-left text-[13px] font-semibold uppercase tracking-[0.10em] text-slate-300 transition-colors hover:bg-[#0a1c0a] hover:text-white"
+              className="cursor-pointer rounded-lg px-4 py-3 text-left text-[13px] font-semibold uppercase tracking-[0.10em] text-slate-300 transition-colors hover:bg-[#0a1c0a] hover:text-white"
               style={{ fontFamily: "var(--font-orbitron)" }}
             >
               About
