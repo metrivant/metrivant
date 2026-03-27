@@ -5,7 +5,7 @@ import { useRef } from "react";
 import PublicNav from "../components/PublicNav";
 import LandingLogo from "../components/LandingLogo";
 import LandingCTAButtons from "../components/LandingCTAButtons";
-import PipelineSection from "../components/PipelineSection";
+import FlowSection from "../components/FlowSection";
 import ElectricityBackground, { type ElectricityBackgroundRef } from "../components/ElectricityBackground";
 import CoreConceptSection from "../components/CoreConceptSection";
 import EquationPanel from "../components/EquationPanel";
@@ -125,10 +125,8 @@ export default function LandingPage() {
       {/* ── Equation Panel ───────────────────────────────────────────── */}
       <EquationPanel />
 
-      {/* ── Pipeline Experience — scroll-triggered SVG narrative ──── */}
-      <section className="relative border-t border-[#0d1020]">
-        <PipelineSection />
-      </section>
+      {/* ── Flow Section — user journey visualization ──────────────── */}
+      <FlowSection />
 
       {/* ── Pricing snapshot ─────────────────────────────────────────── */}
       <section className="relative border-t border-[#0d1020] px-6 pb-16">

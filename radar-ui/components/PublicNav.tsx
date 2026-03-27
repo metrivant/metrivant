@@ -4,11 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import AboutOverlay from "./AboutOverlay";
+import PipelineOverlay from "./PipelineOverlay";
 
 export default function PublicNav() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [pipelineOpen, setPipelineOpen] = useState(false);
 
   return (
     <>
@@ -38,17 +40,15 @@ export default function PublicNav() {
             className="cursor-pointer text-[12px] font-semibold uppercase tracking-[0.12em] text-slate-400 transition-all duration-200 hover:text-white"
             style={{ fontFamily: "var(--font-orbitron)" }}
           >
-            About
+            Features
           </button>
-          <Link
-            href="/pipeline"
-            className={`text-[12px] font-semibold uppercase tracking-[0.12em] transition-all duration-200 ${
-              pathname === "/pipeline" ? "text-[#00B4FF]" : "text-slate-400 hover:text-white"
-            }`}
+          <button
+            onClick={() => setPipelineOpen(true)}
+            className="cursor-pointer text-[12px] font-semibold uppercase tracking-[0.12em] text-slate-400 transition-all duration-200 hover:text-white"
             style={{ fontFamily: "var(--font-orbitron)" }}
           >
-            How it works
-          </Link>
+            Pipeline
+          </button>
           <Link
             href="/pricing"
             className={`text-[12px] font-semibold uppercase tracking-[0.12em] transition-all duration-200 ${
@@ -158,6 +158,7 @@ export default function PublicNav() {
       </nav>
 
       <AboutOverlay open={aboutOpen} onClose={() => setAboutOpen(false)} />
+      <PipelineOverlay open={pipelineOpen} onClose={() => setPipelineOpen(false)} />
 
       {/* Mobile dropdown menu */}
       {menuOpen && (
@@ -171,18 +172,15 @@ export default function PublicNav() {
               className="cursor-pointer rounded-lg px-4 py-3 text-left text-[13px] font-semibold uppercase tracking-[0.10em] text-slate-300 transition-colors hover:bg-[#0a1c0a] hover:text-white"
               style={{ fontFamily: "var(--font-orbitron)" }}
             >
-              About
+              Features
             </button>
-            <Link
-              href="/pipeline"
-              onClick={() => setMenuOpen(false)}
-              className={`rounded-lg px-4 py-3 text-[13px] font-semibold uppercase tracking-[0.10em] transition-colors hover:bg-[#0a1c0a] ${
-                pathname === "/pipeline" ? "text-[#00B4FF]" : "text-slate-300 hover:text-white"
-              }`}
+            <button
+              onClick={() => { setMenuOpen(false); setPipelineOpen(true); }}
+              className="cursor-pointer rounded-lg px-4 py-3 text-left text-[13px] font-semibold uppercase tracking-[0.10em] text-slate-300 transition-colors hover:bg-[#0a1c0a] hover:text-white"
               style={{ fontFamily: "var(--font-orbitron)" }}
             >
-              How it works
-            </Link>
+              Pipeline
+            </button>
             <Link
               href="/pricing"
               onClick={() => setMenuOpen(false)}
