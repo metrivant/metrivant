@@ -265,9 +265,9 @@ export default function PipelineExperience() {
     const vh = window.innerHeight;
     const sectionH = el.offsetHeight;
 
-    // Only start animation when the full section is visible on screen
-    // Section is fully visible when: top >= 0 AND bottom <= vh
-    const sectionBottom = rect.top + vh; // Use vh as proxy for visible section height
+    // Only start animation when the full section is on screen
+    // Section top must be at or above viewport top, and section bottom must be at or below viewport bottom
+    const sectionBottom = rect.top + sectionH;
     const fullyVisible = rect.top <= 0 && sectionBottom >= vh;
 
     if (!fullyVisible) {
