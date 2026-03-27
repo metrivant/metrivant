@@ -2077,8 +2077,8 @@ export default function Radar({
               </div>
               {/* Right: mode toggle + latest change */}
               <div className="flex items-center gap-4">
-                {/* Radar mode toggle + HUD — Pro plan only */}
-                {plan === "pro" && (<>
+                {/* Radar mode toggle — Pro plan only */}
+                {plan === "pro" && (
                 <div
                   className="flex items-center gap-0.5 rounded-[8px] p-0.5"
                   style={{
@@ -2112,9 +2112,10 @@ export default function Radar({
                     ORBIT
                   </button>
                 </div>
+                )}
 
-                {/* HUD sub-toggle — visible in both Radar and ORBIT modes */}
-                {(
+                {/* HUD sub-toggle — visible for Pro in all modes, visible for all users in observatory */}
+                {(plan === "pro" || isolated) && (
                   <button
                     onClick={() => setOrbitHudActive((v) => !v)}
                     className="rounded-[6px] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] transition-all duration-300"
@@ -2124,7 +2125,7 @@ export default function Radar({
                       boxShadow: orbitHudActive
                         ? "inset 0 0 0 1px rgba(203,213,225,0.28)"
                         : "inset 0 0 0 1px rgba(30,30,40,0.6)",
-                      marginLeft: "4px",
+                      marginLeft: plan === "pro" ? "4px" : "0",
                     }}
                     aria-label={orbitHudActive ? "Disable HUD overlay" : "Enable HUD overlay"}
                     title="HUD — tactical intelligence overlay"
@@ -2132,7 +2133,6 @@ export default function Radar({
                     HUD
                   </button>
                 )}
-                </>)}
 
                 {/* Latest change */}
                 {(() => {
@@ -2530,7 +2530,7 @@ export default function Radar({
                   <motion.circle
                     key={`sonar-main-${i}`}
                     cx={CENTER} cy={CENTER} r={OUTER_RADIUS}
-                    fill="none" stroke="#22c55e" strokeWidth="5"
+                    fill="none" stroke="#7C3AED" strokeWidth="5"
                     filter="url(#sonarGlow)"
                     initial={{ scale: 0.08, opacity: 1.0 }}
                     animate={{ scale: 1.0, opacity: 0 }}
@@ -2542,7 +2542,7 @@ export default function Radar({
                   <motion.circle
                     key={`sonar-echo-${i}`}
                     cx={CENTER} cy={CENTER} r={OUTER_RADIUS}
-                    fill="none" stroke="#00B4FF" strokeWidth="2.5"
+                    fill="none" stroke="#8B5CF6" strokeWidth="2.5"
                     filter="url(#sonarGlow)"
                     initial={{ scale: 0.08, opacity: 0.5 }}
                     animate={{ scale: 1.0, opacity: 0 }}
@@ -2552,7 +2552,7 @@ export default function Radar({
                 ))}
                 <motion.circle
                   cx={CENTER} cy={CENTER} r={OUTER_RADIUS * 0.14}
-                  fill="none" stroke="#22c55e" strokeWidth="1.2"
+                  fill="none" stroke="#7C3AED" strokeWidth="1.2"
                   initial={{ scale: 0.12, opacity: 0.5 }}
                   animate={{ scale: 1, opacity: 0 }}
                   transition={{ duration: 4.5, repeat: Infinity, ease: "easeOut" }}
@@ -3590,56 +3590,94 @@ export default function Radar({
                 </div>
 
                 {/* Top-right: Latest signal timestamp (heartbeat) — shifted left to avoid controls */}
-                {latestSignalAt && (
-                  <div
-                    className="absolute right-20 top-4 rounded-[8px] px-3 py-2"
-                    style={{
-                      background: "rgba(2,2,8,0.75)",
-                      border: "1px solid rgba(0,180,255,0.18)",
-                      backdropFilter: "blur(8px)",
-                      WebkitBackdropFilter: "blur(8px)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontFamily: "var(--font-orbitron)",
-                        fontSize: "9px",
-                        fontWeight: 700,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.18em",
-                        color: "rgba(0,180,255,0.55)",
-                        marginBottom: "4px",
-                      }}
-                    >
-                      HEARTBEAT
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: "var(--font-orbitron)",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        color: (() => {
-                          const ageHours = (Date.now() - new Date(latestSignalAt).getTime()) / 3600000;
-                          if (ageHours < 6) return "rgba(46,230,166,0.85)";
-                          if (ageHours < 24) return "rgba(245,158,11,0.75)";
-                          return "rgba(100,116,139,0.65)";
-                        })(),
-                      }}
-                    >
-                      {formatRelative(latestSignalAt)}
-                    </div>
-                  </div>
-                )}
+                {latestSignalAt && (() => {
+                  const ageHours = (Date.now() - new Date(latestSignalAt).getTime()) / 3600000;
+                  const isRecent = ageHours < 6;
+                  const lineColor = ageHours < 6 ? "rgba(46,230,166,0.85)" : ageHours < 24 ? "rgba(245,158,11,0.75)" : "rgba(100,116,139,0.65)";
 
-                {/* Bottom-left: Temporal filter */}
-                <div
-                  className="absolute bottom-4 left-4 rounded-[8px] px-3 py-2"
+                  return (
+                    <div
+                      className="absolute right-20 top-4 rounded-[8px] px-3 py-2"
+                      style={{
+                        background: "rgba(2,2,8,0.75)",
+                        border: "1px solid rgba(0,180,255,0.18)",
+                        backdropFilter: "blur(8px)",
+                        WebkitBackdropFilter: "blur(8px)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontFamily: "var(--font-orbitron)",
+                          fontSize: "9px",
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.18em",
+                          color: "rgba(0,180,255,0.55)",
+                          marginBottom: "4px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                        }}
+                      >
+                        HEARTBEAT
+                        {/* Animated pulse/flatline */}
+                        <svg width="24" height="12" viewBox="0 0 24 12" fill="none" style={{ opacity: 0.75 }}>
+                          {isRecent ? (
+                            // Spike pattern for recent activity
+                            <motion.path
+                              d="M0 6 L6 6 L7 3 L8 9 L9 6 L24 6"
+                              stroke={lineColor}
+                              strokeWidth="1.2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              fill="none"
+                              animate={{ opacity: [0.6, 1.0, 0.6] }}
+                              transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                            />
+                          ) : (
+                            // Flatline for stale activity
+                            <motion.path
+                              d="M0 6 L24 6"
+                              stroke={lineColor}
+                              strokeWidth="1.2"
+                              strokeLinecap="round"
+                              fill="none"
+                              animate={{ opacity: [0.4, 0.6, 0.4] }}
+                              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                            />
+                          )}
+                        </svg>
+                      </div>
+                      <div
+                        style={{
+                          fontFamily: "var(--font-orbitron)",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          color: lineColor,
+                        }}
+                      >
+                        {formatRelative(latestSignalAt)}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Bottom-left: Temporal filter — interactive cycler */}
+                <button
+                  onClick={() => {
+                    const next = temporalFilter === "all" ? "24h" : temporalFilter === "24h" ? "7d" : "all";
+                    setTemporalFilter(next);
+                    getAudioManager().play("swoosh");
+                  }}
+                  className="pointer-events-auto absolute bottom-4 left-4 rounded-[8px] px-3 py-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
                   style={{
                     background: "rgba(2,2,8,0.75)",
-                    border: "1px solid rgba(0,180,255,0.18)",
+                    border: "1px solid rgba(0,180,255,0.25)",
                     backdropFilter: "blur(8px)",
                     WebkitBackdropFilter: "blur(8px)",
+                    cursor: "pointer",
                   }}
+                  title="Click to cycle timeframe: ALL TIME → 24 HOURS → 7 DAYS"
                 >
                   <div
                     style={{
@@ -3664,7 +3702,7 @@ export default function Radar({
                   >
                     {temporalFilter === "all" ? "ALL TIME" : temporalFilter === "24h" ? "24 HOURS" : "7 DAYS"}
                   </div>
-                </div>
+                </button>
 
                 {/* Bottom-right: Zoom level */}
                 <div
@@ -3920,22 +3958,38 @@ export default function Radar({
 
             {/* ── Radar controls overlay (always visible) ─────────── */}
             <div className="absolute right-3 top-3 z-20 flex flex-col gap-1.5">
-              {/* Observatory isolation toggle */}
+              {/* Observatory isolation toggle with ESC indicator */}
               <button
                 onClick={() => { setIsolated((p) => !p); getAudioManager().play("swoosh"); }}
                 title={isolated ? "Exit observatory mode (Esc)" : "Observatory mode"}
-                className="flex h-7 w-7 items-center justify-center rounded-lg transition-all"
+                className="flex items-center justify-center rounded-lg transition-all"
                 style={{
                   background: "rgba(0,0,0,0.88)",
                   border: `1px solid ${isolated ? "rgba(0,180,255,0.3)" : "#0e1022"}`,
                   color: isolated ? "#00B4FF" : "#3a5a3a",
                   boxShadow: isolated ? "0 0 10px rgba(0,180,255,0.18)" : "none",
+                  height: isolated ? "auto" : "28px",
+                  width: isolated ? "auto" : "28px",
+                  padding: isolated ? "4px 6px" : "0",
+                  gap: isolated ? "4px" : "0",
                 }}
               >
                 {isolated ? (
-                  <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
-                    <path d="M1 4H4V1M7 1V4H10M10 7H7V10M4 10V7H1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
+                  <>
+                    <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
+                      <path d="M1 4H4V1M7 1V4H10M10 7H7V10M4 10V7H1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <span
+                      style={{
+                        fontSize: "8px",
+                        fontWeight: 700,
+                        fontFamily: "var(--font-orbitron), ui-monospace, monospace",
+                        letterSpacing: "0.08em",
+                      }}
+                    >
+                      ESC
+                    </span>
+                  </>
                 ) : (
                   <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
                     <path d="M1 4V1H4M7 1H10V4M10 7V10H7M4 10H1V7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
