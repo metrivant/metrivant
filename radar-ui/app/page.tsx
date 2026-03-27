@@ -116,6 +116,46 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── Sectors ──────────────────────────────────────────────────── */}
+      <section className="relative border-t border-[#0d1020] px-6 py-12">
+        <div className="mx-auto max-w-3xl text-center">
+          <div
+            className="mb-3 text-[9px] font-medium uppercase tracking-[0.28em]"
+            style={{ color: "rgba(255,255,255,0.20)" }}
+          >
+            Sector-Agnostic Intelligence
+          </div>
+          <p className="mb-8 text-[14px] font-light" style={{ color: "rgba(255,255,255,0.45)", letterSpacing: "0.02em", lineHeight: 1.6 }}>
+            Select your market sector during onboarding. Metrivant adapts its intelligence layer to your competitive landscape.
+          </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            {[
+              "SaaS & Software",
+              "Defense & Aerospace",
+              "Energy & Resources",
+              "Cybersecurity",
+              "Fintech",
+              "AI Infrastructure",
+              "DevTools",
+              "Healthcare",
+            ].map((sector) => (
+              <div
+                key={sector}
+                className="rounded-full border px-4 py-1.5 text-[11px] font-medium"
+                style={{
+                  borderColor: "rgba(0,180,255,0.12)",
+                  background: "rgba(0,180,255,0.02)",
+                  color: "rgba(0,180,255,0.50)",
+                  letterSpacing: "0.04em",
+                }}
+              >
+                {sector}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── Differentiation row ──────────────────────────────────────── */}
       <section className="relative border-t border-[#0d1020] px-6 py-10">
         <div className="mx-auto grid max-w-2xl gap-8 sm:grid-cols-3 text-center">
