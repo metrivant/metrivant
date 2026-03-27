@@ -207,8 +207,10 @@ export default async function Page() {
           .select("id, signal_type, confidence_score, detected_at, competitor_id, retrograded_at, section_diff_id, strategic_implication, previous_excerpt, current_excerpt")
           .in("competitor_id", competitorIds)
           .eq("status", "interpreted")
+          .gte("confidence_score", 0.65)  // High-confidence only for visual panel
+          .order("confidence_score", { ascending: false })
           .order("detected_at", { ascending: false })
-          .limit(30);
+          .limit(5);  // TOP 5 only
 
         // Fetch noise metadata for these signals via their section_diff_id
         const diffIds = ((data ?? []) as Array<{ section_diff_id: string | null }>)
