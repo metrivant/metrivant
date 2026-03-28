@@ -4,6 +4,8 @@ import { Sentry } from "../lib/sentry";
 import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
 import { recordEvent, generateRunId } from "../lib/pipeline-metrics";
+import { getSectorForCompetitor, type SectorId } from "../lib/sector-prompting";
+import { getSectorSignalWeight, getSectorPoolWeight, type PoolType } from "../lib/sector-weights";
 
 /**
  * update-pressure-index
@@ -59,6 +61,7 @@ interface SignalRow {
   severity: string;
   confidence_score: number | null;
   detected_at: string;
+  signal_type: string;
 }
 
 // Ambient event type weights for pressure contribution.
@@ -75,6 +78,21 @@ const AMBIENT_EVENT_WEIGHTS: Record<string, number> = {
   page_change:      0.08,
 };
 const DEFAULT_AMBIENT_WEIGHT = 0.10;
+
+// Map activity event types to pool types for sector weighting
+function eventTypeToPoolType(eventType: string): PoolType | null {
+  const mapping: Record<string, PoolType> = {
+    press_mention:    "newsroom",
+    announcement:     "newsroom",
+    hiring_activity:  "careers",
+    product_update:   "product",
+    messaging_update: "newsroom",
+    content_update:   "newsroom",
+    blog_post:        "newsroom",
+    page_change:      "newsroom",
+  };
+  return mapping[eventType] ?? null;
+}
 
 interface ActivityEventRow {
   competitor_id: string;
@@ -168,7 +186,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     const { data: signals, error: signalsError } = pageIds.length > 0
       ? await supabase
           .from("signals")
-          .select("monitored_page_id, severity, confidence_score, detected_at")
+          .select("monitored_page_id, severity, confidence_score, detected_at, signal_type")
           .in("monitored_page_id", pageIds)
           .gte("detected_at", signalSince)
       : { data: [], error: null };
@@ -180,7 +198,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: poolSignals, error: poolSignalsError } = await (supabase as any)
       .from("signals")
-      .select("competitor_id, severity, confidence_score, detected_at")
+      .select("competitor_id, severity, confidence_score, detected_at, signal_type, source_type")
       .is("monitored_page_id", null)
       .in("competitor_id", competitorIds)
       .gte("detected_at", signalSince);
@@ -253,44 +271,62 @@ async function handler(req: ApiReq, res: ApiRes) {
       bootstrapCandidates.set(cid, best);
     }
 
-    // ── 5. Aggregate in-memory per competitor ─────────────────────────────────
+    // ── 5. Fetch sectors for sector-aware weighting ───────────────────────────
+    const sectorByCompetitor = new Map<string, SectorId | null>();
+    await Promise.allSettled(
+      competitorIds.map(async (cid) => {
+        const sector = await getSectorForCompetitor(cid);
+        sectorByCompetitor.set(cid, sector);
+      })
+    );
 
-    // signal weight per competitor
+    // ── 6. Aggregate in-memory per competitor ─────────────────────────────────
+
+    // signal weight per competitor (sector-aware)
     const signalWeightByCompetitor = new Map<string, number>();
     for (const signal of (signals ?? []) as SignalRow[]) {
       const cid = pageToCompetitor.get(signal.monitored_page_id);
       if (!cid) continue;
 
+      const sector     = sectorByCompetitor.get(cid) ?? null;
       const severityW  = SEVERITY_WEIGHTS[signal.severity] ?? 0.3;
+      const sectorW    = getSectorSignalWeight(sector, signal.signal_type);
       const confidence = signal.confidence_score ?? 0.5;
       const ageDays    =
         (Date.now() - new Date(signal.detected_at).getTime()) / (24 * 60 * 60 * 1000);
       const decay      = Math.exp(-ageDays * 0.2);
 
       const prev = signalWeightByCompetitor.get(cid) ?? 0;
-      signalWeightByCompetitor.set(cid, prev + severityW * confidence * decay);
+      signalWeightByCompetitor.set(cid, prev + severityW * sectorW * confidence * decay);
     }
 
-    // Merge pool signals (monitored_page_id=null, competitor_id set directly)
-    for (const signal of (poolSignals ?? []) as { competitor_id: string; severity: string; confidence_score: number | null; detected_at: string }[]) {
+    // Merge pool signals (monitored_page_id=null, competitor_id set directly, sector-aware)
+    for (const signal of (poolSignals ?? []) as { competitor_id: string; severity: string; confidence_score: number | null; detected_at: string; signal_type: string; source_type: string }[]) {
       const cid = signal.competitor_id;
+      const sector     = sectorByCompetitor.get(cid) ?? null;
       const severityW  = SEVERITY_WEIGHTS[signal.severity] ?? 0.3;
+      const sectorW    = getSectorSignalWeight(sector, signal.signal_type);
       const confidence = signal.confidence_score ?? 0.5;
       const ageDays    = (Date.now() - new Date(signal.detected_at).getTime()) / (24 * 60 * 60 * 1000);
       const decay      = Math.exp(-ageDays * 0.2);
       const prev = signalWeightByCompetitor.get(cid) ?? 0;
-      signalWeightByCompetitor.set(cid, prev + severityW * confidence * decay);
+      signalWeightByCompetitor.set(cid, prev + severityW * sectorW * confidence * decay);
     }
 
-    // Weighted ambient pressure per competitor.
+    // Weighted ambient pressure per competitor (sector-aware).
     // Strategic events (press, announcements, hiring) carry more pressure than
     // routine content churn (blog posts, generic page edits).
+    // Pool weights further amplify sector-relevant activity types.
     const activityWeightByCompetitor = new Map<string, number>();
     for (const ev of (events ?? []) as ActivityEventRow[]) {
-      const w = AMBIENT_EVENT_WEIGHTS[ev.event_type] ?? DEFAULT_AMBIENT_WEIGHT;
+      const sector    = sectorByCompetitor.get(ev.competitor_id) ?? null;
+      const baseW     = AMBIENT_EVENT_WEIGHTS[ev.event_type] ?? DEFAULT_AMBIENT_WEIGHT;
+      const poolType  = eventTypeToPoolType(ev.event_type);
+      const poolW     = poolType ? getSectorPoolWeight(sector, poolType) : 1.0;
+      const totalW    = baseW * poolW;
       activityWeightByCompetitor.set(
         ev.competitor_id,
-        (activityWeightByCompetitor.get(ev.competitor_id) ?? 0) + w
+        (activityWeightByCompetitor.get(ev.competitor_id) ?? 0) + totalW
       );
     }
 
