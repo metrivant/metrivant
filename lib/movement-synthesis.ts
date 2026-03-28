@@ -4,6 +4,7 @@
 // movement detection throughput.
 
 import { openai } from "./openai";
+import { buildSectorPromptGuidance, type SectorId } from "./sector-prompting";
 
 export interface SignalForSynthesis {
   signal_type:             string;
@@ -59,6 +60,10 @@ export async function synthesizeMovement(
 
   const sectorHint = sector && sector !== "custom" ? ` (${sector} sector)` : "";
 
+  // Build sector-aware system prompt
+  const sectorGuidance = buildSectorPromptGuidance(sector as SectorId | null);
+  const systemPrompt = SYSTEM_PROMPT + sectorGuidance;
+
   // Build compact signal list — cap at 8 to keep prompt bounded
   const signalLines = signals.slice(0, 8).map((s, i) => {
     const parts = [`${i + 1}. [${s.signal_type} / ${s.section_type}] ${s.detected_at.slice(0, 10)}`];
@@ -86,7 +91,7 @@ export async function synthesizeMovement(
       max_tokens:      280,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPrompt },
         { role: "user",   content: userPrompt },
       ],
     });
