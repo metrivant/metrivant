@@ -1,304 +1,308 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { useEffect, useState, useRef } from "react";
+import { motion, useScroll, useTransform } from "framer-motion";
+import { useState, useRef } from "react";
+
+type SectorId = "saas" | "fintech" | "cybersecurity" | "defense" | "energy";
+
+const SECTORS = [
+  { id: "saas" as SectorId, label: "SaaS & AI", icon: "⚡", color: "#00B4FF" },
+  { id: "fintech" as SectorId, label: "Fintech", icon: "💰", color: "#10B981" },
+  { id: "cybersecurity" as SectorId, label: "Cybersecurity", icon: "🔒", color: "#8B5CF6" },
+  { id: "defense" as SectorId, label: "Defense", icon: "🛡️", color: "#F59E0B" },
+  { id: "energy" as SectorId, label: "Energy", icon: "⚡", color: "#EF4444" },
+];
+
+const SECTOR_CONFIG = {
+  saas: {
+    topSignals: ["feature_launch", "price_point_change", "major_release"],
+    topPools: ["product", "newsroom", "careers"],
+    amplification: "Product velocity",
+  },
+  fintech: {
+    topSignals: ["regulatory_event", "acquisition", "earnings_release"],
+    topPools: ["regulatory", "investor", "product"],
+    amplification: "Compliance signals",
+  },
+  cybersecurity: {
+    topSignals: ["feature_launch", "regulatory_event", "product_update"],
+    topPools: ["product", "newsroom", "regulatory"],
+    amplification: "Security features",
+  },
+  defense: {
+    topSignals: ["major_contract_award", "acquisition", "regulatory_event"],
+    topPools: ["procurement", "newsroom", "regulatory"],
+    amplification: "Contract awards",
+  },
+  energy: {
+    topSignals: ["earnings_release", "major_contract_award", "regulatory_event"],
+    topPools: ["investor", "regulatory", "newsroom"],
+    amplification: "Material events",
+  },
+};
+
+const PIPELINE_STAGES = [
+  { id: "competitors", label: "Competitors", icon: "◆", amplified: false },
+  { id: "pages", label: "Monitored Pages", icon: "◇", amplified: false },
+  { id: "snapshots", label: "Snapshots", icon: "□", amplified: false },
+  { id: "sections", label: "Sections", icon: "▭", amplified: false },
+  { id: "baselines", label: "Baselines", icon: "▬", amplified: false },
+  { id: "diffs", label: "Diffs", icon: "≟", amplified: false },
+  { id: "signals", label: "Signals", icon: "◉", amplified: true },
+  { id: "interpretations", label: "AI Analysis", icon: "◎", amplified: true },
+  { id: "movements", label: "Movements", icon: "◈", amplified: true },
+  { id: "radar", label: "Intelligence", icon: "⬢", amplified: false },
+];
 
 export default function FlowSection() {
-  const [activeStep, setActiveStep] = useState(0);
-  const sectionRef = useRef<HTMLElement>(null);
+  const [selectedSector, setSelectedSector] = useState<SectorId | null>(null);
+  const pipelineRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const index = parseInt(entry.target.getAttribute("data-step") || "0");
-            setActiveStep(index);
-          }
-        });
-      },
-      { threshold: 0.6, rootMargin: "-20% 0px -20% 0px" }
-    );
+  const { scrollYProgress } = useScroll({
+    target: pipelineRef,
+    offset: ["start end", "end start"],
+  });
 
-    const steps = sectionRef.current?.querySelectorAll("[data-step]");
-    steps?.forEach((step) => observer.observe(step));
-
-    return () => observer.disconnect();
-  }, []);
-
-  const steps = [
-    {
-      label: "Track",
-      title: "Add Competitor",
-      description: (
-        <div className="flex flex-col items-center gap-1.5">
-          <span className="text-[11px] font-light" style={{ color: "rgba(148,163,184,0.55)" }}>
-            Monitor competitors across
-          </span>
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            {["SaaS", "Fintech", "Cybersecurity", "Defense", "Energy"].map((sector, i) => (
-              <motion.span
-                key={sector}
-                className="text-[9px] font-medium uppercase tracking-[0.12em]"
-                style={{ color: "rgba(0,180,255,0.50)" }}
-                initial={{ opacity: 0, y: 3 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.3, delay: 0.1 + i * 0.04 }}
-              >
-                {sector}
-              </motion.span>
-            ))}
-          </div>
-        </div>
-      ),
-      example: "(company)",
-      icon: (
-        <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
-          {/* Card background */}
-          <rect x="10" y="20" width="60" height="40" rx="4" fill="rgba(0,180,255,0.03)" stroke="#00B4FF" strokeWidth="0.8" opacity="0.35" />
-          {/* Company icon placeholder */}
-          <circle cx="25" cy="35" r="6" fill="rgba(0,180,255,0.15)" />
-          {/* Text lines */}
-          <line x1="35" y1="32" x2="60" y2="32" stroke="#00B4FF" strokeWidth="1" opacity="0.40" />
-          <line x1="35" y1="38" x2="55" y2="38" stroke="#00B4FF" strokeWidth="0.8" opacity="0.25" />
-          {/* Add button */}
-          <motion.g
-            animate={{ scale: [1, 1.1, 1], opacity: [0.6, 1, 0.6] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          >
-            <circle cx="60" cy="50" r="8" fill="#00B4FF" opacity="0.20" />
-            <line x1="60" y1="46" x2="60" y2="54" stroke="#00B4FF" strokeWidth="1.5" />
-            <line x1="56" y1="50" x2="64" y2="50" stroke="#00B4FF" strokeWidth="1.5" />
-          </motion.g>
-          {/* Sector tags floating */}
-          <motion.text
-            x="20" y="12"
-            fontSize="5" fill="#00B4FF" opacity="0.50"
-            animate={{ y: [12, 10, 12] }}
-            transition={{ duration: 3, repeat: Infinity }}
-          >SaaS</motion.text>
-          <motion.text
-            x="55" y="15"
-            fontSize="5" fill="#00B4FF" opacity="0.40"
-            animate={{ y: [15, 13, 15] }}
-            transition={{ duration: 3.5, repeat: Infinity, delay: 0.5 }}
-          >Fintech</motion.text>
-        </svg>
-      ),
-    },
-    {
-      label: "Monitor",
-      title: "Continuous Surveillance",
-      description: "Automated tracking across pricing, product, and positioning.",
-      example: "24/7 monitoring",
-      icon: (
-        <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
-          {/* Browser windows stack */}
-          <rect x="12" y="18" width="50" height="35" rx="2" fill="rgba(0,180,255,0.04)" stroke="#00B4FF" strokeWidth="0.8" opacity="0.25" />
-          <rect x="15" y="22" width="50" height="35" rx="2" fill="rgba(0,180,255,0.05)" stroke="#00B4FF" strokeWidth="0.8" opacity="0.35" />
-          <rect x="18" y="26" width="50" height="35" rx="2" fill="rgba(0,180,255,0.06)" stroke="#00B4FF" strokeWidth="1" opacity="0.45" />
-          {/* Content lines in front window */}
-          <line x1="24" y1="35" x2="60" y2="35" stroke="#00B4FF" strokeWidth="0.8" opacity="0.30" />
-          <line x1="24" y1="40" x2="55" y2="40" stroke="#00B4FF" strokeWidth="0.8" opacity="0.25" />
-          <line x1="24" y1="45" x2="58" y2="45" stroke="#00B4FF" strokeWidth="0.8" opacity="0.25" />
-          {/* Scanning beam */}
-          <motion.line
-            x1="18" y1="30" x2="68" y2="30"
-            stroke="#00B4FF" strokeWidth="1.5"
-            animate={{ y1: [30, 58, 30], y2: [30, 58, 30] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-            opacity="0.60"
-          />
-          {/* Clock/24-7 indicator */}
-          <circle cx="62" cy="50" r="6" stroke="#00B4FF" strokeWidth="0.8" opacity="0.40" />
-          <motion.line
-            x1="62" y1="50" x2="62" y2="46"
-            stroke="#00B4FF" strokeWidth="1"
-            style={{ transformOrigin: "62px 50px" }}
-            animate={{ rotate: 360 }}
-            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-          />
-        </svg>
-      ),
-    },
-    {
-      label: "Detect",
-      title: "Signal Detected",
-      description: "Evidence-backed change classification with confidence scoring.",
-      example: "Pricing change · 0.85 confidence",
-      icon: (
-        <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
-          {/* Alert card */}
-          <rect x="15" y="22" width="50" height="36" rx="3" fill="rgba(0,180,255,0.05)" stroke="#00B4FF" strokeWidth="1" opacity="0.40" />
-          {/* Signal type badge */}
-          <rect x="20" y="28" width="25" height="8" rx="2" fill="rgba(0,180,255,0.15)" />
-          <text x="22" y="34" fontSize="5" fill="#00B4FF" opacity="0.80">PRICING</text>
-          {/* Confidence meter */}
-          <rect x="20" y="42" width="40" height="4" rx="2" fill="rgba(0,180,255,0.08)" />
-          <motion.rect
-            x="20" y="42" width="34" height="4" rx="2"
-            fill="#00B4FF"
-            animate={{ opacity: [0.5, 0.9, 0.5] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          />
-          <text x="22" y="52" fontSize="6" fill="#00B4FF" opacity="0.60">0.85 confidence</text>
-          {/* Pulse rings */}
-          <motion.circle
-            cx="55" cy="33" r="8"
-            stroke="#00B4FF" strokeWidth="1.5"
-            fill="none"
-            animate={{ r: [8, 14, 8], opacity: [0.6, 0, 0.6] }}
-            transition={{ duration: 2.5, repeat: Infinity }}
-          />
-          <circle cx="55" cy="33" r="4" fill="#00B4FF" opacity="0.80" />
-        </svg>
-      ),
-    },
-    {
-      label: "Respond",
-      title: "Strategic Intelligence",
-      description: "Analysis explains what changed, why it matters, how to act.",
-      example: "Enterprise repositioning → Recommended response",
-      icon: (
-        <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
-          {/* Intelligence panel */}
-          <rect x="15" y="18" width="50" height="44" rx="3" fill="rgba(0,180,255,0.04)" stroke="#00B4FF" strokeWidth="1" opacity="0.35" />
-          {/* Movement label */}
-          <text x="20" y="28" fontSize="5" fill="#00B4FF" opacity="0.70">MOVEMENT DETECTED</text>
-          {/* Analysis sections */}
-          <text x="20" y="36" fontSize="4" fill="#00B4FF" opacity="0.50">What changed:</text>
-          <line x1="20" y1="38" x2="58" y2="38" stroke="#00B4FF" strokeWidth="0.6" opacity="0.30" />
-          <text x="20" y="44" fontSize="4" fill="#00B4FF" opacity="0.50">Why it matters:</text>
-          <line x1="20" y1="46" x2="55" y2="46" stroke="#00B4FF" strokeWidth="0.6" opacity="0.30" />
-          <text x="20" y="52" fontSize="4" fill="#00B4FF" opacity="0.50">Recommended action:</text>
-          <line x1="20" y1="54" x2="60" y2="54" stroke="#00B4FF" strokeWidth="0.6" opacity="0.30" />
-          {/* Action indicator */}
-          <motion.g
-            animate={{ x: [0, 3, 0] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          >
-            <rect x="48" y="50" width="12" height="6" rx="1" fill="rgba(0,180,255,0.20)" stroke="#00B4FF" strokeWidth="0.8" />
-            <path d="M56 53 L58 53" stroke="#00B4FF" strokeWidth="1" opacity="0.70" />
-            <path d="M58 53 L57 52 M58 53 L57 54" stroke="#00B4FF" strokeWidth="0.8" opacity="0.70" />
-          </motion.g>
-        </svg>
-      ),
-    },
-  ];
+  const sector = SECTORS.find((s) => s.id === selectedSector);
+  const config = selectedSector ? SECTOR_CONFIG[selectedSector] : null;
 
   return (
-    <section className="relative border-t border-[#0d1020] px-6 py-8 md:py-10">
-      <div className="mx-auto max-w-6xl">
+    <section className="relative border-t border-[#0d1020] px-6 py-16 md:py-24">
+      <div className="mx-auto max-w-4xl">
         {/* Header */}
-        <div className="mb-6 text-center">
+        <div className="mb-12 text-center">
           <div
-            className="mb-1 text-[9px] font-bold uppercase tracking-[0.22em]"
-            style={{
-              color: "rgba(0,180,255,0.50)",
-              fontFamily: "var(--font-orbitron)",
-            }}
+            className="mb-2 text-[9px] font-bold uppercase tracking-[0.28em]"
+            style={{ color: "rgba(0,180,255,0.50)", fontFamily: "var(--font-orbitron)" }}
           >
             How it works
           </div>
           <h2
-            className="text-[16px] font-bold uppercase tracking-[0.10em] text-white md:text-[18px]"
-            style={{ fontFamily: "var(--font-orbitron)" }}
+            className="text-[22px] font-light tracking-tight text-white md:text-[28px]"
+            style={{ fontFamily: "var(--font-space-grotesk)" }}
           >
-            From Tracking to Intelligence
+            Sector-Aware Intelligence Pipeline
           </h2>
+          <p className="mt-3 text-[12px] text-slate-500">
+            Select your market to see how signals are amplified
+          </p>
         </div>
 
-        {/* Storyboard panels */}
-        <div className="grid gap-3 md:grid-cols-4">
-          {steps.map((step, index) => (
-            <motion.div
-              key={index}
-              className="relative overflow-hidden rounded-lg border p-4"
-              style={{
-                borderColor: "rgba(0,180,255,0.20)",
-                background: "rgba(0,180,255,0.02)",
-              }}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: index * 0.1 }}
-              whileHover={{ scale: 1.02, borderColor: "rgba(0,180,255,0.35)" }}
-            >
-              {/* Panel number */}
-              <div
-                className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full"
-                style={{
-                  background: "rgba(0,180,255,0.15)",
-                }}
-              >
-                <span
-                  className="text-[10px] font-bold"
-                  style={{ color: "rgba(0,180,255,0.80)" }}
+        {/* Sector Selection */}
+        <div className="mb-16">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+            {SECTORS.map((s, i) => {
+              const isSelected = selectedSector === s.id;
+              return (
+                <motion.button
+                  key={s.id}
+                  onClick={() => setSelectedSector(s.id)}
+                  className="group relative overflow-hidden rounded-lg border px-4 py-6 text-center transition-all"
+                  style={{
+                    borderColor: isSelected ? s.color : "rgba(0,180,255,0.15)",
+                    background: isSelected ? s.color + "10" : "rgba(0,180,255,0.02)",
+                  }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: i * 0.08 }}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.98 }}
                 >
-                  {index + 1}
-                </span>
-              </div>
-
-              {/* Icon */}
-              <div className="mb-3 flex justify-center">
-                <div className="relative h-16 w-16 md:h-20 md:w-20">
-                  {step.icon}
-                </div>
-              </div>
-
-              {/* Label */}
-              <div
-                className="mb-1 text-center text-[10px] font-bold uppercase tracking-[0.16em]"
-                style={{
-                  color: "rgba(0,180,255,0.70)",
-                  fontFamily: "var(--font-orbitron)",
-                }}
-              >
-                {step.label}
-              </div>
-
-              {/* Title */}
-              <h3
-                className="mb-2 text-center text-[13px] font-bold leading-tight text-white md:text-[14px]"
-                style={{ letterSpacing: "0.02em" }}
-              >
-                {step.title}
-              </h3>
-
-              {/* Description */}
-              <p
-                className="text-center text-[11px] font-light leading-snug md:text-[12px]"
-                style={{ color: "rgba(255,255,255,0.55)" }}
-              >
-                {step.description}
-              </p>
-
-              {/* Arrow to next panel (desktop only) */}
-              {index < steps.length - 1 && (
-                <div className="absolute -right-4 top-1/2 hidden -translate-y-1/2 md:block">
-                  <motion.svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    animate={{ x: [0, 3, 0] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                  >
-                    <path
-                      d="M6 3 L11 8 L6 13"
-                      stroke="#00B4FF"
-                      strokeWidth="1.5"
-                      strokeOpacity="0.40"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
+                  {isSelected && (
+                    <motion.div
+                      className="absolute inset-0"
+                      style={{ background: `linear-gradient(to bottom, ${s.color}20, transparent)` }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3 }}
                     />
-                  </motion.svg>
-                </div>
-              )}
-            </motion.div>
-          ))}
+                  )}
+
+                  <div className="relative mb-2 text-[28px]">{s.icon}</div>
+
+                  <div
+                    className="relative text-[10px] font-bold uppercase tracking-[0.12em]"
+                    style={{ color: isSelected ? s.color : "rgba(255,255,255,0.60)" }}
+                  >
+                    {s.label}
+                  </div>
+
+                  {isSelected && (
+                    <motion.div
+                      className="absolute bottom-0 left-0 right-0 h-[2px]"
+                      style={{ background: s.color }}
+                      layoutId="sector-indicator"
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    />
+                  )}
+                </motion.button>
+              );
+            })}
+          </div>
         </div>
+
+        {/* Pipeline Visualization */}
+        {selectedSector && (
+          <motion.div
+            ref={pipelineRef}
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="relative"
+          >
+            <div className="mb-8 text-center">
+              <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.2em] text-slate-600">
+                Pipeline Flow · {sector?.label}
+              </div>
+              <div className="text-[13px] font-light text-slate-400">
+                Amplifying <span style={{ color: sector?.color }}>{config?.amplification}</span>
+              </div>
+            </div>
+
+            <div className="relative space-y-0">
+              {PIPELINE_STAGES.map((stage, i) => {
+                const progress = useTransform(scrollYProgress, [i * 0.08, (i + 1) * 0.08], [0, 1]);
+                const opacity = useTransform(progress, [0, 0.5, 1], [0.3, 0.8, 1]);
+                const x = useTransform(progress, [0, 1], [-20, 0]);
+                const connectorBg = stage.amplified ? sector?.color + "40" : "rgba(100,116,139,0.20)";
+                const iconBorderColor = stage.amplified ? sector?.color : "rgba(100,116,139,0.25)";
+                const iconBg = stage.amplified ? sector?.color + "15" : "rgba(0,0,0,0.50)";
+                const iconColor = stage.amplified ? sector?.color : "rgba(100,116,139,0.60)";
+                const labelColor = sector?.color + "90";
+
+                return (
+                  <div key={stage.id} className="relative">
+                    {i < PIPELINE_STAGES.length - 1 && (
+                      <div
+                        className="absolute left-[18px] top-[48px] h-[32px] w-px"
+                        style={{ background: connectorBg }}
+                      />
+                    )}
+
+                    <motion.div style={{ opacity, x }} className="flex items-start gap-4">
+                      <div
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border font-mono text-[16px]"
+                        style={{
+                          borderColor: iconBorderColor,
+                          background: iconBg,
+                          color: iconColor,
+                        }}
+                      >
+                        {stage.icon}
+                      </div>
+
+                      <div className="flex min-w-0 flex-1 items-center justify-between py-2">
+                        <div>
+                          <div className="font-mono text-[13px] font-medium text-white">
+                            {stage.label}
+                          </div>
+                          {stage.amplified && (
+                            <div
+                              className="mt-0.5 font-mono text-[9px] tracking-wide"
+                              style={{ color: labelColor }}
+                            >
+                              Sector-weighted
+                            </div>
+                          )}
+                        </div>
+
+                        {stage.amplified && (
+                          <motion.div
+                            className="flex items-center gap-2"
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ duration: 0.4, delay: 0.2 }}
+                          >
+                            <div className="h-1 w-16 overflow-hidden rounded-full bg-slate-900">
+                              <motion.div
+                                className="h-full"
+                                style={{ background: sector?.color }}
+                                initial={{ width: "0%" }}
+                                animate={{ width: "75%" }}
+                                transition={{ duration: 0.8, delay: 0.3 }}
+                              />
+                            </div>
+                            <div
+                              className="font-mono text-[11px] font-bold tabular-nums"
+                              style={{ color: sector?.color }}
+                            >
+                              2.0×
+                            </div>
+                          </motion.div>
+                        )}
+                      </div>
+                    </motion.div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.8 }}
+              className="mt-12 grid gap-6 md:grid-cols-2"
+            >
+              <div className="rounded-lg border border-slate-800 bg-slate-950/30 p-4">
+                <div className="mb-3 font-mono text-[10px] uppercase tracking-[0.2em] text-slate-600">
+                  Top Signals
+                </div>
+                <div className="space-y-2">
+                  {config?.topSignals.map((signal) => (
+                    <div
+                      key={signal}
+                      className="flex items-center justify-between border-l-2 px-3 py-2"
+                      style={{ borderColor: sector?.color }}
+                    >
+                      <div className="font-mono text-[11px] text-slate-400">
+                        {signal.replace(/_/g, " ")}
+                      </div>
+                      <div className="font-mono text-[11px] font-bold" style={{ color: sector?.color }}>
+                        2.0×
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-slate-800 bg-slate-950/30 p-4">
+                <div className="mb-3 font-mono text-[10px] uppercase tracking-[0.2em] text-slate-600">
+                  Priority Pools
+                </div>
+                <div className="space-y-2">
+                  {config?.topPools.map((pool) => (
+                    <div
+                      key={pool}
+                      className="flex items-center justify-between border-l-2 px-3 py-2"
+                      style={{ borderColor: sector?.color }}
+                    >
+                      <div className="font-mono text-[11px] text-slate-400">{pool}</div>
+                      <div className="font-mono text-[11px] font-bold" style={{ color: sector?.color }}>
+                        8.0×
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+
+            <div className="mt-8 border-t border-slate-900 pt-6 text-center">
+              <div className="font-mono text-[10px] text-slate-700">
+                Pipeline runs deterministically · Sector weighting amplifies{" "}
+                <span style={{ color: sector?.color }}>{sector?.label}</span>-critical signals
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {!selectedSector && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-16 text-center">
+            <div className="mb-4 text-[48px] opacity-20">↑</div>
+            <div className="font-mono text-[11px] text-slate-600">
+              Select a sector to visualize the pipeline
+            </div>
+          </motion.div>
+        )}
       </div>
     </section>
   );

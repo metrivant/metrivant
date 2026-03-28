@@ -277,6 +277,35 @@ Each sector defines:
 
 **Principle:** The pipeline remains deterministic. Sector config changes *how* evidence is weighted, not *what* evidence is collected. All sectors use the same detection pipeline; only interpretation weights and display terminology differ.
 
+**System Optimizations (implemented 2026-03-28):**
+
+1. **Build-time Configuration Generation** — Single source of truth
+   - scripts/generate-sector-weights.ts extracts from radar-ui/lib/sector-config.ts
+   - Generates lib/sector-weights.ts with getSectorSignalWeight(), getSectorPoolWeight(), getSectorConfidenceBonus()
+   - Run: npm run generate-sector-weights
+   - Eliminates configuration duplication between UI and runtime surfaces
+
+2. **Sector Validation** — Database-enforced integrity
+   - Migration 062: CHECK constraint on organizations.sector column
+   - Postgres validate_sector() helper function
+   - lib/sector-validation.ts: validateSector(), validateSectorWithFallback(), isSectorId()
+   - Prevents invalid sector values at database and runtime layers
+
+3. **Sector Amplification Observability** — Pipeline event metadata
+   - detect-signals records sector + sector_confidence_bonus in pipeline_events.metadata
+   - Enables tracking when/how sector weights influence signal creation
+   - Visible in pipeline_events table for operational analysis
+
+4. **Sector Fetching Optimization** — Pre-fetch pattern (already implemented)
+   - All pipeline stages use Map<competitor_id, SectorId> batch fetching
+   - detect-signals, update-pressure-index, interpret-signals all pre-fetch sectors
+   - Eliminates N+1 query pattern for sector lookups
+
+5. **Comprehensive Feed Discovery** — All pools auto-discovered (already implemented)
+   - onboard-competitor discovers feeds for all 6 pool types per competitor
+   - newsroom, careers, investor, product, procurement, regulatory
+   - Pool weighting (sector-specific) determines signal contribution to pressure_index
+
 **Legacy Catalog System:**
 - Each sector has 15 competitors in sector catalog (lib/sector-catalog.ts)
 - getSectorRandomDefaults(): priority 1–5 always anchored, 5 randomly sampled from 6–15

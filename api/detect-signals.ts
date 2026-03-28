@@ -695,7 +695,23 @@ async function handler(req: ApiReq, res: ApiRes) {
           cStats.pendingReviewCreated += 1;
         }
         rowsSucceeded += 1;
-        void recordEvent({ run_id: runId, stage: "signal", status: "success", section_diff_id: diff.id, monitored_page_id: diff.monitored_page_id, duration_ms: elapsed(), metadata: { signal_count: 1, signal_types: [signal.signal_type] } });
+
+        // Sector amplification observability
+        const sectorBonus = sector ? getSectorConfidenceBonus(sector, signal.signal_type) : 0;
+        const metadata: Record<string, unknown> = {
+          signal_count: 1,
+          signal_types: [signal.signal_type],
+          confidence: confidenceScore,
+          signal_status: signalStatus,
+        };
+        if (sector) {
+          metadata.sector = sector;
+        }
+        if (sectorBonus > 0) {
+          metadata.sector_confidence_bonus = sectorBonus;
+        }
+
+        void recordEvent({ run_id: runId, stage: "signal", status: "success", section_diff_id: diff.id, monitored_page_id: diff.monitored_page_id, duration_ms: elapsed(), metadata });
       } catch (error) {
         rowsFailed += 1;
         Sentry.captureException(error);
