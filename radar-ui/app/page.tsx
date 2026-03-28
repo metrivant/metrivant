@@ -68,7 +68,7 @@ export default function LandingPage() {
       <LandingHero />
 
       {/* ── Flow Section — user journey visualization ──────────────── */}
-      <FlowSection />
+      {/* <FlowSection /> */}
 
       {/* ── Core Concept ─────────────────────────────────────────────── */}
       <CoreConceptSection />
