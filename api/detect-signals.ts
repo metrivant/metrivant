@@ -9,6 +9,8 @@ import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics"
 import { loadActiveNoiseRules, isNoiseSuppressed } from "../lib/noise-pattern-learner";
 import { loadDampeningStates, shouldDampen } from "../lib/velocity-dampener";
 import { loadCalibrationWeights } from "../lib/confidence-calibrator";
+import { getSectorForCompetitor, type SectorId } from "../lib/sector-prompting";
+import { getSectorConfidenceBonus } from "../lib/sector-weights";
 import { detectNoise, calibrateConfidence } from "../lib/noise-detection";
 
 // ── Signal weight constants ───────────────────────────────────────────────────
@@ -76,6 +78,8 @@ function computeConfidence(
   observationCount: number,
   lastSeenAt: string | null,
   pageClass: string,
+  signalType: string,
+  sector: SectorId | null,
   weights: Record<string, number> = SECTION_WEIGHTS
 ): number {
   const base = weights[sectionType] ?? DEFAULT_WEIGHT;
@@ -95,7 +99,11 @@ function computeConfidence(
   // more inherent signal quality than standard or ambient pages.
   const pageClassBonus = pageClass === "high_value" ? 0.08 : 0;
 
-  return Math.min(1.0, base + recencyBonus + obsBonus + pageClassBonus);
+  // Sector bonus: sector-critical signals get confidence boost (0.0–0.10).
+  // Examples: regulatory_event in fintech, major_release in saas, contract_award in defense.
+  const sectorBonus = getSectorConfidenceBonus(sector, signalType);
+
+  return Math.min(1.0, base + recencyBonus + obsBonus + pageClassBonus + sectorBonus);
 }
 
 function computeSignalHash(
@@ -425,6 +433,15 @@ async function handler(req: ApiReq, res: ApiRes) {
       orgIdForRules = trackedRows?.org_id || null;
     }
 
+    // ── Pre-batch: load sectors for confidence bonuses ───────────────────────
+    const sectorByCompetitor = new Map<string, SectorId | null>();
+    await Promise.allSettled(
+      noiseRuleCompIds.map(async (cid) => {
+        const sector = await getSectorForCompetitor(cid);
+        sectorByCompetitor.set(cid, sector);
+      })
+    );
+
     const noiseRuleMap = orgIdForRules
       ? await loadActiveNoiseRules(orgIdForRules, noiseRuleCompIds)
       : new Map();
@@ -554,12 +571,15 @@ async function handler(req: ApiReq, res: ApiRes) {
           continue;
         }
 
-        // ── Confidence gate ───────────────────────────────────────────────────
+        // ── Confidence gate (sector-aware) ────────────────────────────────────
+        const sector = sectorByCompetitor.get(competitorId) ?? null;
         const baseConfidence = computeConfidence(
           diff.section_type,
           diff.observation_count ?? 1,
           diff.last_seen_at,
           diff.page_class,
+          signal.signal_type,
+          sector,
           effectiveWeights
         );
 
