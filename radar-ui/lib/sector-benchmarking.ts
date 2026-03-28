@@ -5,9 +5,15 @@
  * "above/below sector avg" indicators in UI.
  */
 
-import type { Database } from "./database.types";
-
-type SectorBaseline = Database["public"]["Tables"]["sector_baselines"]["Row"];
+type SectorBaseline = {
+  sector: string;
+  metric_type: string;
+  median_value: number;
+  p75_value: number;
+  p90_value: number;
+  sample_size: number;
+  calculated_at: string;
+};
 
 export type BenchmarkResult = {
   metric: string;
