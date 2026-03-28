@@ -22,6 +22,7 @@ import { deriveActivityEchoes, isWeakSignal as getIsWeakSignal, detectHiringSurg
 import { confidenceLanguage, signalAgeColor } from "../lib/confidence";
 import { computeTensionLinks, getTensionDescription, type TensionLink } from "../lib/tension";
 import { computePressureIndex } from "../lib/pressure";
+import { getNoveltyDisplay } from "../lib/novelty-display";
 import ActivityTimeline from "./ActivityTimeline";
 import OnboardingProgress from "./OnboardingProgress";
 
@@ -5009,6 +5010,22 @@ export default function Radar({
                                   {getUrgencyLabel(signal.urgency)}
                                 </span>
                               )}
+                              {/* Novelty badge — first-time or recurring */}
+                              {(() => {
+                                const novelty = getNoveltyDisplay(signal.novelty_score ?? null);
+                                return novelty.shouldDisplay ? (
+                                  <span
+                                    className="rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.1em]"
+                                    style={{
+                                      backgroundColor: `${novelty.color}18`,
+                                      color: novelty.color,
+                                      border: `1px solid ${novelty.color}30`,
+                                    }}
+                                  >
+                                    {novelty.symbol} {novelty.label}
+                                  </span>
+                                ) : null;
+                              })()}
                               {/* "Caught early" — signal detected within 6 hours */}
                               {signal.detected_at &&
                                 Date.now() - new Date(signal.detected_at).getTime() < 6 * 60 * 60 * 1000 && (

@@ -47,6 +47,7 @@ export type CompetitorSignal = {
   severity: string;
   detected_at: string;
   page_type: string;
+  novelty_score: number | null;
   summary: string | null;
   strategic_implication: string | null;
   recommended_action: string | null;

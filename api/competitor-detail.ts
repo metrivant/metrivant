@@ -28,6 +28,7 @@ interface SignalQueryRow {
   severity: string;
   detected_at: string;
   monitored_page_id: string;
+  novelty_score: number | null;
   interpretations: InterpretationRow | InterpretationRow[] | null;
 }
 
@@ -37,6 +38,7 @@ interface SignalResponse {
   severity: string;
   detected_at: string;
   page_type: string;
+  novelty_score: number | null;
   summary: string | null;
   strategic_implication: string | null;
   recommended_action: string | null;
@@ -106,7 +108,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       const { data: signalRows, error: signalsError } = await supabase
         .from("signals")
         .select(
-          `id, signal_type, severity, detected_at, monitored_page_id,
+          `id, signal_type, severity, detected_at, monitored_page_id, novelty_score,
            interpretations ( summary, strategic_implication, recommended_action, urgency, confidence, old_content, new_content )`
         )
         .in("monitored_page_id", pageIds)
@@ -126,6 +128,7 @@ async function handler(req: ApiReq, res: ApiRes) {
           severity: row.severity,
           detected_at: row.detected_at,
           page_type: pageTypeMap.get(row.monitored_page_id) ?? "unknown",
+          novelty_score: row.novelty_score,
           summary: interp?.summary ?? null,
           strategic_implication: interp?.strategic_implication ?? null,
           recommended_action: interp?.recommended_action ?? null,
