@@ -201,11 +201,11 @@ export default async function Page() {
       const service = createServiceClient();
       const competitorIds = competitors.map((c) => c.competitor_id);
       if (competitorIds.length > 0) {
-        // Fetch top 5 high-confidence signals
+        // Fetch top 5 high-confidence signals with full metadata for Telescope
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data } = await (service as any)
           .from("signals")
-          .select("id, signal_type, confidence_score, detected_at, competitor_id, retrograded_at, section_diff_id, signal_data")
+          .select("id, signal_type, confidence_score, detected_at, competitor_id, retrograded_at, section_diff_id, signal_data, velocity_score, signal_strength, relevance_level, source_type")
           .in("competitor_id", competitorIds)
           .eq("status", "interpreted")
           .gte("confidence_score", 0.65)
@@ -215,6 +215,7 @@ export default async function Page() {
 
         if (data && data.length > 0) {
           const signalIds = data.map((s: { id: string }) => s.id);
+          const competitorIdsForSignals = [...new Set(data.map((s: { competitor_id: string }) => s.competitor_id))];
 
           // Fetch interpretations for strategic_implication
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -230,6 +231,21 @@ export default async function Page() {
             ])
           );
 
+          // Fetch signal count per competitor for pattern detection (last 7 days)
+          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data: signalCounts } = await (service as any)
+            .from("signals")
+            .select("competitor_id")
+            .in("competitor_id", competitorIdsForSignals)
+            .eq("status", "interpreted")
+            .gte("detected_at", sevenDaysAgo);
+
+          const signalCountMap = new Map<string, number>();
+          (signalCounts ?? []).forEach((s: { competitor_id: string }) => {
+            signalCountMap.set(s.competitor_id, (signalCountMap.get(s.competitor_id) ?? 0) + 1);
+          });
+
           const nameMap = new Map(competitors.map((c) => [c.competitor_id, c.competitor_name]));
 
           telescopeSignals = (data as Array<{
@@ -241,6 +257,10 @@ export default async function Page() {
             retrograded_at: string | null;
             section_diff_id: string | null;
             signal_data: { previous_excerpt?: string | null; current_excerpt?: string | null } | null;
+            velocity_score: number | null;
+            signal_strength: number | null;
+            relevance_level: string | null;
+            source_type: string | null;
           }>).map((s) => ({
             id: s.id,
             signal_type: s.signal_type,
@@ -252,6 +272,14 @@ export default async function Page() {
             strategic_implication: interpretationMap.get(s.id) ?? null,
             previous_excerpt: s.signal_data?.previous_excerpt ?? null,
             current_excerpt: s.signal_data?.current_excerpt ?? null,
+            velocity_score: s.velocity_score,
+            signal_strength: s.signal_strength,
+            relevance_level: s.relevance_level,
+            source_type: s.source_type,
+            signal_data: {
+              ...s.signal_data,
+              signal_count_7d: signalCountMap.get(s.competitor_id) ?? 0,
+            },
           }));
         }
       }
