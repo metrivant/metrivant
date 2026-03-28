@@ -180,106 +180,53 @@ export default async function Page() {
     0
   );
 
-  // ── Telescope: recent signals across all tracked competitors ──────────────
-  type TelescopeSignal = {
-    id: string;
-    signal_type: string;
-    summary: string | null;
-    confidence_score: number | null;
-    detected_at: string;
+  // ── Activity Stream: recent strategic movements across all tracked competitors ──
+  type ActivityEntry = {
+    competitor_id: string;
     competitor_name: string;
-    is_noise?: boolean;
-    noise_reason?: string | null;
-    retrograded_at?: string | null;
-    strategic_implication?: string | null;
-    previous_excerpt?: string | null;
-    current_excerpt?: string | null;
+    movement_type: string;
+    movement_summary: string | null;
+    confidence_level: string | null;
+    last_seen_at: string;
+    momentum_score: number | null;
   };
-  let telescopeSignals: TelescopeSignal[] = [];
+  let activityEntries: ActivityEntry[] = [];
   if (orgId) {
     try {
       const service = createServiceClient();
       const competitorIds = competitors.map((c) => c.competitor_id);
       if (competitorIds.length > 0) {
-        // Fetch top 5 high-confidence signals with full metadata for Telescope
+        // Fetch recent strategic movements (last 7 days, top 5 by confidence)
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data } = await (service as any)
-          .from("signals")
-          .select("id, signal_type, confidence_score, detected_at, competitor_id, retrograded_at, section_diff_id, signal_data, velocity_score, signal_strength, relevance_level, source_type")
+        const { data: movements } = await (service as any)
+          .from("strategic_movements")
+          .select("competitor_id, movement_type, movement_summary, confidence_level, last_seen_at")
           .in("competitor_id", competitorIds)
-          .eq("status", "interpreted")
-          .gte("confidence_score", 0.65)
-          .order("confidence_score", { ascending: false })
-          .order("detected_at", { ascending: false })
+          .gte("last_seen_at", sevenDaysAgo)
+          .not("movement_summary", "is", null)
+          .order("last_seen_at", { ascending: false })
           .limit(5);
 
-        if (data && data.length > 0) {
-          const signalIds = data.map((s: { id: string }) => s.id);
-          const competitorIdsForSignals = [...new Set(data.map((s: { competitor_id: string }) => s.competitor_id))];
-
-          // Fetch interpretations for strategic_implication
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { data: interpretations } = await (service as any)
-            .from("interpretations")
-            .select("signal_id, strategic_implication")
-            .in("signal_id", signalIds);
-
-          const interpretationMap = new Map<string, string | null>(
-            (interpretations ?? []).map((i: { signal_id: string; strategic_implication: string | null }) => [
-              i.signal_id,
-              i.strategic_implication,
-            ])
-          );
-
-          // Fetch signal count per competitor for pattern detection (last 7 days)
-          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { data: signalCounts } = await (service as any)
-            .from("signals")
-            .select("competitor_id")
-            .in("competitor_id", competitorIdsForSignals)
-            .eq("status", "interpreted")
-            .gte("detected_at", sevenDaysAgo);
-
-          const signalCountMap = new Map<string, number>();
-          (signalCounts ?? []).forEach((s: { competitor_id: string }) => {
-            signalCountMap.set(s.competitor_id, (signalCountMap.get(s.competitor_id) ?? 0) + 1);
-          });
-
+        if (movements && movements.length > 0) {
+          // Build competitor name and momentum maps
           const nameMap = new Map(competitors.map((c) => [c.competitor_id, c.competitor_name]));
+          const momentumMap = new Map(competitors.map((c) => [c.competitor_id, c.momentum_score]));
 
-          telescopeSignals = (data as Array<{
-            id: string;
-            signal_type: string;
-            confidence_score: number | null;
-            detected_at: string;
+          activityEntries = movements.map((m: {
             competitor_id: string;
-            retrograded_at: string | null;
-            section_diff_id: string | null;
-            signal_data: { previous_excerpt?: string | null; current_excerpt?: string | null } | null;
-            velocity_score: number | null;
-            signal_strength: number | null;
-            relevance_level: string | null;
-            source_type: string | null;
-          }>).map((s) => ({
-            id: s.id,
-            signal_type: s.signal_type,
-            summary: null,
-            confidence_score: s.confidence_score,
-            detected_at: s.detected_at,
-            competitor_name: nameMap.get(s.competitor_id) ?? "Unknown",
-            competitor_id: s.competitor_id,
-            strategic_implication: interpretationMap.get(s.id) ?? null,
-            previous_excerpt: s.signal_data?.previous_excerpt ?? null,
-            current_excerpt: s.signal_data?.current_excerpt ?? null,
-            velocity_score: s.velocity_score,
-            signal_strength: s.signal_strength,
-            relevance_level: s.relevance_level,
-            source_type: s.source_type,
-            signal_data: {
-              ...s.signal_data,
-              signal_count_7d: signalCountMap.get(s.competitor_id) ?? 0,
-            },
+            movement_type: string;
+            movement_summary: string | null;
+            confidence_level: string | null;
+            last_seen_at: string;
+          }) => ({
+            competitor_id: m.competitor_id,
+            competitor_name: nameMap.get(m.competitor_id) ?? "Unknown",
+            movement_type: m.movement_type,
+            movement_summary: m.movement_summary,
+            confidence_level: m.confidence_level,
+            last_seen_at: m.last_seen_at,
+            momentum_score: momentumMap.get(m.competitor_id) ?? null,
           }));
         }
       }
@@ -475,7 +422,7 @@ export default async function Page() {
           className="hidden w-[190px] shrink-0 flex-col overflow-hidden border-r border-[#0e1022] bg-[rgba(0,0,0,0.98)] md:flex xl:w-[240px]"
           aria-label="App navigation"
         >
-          <SidebarNav telescopeSignals={telescopeSignals} sector={sector} />
+          <SidebarNav activityEntries={activityEntries} sector={sector} />
         </nav>
 
         {/* ── Radar content area ─────────────────────────────────────────── */}

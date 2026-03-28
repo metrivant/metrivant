@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import TelescopePanel, { type TelescopeSignal } from "./TelescopePanel";
+import ActivityStream, { type ActivityEntry } from "./ActivityStream";
 
 const NAV_ITEMS: {
   href: string;
@@ -178,10 +178,10 @@ function NavLink({
 }
 
 export default function SidebarNav({
-  telescopeSignals,
+  activityEntries,
   sector,
 }: {
-  telescopeSignals?: TelescopeSignal[];
+  activityEntries?: ActivityEntry[];
   sector?: string | null;
 }) {
   const pathname = usePathname();
@@ -204,9 +204,9 @@ export default function SidebarNav({
         <div className="my-2 h-px bg-[#0e1022]" />
       </div>
 
-      {/* Telescope — signal review instrument */}
+      {/* Activity Stream — strategic movement feed */}
       <div className="min-h-0 flex-1 px-3 pb-3">
-        <TelescopePanel signals={telescopeSignals ?? []} sector={sector} />
+        <ActivityStream activities={activityEntries ?? []} sector={sector} />
       </div>
 
     </div>
