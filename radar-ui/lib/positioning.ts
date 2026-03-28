@@ -31,7 +31,7 @@ export function detectSignificantShift(
   );
 }
 
-// Axis descriptions used in both prompt and UI tooltips
+// Axis descriptions used in both prompt and UI tooltips (default/SaaS)
 export const MARKET_FOCUS_AXIS = {
   low:  "Niche / Specialist",
   high: "Broad Platform",
@@ -44,32 +44,87 @@ export const CUSTOMER_SEGMENT_AXIS = {
   label: "Customer Segment",
 };
 
+// Sector-specific axis interpretations for positioning analysis
+type AxisInterpretation = {
+  xAxis: { low: string; high: string; label: string };
+  yAxis: { low: string; high: string; label: string };
+  scoring: string; // Sector-specific scoring guidance
+};
+
+const SECTOR_AXIS_INTERPRETATIONS: Record<string, AxisInterpretation> = {
+  saas: {
+    xAxis: { low: "Single workflow", high: "Horizontal platform", label: "Product Scope" },
+    yAxis: { low: "SMB / Teams", high: "Enterprise", label: "Customer Segment" },
+    scoring: `Product Scope: single-workflow specialist (0-20) → focused category tool (20-40) → multi-feature platform (40-60) → broad work OS (60-80) → horizontal platform (80-100)
+Customer Segment: individuals/freelancers (0-20) → small teams (20-40) → SMB/growing companies (40-60) → mid-market (60-80) → enterprise/Fortune 500 (80-100)`,
+  },
+  fintech: {
+    xAxis: { low: "Single service", high: "Financial platform", label: "Service Scope" },
+    yAxis: { low: "Consumer", high: "Institutional", label: "Customer Segment" },
+    scoring: `Service Scope: single financial product (0-20) → focused service category (20-40) → multi-product suite (40-60) → financial platform (60-80) → full-stack fintech (80-100)
+Customer Segment: individual consumers (0-20) → mass market retail (20-40) → affluent/SMB (40-60) → commercial/wealth (60-80) → institutional/enterprise (80-100)`,
+  },
+  cybersecurity: {
+    xAxis: { low: "Point solution", high: "Security platform", label: "Solution Scope" },
+    yAxis: { low: "SMB", high: "Enterprise", label: "Customer Segment" },
+    scoring: `Solution Scope: single security control (0-20) → focused security category (20-40) → integrated solution (40-60) → security platform (60-80) → enterprise security suite (80-100)
+Customer Segment: small businesses (0-20) → SMB/mid-market (20-40) → growing enterprises (40-60) → large enterprises (60-80) → Fortune 500/critical infrastructure (80-100)`,
+  },
+  defense: {
+    xAxis: { low: "Single platform", high: "System of systems", label: "Capability Scope" },
+    yAxis: { low: "Commercial", high: "Government / DoD", label: "Customer Focus" },
+    scoring: `Capability Scope: specialized defense system (0-20) → focused capability (20-40) → integrated platform (40-60) → multi-domain system (60-80) → system of systems integrator (80-100)
+Customer Focus: commercial/export (0-20) → allied nations (20-40) → US federal civilian (40-60) → DoD/defense agencies (60-80) → classified/national security (80-100)`,
+  },
+  energy: {
+    xAxis: { low: "Single asset", high: "Integrated operations", label: "Operations Scope" },
+    yAxis: { low: "Regional", high: "Global", label: "Geographic Scale" },
+    scoring: `Operations Scope: single asset/project (0-20) → regional operator (20-40) → multi-asset portfolio (40-60) → integrated energy company (60-80) → global diversified energy (80-100)
+Geographic Scale: local/municipal (0-20) → regional (20-40) → national (40-60) → multi-national (60-80) → global operations (80-100)`,
+  },
+  custom: {
+    xAxis: { low: "Niche", high: "Broad", label: "Market Focus" },
+    yAxis: { low: "Small", high: "Large", label: "Customer Size" },
+    scoring: `Market Focus: 0 = narrow specialist, 100 = broad horizontal platform
+Customer Size: 0 = individual/small, 100 = enterprise/large organizations`,
+  },
+};
+
 export function quadrantLabel(focus: number, segment: number): string {
   const f = focus   >= 50 ? "Platform"   : "Specialist";
   const s = segment >= 50 ? "Enterprise" : "SMB";
   return `${f} · ${s}`;
 }
 
+/**
+ * Get sector-specific axis labels for UI display.
+ * Returns axis interpretations for the given sector.
+ */
+export function getSectorAxisLabels(sector: string | null | undefined): AxisInterpretation {
+  const sectorKey = (sector && sector !== "custom") ? sector : "saas";
+  return SECTOR_AXIS_INTERPRETATIONS[sectorKey] || SECTOR_AXIS_INTERPRETATIONS.saas;
+}
+
 // ── OpenAI prompt ─────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `\
-You are a strategic market analyst estimating competitor positioning on a 2×2 market map.
+function buildSystemPrompt(sector: string | null | undefined): string {
+  const sectorKey = (sector && sector !== "custom") ? sector : "saas";
+  const axes = SECTOR_AXIS_INTERPRETATIONS[sectorKey] || SECTOR_AXIS_INTERPRETATIONS.saas;
 
-Score each competitor on two axes:
+  return `You are a strategic market analyst estimating competitor positioning on a 2×2 market map.
 
-market_focus_score (0–100):
-  0–20:  single-workflow specialist — solves one narrow problem only
-  20–40: focused category tool — one product area with some depth
-  40–60: multi-feature platform — covers several adjacent workflows
-  60–80: broad work OS — replaces many team tools in one product
-  80–100: horizontal platform — serves enterprise-wide use cases across functions
+Score each competitor on two axes (sector-specific interpretation):
 
-customer_segment_score (0–100):
-  0–20:  individuals, freelancers, solopreneurs
-  20–40: small teams, startups (2–50 people)
-  40–60: SMB, growing companies (50–500 people)
-  60–80: mid-market (500–2,000 people)
-  80–100: enterprise, large organizations, Fortune 500
+X-axis: ${axes.xAxis.label} (0–100)
+  Low (0): ${axes.xAxis.low}
+  High (100): ${axes.xAxis.high}
+
+Y-axis: ${axes.yAxis.label} (0–100)
+  Low (0): ${axes.yAxis.low}
+  High (100): ${axes.yAxis.high}
+
+Scoring guidance:
+${axes.scoring}
 
 Return ONLY valid JSON — no markdown, no explanation outside the JSON:
 {
@@ -91,6 +146,7 @@ HARD RULES:
 - confidence 0.5 = minimal signal, 0.9 = strong clear signal
 - Base all scoring strictly on the provided signal data — do not apply general knowledge about these companies' histories, backgrounds, or prior market positions
 - Return a score for every competitor in the input, even if confidence is low`;
+}
 
 export function buildPositioningPrompt(
   competitors: RadarCompetitor[],
@@ -147,6 +203,7 @@ export async function generatePositioning(
 ): Promise<PositioningResult> {
   if (competitors.length === 0) return { positioning: [] };
 
+  const systemPrompt = buildSystemPrompt(sector);
   const userPrompt = buildPositioningPrompt(competitors, analysisDate, sector);
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -158,7 +215,7 @@ export async function generatePositioning(
     body: JSON.stringify({
       model: "gpt-4o",
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPrompt },
         { role: "user",   content: userPrompt },
       ],
       response_format: { type: "json_object" },
