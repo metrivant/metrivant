@@ -11,8 +11,8 @@
 -- 4. validation_status set to 'validated' | 'weak' | 'hallucinated'
 -- 5. Hallucinated briefs skip email delivery, trigger Sentry warning
 --
--- Applied: [pending]
--- Run this in Supabase SQL Editor
+-- Applied: 2026-03-28
+-- Successfully applied to Supabase production database
 
 BEGIN;
 

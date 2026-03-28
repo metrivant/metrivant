@@ -752,7 +752,8 @@ async function handler(req: ApiReq, res: ApiRes) {
             }
 
             // Insert audit record
-            const { error: auditError } = await supabase
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { error: auditError } = await (supabase as any)
               .from("quarantined_pages")
               .insert({
                 monitored_page_id: page.id,

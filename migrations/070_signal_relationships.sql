@@ -5,8 +5,8 @@
 -- Core insight: Sequences like hiring_spike → product_launch → price_change reveal
 -- strategic intent (market expansion) that's invisible when signals are viewed atomically.
 --
--- Applied: [pending]
--- Run this in Supabase SQL Editor
+-- Applied: 2026-03-28
+-- Successfully applied to Supabase production database
 
 BEGIN;
 

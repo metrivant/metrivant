@@ -118,7 +118,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
       if (signalsError) throw signalsError;
 
-      signals = ((signalRows ?? []) as SignalQueryRow[]).map((row) => {
+      signals = ((signalRows ?? []) as unknown as SignalQueryRow[]).map((row) => {
         const interp: InterpretationRow | null = Array.isArray(row.interpretations)
           ? (row.interpretations[0] ?? null)
           : row.interpretations;

@@ -147,7 +147,8 @@ async function handler(req: ApiReq, res: ApiRes) {
       if (stats.total < MIN_SAMPLES || stats.noise_rate < NOISE_THRESHOLD) continue;
 
       // Check if rule exists
-      const { data: existing } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: existing } = await (supabase as any)
         .from("noise_suppression_rules")
         .select("id, is_active, samples")
         .eq("org_id", stats.org_id)
@@ -158,7 +159,8 @@ async function handler(req: ApiReq, res: ApiRes) {
 
       if (existing) {
         // Update existing rule
-        await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any)
           .from("noise_suppression_rules")
           .update({
             noise_rate: stats.noise_rate,
@@ -170,7 +172,8 @@ async function handler(req: ApiReq, res: ApiRes) {
         rulesUpdated++;
       } else {
         // Create new rule
-        await supabase.from("noise_suppression_rules").insert({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any).from("noise_suppression_rules").insert({
           org_id: stats.org_id,
           section_type: stats.section_type,
           signal_type: stats.signal_type,

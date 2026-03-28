@@ -94,7 +94,8 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     // ── Step 3: Upsert baselines ──────────────────────────────────────────────
     for (const update of updates) {
-      await supabase.from("competitor_noise_baselines").upsert(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any).from("competitor_noise_baselines").upsert(
         {
           competitor_id: update.competitor_id,
           total_diffs: update.total_diffs,

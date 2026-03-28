@@ -4,8 +4,8 @@
 --
 -- Core insight: First-time behaviors predict strategic pivots. Repeated behaviors are noise.
 --
--- Applied: [pending]
--- Run this in Supabase SQL Editor
+-- Applied: 2026-03-28
+-- Successfully applied to Supabase production database
 
 BEGIN;
 

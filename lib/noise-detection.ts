@@ -344,14 +344,15 @@ export async function calibrateConfidence(
   baseConfidence: number,
   competitorId: string
 ): Promise<ConfidenceAdjustment> {
-  const { data: baseline } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: baseline } = await (supabase as any)
     .from("competitor_noise_baselines")
     .select("noise_rate, total_diffs")
     .eq("competitor_id", competitorId)
     .single();
 
   // No baseline yet or insufficient data — no adjustment
-  if (!baseline || baseline.total_diffs < 5) {
+  if (!baseline || (baseline as any).total_diffs < 5) {
     return {
       adjustedConfidence: baseConfidence,
       adjustment: 0,
@@ -359,7 +360,7 @@ export async function calibrateConfidence(
     };
   }
 
-  const noiseRate = baseline.noise_rate;
+  const noiseRate = (baseline as any).noise_rate;
   let adjustment = 0;
 
   if (noiseRate < 0.10) {
