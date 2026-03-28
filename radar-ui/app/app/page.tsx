@@ -233,6 +233,78 @@ export default async function Page() {
     } catch { /* non-fatal */ }
   }
 
+  // ── Causal Relationships: signal cause→effect chains across tracked competitors ──
+  type CausalRelationship = {
+    signal_id: string;
+    related_signal_id: string;
+    relationship_type: "precursor" | "consequence" | "corroboration";
+    confidence_score: number;
+    template_name?: string;
+    time_gap_days?: number;
+    precursor_signal_type: string;
+    consequence_signal_type: string;
+    precursor_detected_at: string;
+    consequence_detected_at: string;
+    competitor_name: string;
+  };
+  let causalRelationships: CausalRelationship[] = [];
+  if (orgId) {
+    try {
+      const service = createServiceClient();
+      const competitorIds = competitors.map((c) => c.competitor_id);
+      if (competitorIds.length > 0) {
+        // Fetch signal relationships (last 14 days, confidence >= 0.6)
+        const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: relationships } = await (service as any)
+          .from("signal_relationships")
+          .select(`
+            signal_id,
+            related_signal_id,
+            relationship_type,
+            confidence_score,
+            metadata,
+            signals!signal_relationships_signal_id_fkey(signal_type, detected_at, competitor_id),
+            related:signals!signal_relationships_related_signal_id_fkey(signal_type, detected_at)
+          `)
+          .gte("detected_at", fourteenDaysAgo)
+          .gte("confidence_score", 0.6)
+          .order("detected_at", { ascending: false })
+          .limit(10);
+
+        if (relationships && relationships.length > 0) {
+          const nameMap = new Map(competitors.map((c) => [c.competitor_id, c.competitor_name]));
+
+          causalRelationships = relationships
+            .filter((r: {
+              signals: { competitor_id: string } | null;
+            }) => r.signals && competitorIds.includes(r.signals.competitor_id))
+            .map((r: {
+              signal_id: string;
+              related_signal_id: string;
+              relationship_type: "precursor" | "consequence" | "corroboration";
+              confidence_score: number;
+              metadata: { template_name?: string; time_gap_days?: number } | null;
+              signals: { signal_type: string; detected_at: string; competitor_id: string } | null;
+              related: { signal_type: string; detected_at: string } | null;
+            }) => ({
+              signal_id: r.signal_id,
+              related_signal_id: r.related_signal_id,
+              relationship_type: r.relationship_type,
+              confidence_score: r.confidence_score,
+              template_name: r.metadata?.template_name,
+              time_gap_days: r.metadata?.time_gap_days,
+              precursor_signal_type: r.signals?.signal_type ?? "unknown",
+              consequence_signal_type: r.related?.signal_type ?? "unknown",
+              precursor_detected_at: r.signals?.detected_at ?? "",
+              consequence_detected_at: r.related?.detected_at ?? "",
+              competitor_name: nameMap.get(r.signals?.competitor_id ?? "") ?? "Unknown",
+            }));
+        }
+      }
+    } catch { /* non-fatal */ }
+  }
+
   // Sector news — fetched server-side, cached 1 hour. Non-blocking; falls back to [].
   const newsItems = await fetchSectorNews(sector);
 
@@ -422,7 +494,7 @@ export default async function Page() {
           className="hidden w-[190px] shrink-0 flex-col overflow-hidden border-r border-[#0e1022] bg-[rgba(0,0,0,0.98)] md:flex xl:w-[240px]"
           aria-label="App navigation"
         >
-          <SidebarNav activityEntries={activityEntries} sector={sector} />
+          <SidebarNav activityEntries={activityEntries} causalRelationships={causalRelationships} sector={sector} />
         </nav>
 
         {/* ── Radar content area ─────────────────────────────────────────── */}

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import ActivityStream, { type ActivityEntry } from "./ActivityStream";
+import CausalityView, { type CausalRelationship } from "./CausalityView";
 
 const NAV_ITEMS: {
   href: string;
@@ -179,12 +180,15 @@ function NavLink({
 
 export default function SidebarNav({
   activityEntries,
+  causalRelationships,
   sector,
 }: {
   activityEntries?: ActivityEntry[];
+  causalRelationships?: CausalRelationship[];
   sector?: string | null;
 }) {
   const pathname = usePathname();
+  const [view, setView] = useState<"stream" | "causality">("stream");
 
   return (
     <div className="flex h-full flex-col">
@@ -204,11 +208,40 @@ export default function SidebarNav({
         <div className="my-2 h-px bg-[#0e1022]" />
       </div>
 
-      {/* Activity Stream — strategic movement feed */}
-      <div className="min-h-0 flex-1 px-3 pb-3">
-        <ActivityStream activities={activityEntries ?? []} sector={sector} />
+      {/* View toggle */}
+      <div className="mx-3 mb-3 flex gap-1 rounded-lg border border-[#0e1022] bg-[#050510] p-1">
+        <button
+          onClick={() => setView("stream")}
+          className="flex-1 rounded px-2 py-1.5 font-mono text-[9px] font-medium uppercase tracking-[0.12em] transition-all duration-150"
+          style={
+            view === "stream"
+              ? { background: "#0a0a1a", color: "#00B4FF", boxShadow: "0 0 8px rgba(0,180,255,0.15)" }
+              : { color: "#64748b" }
+          }
+        >
+          Stream
+        </button>
+        <button
+          onClick={() => setView("causality")}
+          className="flex-1 rounded px-2 py-1.5 font-mono text-[9px] font-medium uppercase tracking-[0.12em] transition-all duration-150"
+          style={
+            view === "causality"
+              ? { background: "#0a0a1a", color: "#00B4FF", boxShadow: "0 0 8px rgba(0,180,255,0.15)" }
+              : { color: "#64748b" }
+          }
+        >
+          Causality
+        </button>
       </div>
 
+      {/* Content area — conditionally render based on view */}
+      <div className="min-h-0 flex-1 px-3 pb-3">
+        {view === "stream" ? (
+          <ActivityStream activities={activityEntries ?? []} sector={sector} />
+        ) : (
+          <CausalityView relationships={causalRelationships ?? []} />
+        )}
+      </div>
     </div>
   );
 }

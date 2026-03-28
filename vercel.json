@@ -229,6 +229,10 @@
       "schedule": "42 * * * *"
     },
     {
+      "path": "/api/detect-signal-causality",
+      "schedule": "47 * * * *"
+    },
+    {
       "path": "/api/retry-failed-stages",
       "schedule": "50 * * * *"
     },
