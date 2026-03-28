@@ -9,6 +9,7 @@ import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics"
 import { classifySignalRelevance, NoiseExample } from "../lib/signal-relevance";
 import { getCompetitorContext, formatContextForPrompt } from "../lib/competitor-context";
 import { updateCompetitorContext } from "../lib/context-updater";
+import { getSectorForCompetitor, buildSectorAwarePrompt, type SectorId } from "../lib/sector-prompting";
 
 const BATCH_SIZE          = 15;
 const CONCURRENCY         = 4;
@@ -477,7 +478,19 @@ async function handler(req: ApiReq, res: ApiRes) {
 
       // ── Feedback context — fetched once for the whole batch ───────────────
       const feedbackContext = await buildFeedbackContext();
-      const systemPrompt    = SYSTEM_PROMPT_BASE + feedbackContext;
+      const baseSystemPrompt = SYSTEM_PROMPT_BASE + feedbackContext;
+
+      // ── Sector context — fetched once per unique competitor in batch ──────
+      const sectorByCompetitor = new Map<string, SectorId | null>();
+      const uniqueCompetitorIds = [...new Set(
+        Array.from(detailMap.values()).map((s) => s.competitor_id).filter(Boolean)
+      )];
+      await Promise.allSettled(
+        uniqueCompetitorIds.map(async (cid) => {
+          const sector = await getSectorForCompetitor(cid);
+          sectorByCompetitor.set(cid, sector);
+        })
+      );
 
       // ── Per-signal interpretation loop ────────────────────────────────────
       const sem = createSemaphore(CONCURRENCY);
@@ -553,14 +566,17 @@ async function handler(req: ApiReq, res: ApiRes) {
             const userPrompt = buildUserPrompt(signal, careersEvidence);
             const promptHash = hashPrompt(userPrompt);
 
+            // ── Sector-aware system prompt (pre-fetched per competitor) ────
+            const sector = sectorByCompetitor.get(signal.competitor_id) ?? null;
+            let signalSystemPrompt = buildSectorAwarePrompt(baseSystemPrompt, sector);
+
             // ── Competitor context (best-effort, non-blocking on failure) ──
             let competitorCtx = null;
-            let signalSystemPrompt = systemPrompt;
             try {
               if (signal.competitor_id) {
                 competitorCtx = await getCompetitorContext(signal.competitor_id);
                 if (competitorCtx) {
-                  signalSystemPrompt = formatContextForPrompt(competitorCtx) + "\n\n" + systemPrompt;
+                  signalSystemPrompt = formatContextForPrompt(competitorCtx) + "\n\n" + signalSystemPrompt;
                 }
               }
             } catch {
