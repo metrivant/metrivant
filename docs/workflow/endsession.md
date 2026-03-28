@@ -172,12 +172,12 @@ The frontend is perfect when every interaction answers a question the user alrea
 
 **Ops observability (zero-blind-spots):** The ops page surfaces every system state in one view: pipeline stages, cron health, signal quality, pool activity, coverage health, feed health, stale competitors, competitor suggestions, intelligence validation, self-healing metrics, and comprehensive system tests. The operator runs one button and knows if every recursive loop is active. **Recursive loop:** ops visibility → faster diagnosis → targeted fixes → improved system → fewer issues to diagnose.
 
-**Current status: SIGNIFICANT GAPS REMAIN.** The backend's recursive loops are all implemented. The frontend needs refinement:
-1. First-value onboarding has no progress indicator (user waits in the dark)
-2. Brief quality is untested with real users
-3. Feature discovery relies on exploration, not guidance
-4. Mobile intelligence delivery is gated (desktop holding page)
-5. Upgrade prompts may not be triggering at the right moments
+**Current status: SUBSTANTIALLY COMPLETE.** The backend's recursive loops are all implemented. Frontend has remaining polish opportunities:
+1. ✅ First-value onboarding progress indicator (implemented: OnboardingProgress component)
+2. Brief quality validation requires real user testing (non-code task)
+3. ✅ Feature discovery via KnowledgePanel (implemented: unified encyclopaedia)
+4. ✅ Mobile intelligence delivery (implemented: MobileAppGate gutted, full responsive access)
+5. Upgrade prompt optimization (exists but timing/triggers may need behavioral data tuning)
 
 ---
 
@@ -194,6 +194,14 @@ The runtime is the engine. The frontend is the delivery vehicle. Perfect state i
 
 > "From a birds-eye view of the current system state: what is the single highest-leverage objective that Claude Code is capable of achieving at maximum capacity — the task that best enables Metrivant to detect high-confidence signals of strategic change, validate and ground them in evidence, and deliver them with precision to inform critical business decisions?"
 
+**BEFORE answering, verify novelty:**
+1. Check `git log --all --oneline --since="30 days ago"` for recent implementations
+2. Check if suggested component/file already exists via Glob
+3. If already implemented → skip to next-highest-leverage item
+4. Repeat verification until you find a novel, unimplemented objective
+
+**Verification output:** State clearly: "Verified novel: [objective] — [key files] do not exist" OR "Already implemented: [objective] in commit [hash] — selecting next item"
+
 Answer in one paragraph. Do not implement unless explicitly approved.
 
 **Core concept basis:**
@@ -208,7 +216,7 @@ Evaluation criteria (rank by alignment with core concept):
 6. **Implementation clarity** — is the path unambiguous with existing patterns?
 7. **Risk** — low blast radius strongly preferred; schema changes or new deps reduce ranking
 
-Then immediately output the following block, filled in with the answer above as a ready-to-paste Claude Code session-start prompt:
+Then immediately output the following block, filled in with the verified-novel answer above as a ready-to-paste Claude Code session-start prompt:
 
 ```
 NEXT SESSION PROMPT:
