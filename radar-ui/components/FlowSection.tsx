@@ -143,12 +143,12 @@ export default function FlowSection() {
           >
             How it works
           </div>
-          <h2
+          {/* <h2
             className="text-[22px] font-light tracking-tight text-white md:text-[28px]"
             style={{ fontFamily: "var(--font-space-grotesk)" }}
           >
             Sector-Aware Intelligence Pipeline
-          </h2>
+          </h2> */}
           <p className="mt-4 text-[13px] text-slate-400">
             Click a sector below to see how signals are weighted
           </p>
