@@ -68,13 +68,53 @@ export default function FlowSection() {
   const sector = SECTORS.find((s) => s.id === selectedSector);
   const config = selectedSector ? SECTOR_CONFIG[selectedSector] : null;
 
-  // Pre-compute all transform values for all stages (Rules of Hooks - must be called unconditionally)
-  const stageTransforms = PIPELINE_STAGES.map((_, i) => {
-    const progress = useTransform(scrollYProgress, [i * 0.08, (i + 1) * 0.08], [0, 1]);
-    const opacity = useTransform(progress, [0, 0.5, 1], [0.3, 0.8, 1]);
-    const x = useTransform(progress, [0, 1], [-20, 0]);
-    return { progress, opacity, x };
-  });
+  // Pre-compute all transform values - all hooks MUST be called at top level (Rules of Hooks)
+  // Cannot use .map() or any loops - must explicitly call each hook
+  const progress0 = useTransform(scrollYProgress, [0 * 0.08, 1 * 0.08], [0, 1]);
+  const progress1 = useTransform(scrollYProgress, [1 * 0.08, 2 * 0.08], [0, 1]);
+  const progress2 = useTransform(scrollYProgress, [2 * 0.08, 3 * 0.08], [0, 1]);
+  const progress3 = useTransform(scrollYProgress, [3 * 0.08, 4 * 0.08], [0, 1]);
+  const progress4 = useTransform(scrollYProgress, [4 * 0.08, 5 * 0.08], [0, 1]);
+  const progress5 = useTransform(scrollYProgress, [5 * 0.08, 6 * 0.08], [0, 1]);
+  const progress6 = useTransform(scrollYProgress, [6 * 0.08, 7 * 0.08], [0, 1]);
+  const progress7 = useTransform(scrollYProgress, [7 * 0.08, 8 * 0.08], [0, 1]);
+  const progress8 = useTransform(scrollYProgress, [8 * 0.08, 9 * 0.08], [0, 1]);
+  const progress9 = useTransform(scrollYProgress, [9 * 0.08, 10 * 0.08], [0, 1]);
+
+  const opacity0 = useTransform(progress0, [0, 0.5, 1], [0.3, 0.8, 1]);
+  const opacity1 = useTransform(progress1, [0, 0.5, 1], [0.3, 0.8, 1]);
+  const opacity2 = useTransform(progress2, [0, 0.5, 1], [0.3, 0.8, 1]);
+  const opacity3 = useTransform(progress3, [0, 0.5, 1], [0.3, 0.8, 1]);
+  const opacity4 = useTransform(progress4, [0, 0.5, 1], [0.3, 0.8, 1]);
+  const opacity5 = useTransform(progress5, [0, 0.5, 1], [0.3, 0.8, 1]);
+  const opacity6 = useTransform(progress6, [0, 0.5, 1], [0.3, 0.8, 1]);
+  const opacity7 = useTransform(progress7, [0, 0.5, 1], [0.3, 0.8, 1]);
+  const opacity8 = useTransform(progress8, [0, 0.5, 1], [0.3, 0.8, 1]);
+  const opacity9 = useTransform(progress9, [0, 0.5, 1], [0.3, 0.8, 1]);
+
+  const x0 = useTransform(progress0, [0, 1], [-20, 0]);
+  const x1 = useTransform(progress1, [0, 1], [-20, 0]);
+  const x2 = useTransform(progress2, [0, 1], [-20, 0]);
+  const x3 = useTransform(progress3, [0, 1], [-20, 0]);
+  const x4 = useTransform(progress4, [0, 1], [-20, 0]);
+  const x5 = useTransform(progress5, [0, 1], [-20, 0]);
+  const x6 = useTransform(progress6, [0, 1], [-20, 0]);
+  const x7 = useTransform(progress7, [0, 1], [-20, 0]);
+  const x8 = useTransform(progress8, [0, 1], [-20, 0]);
+  const x9 = useTransform(progress9, [0, 1], [-20, 0]);
+
+  const stageTransforms = [
+    { opacity: opacity0, x: x0 },
+    { opacity: opacity1, x: x1 },
+    { opacity: opacity2, x: x2 },
+    { opacity: opacity3, x: x3 },
+    { opacity: opacity4, x: x4 },
+    { opacity: opacity5, x: x5 },
+    { opacity: opacity6, x: x6 },
+    { opacity: opacity7, x: x7 },
+    { opacity: opacity8, x: x8 },
+    { opacity: opacity9, x: x9 },
+  ];
 
   return (
     <section ref={containerRef} className="relative border-t border-[#0d1020] px-6 py-16 md:py-24">
