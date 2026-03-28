@@ -68,6 +68,14 @@ export default function FlowSection() {
   const sector = SECTORS.find((s) => s.id === selectedSector);
   const config = selectedSector ? SECTOR_CONFIG[selectedSector] : null;
 
+  // Pre-compute all transform values for all stages (Rules of Hooks - must be called unconditionally)
+  const stageTransforms = PIPELINE_STAGES.map((_, i) => {
+    const progress = useTransform(scrollYProgress, [i * 0.08, (i + 1) * 0.08], [0, 1]);
+    const opacity = useTransform(progress, [0, 0.5, 1], [0.3, 0.8, 1]);
+    const x = useTransform(progress, [0, 1], [-20, 0]);
+    return { progress, opacity, x };
+  });
+
   return (
     <section ref={containerRef} className="relative border-t border-[#0d1020] px-6 py-16 md:py-24">
       <div className="mx-auto max-w-4xl">
@@ -163,9 +171,7 @@ export default function FlowSection() {
 
             <div className="relative space-y-0">
               {PIPELINE_STAGES.map((stage, i) => {
-                const progress = useTransform(scrollYProgress, [i * 0.08, (i + 1) * 0.08], [0, 1]);
-                const opacity = useTransform(progress, [0, 0.5, 1], [0.3, 0.8, 1]);
-                const x = useTransform(progress, [0, 1], [-20, 0]);
+                const { opacity, x } = stageTransforms[i];
                 const connectorBg = stage.amplified ? sector?.color + "40" : "rgba(100,116,139,0.20)";
                 const iconBorderColor = stage.amplified ? sector?.color : "rgba(100,116,139,0.25)";
                 const iconBg = stage.amplified ? sector?.color + "15" : "rgba(0,0,0,0.50)";
