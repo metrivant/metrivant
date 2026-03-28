@@ -15,6 +15,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { openai } from "./openai";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -287,7 +288,7 @@ export function detectCausalPairs(signals: SignalForCausality[]): CausalRelation
  * Uses GPT-4o-mini to assess whether the relationship is plausible given
  * the signal summaries and timing.
  *
- * @param supabase - Supabase client (not used yet, reserved for future OpenAI integration)
+ * @param supabase - Supabase client (not used)
  * @param precursor - First signal
  * @param consequence - Second signal
  * @param relationship - Template-detected relationship
@@ -299,14 +300,75 @@ export async function validateRelationship(
   consequence: SignalForCausality,
   relationship: CausalRelationship
 ): Promise<CausalRelationship | null> {
-  // TODO: Implement AI validation with OpenAI GPT-4o-mini
-  // For now, accept template matches as-is
-  // Future: prompt GPT-4o-mini with signal summaries + timing, ask if causal link is plausible
-  // If plausible: boost confidence to 0.8-0.95, add ai_reasoning to metadata
-  // If implausible: return null (reject relationship)
+  try {
+    // Format dates for readability
+    const precursorDate = new Date(precursor.detected_at).toISOString().slice(0, 10);
+    const consequenceDate = new Date(consequence.detected_at).toISOString().slice(0, 10);
+    const timeGapDays = relationship.metadata.time_gap_days ?? 0;
+    const templateName = relationship.metadata.template_name ?? "unknown";
 
-  // Placeholder: accept all template matches
-  return relationship;
+    // Build prompt with signal details
+    const systemPrompt = `You validate causal relationships between competitor signals.
+
+Given two signals and their timing, determine if the causal link is plausible based on typical business behavior patterns.
+
+Consider:
+- Are these signal types causally related? (e.g., hiring often precedes launches)
+- Is the timing reasonable for this relationship?
+- Does the order make sense? (cause before effect)
+
+Return ONLY: { "plausible": true|false, "confidence": 0.8-0.95, "reasoning": "one sentence" }`;
+
+    const userPrompt = `PRECURSOR: ${precursor.signal_type}${precursor.summary ? ` (${precursor.summary})` : ""} detected ${precursorDate}.
+CONSEQUENCE: ${consequence.signal_type}${consequence.summary ? ` (${consequence.summary})` : ""} detected ${consequenceDate}.
+Time gap: ${timeGapDays} days.
+Template: ${templateName.replace(/_/g, " ")}.
+
+Is this causal link plausible?`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0.05,
+      max_tokens: 150,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    });
+
+    const content = response.choices[0]?.message?.content?.trim() ?? "{}";
+    const cleaned = content.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(cleaned) as {
+      plausible?: boolean;
+      confidence?: number;
+      reasoning?: string;
+    };
+
+    const plausible = parsed.plausible ?? false;
+    const aiConfidence = parsed.confidence ?? 0.85;
+    const reasoning = parsed.reasoning ?? "No reasoning provided";
+
+    if (!plausible) {
+      // Reject relationship — return null so it's not added to signal_relationships
+      return null;
+    }
+
+    // Plausible — boost confidence and add AI reasoning
+    return {
+      ...relationship,
+      confidence_score: Math.min(1.0, aiConfidence),
+      detection_method: "ai_validated",
+      metadata: {
+        ...relationship.metadata,
+        ai_reasoning: reasoning,
+      },
+    };
+  } catch (error) {
+    // Fail-safe: on validation error, accept template match as-is
+    // This prevents validation failures from blocking relationship detection entirely
+    console.error("validateRelationship error:", error instanceof Error ? error.message : error);
+    return relationship;
+  }
 }
 
 /**
