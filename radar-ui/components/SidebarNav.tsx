@@ -25,6 +25,21 @@ const NAV_ITEMS: {
     ),
   },
   {
+    href: "/app/sector",
+    label: "Sector",
+    keyBadge: "E",
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 11 11" fill="none" aria-hidden="true">
+        <rect x="1" y="1" width="9" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+        <path d="M1 4h9M4 1v9" stroke="currentColor" strokeWidth="1.1" />
+        <circle cx="2.5" cy="2.5" r="0.6" fill="currentColor" />
+        <circle cx="6.5" cy="2.5" r="0.6" fill="currentColor" />
+        <circle cx="2.5" cy="6.5" r="0.6" fill="currentColor" />
+        <circle cx="6.5" cy="6.5" r="0.6" fill="currentColor" />
+      </svg>
+    ),
+  },
+  {
     href: "/app/briefs",
     label: "Briefs",
     overlayKey: "briefs",
