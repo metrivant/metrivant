@@ -897,6 +897,12 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
   floods from overwhelming the pipeline. State is per-run (no persistent storage). New competitors
   with avg=0 get MIN_DAILY_AVERAGE=0.5 → cap of 3 signals/run until history builds. (2026-03-21)
 
+- [B] Supabase REST API timestamp filtering on `pipeline_events` returns HTTP 400 Bad Request when using
+  `&timestamp=gte.{iso_date}` or similar filters. Metadata column filtering (e.g., `&metadata->>'sector'`)
+  also fails. Workaround: fetch with `order=timestamp.desc&limit=N` and filter timestamps client-side,
+  or use Supabase SQL Editor for time-bounded queries. Affects health check diagnostics requiring
+  time-windowed pipeline event analysis. (2026-03-28)
+
 - [B] Confidence self-calibration (`lib/confidence-calibrator.ts`) runs inside learn-noise-patterns
   (weekly). Reads signal_feedback → computes per-section_type accuracy rate → writes weight_multiplier
   to `confidence_calibration` table. detect-signals applies multiplier on top of existing calibration
