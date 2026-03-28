@@ -4,6 +4,7 @@
 // exceptions before any manual captureException calls are made.
 
 import * as Sentry from "@sentry/nextjs";
+import { sanitizeEvent } from "./lib/sentry-sanitizer";
 
 Sentry.init({
   dsn: process.env.SENTRY_DSN ?? process.env.SENTRY_DNS,
@@ -14,4 +15,5 @@ Sentry.init({
     "development",
   release: process.env.VERCEL_GIT_COMMIT_SHA,
   sendDefaultPii: false,
+  beforeSend: sanitizeEvent,
 });

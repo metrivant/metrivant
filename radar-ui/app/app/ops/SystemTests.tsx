@@ -67,8 +67,9 @@ export default function SystemTests() {
     setError(null);
     setResult(null);
     try {
-      const res = await fetch("/api/system-tests", {
-        headers: { Authorization: `Bearer ${window.__CRON_SECRET ?? ""}` },
+      // Use server-side proxy (authenticates via Supabase session, not exposed secrets)
+      const res = await fetch("/api/system-tests-proxy", {
+        method: "POST",
       });
       if (!res.ok) {
         const text = await res.text();

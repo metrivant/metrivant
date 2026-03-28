@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/node";
+import { sanitizeEvent } from "./sentry-sanitizer";
 
 // Accept both SENTRY_DSN (standard) and SENTRY_DNS (legacy typo in this project's env)
 const dsn = process.env.SENTRY_DSN ?? process.env.SENTRY_DNS;
@@ -13,6 +14,7 @@ if (dsn && !Sentry.getClient()) {
       "development",
     release: process.env.VERCEL_GIT_COMMIT_SHA,
     sendDefaultPii: false,
+    beforeSend: sanitizeEvent,
   });
 }
 

@@ -1580,12 +1580,6 @@ export default async function OpsPage() {
 
         </div>
       </div>
-      {/* Inject CRON_SECRET for client-side test runner */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `window.__CRON_SECRET=${JSON.stringify(process.env.CRON_SECRET ?? "")};`,
-        }}
-      />
       <OpsAutoRefresh />
     </div>
   );

@@ -4,6 +4,7 @@
 // and browser exceptions. Complements sentry.server.config.ts (server/edge).
 
 import * as Sentry from "@sentry/nextjs";
+import { sanitizeEvent } from "./lib/sentry-sanitizer";
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN ?? process.env.NEXT_PUBLIC_SENTRY_DNS,
@@ -13,4 +14,5 @@ Sentry.init({
     process.env.NODE_ENV ??
     "development",
   sendDefaultPii: false,
+  beforeSend: sanitizeEvent,
 });

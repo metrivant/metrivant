@@ -21,23 +21,19 @@ This document tracks the canonical migration sequence and clarifies duplicate mi
 
 ## Obsolete/Superseded Migrations
 
-These files represent earlier iterations and should not be applied:
+**Status:** Moved to `migrations/deprecated/` on 2026-03-28
 
-### 060 duplicates
-- `060_fix_stale_signal_constraints.sql` — superseded by fix_all_issues_APPLY_THIS.sql
-- `060_fix_stale_signal_constraints_CORRECTED.sql` — superseded by fix_all_issues_APPLY_THIS.sql
+These files represent earlier iterations and were superseded:
 
-### 061 duplicates
+### Deprecated Files (moved 2026-03-28):
+- `060_fix_stale_signal_constraints.sql` — superseded by 060_fix_all_issues.sql
+- `060_fix_stale_signal_constraints_CORRECTED.sql` — superseded by 060_fix_all_issues.sql
+- `069_noise_baselines.sql` — superseded by 069_signals_novelty_scoring.sql
+- `070_signal_retrograde.sql` — superseded by 070_signal_relationships.sql
+
+### Still Present (need verification):
 - `061_sector_narratives_summary.sql` — superseded by sector_baselines.sql
-
-### 062 duplicates
 - `062_feed_health_state.sql` — superseded by sector_validation.sql
-
-### 069 duplicates
-- `069_noise_baselines.sql` — superseded by signals_novelty_scoring.sql
-
-### 070 duplicates
-- `070_signal_retrograde.sql` — superseded by signal_relationships.sql
 
 ## Migration Application Status
 
