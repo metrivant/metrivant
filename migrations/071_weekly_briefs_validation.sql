@@ -19,7 +19,8 @@ BEGIN;
 ALTER TABLE weekly_briefs
   ADD COLUMN IF NOT EXISTS validation_status TEXT CHECK (validation_status IN ('pending', 'validated', 'weak', 'hallucinated')),
   ADD COLUMN IF NOT EXISTS validation_reasoning TEXT,
-  ADD COLUMN IF NOT EXISTS validated_at TIMESTAMPTZ;
+  ADD COLUMN IF NOT EXISTS validated_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS emailed_at TIMESTAMPTZ;
 
 -- Index for loading unvalidated briefs
 CREATE INDEX IF NOT EXISTS idx_weekly_briefs_validation_pending
@@ -34,5 +35,8 @@ COMMENT ON COLUMN weekly_briefs.validation_reasoning IS
 
 COMMENT ON COLUMN weekly_briefs.validated_at IS
   'Timestamp when validation completed. NULL if validation_status is pending.';
+
+COMMENT ON COLUMN weekly_briefs.emailed_at IS
+  'Timestamp when email was sent. NULL if not yet sent or if brief failed validation (weak/hallucinated).';
 
 COMMIT;

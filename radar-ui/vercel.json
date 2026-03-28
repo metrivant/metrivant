@@ -1,30 +1,9 @@
 {
-  "framework": "nextjs",
-  "buildCommand": "npm run typecheck && next build",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
-      "path": "/api/generate-brief",
-      "schedule": "0 10 * * 1,3,5"
-    },
-    {
-      "path": "/api/check-signals",
-      "schedule": "0 * * * *"
-    },
-    {
-      "path": "/api/update-momentum",
-      "schedule": "0 */6 * * *"
-    },
-    {
-      "path": "/api/strategic-analysis",
-      "schedule": "0 8 * * *"
-    },
-    {
-      "path": "/api/update-positioning",
-      "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/generate-actions",
-      "schedule": "30 9 * * *"
+      "path": "/api/send-validated-briefs",
+      "schedule": "20 10 * * 1"
     }
   ]
 }

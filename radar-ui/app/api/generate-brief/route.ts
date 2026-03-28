@@ -450,53 +450,11 @@ async function runGeneration(): Promise<NextResponse> {
         void briefRow;
       }
 
-      // ── Send email to org owner (subscription gated) ──────────────────────
-      const ownerEmail = userEmailById.get(org.owner_id);
-      if (ownerEmail) {
-        // Check subscription status before sending email
-        // Pattern from radar-ui/app/app/page.tsx lines 84-106
-        let hasActiveSub = false;
-
-        // 1. Check user_metadata.plan first (most reliable, set by Stripe webhook)
-        const userMeta = userMetadataById.get(org.owner_id);
-        const metaPlan = userMeta?.plan as string | undefined;
-        if (metaPlan === "analyst" || metaPlan === "pro") {
-          hasActiveSub = true;
-        } else {
-          // 2. Fallback: check subscriptions table
-          try {
-            const { data: subRows } = await sb
-              .from("subscriptions")
-              .select("status")
-              .eq("org_id", org.id)
-              .order("created_at", { ascending: false })
-              .limit(1);
-
-            const subStatus = subRows?.[0]?.status as string | undefined;
-            if (
-              subStatus === "active" ||
-              subStatus === "canceled_active" ||
-              subStatus === "past_due" // grace period active
-            ) {
-              hasActiveSub = true;
-            }
-          } catch {
-            // Non-fatal — no subscription found, hasActiveSub remains false
-          }
-        }
-
-        // Only send email if user has active subscription
-        if (hasActiveSub) {
-          const emailHtml = buildBriefEmailHtml(briefContent, week, siteUrl, now);
-          const result = await sendEmail({
-            to:      ownerEmail,
-            subject: `Your weekly competitor intelligence brief — ${week}`,
-            html:    emailHtml,
-            from:    FROM_BRIEFS,
-          });
-          if (result.ok) emailsSent++;
-        }
-      }
+      // ── Email delivery deferred to validate-briefs ────────────────────────
+      // Briefs are created with validation_status='pending'. The validate-briefs
+      // handler (Mon 10:15 UTC, 15min after generation) validates against source
+      // artifacts and sends emails only for validation_status='validated' briefs.
+      // This prevents hallucinated or unsupported briefs from reaching users.
     } catch (orgErr) {
       captureException(orgErr instanceof Error ? orgErr : new Error(String(orgErr)), {
         route: "generate-brief",
