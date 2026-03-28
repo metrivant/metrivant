@@ -103,7 +103,12 @@ export function sanitizeEvent(event: Event, hint: EventHint): Event | null {
       event.request.url = sanitizeString(event.request.url) ?? event.request.url;
     }
     if (event.request.query_string) {
-      event.request.query_string = sanitizeString(event.request.query_string) ?? event.request.query_string;
+      const qs = event.request.query_string;
+      if (typeof qs === "string") {
+        event.request.query_string = sanitizeString(qs) ?? qs;
+      } else if (qs && typeof qs === "object") {
+        event.request.query_string = sanitizeObject(qs) as typeof qs;
+      }
     }
     if (event.request.headers) {
       event.request.headers = sanitizeObject(event.request.headers) as Record<string, string>;
@@ -118,9 +123,10 @@ export function sanitizeEvent(event: Event, hint: EventHint): Event | null {
     event.extra = sanitizeObject(event.extra) as Record<string, unknown>;
   }
 
-  // Sanitize contexts
+  // Sanitize contexts (don't re-cast, preserve Sentry type structure)
   if (event.contexts) {
-    event.contexts = sanitizeObject(event.contexts) as Record<string, unknown>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    event.contexts = sanitizeObject(event.contexts) as any;
   }
 
   return event;

@@ -14,7 +14,8 @@ if (dsn && !Sentry.getClient()) {
       "development",
     release: process.env.VERCEL_GIT_COMMIT_SHA,
     sendDefaultPii: false,
-    beforeSend: sanitizeEvent,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    beforeSend: sanitizeEvent as any,
   });
 }
 
