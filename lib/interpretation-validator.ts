@@ -6,6 +6,7 @@
 // The validator sees:
 //   - The raw change (old_content → new_content)
 //   - The interpretation (summary, strategic_implication, recommended_action)
+//   - Sector-specific validation rules (if sector provided)
 //
 // It classifies as:
 //   - valid: interpretation follows from evidence
@@ -15,6 +16,7 @@
 // Temperature 0.05 — we want deterministic classification, not creative judging.
 
 import { openai } from "./openai";
+import { buildSectorValidationGuidance, type SectorId } from "./sector-prompting";
 
 const SYSTEM_PROMPT = `You are a quality assurance analyst reviewing AI-generated competitive intelligence interpretations.
 
@@ -48,9 +50,11 @@ export interface InterpretationForValidation {
 
 /**
  * Validate a single interpretation against its evidence.
+ * Optional sector parameter enables sector-specific quality checks.
  */
 export async function validateInterpretation(
   interp: InterpretationForValidation,
+  sector?: SectorId | null,
 ): Promise<ValidationResult> {
   const oldContent = (interp.old_content ?? "(no previous content)").slice(0, 800);
   const newContent = (interp.new_content ?? "(no current content)").slice(0, 800);
@@ -63,13 +67,17 @@ export async function validateInterpretation(
     return { status: "weak", reason: "No evidence content available for validation" };
   }
 
+  // Build sector-aware system prompt
+  const sectorGuidance = buildSectorValidationGuidance(sector ?? null);
+  const systemPrompt = SYSTEM_PROMPT + sectorGuidance;
+
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       temperature: 0.05,
       max_tokens: 150,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPrompt },
         {
           role: "user",
           content: `EVIDENCE:

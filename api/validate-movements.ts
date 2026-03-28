@@ -5,6 +5,8 @@ import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
 import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
 import { openai } from "../lib/openai";
+import { validateSector } from "../lib/sector-validation";
+import { buildSectorValidationGuidance, type SectorId } from "../lib/sector-prompting";
 
 // ── /api/validate-movements ───────────────────────────────────────────────────
 // Hourly cron (:42): validates AI-generated movement summaries against their
@@ -20,7 +22,7 @@ const CONFIDENCE_PENALTY = 0.10;
 // Wall-clock guard: maxDuration is 60s, leave 5s safety margin for final flush + response.
 const WALL_CLOCK_GUARD_MS = 55_000;
 
-const SYSTEM_PROMPT = `You are a quality assurance analyst reviewing AI-generated strategic movement summaries.
+const BASE_SYSTEM_PROMPT = `You are a quality assurance analyst reviewing AI-generated strategic movement summaries.
 
 Given a list of supporting signal summaries and an AI-generated movement narrative, determine whether the narrative is grounded in the signals.
 
@@ -72,6 +74,23 @@ async function handler(req: ApiReq, res: ApiRes) {
       return res.status(200).json({ ok: true, job: "validate-movements", processed: 0, skippedByGuard: 0 });
     }
 
+    // ── Batch-fetch sectors for all competitors ───────────────────────────
+    const competitorIds = Array.from(new Set(movements.map(m => m.competitor_id)));
+    const sectorMap = new Map<string, SectorId | null>();
+
+    if (competitorIds.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: orgRows } = await (supabase as any)
+        .from("tracked_competitors")
+        .select("competitor_id, organizations(sector)")
+        .in("competitor_id", competitorIds);
+
+      for (const row of (orgRows ?? []) as Array<{ competitor_id: string; organizations?: { sector: string } | null }>) {
+        const rawSector = row.organizations?.sector;
+        sectorMap.set(row.competitor_id, validateSector(rawSector));
+      }
+    }
+
     let validCount = 0, weakCount = 0, hallucinatedCount = 0, processedCount = 0, skippedByGuard = 0;
 
     for (const mov of movements) {
@@ -83,6 +102,9 @@ async function handler(req: ApiReq, res: ApiRes) {
       }
 
       const timer = startTimer();
+
+      // Get sector for this movement's competitor
+      const sector = sectorMap.get(mov.competitor_id) ?? null;
 
       // Load supporting interpretations for this movement's competitor
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -130,12 +152,16 @@ async function handler(req: ApiReq, res: ApiRes) {
       }
 
       try {
+        // Build sector-aware system prompt
+        const sectorGuidance = buildSectorValidationGuidance(sector);
+        const systemPrompt = BASE_SYSTEM_PROMPT + sectorGuidance;
+
         const response = await openai.chat.completions.create({
           model: "gpt-4o-mini",
           temperature: 0.05,
           max_tokens: 150,
           messages: [
-            { role: "system", content: SYSTEM_PROMPT },
+            { role: "system", content: systemPrompt },
             {
               role: "user",
               content: `SUPPORTING SIGNALS:\n${signalList}\n\nMOVEMENT NARRATIVE:\nType: ${mov.movement_type}\nSummary: ${mov.movement_summary}\nImplication: ${mov.strategic_implication ?? "(none)"}\n\nClassify this movement narrative.`,
@@ -172,7 +198,13 @@ async function handler(req: ApiReq, res: ApiRes) {
 
           Sentry.captureMessage("movement_hallucinated", {
             level: "warning",
-            extra: { movement_id: mov.id, movement_type: mov.movement_type, reason },
+            extra: {
+              movement_id: mov.id,
+              movement_type: mov.movement_type,
+              competitor_id: mov.competitor_id,
+              sector,
+              reason,
+            },
           });
         }
       } catch {
@@ -185,7 +217,16 @@ async function handler(req: ApiReq, res: ApiRes) {
         weakCount++;
       }
 
-      void recordEvent({ run_id: runId, stage: "movement_validation", status: "success", duration_ms: timer(), metadata: { movement_id: mov.id } });
+      void recordEvent({
+        run_id: runId,
+        stage: "movement_validation",
+        status: "success",
+        duration_ms: timer(),
+        metadata: {
+          movement_id: mov.id,
+          sector,
+        },
+      });
 
       processedCount++;
     }

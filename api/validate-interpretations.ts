@@ -5,6 +5,8 @@ import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
 import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
 import { validateInterpretation } from "../lib/interpretation-validator";
+import { validateSector } from "../lib/sector-validation";
+import type { SectorId } from "../lib/sector-prompting";
 
 // ── /api/validate-interpretations ─────────────────────────────────────────────
 // Hourly cron: validates recent interpretations against their evidence.
@@ -37,6 +39,7 @@ interface InterpRow {
   old_content:           string | null;
   new_content:           string | null;
   confidence:            number | null;
+  competitor_id?:        string; // from joined signals table
 }
 
 async function handler(req: ApiReq, res: ApiRes) {
@@ -48,23 +51,48 @@ async function handler(req: ApiReq, res: ApiRes) {
   const startedAt = Date.now();
 
   try {
-    // ── Load unvalidated interpretations ───────────────────────────────────
+    // ── Load unvalidated interpretations with competitor_id ───────────────
+    // Join through signals to get competitor_id for sector lookup
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: interpRows, error: interpErr } = await (supabase as any)
       .from("interpretations")
-      .select("id, signal_id, summary, strategic_implication, recommended_action, old_content, new_content, confidence")
+      .select("id, signal_id, summary, strategic_implication, recommended_action, old_content, new_content, confidence, signals!inner(competitor_id)")
       .is("validation_status", null)
       .order("created_at", { ascending: false })
       .limit(BATCH_SIZE);
 
     if (interpErr) throw interpErr;
 
-    const interps = (interpRows ?? []) as InterpRow[];
+    const rawInterps = (interpRows ?? []) as Array<InterpRow & { signals?: { competitor_id: string } }>;
+
+    // Flatten joined competitor_id
+    const interps = rawInterps.map(row => ({
+      ...row,
+      competitor_id: row.signals?.competitor_id,
+      signals: undefined, // remove nested object
+    })) as InterpRow[];
 
     if (interps.length === 0) {
       Sentry.captureCheckIn({ monitorSlug: "validate-interpretations", status: "ok", checkInId });
       await Sentry.flush(2000);
       return res.status(200).json({ ok: true, job: "validate-interpretations", processed: 0, skippedByGuard: 0 });
+    }
+
+    // ── Batch-fetch sectors for all competitors ───────────────────────────
+    const competitorIds = Array.from(new Set(interps.map(i => i.competitor_id).filter(Boolean))) as string[];
+    const sectorMap = new Map<string, SectorId | null>();
+
+    if (competitorIds.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: orgRows } = await (supabase as any)
+        .from("tracked_competitors")
+        .select("competitor_id, organizations(sector)")
+        .in("competitor_id", competitorIds);
+
+      for (const row of (orgRows ?? []) as Array<{ competitor_id: string; organizations?: { sector: string } | null }>) {
+        const rawSector = row.organizations?.sector;
+        sectorMap.set(row.competitor_id, validateSector(rawSector));
+      }
     }
 
     // ── Validate each interpretation ──────────────────────────────────────
@@ -84,13 +112,16 @@ async function handler(req: ApiReq, res: ApiRes) {
 
       const timer = startTimer();
 
+      // Get sector for this interpretation's competitor
+      const sector = interp.competitor_id ? sectorMap.get(interp.competitor_id) ?? null : null;
+
       const result = await validateInterpretation({
         old_content: interp.old_content,
         new_content: interp.new_content,
         summary: interp.summary,
         strategic_implication: interp.strategic_implication,
         recommended_action: interp.recommended_action,
-      });
+      }, sector);
 
       // Update interpretation with validation result
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -131,6 +162,8 @@ async function handler(req: ApiReq, res: ApiRes) {
           extra: {
             interpretation_id: interp.id,
             signal_id: interp.signal_id,
+            competitor_id: interp.competitor_id,
+            sector,
             reason: result.reason,
             original_confidence: currentConf,
           },
@@ -146,6 +179,7 @@ async function handler(req: ApiReq, res: ApiRes) {
           interpretation_id: interp.id,
           validation_status: result.status,
           reason: result.reason,
+          sector,
         },
       });
 

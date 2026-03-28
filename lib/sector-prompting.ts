@@ -77,3 +77,54 @@ export function buildSectorAwarePrompt(basePrompt: string, sector: SectorId | nu
   const sectorGuidance = buildSectorPromptGuidance(sector);
   return basePrompt + sectorGuidance;
 }
+
+/**
+ * Build sector-specific validation guidance for quality checking interpretations.
+ * Returns red flags and quality checks specific to each sector's critical signal types.
+ * Used in validation to catch sector-contextually wrong interpretations.
+ */
+export function buildSectorValidationGuidance(sector: SectorId | null): string {
+  if (!sector || sector === "custom") return "";
+
+  const guidance: Record<SectorId, string> = {
+    saas: `Sector validation rules (SaaS):
+- Pricing page changes are NOT product expansion — they're pricing strategy shifts
+- Changelog entries are NOT major releases unless they indicate new product lines
+- Integration additions are partnership signals, not core product changes
+- Feature page updates should be classified as feature_launch only if entirely new capability
+- Marketing copy changes are messaging updates, not strategic pivots`,
+
+    fintech: `Sector validation rules (Fintech):
+- Regulatory disclosures (10-K, 8-K) are compliance signals, NOT product launches
+- "Launching new features" in compliance context = regulatory-mandated disclosure, not expansion
+- Investor relations updates are financial signals, not product signals
+- Compliance page changes indicate regulatory positioning, not operational changes
+- Security/trust page updates are assurance signals, not capability expansion`,
+
+    cybersecurity: `Sector validation rules (Cybersecurity):
+- Compliance certifications (SOC2, ISO) are assurance signals, not product features
+- Threat intelligence updates are content signals, not capability changes
+- Security incidents disclosed are transparency signals, not weaknesses (unless exploit confirmed)
+- Product security features are capability signals only if new detection/response mechanisms
+- Partner integrations are ecosystem signals, not core product expansion`,
+
+    defense: `Sector validation rules (Defense):
+- Contract awards are procurement signals with dollar values — verify value mentioned
+- "Capabilities" page updates are marketing unless tied to specific program wins
+- Clearance requirements are operational details, not strategic shifts
+- Framework awards are positioning signals, not revenue events (until task orders)
+- Program updates are milestones, not new contract wins unless explicitly stated`,
+
+    energy: `Sector validation rules (Energy):
+- Earnings releases are financial signals — distinguish from operational project updates
+- Project awards are material events — verify contract value and timeline mentioned
+- Regulatory filings are compliance signals, not operational changes
+- "Sustainability" updates are positioning signals unless tied to specific capital allocation
+- Guidance updates are financial signals, not operational strategy shifts`,
+
+    custom: "",
+  };
+
+  const text = guidance[sector] ?? "";
+  return text ? `\n\n${text}` : "";
+}
