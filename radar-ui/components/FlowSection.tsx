@@ -117,7 +117,7 @@ export default function FlowSection() {
   ];
 
   return (
-    <section ref={containerRef} className="relative border-t border-[#0d1020] px-6 py-16 md:py-24">
+    <section ref={containerRef} className="relative border-t border-[#0d1020] px-6 py-20 md:py-32">
       <div className="mx-auto max-w-4xl">
         {/* Header */}
         <div className="mb-12 text-center">
@@ -198,9 +198,9 @@ export default function FlowSection() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="relative"
+            className="relative min-h-[800px]"
           >
-            <div className="mb-8 text-center">
+            <div className="mb-12 text-center">
               <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.2em] text-slate-600">
                 Pipeline Flow · {sector?.label}
               </div>
@@ -209,7 +209,7 @@ export default function FlowSection() {
               </div>
             </div>
 
-            <div className="relative space-y-0">
+            <div className="relative space-y-4">
               {PIPELINE_STAGES.map((stage, i) => {
                 const { opacity, x } = stageTransforms[i];
                 const connectorBg = stage.amplified ? sector?.color + "40" : "rgba(100,116,139,0.20)";
@@ -222,14 +222,14 @@ export default function FlowSection() {
                   <div key={stage.id} className="relative">
                     {i < PIPELINE_STAGES.length - 1 && (
                       <div
-                        className="absolute left-[18px] top-[48px] h-[32px] w-px"
+                        className="absolute left-[18px] top-[44px] h-[52px] w-px"
                         style={{ background: connectorBg }}
                       />
                     )}
 
-                    <motion.div style={{ opacity, x }} className="flex items-start gap-4">
+                    <motion.div style={{ opacity, x }} className="flex items-start gap-4 py-2">
                       <div
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border font-mono text-[16px]"
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm border font-mono text-[16px]"
                         style={{
                           borderColor: iconBorderColor,
                           background: iconBg,
@@ -239,7 +239,7 @@ export default function FlowSection() {
                         {stage.icon}
                       </div>
 
-                      <div className="flex min-w-0 flex-1 items-center justify-between py-2">
+                      <div className="flex min-w-0 flex-1 items-center justify-between py-1">
                         <div>
                           <div className="font-mono text-[13px] font-medium text-white">
                             {stage.label}
@@ -289,17 +289,17 @@ export default function FlowSection() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.8 }}
-              className="mt-12 grid gap-6 md:grid-cols-2"
+              className="mt-16 grid gap-8 md:grid-cols-2"
             >
-              <div className="rounded-lg border border-slate-800 bg-slate-950/30 p-4">
-                <div className="mb-3 font-mono text-[10px] uppercase tracking-[0.2em] text-slate-600">
+              <div className="rounded-lg border border-slate-800 bg-slate-950/30 p-5">
+                <div className="mb-4 font-mono text-[10px] uppercase tracking-[0.2em] text-slate-600">
                   Top Signals
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {config?.topSignals.map((signal) => (
                     <div
                       key={signal}
-                      className="flex items-center justify-between border-l-2 px-3 py-2"
+                      className="flex items-center justify-between border-l-2 px-4 py-2.5"
                       style={{ borderColor: sector?.color }}
                     >
                       <div className="font-mono text-[11px] text-slate-400">
@@ -313,15 +313,15 @@ export default function FlowSection() {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-slate-800 bg-slate-950/30 p-4">
-                <div className="mb-3 font-mono text-[10px] uppercase tracking-[0.2em] text-slate-600">
+              <div className="rounded-lg border border-slate-800 bg-slate-950/30 p-5">
+                <div className="mb-4 font-mono text-[10px] uppercase tracking-[0.2em] text-slate-600">
                   Priority Pools
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {config?.topPools.map((pool) => (
                     <div
                       key={pool}
-                      className="flex items-center justify-between border-l-2 px-3 py-2"
+                      className="flex items-center justify-between border-l-2 px-4 py-2.5"
                       style={{ borderColor: sector?.color }}
                     >
                       <div className="font-mono text-[11px] text-slate-400">{pool}</div>
