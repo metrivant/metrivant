@@ -23,9 +23,6 @@ export type SectorId =
   | "cybersecurity"
   | "defense"
   | "energy"
-  | "healthcare"
-  | "ecommerce"
-  | "enterprise"
   | "custom";
 
 export type PoolType =
@@ -322,180 +319,6 @@ const ENERGY_CONFIG: ComprehensiveSectorConfig = {
   catalogCategories: SECTOR_CONFIGS.energy?.catalogCategories ?? [],
 };
 
-// ── Healthcare Configuration ──────────────────────────────────────────────────
-
-const HEALTHCARE_CONFIG: ComprehensiveSectorConfig = {
-  id: "healthcare",
-  label: "Healthcare",
-  description: "Healthcare providers, biotech, pharma, and medical devices",
-
-  poolWeights: {
-    regulatory: 12.0,   // FDA, clinical trials are existential
-    investor: 6.0,      // Funding and M&A critical
-    newsroom: 4.0,      // Approval announcements matter
-    product: 3.0,       // Device/drug updates important
-    careers: 2.0,       // Hiring less visible than approvals
-    procurement: 1.5,   // Hospital contracts moderate
-    media: 1.0,         // Sector narratives baseline
-  },
-
-  signalWeights: {
-    regulatory_event: 3.0,      // FDA approvals are primary signal
-    acquisition: 2.0,           // M&A highly significant
-    earnings_release: 1.8,      // Financial performance matters
-    product_update: 1.5,        // Device/drug launches important
-    major_contract: 1.3,        // Hospital contracts visible
-    hiring_spike: 1.0,          // Hiring standard weight
-  },
-
-  confidenceBonuses: {
-    regulatory_event: 0.20,     // FDA filings authoritative
-    acquisition: 0.15,          // M&A heavily documented
-    earnings_release: 0.12,     // Investor relations clear
-  },
-
-  patternThresholds: {
-    hiringVelocity: 6,          // 6 roles/week = hiring_spike
-    signalDensity: 3,           // 3 signals/7d = pattern
-    anomalyMultiplier: 2.8,     // 2.8x sector baseline = anomaly
-  },
-
-  onboarding: {
-    defaultPages: [
-      "homepage",
-      "products",
-      "clinical-trials",
-      "investor-relations",
-      "regulatory",
-      "news",
-      "careers",
-    ],
-    priorityPoolUrls: {
-      regulatory: "https://www.fda.gov/",
-      investor: "https://www.sec.gov/cgi-bin/browse-edgar",
-      newsroom: "https://www.fiercebiotech.com/",
-    },
-  },
-
-  catalogCategories: [],  // Healthcare uses dedicated catalog
-};
-
-// ── E-commerce Configuration ──────────────────────────────────────────────────
-
-const ECOMMERCE_CONFIG: ComprehensiveSectorConfig = {
-  id: "ecommerce",
-  label: "E-commerce",
-  description: "Retail, marketplaces, and direct-to-consumer brands",
-
-  poolWeights: {
-    newsroom: 8.0,      // Product launches and campaigns critical
-    product: 6.0,       // Feature and catalog updates matter
-    investor: 4.0,      // Funding and M&A important
-    careers: 3.0,       // Hiring signals scale
-    media: 2.0,         // Brand narratives matter
-    regulatory: 1.5,    // Compliance less critical
-    procurement: 1.0,   // Government sales rare
-  },
-
-  signalWeights: {
-    feature_launch: 2.0,        // New features primary signal
-    price_point_change: 1.8,    // Pricing highly visible
-    positioning_shift: 1.6,     // Brand repositioning matters
-    product_update: 1.5,        // Catalog changes important
-    hiring_spike: 1.3,          // Hiring signals growth
-    acquisition: 1.2,           // M&A moderate significance
-  },
-
-  confidenceBonuses: {
-    price_point_change: 0.12,   // Pricing pages authoritative
-    feature_launch: 0.10,       // Product announcements clear
-    positioning_shift: 0.08,    // Messaging shifts visible
-  },
-
-  patternThresholds: {
-    hiringVelocity: 15,         // 15 roles/week = hiring_spike
-    signalDensity: 6,           // 6 signals/7d = pattern (high velocity)
-    anomalyMultiplier: 1.8,     // 1.8x sector baseline = anomaly
-  },
-
-  onboarding: {
-    defaultPages: [
-      "homepage",
-      "products",
-      "pricing",
-      "features",
-      "blog",
-      "newsroom",
-      "careers",
-    ],
-    priorityPoolUrls: {
-      newsroom: "https://www.prnewswire.com/news-releases/retail",
-      product: "https://www.producthunt.com/",
-      media: "https://techcrunch.com/category/e-commerce/",
-    },
-  },
-
-  catalogCategories: [],  // E-commerce uses dedicated catalog
-};
-
-// ── Enterprise Configuration ──────────────────────────────────────────────────
-
-const ENTERPRISE_CONFIG: ComprehensiveSectorConfig = {
-  id: "enterprise",
-  label: "Enterprise",
-  description: "Large-scale enterprise software and infrastructure",
-
-  poolWeights: {
-    investor: 7.0,      // Earnings and guidance critical
-    product: 6.0,       // Platform updates important
-    newsroom: 5.0,      // Announcements matter
-    careers: 3.0,       // Hiring signals scale
-    regulatory: 2.0,    // Compliance moderate
-    procurement: 2.0,   // Government contracts moderate
-    media: 1.5,         // Sector narratives valuable
-  },
-
-  signalWeights: {
-    feature_launch: 1.8,        // Platform updates significant
-    acquisition: 1.7,           // M&A highly important
-    earnings_release: 1.6,      // Financial performance matters
-    major_contract: 1.5,        // Large deals visible
-    price_point_change: 1.4,    // Pricing changes important
-    hiring_spike: 1.3,          // Hiring signals investment
-  },
-
-  confidenceBonuses: {
-    earnings_release: 0.15,     // Investor relations authoritative
-    acquisition: 0.12,          // M&A well-documented
-    major_contract: 0.10,       // Large deals announced
-  },
-
-  patternThresholds: {
-    hiringVelocity: 25,         // 25 roles/week = hiring_spike (large orgs)
-    signalDensity: 4,           // 4 signals/7d = pattern
-    anomalyMultiplier: 2.2,     // 2.2x sector baseline = anomaly
-  },
-
-  onboarding: {
-    defaultPages: [
-      "homepage",
-      "platform",
-      "features",
-      "pricing",
-      "investor-relations",
-      "newsroom",
-      "careers",
-    ],
-    priorityPoolUrls: {
-      investor: "https://www.sec.gov/cgi-bin/browse-edgar",
-      newsroom: "https://www.prnewswire.com/news-releases/technology",
-      product: "https://www.gartner.com/",
-    },
-  },
-
-  catalogCategories: [],  // Enterprise uses combined catalog
-};
-
 // ── Cybersecurity Configuration ───────────────────────────────────────────────
 
 const CYBERSECURITY_CONFIG: ComprehensiveSectorConfig = {
@@ -579,9 +402,6 @@ export const COMPREHENSIVE_SECTOR_CONFIGS: Record<SectorId, ComprehensiveSectorC
   cybersecurity: CYBERSECURITY_CONFIG,
   defense: DEFENSE_CONFIG,
   energy: ENERGY_CONFIG,
-  healthcare: HEALTHCARE_CONFIG,
-  ecommerce: ECOMMERCE_CONFIG,
-  enterprise: ENTERPRISE_CONFIG,
   custom: CUSTOM_CONFIG,
 };
 
