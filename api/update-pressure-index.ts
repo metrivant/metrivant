@@ -6,6 +6,7 @@ import { verifyCronSecret } from "../lib/withCronAuth";
 import { recordEvent, generateRunId } from "../lib/pipeline-metrics";
 import { getSectorForCompetitor, type SectorId } from "../lib/sector-prompting";
 import { getSectorSignalWeight, getSectorPoolWeight, type PoolType } from "../lib/sector-weights";
+import { getNoveltyPressureWeight } from "../lib/compute-novelty";
 
 /**
  * update-pressure-index
@@ -62,6 +63,7 @@ interface SignalRow {
   confidence_score: number | null;
   detected_at: string;
   signal_type: string;
+  novelty_score: number | null;
 }
 
 // Ambient event type weights for pressure contribution.
@@ -186,7 +188,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     const { data: signals, error: signalsError } = pageIds.length > 0
       ? await supabase
           .from("signals")
-          .select("monitored_page_id, severity, confidence_score, detected_at, signal_type")
+          .select("monitored_page_id, severity, confidence_score, detected_at, signal_type, novelty_score")
           .in("monitored_page_id", pageIds)
           .gte("detected_at", signalSince)
       : { data: [], error: null };
@@ -198,7 +200,7 @@ async function handler(req: ApiReq, res: ApiRes) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: poolSignals, error: poolSignalsError } = await (supabase as any)
       .from("signals")
-      .select("competitor_id, severity, confidence_score, detected_at, signal_type, source_type")
+      .select("competitor_id, severity, confidence_score, detected_at, signal_type, source_type, novelty_score")
       .is("monitored_page_id", null)
       .in("competitor_id", competitorIds)
       .gte("detected_at", signalSince);
@@ -282,7 +284,7 @@ async function handler(req: ApiReq, res: ApiRes) {
 
     // ── 6. Aggregate in-memory per competitor ─────────────────────────────────
 
-    // signal weight per competitor (sector-aware)
+    // signal weight per competitor (sector-aware + novelty-weighted)
     const signalWeightByCompetitor = new Map<string, number>();
     for (const signal of (signals ?? []) as SignalRow[]) {
       const cid = pageToCompetitor.get(signal.monitored_page_id);
@@ -291,26 +293,28 @@ async function handler(req: ApiReq, res: ApiRes) {
       const sector     = sectorByCompetitor.get(cid) ?? null;
       const severityW  = SEVERITY_WEIGHTS[signal.severity] ?? 0.3;
       const sectorW    = getSectorSignalWeight(sector, signal.signal_type);
+      const noveltyW   = getNoveltyPressureWeight(signal.novelty_score);
       const confidence = signal.confidence_score ?? 0.5;
       const ageDays    =
         (Date.now() - new Date(signal.detected_at).getTime()) / (24 * 60 * 60 * 1000);
       const decay      = Math.exp(-ageDays * 0.2);
 
       const prev = signalWeightByCompetitor.get(cid) ?? 0;
-      signalWeightByCompetitor.set(cid, prev + severityW * sectorW * confidence * decay);
+      signalWeightByCompetitor.set(cid, prev + severityW * sectorW * noveltyW * confidence * decay);
     }
 
-    // Merge pool signals (monitored_page_id=null, competitor_id set directly, sector-aware)
-    for (const signal of (poolSignals ?? []) as { competitor_id: string; severity: string; confidence_score: number | null; detected_at: string; signal_type: string; source_type: string }[]) {
+    // Merge pool signals (monitored_page_id=null, competitor_id set directly, sector-aware + novelty-weighted)
+    for (const signal of (poolSignals ?? []) as { competitor_id: string; severity: string; confidence_score: number | null; detected_at: string; signal_type: string; source_type: string; novelty_score: number | null }[]) {
       const cid = signal.competitor_id;
       const sector     = sectorByCompetitor.get(cid) ?? null;
       const severityW  = SEVERITY_WEIGHTS[signal.severity] ?? 0.3;
       const sectorW    = getSectorSignalWeight(sector, signal.signal_type);
+      const noveltyW   = getNoveltyPressureWeight(signal.novelty_score);
       const confidence = signal.confidence_score ?? 0.5;
       const ageDays    = (Date.now() - new Date(signal.detected_at).getTime()) / (24 * 60 * 60 * 1000);
       const decay      = Math.exp(-ageDays * 0.2);
       const prev = signalWeightByCompetitor.get(cid) ?? 0;
-      signalWeightByCompetitor.set(cid, prev + severityW * sectorW * confidence * decay);
+      signalWeightByCompetitor.set(cid, prev + severityW * sectorW * noveltyW * confidence * decay);
     }
 
     // Weighted ambient pressure per competitor (sector-aware).

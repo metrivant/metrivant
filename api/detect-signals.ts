@@ -12,6 +12,7 @@ import { loadCalibrationWeights } from "../lib/confidence-calibrator";
 import { getSectorForCompetitor, type SectorId } from "../lib/sector-prompting";
 import { getSectorConfidenceBonus } from "../lib/sector-weights";
 import { detectNoise, calibrateConfidence } from "../lib/noise-detection";
+import { computeNovelty } from "../lib/compute-novelty";
 
 // ── Signal weight constants ───────────────────────────────────────────────────
 // Base confidence contribution by section type.
@@ -656,6 +657,15 @@ async function handler(req: ApiReq, res: ApiRes) {
           continue;
         }
 
+        // ── Compute novelty score ────────────────────────────────────────────
+        // Novelty distinguishes first-time strategic moves (high value) from
+        // repeated operational patterns (noise). Score: 1.0 (first) → <0.3 (repeated).
+        const noveltyResult = await computeNovelty(supabase, {
+          competitorId,
+          signalType: signal.signal_type,
+          detectedAt: diff.last_seen_at ?? new Date().toISOString(),
+        });
+
         // ── Upsert signal ─────────────────────────────────────────────────────
         // Base payload — always safe to write (columns exist in all schema versions).
         const baseSignalPayload = {
@@ -671,6 +681,9 @@ async function handler(req: ApiReq, res: ApiRes) {
           is_duplicate:      false,
           confidence_score:  confidenceScore,
           signal_hash:       signalHash,
+          novelty_score:     noveltyResult.noveltyScore,
+          first_seen_at:     noveltyResult.firstSeenAt ?? undefined,
+          recurrence_count:  noveltyResult.recurrenceCount,
         };
 
         const { error: upsertError } = await supabase
@@ -696,13 +709,15 @@ async function handler(req: ApiReq, res: ApiRes) {
         }
         rowsSucceeded += 1;
 
-        // Sector amplification observability
+        // Sector amplification + novelty observability
         const sectorBonus = sector ? getSectorConfidenceBonus(sector, signal.signal_type) : 0;
         const metadata: Record<string, unknown> = {
           signal_count: 1,
           signal_types: [signal.signal_type],
           confidence: confidenceScore,
           signal_status: signalStatus,
+          novelty_score: noveltyResult.noveltyScore,
+          recurrence_count: noveltyResult.recurrenceCount,
         };
         if (sector) {
           metadata.sector = sector;
