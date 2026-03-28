@@ -192,10 +192,95 @@ Pool system (additive signal pipeline — parallel to page-diff monitoring):
                       produces sector_narratives (currently empty table)
                       weekly briefs query sector_narratives as optional input; run without it
 
-Sector model (v3.0):
-- Each sector has 15 competitors in the catalog
+Sector System (v4.0) — Comprehensive Intelligence Weighting:
+
+The sector system is a first-class dimension that shapes how intelligence is perceived, weighted, and acted upon across the entire Metrivant pipeline. Sector configuration affects pool weighting, signal severity, confidence scoring, pattern detection, onboarding, terminology, and visualization.
+
+**Core Sectors:**
+- saas (Software & AI)
+- fintech (Fintech)
+- cybersecurity (Cybersecurity)
+- defense (Defense & Aerospace)
+- energy (Energy & Resources)
+- custom (User-defined, uses SaaS defaults)
+
+**Configuration System (lib/sector-config.ts):**
+
+Each sector defines:
+1. **Pool Weights** — Multipliers for pressure_index calculation
+   - Fintech: regulatory 10x, investor 5x, product 3x (compliance-first)
+   - SaaS: product 10x, newsroom 4x, careers 3x (feature velocity-first)
+   - Defense: procurement 10x, newsroom 5x, regulatory 4x (contracts-first)
+   - Energy: investor 8x, regulatory 6x, newsroom 4x (earnings-first)
+   - Cybersecurity: product 9x, newsroom 6x, regulatory 5x (security-first)
+
+2. **Signal Weights** — Severity multipliers applied to base weights
+   - Fintech: regulatory_event 2.0x, acquisition 1.8x
+   - SaaS: feature_launch 2.0x, price_point_change 1.8x
+   - Defense: major_contract 2.5x, acquisition 2.0x
+   - Energy: earnings_release 2.0x, major_contract 1.8x
+   - Cybersecurity: feature_launch 2.2x, regulatory_event 2.0x
+
+3. **Confidence Bonuses** — Added to base confidence score
+   - Fintech: regulatory_event +0.15, earnings_release +0.12
+   - SaaS: price_point_change +0.15, feature_launch +0.12
+   - Defense: major_contract +0.20, acquisition +0.15
+   - Energy: earnings_release +0.15, major_contract +0.12
+   - Cybersecurity: feature_launch +0.15, regulatory_event +0.12
+
+4. **Pattern Thresholds** — Sector-calibrated anomaly detection
+   - hiringVelocity: 5 roles/week (fintech) vs 20 roles/week (saas)
+   - signalDensity: 3-6 signals/7d to trigger pattern detection
+   - anomalyMultiplier: 1.8x-3.0x sector baseline for anomaly warnings
+
+5. **Onboarding Templates** — Default monitored pages per sector
+   - Fintech: pricing, investor-relations, compliance, security, newsroom
+   - SaaS: pricing, features, changelog, integrations, blog, newsroom
+   - Defense: capabilities, programs, contracts, investor-relations
+   - Energy: projects, operations, investor-relations, sustainability
+   - Cybersecurity: products, features, security, compliance, blog
+
+6. **Terminology** — Sector-specific signal/movement labels (lib/sectors.ts)
+   - "Pricing change" (saas) → "Contract pricing update" (defense) → "Pricing update" (energy)
+   - "Feature launch" (saas) → "Capability announcement" (defense) → "Project announcement" (energy)
+   - translateSignalType(), translateMovementType() adapt labels to sector context
+
+**Helper Functions:**
+- getSectorConfig(sector) — Returns ComprehensiveSectorConfig
+- getPoolWeight(sector, poolType) — Returns multiplier for pressure_index
+- getSignalWeight(sector, signalType) — Returns severity multiplier
+- getConfidenceBonus(sector, signalType) — Returns confidence bonus
+- getHiringVelocityThreshold(sector) — Returns roles/week for hiring_spike
+- getSignalDensityThreshold(sector) — Returns signals/7d for pattern
+- getAnomalyMultiplier(sector) — Returns baseline multiplier for anomaly
+- getDefaultPages(sector) — Returns onboarding page types
+- getPriorityPoolUrls(sector) — Returns suggested pool feed URLs
+
+**UI Integration:**
+- Telescope: signal types use translateSignalType(type, sector)
+- Sector Intelligence: /app/sector view displays sector_intelligence trends, divergences, activity
+- Radar: movement types use translateMovementType(type, sector) (future enhancement)
+- Onboarding: default pages adapt per sector via getDefaultPages()
+
+**Runtime Integration (requires metrivant-runtime):**
+- update-pressure-index: apply pool/signal weights via getPoolWeight(), getSignalWeight()
+- detect-signals: add confidence bonuses via getConfidenceBonus()
+- interpret-signals: inject sector context into GPT-4o-mini prompts
+- synthesize-movements: sector-aware clustering and terminology
+- onboard-competitor: use getDefaultPages() for monitored_pages seeding
+
+**Sector Intelligence (sector_intelligence table):**
+- Generated Mon/Wed/Fri 07:00 UTC by metrivant-runtime
+- Per-org cross-competitor GPT-4o analysis (30d window)
+- Fields: summary, sector_trends (JSONB), divergences (JSONB)
+- UI: /app/sector displays trends, divergences, signal/movement activity, active competitors
+
+**Principle:** The pipeline remains deterministic. Sector config changes *how* evidence is weighted, not *what* evidence is collected. All sectors use the same detection pipeline; only interpretation weights and display terminology differ.
+
+**Legacy Catalog System:**
+- Each sector has 15 competitors in sector catalog (lib/sector-catalog.ts)
 - getSectorRandomDefaults(): priority 1–5 always anchored, 5 randomly sampled from 6–15
-- initialize-sector now bridges to runtime onboard-competitor API (fire-and-forget)
+- initialize-sector bridges to runtime onboard-competitor API (fire-and-forget)
 - Required env vars: RUNTIME_URL, CRON_SECRET (both in radar-ui)
 - Custom sector: no defaults, user starts empty
 - Clean Slate: /api/clean-slate → deletes tracked_competitors + resets sector to custom
