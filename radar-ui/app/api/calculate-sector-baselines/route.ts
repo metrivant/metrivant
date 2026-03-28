@@ -13,7 +13,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { createServiceClient } from "../../../lib/supabase/server-service";
+import { createServiceClient } from "../../../lib/supabase/service";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
     // Group orgs by sector
     const orgsBySector = new Map<string, string[]>();
-    orgs.forEach((org) => {
+    orgs.forEach((org: { id: string; sector: string | null }) => {
       const sector = org.sector ?? "saas";
       if (!orgsBySector.has(sector)) {
         orgsBySector.set(sector, []);
@@ -76,15 +76,18 @@ export async function POST(request: Request) {
         .select("org_id, competitor_id")
         .in("org_id", orgIds);
 
+      type TrackedComp = { org_id: string; competitor_id: string };
+      type SignalRow = { competitor_id: string };
+
       const signalsPerOrg = new Map<string, number>();
-      (trackedComps ?? []).forEach((tc) => {
+      (trackedComps ?? []).forEach((tc: TrackedComp) => {
         if (!signalsPerOrg.has(tc.org_id)) {
           signalsPerOrg.set(tc.org_id, 0);
         }
       });
 
-      (signalData ?? []).forEach((s) => {
-        const tc = (trackedComps ?? []).find((t) => t.competitor_id === s.competitor_id);
+      (signalData ?? []).forEach((s: SignalRow) => {
+        const tc = (trackedComps ?? []).find((t: TrackedComp) => t.competitor_id === s.competitor_id);
         if (tc) {
           signalsPerOrg.set(tc.org_id, (signalsPerOrg.get(tc.org_id) ?? 0) + 1);
         }
@@ -107,12 +110,14 @@ export async function POST(request: Request) {
         .select("id, pressure_index")
         .in("id", (trackedComps ?? []).map((tc) => tc.competitor_id));
 
+      type CompetitorRow = { id: string; pressure_index: number | null };
+
       const pressureByOrg = new Map<string, number[]>();
-      (trackedComps ?? []).forEach((tc) => {
+      (trackedComps ?? []).forEach((tc: TrackedComp) => {
         if (!pressureByOrg.has(tc.org_id)) {
           pressureByOrg.set(tc.org_id, []);
         }
-        const comp = (competitors ?? []).find((c) => c.id === tc.competitor_id);
+        const comp = (competitors ?? []).find((c: CompetitorRow) => c.id === tc.competitor_id);
         if (comp && comp.pressure_index != null) {
           pressureByOrg.get(tc.org_id)!.push(comp.pressure_index);
         }
@@ -138,15 +143,17 @@ export async function POST(request: Request) {
         .select("competitor_id")
         .gte("last_seen_at", thirtyDaysAgo);
 
+      type MovementRow = { competitor_id: string };
+
       const movementsPerOrg = new Map<string, number>();
-      (trackedComps ?? []).forEach((tc) => {
+      (trackedComps ?? []).forEach((tc: TrackedComp) => {
         if (!movementsPerOrg.has(tc.org_id)) {
           movementsPerOrg.set(tc.org_id, 0);
         }
       });
 
-      (movements ?? []).forEach((m) => {
-        const tc = (trackedComps ?? []).find((t) => t.competitor_id === m.competitor_id);
+      (movements ?? []).forEach((m: MovementRow) => {
+        const tc = (trackedComps ?? []).find((t: TrackedComp) => t.competitor_id === m.competitor_id);
         if (tc) {
           movementsPerOrg.set(tc.org_id, (movementsPerOrg.get(tc.org_id) ?? 0) + 1);
         }
@@ -171,15 +178,17 @@ export async function POST(request: Request) {
         .eq("event_type", "job_posting")
         .gte("event_date", thirtyDaysAgo);
 
+      type PoolEventRow = { competitor_id: string; event_type: string };
+
       const hiringPerOrg = new Map<string, number>();
-      (trackedComps ?? []).forEach((tc) => {
+      (trackedComps ?? []).forEach((tc: TrackedComp) => {
         if (!hiringPerOrg.has(tc.org_id)) {
           hiringPerOrg.set(tc.org_id, 0);
         }
       });
 
-      (poolEvents ?? []).forEach((e) => {
-        const tc = (trackedComps ?? []).find((t) => t.competitor_id === e.competitor_id);
+      (poolEvents ?? []).forEach((e: PoolEventRow) => {
+        const tc = (trackedComps ?? []).find((t: TrackedComp) => t.competitor_id === e.competitor_id);
         if (tc) {
           hiringPerOrg.set(tc.org_id, (hiringPerOrg.get(tc.org_id) ?? 0) + 1);
         }

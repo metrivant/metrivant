@@ -10,8 +10,7 @@
  * - Recent activity heatmap
  */
 
-import { getSectorLabel } from "../lib/sector-config";
-import { translateMovementType, translateSignalType } from "../lib/sectors";
+import { translateMovementType, translateSignalType, getSectorLabel } from "../lib/sectors";
 
 type SectorIntelligence = {
   id: string;

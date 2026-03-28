@@ -53,6 +53,47 @@ Dependency check:
 scripts/check-surface-deps.sh (if present)
 If missing → manually verify imports vs package.json
 
+### Deployment Verification (MANDATORY before push)
+
+Before every `git push`, run this sequence to prevent deployment failures:
+
+```bash
+# 1. Type-check (must pass with exit code 0)
+npx tsc --noEmit
+
+# 2. If type-check fails → fix errors before pushing
+# Common failures:
+#   - Missing type imports
+#   - Incorrect type assertions
+#   - Map<K,V> type mismatches (specify generic types explicitly)
+#   - Property access on potentially undefined values
+
+# 3. After fixing → verify again
+npx tsc --noEmit
+
+# 4. Only push when type-check passes
+git push origin main
+```
+
+**Critical:** TypeScript errors will cause Vercel deployment to fail. Never push with type errors.
+
+**Type-check failure patterns:**
+1. **Map type inference issues**
+   - Problem: `new Map([...])` infers `Map<any, any>` or wrong types
+   - Solution: Explicitly type: `new Map<string, string | null>([...])`
+
+2. **JSONB column types**
+   - Problem: Supabase JSONB returns `unknown` or `{}`
+   - Solution: Cast to specific type or use type assertion with validation
+
+3. **Optional chaining on new code**
+   - Problem: Accessing properties on potentially null/undefined values
+   - Solution: Use `?.` operator or null checks before access
+
+4. **Import resolution**
+   - Problem: Importing from wrong package.json scope
+   - Solution: Verify import resolves from correct surface package.json
+
 ---
 
 ## 3. SESSION GATE (MANDATORY)
