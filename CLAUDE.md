@@ -286,7 +286,7 @@ Each sector defines:
    - Eliminates configuration duplication between UI and runtime surfaces
 
 2. **Sector Validation** — Database-enforced integrity
-   - Migration 062: CHECK constraint on organizations.sector column
+   - Migration 062: CHECK constraint on organizations.sector column (✅ APPLIED 2026-03-28)
    - Postgres validate_sector() helper function
    - lib/sector-validation.ts: validateSector(), validateSectorWithFallback(), isSectorId()
    - Prevents invalid sector values at database and runtime layers
