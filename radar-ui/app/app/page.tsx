@@ -224,7 +224,7 @@ export default async function Page() {
             .select("signal_id, strategic_implication")
             .in("signal_id", signalIds);
 
-          const interpretationMap = new Map(
+          const interpretationMap = new Map<string, string | null>(
             (interpretations ?? []).map((i: { signal_id: string; strategic_implication: string | null }) => [
               i.signal_id,
               i.strategic_implication,
@@ -475,7 +475,7 @@ export default async function Page() {
           className="hidden w-[190px] shrink-0 flex-col overflow-hidden border-r border-[#0e1022] bg-[rgba(0,0,0,0.98)] md:flex xl:w-[240px]"
           aria-label="App navigation"
         >
-          <SidebarNav telescopeSignals={telescopeSignals} />
+          <SidebarNav telescopeSignals={telescopeSignals} sector={sector} />
         </nav>
 
         {/* ── Radar content area ─────────────────────────────────────────── */}

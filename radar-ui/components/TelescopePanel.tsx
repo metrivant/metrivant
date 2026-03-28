@@ -21,6 +21,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "../lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { translateSignalType } from "../lib/sector-config";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -54,8 +55,8 @@ export type TelescopeSignal = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatSignalType(t: string): string {
-  return t.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+function formatSignalType(t: string, sector?: string | null): string {
+  return translateSignalType(t, sector);
 }
 
 function timeAgo(iso: string): string {
@@ -215,12 +216,14 @@ function SignalCard({
   isFocused,
   onFocus,
   onDismiss,
+  sector,
 }: {
   signal: TelescopeSignal;
   index: number;
   isFocused: boolean;
   onFocus: () => void;
   onDismiss: () => void;
+  sector?: string | null;
 }) {
   const router = useRouter();
   const [showConfBreakdown, setShowConfBreakdown] = useState(false);
@@ -470,7 +473,7 @@ function SignalCard({
             transition: "margin 0.3s ease-out",
           }}
         >
-          {formatSignalType(signal.signal_type)}
+          {formatSignalType(signal.signal_type, sector)}
         </div>
 
         {/* Phase 1: Confidence breakdown (shown on click) */}
@@ -801,7 +804,13 @@ function SignalCard({
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export default function TelescopePanel({ signals: initialSignals }: { signals: TelescopeSignal[] }) {
+export default function TelescopePanel({
+  signals: initialSignals,
+  sector,
+}: {
+  signals: TelescopeSignal[];
+  sector?: string | null;
+}) {
   const [signals, setSignals] = useState<TelescopeSignal[]>(initialSignals);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [focusedIndex, setFocusedIndex] = useState(0);
@@ -1111,6 +1120,7 @@ export default function TelescopePanel({ signals: initialSignals }: { signals: T
                 isFocused={index === focusedIndex}
                 onFocus={() => handleManualFocus(index)}
                 onDismiss={() => handleDismiss(signal.id)}
+                sector={sector}
               />
             ))}
           </AnimatePresence>

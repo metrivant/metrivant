@@ -162,7 +162,13 @@ function NavLink({
   );
 }
 
-export default function SidebarNav({ telescopeSignals }: { telescopeSignals?: TelescopeSignal[] }) {
+export default function SidebarNav({
+  telescopeSignals,
+  sector,
+}: {
+  telescopeSignals?: TelescopeSignal[];
+  sector?: string | null;
+}) {
   const pathname = usePathname();
 
   return (
@@ -185,7 +191,7 @@ export default function SidebarNav({ telescopeSignals }: { telescopeSignals?: Te
 
       {/* Telescope — signal review instrument */}
       <div className="min-h-0 flex-1 px-3 pb-3">
-        <TelescopePanel signals={telescopeSignals ?? []} />
+        <TelescopePanel signals={telescopeSignals ?? []} sector={sector} />
       </div>
 
     </div>

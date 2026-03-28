@@ -583,6 +583,12 @@ Tag key: [B] = permanent ongoing behaviour · [I] = incident, already patched
   - `HistoricalCapsule` — DISABLED (file exists, not imported)
   - `FeatureDiscoveryPanel` — DISABLED (file exists, not imported)
   - `TutorialHint` — DISABLED (file exists, removed from page.tsx)
+
+- [B] Onboarding can appear stuck on "Setting up monitoring pages..." when runtime onboard-competitor API
+  calls are delayed. Frontend polls `/api/onboarding-status` every 5s, shows stage="monitoring" but
+  pages_created=0. This is not a bug — it's the runtime backlog clearing. Failsafe: 45s timeout in
+  SectorSelectClient auto-redirects to /app if stage stays monitoring without progress. Progress bar
+  animates 0→85% over 20s to show activity. Users are never permanently stuck. (2026-03-27)
   Do not re-enable old panels. KnowledgePanel is the single ambient education system.
 
 - `zoom: 0.9` was removed from globals.css (2026-03-18, reversed later). Do not re-add it — it caused
