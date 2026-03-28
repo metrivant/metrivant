@@ -55,9 +55,25 @@ const PIPELINE_STAGES = [
 ];
 
 export default function FlowSection() {
-  const [selectedSector, setSelectedSector] = useState<SectorId | null>(null);
+  // Default to SaaS (most popular) so visitors see content immediately
+  const [selectedSector, setSelectedSector] = useState<SectorId>("saas");
   const containerRef = useRef<HTMLDivElement>(null);
   const pipelineRef = useRef<HTMLDivElement>(null);
+
+  // Smooth scroll to pipeline when sector changes
+  const handleSectorSelect = (sectorId: SectorId) => {
+    setSelectedSector(sectorId);
+    // Small delay to let content render, then scroll
+    setTimeout(() => {
+      if (pipelineRef.current) {
+        pipelineRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+          inline: "nearest"
+        });
+      }
+    }, 100);
+  };
 
   // Always target the section container, not the conditionally-rendered pipeline div
   const { scrollYProgress } = useScroll({
@@ -133,29 +149,35 @@ export default function FlowSection() {
           >
             Sector-Aware Intelligence Pipeline
           </h2>
-          <p className="mt-3 text-[12px] text-slate-500">
-            Select your market to see how signals are amplified
+          <p className="mt-4 text-[13px] text-slate-400">
+            Click a sector below to see how signals are weighted
           </p>
         </div>
 
         {/* Sector Selection */}
         <div className="mb-16">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
             {SECTORS.map((s, i) => {
               const isSelected = selectedSector === s.id;
               return (
                 <motion.button
                   key={s.id}
-                  onClick={() => setSelectedSector(s.id)}
-                  className="group relative overflow-hidden rounded-lg border px-4 py-6 text-center transition-all"
+                  onClick={() => handleSectorSelect(s.id)}
+                  className="group relative overflow-hidden rounded-lg border px-4 py-6 text-center transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#000002]"
+                  aria-label={`View ${s.label} intelligence pipeline`}
+                  aria-pressed={isSelected}
                   style={{
                     borderColor: isSelected ? s.color : "rgba(0,180,255,0.15)",
                     background: isSelected ? s.color + "10" : "rgba(0,180,255,0.02)",
-                  }}
+                    "--tw-ring-color": s.color,
+                  } as React.CSSProperties}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: i * 0.08 }}
-                  whileHover={{ scale: 1.03 }}
+                  whileHover={{
+                    scale: isSelected ? 1.0 : 1.03,
+                    borderColor: s.color + "60"
+                  }}
                   whileTap={{ scale: 0.98 }}
                 >
                   {isSelected && (
@@ -178,12 +200,23 @@ export default function FlowSection() {
                   </div>
 
                   {isSelected && (
-                    <motion.div
-                      className="absolute bottom-0 left-0 right-0 h-[2px]"
-                      style={{ background: s.color }}
-                      layoutId="sector-indicator"
-                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    />
+                    <>
+                      <motion.div
+                        className="absolute bottom-0 left-0 right-0 h-[2px]"
+                        style={{ background: s.color }}
+                        layoutId="sector-indicator"
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      />
+                      <motion.div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{
+                          boxShadow: `inset 0 0 0 1px ${s.color}40`
+                        }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.3 }}
+                      />
+                    </>
                   )}
                 </motion.button>
               );
@@ -344,10 +377,17 @@ export default function FlowSection() {
         )}
 
         {!selectedSector && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-16 text-center">
-            <div className="mb-4 text-[48px] opacity-20">↑</div>
-            <div className="font-mono text-[11px] text-slate-600">
-              Select a sector to visualize the pipeline
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="py-24 text-center"
+          >
+            <div className="mb-6 text-[56px] opacity-15">↑</div>
+            <div className="font-mono text-[12px] font-medium text-slate-500">
+              Select a sector above to see the intelligence pipeline
+            </div>
+            <div className="mt-2 text-[11px] text-slate-700">
+              See how signals are detected, weighted, and surfaced
             </div>
           </motion.div>
         )}
