@@ -201,59 +201,59 @@ export default async function Page() {
       const service = createServiceClient();
       const competitorIds = competitors.map((c) => c.competitor_id);
       if (competitorIds.length > 0) {
+        // Fetch top 5 high-confidence signals
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data } = await (service as any)
           .from("signals")
-          .select("id, signal_type, confidence_score, detected_at, competitor_id, retrograded_at, section_diff_id, strategic_implication, previous_excerpt, current_excerpt")
+          .select("id, signal_type, confidence_score, detected_at, competitor_id, retrograded_at, section_diff_id, signal_data")
           .in("competitor_id", competitorIds)
           .eq("status", "interpreted")
-          .gte("confidence_score", 0.65)  // High-confidence only for visual panel
+          .gte("confidence_score", 0.65)
           .order("confidence_score", { ascending: false })
           .order("detected_at", { ascending: false })
-          .limit(5);  // TOP 5 only
+          .limit(5);
 
-        // Fetch noise metadata for these signals via their section_diff_id
-        const diffIds = ((data ?? []) as Array<{ section_diff_id: string | null }>)
-          .map((s) => s.section_diff_id)
-          .filter((id): id is string => id != null);
+        if (data && data.length > 0) {
+          const signalIds = data.map((s: { id: string }) => s.id);
 
-        const noiseMeta = new Map<string, { is_noise: boolean; noise_reason: string | null }>();
-        if (diffIds.length > 0) {
+          // Fetch interpretations for strategic_implication
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { data: diffs } = await (service as any)
-            .from("section_diffs")
-            .select("id, is_noise, noise_reason")
-            .in("id", diffIds);
-          for (const d of diffs ?? []) {
-            noiseMeta.set(d.id, { is_noise: d.is_noise, noise_reason: d.noise_reason });
-          }
-        }
+          const { data: interpretations } = await (service as any)
+            .from("interpretations")
+            .select("signal_id, strategic_implication")
+            .in("signal_id", signalIds);
 
-        const nameMap = new Map(competitors.map((c) => [c.competitor_id, c.competitor_name]));
-        telescopeSignals = ((data ?? []) as Array<{
-          id: string; signal_type: string;
-          confidence_score: number | null; detected_at: string; competitor_id: string;
-          retrograded_at: string | null; section_diff_id: string | null;
-          strategic_implication: string | null;
-          previous_excerpt: string | null;
-          current_excerpt: string | null;
-        }>).map((s) => {
-          const meta = s.section_diff_id ? noiseMeta.get(s.section_diff_id) : undefined;
-          return {
+          const interpretationMap = new Map(
+            (interpretations ?? []).map((i: { signal_id: string; strategic_implication: string | null }) => [
+              i.signal_id,
+              i.strategic_implication,
+            ])
+          );
+
+          const nameMap = new Map(competitors.map((c) => [c.competitor_id, c.competitor_name]));
+
+          telescopeSignals = (data as Array<{
+            id: string;
+            signal_type: string;
+            confidence_score: number | null;
+            detected_at: string;
+            competitor_id: string;
+            retrograded_at: string | null;
+            section_diff_id: string | null;
+            signal_data: { previous_excerpt?: string | null; current_excerpt?: string | null } | null;
+          }>).map((s) => ({
             id: s.id,
             signal_type: s.signal_type,
-            summary: null, // Column doesn't exist in signals table; TelescopePanel handles null
+            summary: null,
             confidence_score: s.confidence_score,
             detected_at: s.detected_at,
             competitor_name: nameMap.get(s.competitor_id) ?? "Unknown",
-            is_noise: meta?.is_noise,
-            noise_reason: meta?.noise_reason,
-            retrograded_at: s.retrograded_at,
-            strategic_implication: s.strategic_implication,
-            previous_excerpt: s.previous_excerpt,
-            current_excerpt: s.current_excerpt,
-          };
-        });
+            competitor_id: s.competitor_id,
+            strategic_implication: interpretationMap.get(s.id) ?? null,
+            previous_excerpt: s.signal_data?.previous_excerpt ?? null,
+            current_excerpt: s.signal_data?.current_excerpt ?? null,
+          }));
+        }
       }
     } catch { /* non-fatal */ }
   }
