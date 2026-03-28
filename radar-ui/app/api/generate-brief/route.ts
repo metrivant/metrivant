@@ -425,14 +425,15 @@ async function runGeneration(): Promise<NextResponse> {
       const { data: briefRow, error: insertError } = await sb
         .from("weekly_briefs")
         .insert({
-          org_id:         org.id,
-          content:        briefContent,
-          signal_count:   signalCount,
-          generated_at:   new Date().toISOString(),
-          sector_summary: sectorSummary,
-          movements:      movements,
-          activity:       activity,
-          brief_markdown: briefMarkdown,
+          org_id:            org.id,
+          content:           briefContent,
+          signal_count:      signalCount,
+          generated_at:      new Date().toISOString(),
+          sector_summary:    sectorSummary,
+          movements:         movements,
+          activity:          activity,
+          brief_markdown:    briefMarkdown,
+          validation_status: "pending",
         })
         .select("id")
         .single();

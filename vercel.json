@@ -229,6 +229,10 @@
       "schedule": "42 * * * *"
     },
     {
+      "path": "/api/validate-briefs",
+      "schedule": "15 10 * * 1"
+    },
+    {
       "path": "/api/detect-signal-causality",
       "schedule": "47 * * * *"
     },
