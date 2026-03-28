@@ -1,6 +1,6 @@
 METRIVANT — MASTER SYSTEM REFERENCE
-Version: v4.4 (backend hardening — SSRF, fail-closed auth, hallucination gating, pool visibility, stale-content, circuit breaker, quarantine, baseline suppression)
-Last updated: 2026-03-21
+Version: v4.5 (sector system optimizations — build-time generation, database validation, pipeline observability + landing page redesign)
+Last updated: 2026-03-28
 
 This document is the single authoritative reference for the Metrivant system.
 It replaces: ARCHITECTURE_INDEX, MASTER_ARCHITECTURE_PLAN, SYSTEM_ARCHITECTURE,
