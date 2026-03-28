@@ -15,5 +15,5 @@ Sentry.init({
     "development",
   release: process.env.VERCEL_GIT_COMMIT_SHA,
   sendDefaultPii: false,
-  beforeSend: sanitizeEvent,
+  beforeSend: sanitizeEvent as any,
 });

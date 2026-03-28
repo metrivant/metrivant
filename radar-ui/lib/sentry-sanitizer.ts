@@ -103,10 +103,15 @@ export function sanitizeEvent(event: Event, hint: EventHint): Event | null {
       event.request.url = sanitizeString(event.request.url) ?? event.request.url;
     }
     if (event.request.query_string) {
-      event.request.query_string = sanitizeString(event.request.query_string) ?? event.request.query_string;
+      // query_string can be string or object
+      if (typeof event.request.query_string === 'string') {
+        event.request.query_string = sanitizeString(event.request.query_string) ?? event.request.query_string;
+      } else {
+        event.request.query_string = sanitizeObject(event.request.query_string) as typeof event.request.query_string;
+      }
     }
     if (event.request.headers) {
-      event.request.headers = sanitizeObject(event.request.headers) as Record<string, string>;
+      event.request.headers = sanitizeObject(event.request.headers) as typeof event.request.headers;
     }
     if (event.request.data) {
       event.request.data = sanitizeObject(event.request.data);
@@ -115,12 +120,12 @@ export function sanitizeEvent(event: Event, hint: EventHint): Event | null {
 
   // Sanitize extra context
   if (event.extra) {
-    event.extra = sanitizeObject(event.extra) as Record<string, unknown>;
+    event.extra = sanitizeObject(event.extra) as typeof event.extra;
   }
 
   // Sanitize contexts
   if (event.contexts) {
-    event.contexts = sanitizeObject(event.contexts) as Record<string, unknown>;
+    event.contexts = sanitizeObject(event.contexts) as typeof event.contexts;
   }
 
   return event;

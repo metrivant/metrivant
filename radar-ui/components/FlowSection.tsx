@@ -56,10 +56,12 @@ const PIPELINE_STAGES = [
 
 export default function FlowSection() {
   const [selectedSector, setSelectedSector] = useState<SectorId | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const pipelineRef = useRef<HTMLDivElement>(null);
 
+  // Always target the section container, not the conditionally-rendered pipeline div
   const { scrollYProgress } = useScroll({
-    target: pipelineRef,
+    target: containerRef,
     offset: ["start end", "end start"],
   });
 
@@ -67,7 +69,7 @@ export default function FlowSection() {
   const config = selectedSector ? SECTOR_CONFIG[selectedSector] : null;
 
   return (
-    <section className="relative border-t border-[#0d1020] px-6 py-16 md:py-24">
+    <section ref={containerRef} className="relative border-t border-[#0d1020] px-6 py-16 md:py-24">
       <div className="mx-auto max-w-4xl">
         {/* Header */}
         <div className="mb-12 text-center">

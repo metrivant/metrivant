@@ -14,5 +14,5 @@ Sentry.init({
     process.env.NODE_ENV ??
     "development",
   sendDefaultPii: false,
-  beforeSend: sanitizeEvent,
+  beforeSend: sanitizeEvent as any,
 });

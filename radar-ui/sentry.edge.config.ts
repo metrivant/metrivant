@@ -12,5 +12,5 @@ Sentry.init({
     process.env.VERCEL_ENV ??
     process.env.NODE_ENV ??
     "development",
-  beforeSend: sanitizeEvent,
+  beforeSend: sanitizeEvent as any,
 });
