@@ -125,10 +125,14 @@ async function handler(req: ApiReq, res: ApiRes) {
     // When absent (legacy / internal): load all tracked competitors across orgs.
     // `tracked_competitors` is a UI-DB table not present in the runtime's generated
     // types — cast through `any` since the same Supabase instance serves both.
+    //
+    // CRITICAL: added_at timestamp is used to filter signals per org. Each org should
+    // only see signals detected AFTER they started tracking the competitor. Without
+    // this filter, new orgs see historical signals from other orgs' tracking periods.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let trackedQuery = (supabase as any)
       .from("tracked_competitors")
-      .select("competitor_id")
+      .select("competitor_id, added_at")
       .not("competitor_id", "is", null);
 
     if (orgId) {
@@ -140,10 +144,19 @@ async function handler(req: ApiReq, res: ApiRes) {
     if (trackedError) throw trackedError;
 
     const trackedIds = [...new Set(
-      ((trackedRows ?? []) as { competitor_id: string }[])
+      ((trackedRows ?? []) as { competitor_id: string; added_at: string }[])
         .map((r) => r.competitor_id)
         .filter(Boolean)
     )];
+
+    // Build map of competitor_id → added_at for signal filtering.
+    // Signals detected before added_at should not appear for this org.
+    const trackedSinceMap = new Map<string, string>();
+    for (const row of ((trackedRows ?? []) as { competitor_id: string; added_at: string }[])) {
+      if (row.competitor_id && row.added_at) {
+        trackedSinceMap.set(row.competitor_id, row.added_at);
+      }
+    }
 
     if (trackedIds.length === 0) {
       return res.status(200).json({
@@ -224,6 +237,16 @@ async function handler(req: ApiReq, res: ApiRes) {
         const cid = pageToCompetitor.get(sig.monitored_page_id);
         if (!cid) continue;
 
+        // CRITICAL: Org-scoped signal filtering. Only count signals detected AFTER
+        // the org started tracking this competitor. Without this, new orgs see all
+        // historical signals from other orgs' tracking periods (the "50+ signals on
+        // sector selection" bug). added_at is set when tracked_competitors row is
+        // created (default now()) in initialize-sector or discover/track handlers.
+        const trackedSince = trackedSinceMap.get(cid);
+        if (trackedSince && sig.detected_at < trackedSince) {
+          continue; // Signal predates org's tracking period — skip
+        }
+
         const existing = signalAggMap.get(cid) ?? {
           competitor_id: cid,
           signals_7d: 0,
@@ -265,6 +288,13 @@ async function handler(req: ApiReq, res: ApiRes) {
 
       for (const sig of (poolSignalRows ?? []) as { competitor_id: string; severity: string; detected_at: string; signal_type: string }[]) {
         const cid = sig.competitor_id;
+
+        // Org-scoped filtering (same as page-diff signals above)
+        const trackedSince = trackedSinceMap.get(cid);
+        if (trackedSince && sig.detected_at < trackedSince) {
+          continue; // Signal predates org's tracking period
+        }
+
         const existing = signalAggMap.get(cid) ?? {
           competitor_id: cid, signals_7d: 0, weighted_velocity_7d: 0,
           last_signal_at: null, latest_signal_type: null,
