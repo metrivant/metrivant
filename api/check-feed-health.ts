@@ -3,7 +3,7 @@ import { withSentry, ApiReq, ApiRes } from "../lib/withSentry";
 import { Sentry } from "../lib/sentry";
 import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
-import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
+import { recordEvent, startTimer, generateRunId, serializeError } from "../lib/pipeline-metrics";
 import { checkFeedHealth, FeedHealthResult } from "../lib/feed-health";
 import { SECTOR_MEDIA_SOURCES } from "../lib/sector-media-sources";
 
@@ -189,7 +189,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       stage: "feed_health_check",
       status: "failure",
       duration_ms: elapsed(),
-      metadata: { error: error instanceof Error ? error.message : String(error) },
+      metadata: { error: serializeError(error) },
     });
     await Sentry.flush(2000);
     throw error;

@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
 import { validateUrl } from "../lib/url-validator";
 import { rejectPageUrl } from "../lib/url-guard";
-import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
+import { recordEvent, startTimer, generateRunId, serializeError } from "../lib/pipeline-metrics";
 import { suggestAlternativeUrls, analyzeDegradedPage } from "../lib/ai-url-resolver";
 
 // ── /api/resolve-coverage ─────────────────────────────────────────────────────
@@ -361,7 +361,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       stage: "resolve_coverage",
       status: "failure",
       duration_ms: elapsed(),
-      metadata: { error: error instanceof Error ? error.message : String(error) },
+      metadata: { error: serializeError(error) },
     });
     await Sentry.flush(2000);
     throw error;

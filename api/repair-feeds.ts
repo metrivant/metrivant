@@ -3,7 +3,7 @@ import { withSentry, ApiReq, ApiRes } from "../lib/withSentry";
 import { Sentry } from "../lib/sentry";
 import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
-import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
+import { recordEvent, startTimer, generateRunId, serializeError } from "../lib/pipeline-metrics";
 import { discoverFeedUrl } from "../lib/feed-repair";
 
 // ── /api/repair-feeds ─────────────────────────────────────────────────────────
@@ -180,7 +180,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   } catch (error) {
     Sentry.captureException(error);
     Sentry.captureCheckIn({ monitorSlug: "repair-feeds", status: "error", checkInId });
-    void recordEvent({ run_id: runId, stage: "feed_repair", status: "failure", duration_ms: elapsed(), metadata: { error: error instanceof Error ? error.message : String(error) } });
+    void recordEvent({ run_id: runId, stage: "feed_repair", status: "failure", duration_ms: elapsed(), metadata: { error: serializeError(error) } });
     await Sentry.flush(2000);
     throw error;
   }

@@ -21,6 +21,24 @@ export function startTimer(): () => number {
   return () => Date.now() - start;
 }
 
+/**
+ * Serialize an error for pipeline_events metadata.
+ * Handles Error instances, Supabase error objects, and unknown types.
+ */
+export function serializeError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (error && typeof error === "object" && "message" in error) {
+    return String(error.message);
+  }
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
 export function recordEvent(event: PipelineEvent): void {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (supabase as any)

@@ -3,7 +3,7 @@ import { withSentry, ApiReq, ApiRes } from "../lib/withSentry";
 import { Sentry } from "../lib/sentry";
 import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
-import { recordEvent, startTimer, generateRunId } from "../lib/pipeline-metrics";
+import { recordEvent, startTimer, generateRunId, serializeError } from "../lib/pipeline-metrics";
 import { openai } from "../lib/openai";
 import { validateSector } from "../lib/sector-validation";
 import { buildSectorValidationGuidance, type SectorId } from "../lib/sector-prompting";
@@ -246,7 +246,7 @@ async function handler(req: ApiReq, res: ApiRes) {
   } catch (error) {
     Sentry.captureException(error);
     Sentry.captureCheckIn({ monitorSlug: "validate-movements", status: "error", checkInId });
-    void recordEvent({ run_id: runId, stage: "movement_validation", status: "failure", duration_ms: elapsed(), metadata: { error: error instanceof Error ? error.message : String(error) } });
+    void recordEvent({ run_id: runId, stage: "movement_validation", status: "failure", duration_ms: elapsed(), metadata: { error: serializeError(error) } });
     await Sentry.flush(2000);
     throw error;
   }

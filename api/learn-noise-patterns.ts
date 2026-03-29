@@ -3,7 +3,7 @@ import { withSentry, ApiReq, ApiRes } from "../lib/withSentry";
 import { Sentry } from "../lib/sentry";
 import { supabase } from "../lib/supabase";
 import { verifyCronSecret } from "../lib/withCronAuth";
-import { recordEvent, generateRunId, startTimer } from "../lib/pipeline-metrics";
+import { recordEvent, generateRunId, startTimer, serializeError } from "../lib/pipeline-metrics";
 
 /**
  * learn-noise-patterns (REACTIVATED 2026-03-26)
@@ -232,7 +232,7 @@ async function handler(req: ApiReq, res: ApiRes) {
       stage: "noise_pattern_learn",
       status: "failure",
       duration_ms: elapsed(),
-      metadata: { error: error instanceof Error ? error.message : String(error) },
+      metadata: { error: serializeError(error) },
     });
     await Sentry.flush(2000);
     throw error;
