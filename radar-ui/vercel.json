@@ -22,6 +22,10 @@
       "schedule": "0 9 * * *"
     },
     {
+      "path": "/api/generate-actions",
+      "schedule": "30 9 * * *"
+    },
+    {
       "path": "/api/send-validated-briefs",
       "schedule": "20 10 * * 1"
     }

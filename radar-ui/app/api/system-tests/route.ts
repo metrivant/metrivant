@@ -117,8 +117,8 @@ async function pipelineTests(service: SB): Promise<TestSection> {
   const ago2h = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 
   const CORE_STAGES = [
-    "fetch-snapshots", "extract-sections", "build-baselines",
-    "detect-diffs", "detect-signals", "interpret-signals",
+    "snapshot", "extract", "compare",
+    "diff", "signal", "interpretation",
   ];
 
   // Test: pipeline_events exist in last 24h
@@ -265,6 +265,7 @@ async function cronTests(service: SB): Promise<TestSection> {
     "/api/check-signals", "/api/update-momentum",
     "/api/strategic-analysis", "/api/update-positioning",
     "/api/generate-actions",
+    "/api/generate-brief", "/api/send-validated-briefs",
   ];
 
   // Test: cron_heartbeats table has data
