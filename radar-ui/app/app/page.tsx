@@ -267,18 +267,21 @@ export default async function Page() {
             signals!signal_relationships_signal_id_fkey(signal_type, detected_at, competitor_id),
             related:signals!signal_relationships_related_signal_id_fkey(signal_type, detected_at)
           `)
-          .gte("detected_at", fourteenDaysAgo)
           .gte("confidence_score", 0.6)
-          .order("detected_at", { ascending: false })
-          .limit(10);
+          .limit(50);
 
         if (relationships && relationships.length > 0) {
           const nameMap = new Map(competitors.map((c) => [c.competitor_id, c.competitor_name]));
+          const fourteenDaysAgoMs = Date.now() - 14 * 24 * 60 * 60 * 1000;
 
           causalRelationships = relationships
             .filter((r: {
-              signals: { competitor_id: string } | null;
-            }) => r.signals && competitorIds.includes(r.signals.competitor_id))
+              signals: { competitor_id: string; detected_at: string } | null;
+            }) => {
+              if (!r.signals || !competitorIds.includes(r.signals.competitor_id)) return false;
+              const detectedAt = new Date(r.signals.detected_at).getTime();
+              return detectedAt >= fourteenDaysAgoMs;
+            })
             .map((r: {
               signal_id: string;
               related_signal_id: string;
@@ -299,7 +302,11 @@ export default async function Page() {
               precursor_detected_at: r.signals?.detected_at ?? "",
               consequence_detected_at: r.related?.detected_at ?? "",
               competitor_name: nameMap.get(r.signals?.competitor_id ?? "") ?? "Unknown",
-            }));
+            }))
+            .sort((a: { precursor_detected_at: string }, b: { precursor_detected_at: string }) =>
+              new Date(b.precursor_detected_at).getTime() - new Date(a.precursor_detected_at).getTime()
+            )
+            .slice(0, 10);
         }
       }
     } catch { /* non-fatal */ }
